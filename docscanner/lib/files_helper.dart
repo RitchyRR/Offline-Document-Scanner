@@ -426,29 +426,7 @@ class FilesHelper {
           "Error, _convertDocumentToPdf: No images in Document $docIndex",
         );
       }
-
-      // Create PDF
-      final pdf = pw.Document();
-      for (String imagePath in imagePaths) {
-        final imageFile = File(imagePath);
-        if (await imageFile.exists()) {
-          final imageBytes = await imageFile.readAsBytes();
-          final image = pw.MemoryImage(imageBytes);
-
-          pdf.addPage(
-            pw.Page(
-              pageFormat: PdfPageFormat.a4,
-              build: (pw.Context context) {
-                return pw.Center(
-                  child: pw.Image(image, fit: pw.BoxFit.contain),
-                );
-              },
-            ),
-          );
-        }
-      }
-
-      return pdf;
+      return _convertImagesToPdf(imagePaths);
     } catch (e) {
       dev.log("Error, _convertDocumentToPdf: $e");
     }
@@ -557,14 +535,7 @@ class FilesHelper {
   ) async {
     List<String> imagePaths = await FilesHelper.getPagesThumbnails(docIndex);
     if (imagePaths.isNotEmpty) {
-      List<XFile> xFiles = [];
-      for (var path in imagePaths) {
-        xFiles.add(XFile(path));
-      }
-      await Share.shareXFiles(
-        xFiles,
-        //text: "Check out my document!",
-      );
+      shareImages(imagePaths, docIndex: docIndex);
     } else {
       ScaffoldMessenger.of(
         // ignore: use_build_context_synchronously
@@ -573,11 +544,26 @@ class FilesHelper {
     }
   }
 
-  static Future<void> shareImages(List<String> imagePaths) async {
+  static Future<void> shareImages(
+    List<String> imagePaths, {
+    int? docIndex,
+  }) async {
+    // Unique filenames in temporary directory to prevent overwrites,
+    // because shareXFiles is stupid
+    final tempDir = await getTemporaryDirectory();
+    await tempDir.create(recursive: true);
     List<XFile> xFiles = [];
-    for (var path in imagePaths) {
-      xFiles.add(XFile(path));
+
+    for (var i = 0; i < imagePaths.length; i++) {
+      final originalPath = imagePaths[i];
+      final ext = originalPath.split('.').last;
+      final tempFilePath =
+          '${tempDir.path}/${docIndex != null ? "doc${docIndex}_page" : "image_"}$i.$ext';
+      await File(originalPath).copy(tempFilePath);
+
+      xFiles.add(XFile(tempFilePath));
     }
+
     await Share.shareXFiles(xFiles);
   }
 
@@ -586,8 +572,8 @@ class FilesHelper {
     int docIndex,
   ) async {
     // Save PDF
-    String docPath = await getDocumentPath(docIndex);
-    String pdfPath = "$docPath/document_$docIndex.pdf";
+    final tempDir = await getTemporaryDirectory();
+    String pdfPath = "$tempDir/document_$docIndex.pdf";
     pw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
@@ -613,9 +599,9 @@ class FilesHelper {
     String? versionName,
   }) async {
     // Save PDF
-    String docsPath = await _getDocumentsPath();
+    final tempDir = await getTemporaryDirectory();
     String pdfPath =
-        "$docsPath/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
+        "$tempDir/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
     pw.Document? pdf = await _convertImagesToPdf(imagePaths);
     if (pdf != null) {
       final pdfFile = File(pdfPath);

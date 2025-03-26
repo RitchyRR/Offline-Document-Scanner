@@ -798,27 +798,38 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
-          FloatingActionButton(
-            heroTag: "pickImage",
-            mini: true,
-            onPressed: () {
-              _openImagePicker(ImageSource.gallery, isMultiImage: true);
-            },
-            tooltip: 'Pick multiple Images from Gallery',
-            child: const Icon(Icons.photo_library),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: FloatingActionButton(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              heroTag: "pickImage",
+              onPressed: () {
+                _openImagePicker(ImageSource.gallery, isMultiImage: true);
+              },
+              tooltip: 'Pick multiple Images from Gallery',
+              child: const Icon(Icons.photo_library),
+            ),
           ),
-          SizedBox(height: 12.0),
-          FloatingActionButton(
-            heroTag: "pickImages",
-            mini:
-                _picker.supportsImageSource(ImageSource.camera) ? true : false,
-            onPressed: () {
-              _openImagePicker(ImageSource.gallery);
-            },
-            tooltip: 'Pick an Image from Gallery',
-            child: const Icon(Icons.photo),
+          SizedBox(height: 18.0),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: FloatingActionButton(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              heroTag: "pickImages",
+              onPressed: () {
+                _openImagePicker(ImageSource.gallery);
+              },
+              tooltip: 'Pick an Image from Gallery',
+              child: const Icon(Icons.photo),
+            ),
           ),
-          SizedBox(height: 16.0),
+          SizedBox(height: 18.0),
           if (_picker.supportsImageSource(ImageSource.camera))
             FloatingActionButton(
               heroTag: "makePhoto",
@@ -828,7 +839,7 @@ class _MyHomePageState extends State<MyHomePage> {
               tooltip: 'Take a Photo',
               child: const Icon(Icons.camera_alt),
             ),
-          SizedBox(height: 16.0),
+          SizedBox(height: 20.0),
         ],
       ),
     );
@@ -1135,27 +1146,38 @@ class _PagesState extends State<Pages> {
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
-          FloatingActionButton(
-            heroTag: "pickImage",
-            mini: true,
-            onPressed: () {
-              _openImagePicker(ImageSource.gallery, isMultiImage: true);
-            },
-            tooltip: 'Pick multiple Images from Gallery',
-            child: const Icon(Icons.photo_library),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: FloatingActionButton(
+              heroTag: "pickImage",
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onPressed: () {
+                _openImagePicker(ImageSource.gallery, isMultiImage: true);
+              },
+              tooltip: 'Pick multiple Images from Gallery',
+              child: const Icon(Icons.photo_library),
+            ),
           ),
-          SizedBox(height: 12.0),
-          FloatingActionButton(
-            heroTag: "pickImages",
-            mini:
-                _picker.supportsImageSource(ImageSource.camera) ? true : false,
-            onPressed: () {
-              _openImagePicker(ImageSource.gallery);
-            },
-            tooltip: 'Pick an Image from Gallery',
-            child: const Icon(Icons.photo),
+          SizedBox(height: 18.0),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: FloatingActionButton(
+              heroTag: "pickImages",
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onPressed: () {
+                _openImagePicker(ImageSource.gallery);
+              },
+              tooltip: 'Pick an Image from Gallery',
+              child: const Icon(Icons.photo),
+            ),
           ),
-          SizedBox(height: 16.0),
+          SizedBox(height: 18.0),
           if (_picker.supportsImageSource(ImageSource.camera))
             FloatingActionButton(
               heroTag: "makePhoto",
@@ -1165,7 +1187,7 @@ class _PagesState extends State<Pages> {
               tooltip: 'Take a Photo',
               child: const Icon(Icons.camera_alt),
             ),
-          SizedBox(height: 16.0),
+          SizedBox(height: 20.0),
         ],
       ),
     );
@@ -1456,14 +1478,17 @@ class _PreviewPageState extends State<PreviewPage> {
         ],
       ),
       // Floating Buttons
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            FloatingActionButton(
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: FloatingActionButton(
               heroTag: "sharePageVersion",
-              mini: true,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               onPressed:
                   _imagesLoaded[_currentVersion]
                       ? () => _sharePagePopup(context, _currentVersion)
@@ -1485,33 +1510,35 @@ class _PreviewPageState extends State<PreviewPage> {
                         : Theme.of(context).disabledColor,
               ),
             ),
-            SizedBox(height: 12.0),
-            FloatingActionButton(
-              heroTag: "savePageVersion",
-              onPressed:
-                  _imagesLoaded[_currentVersion]
-                      ? () => _savePagePopup(context, _currentVersion)
-                      : null,
-              tooltip:
-                  _imagesLoaded[_currentVersion]
-                      ? 'Save Image'
-                      : 'Waiting for image to load...',
-              backgroundColor:
+          ),
+          SizedBox(height: 18.0),
+          FloatingActionButton(
+            heroTag: "savePageVersion",
+            onPressed:
+                _imagesLoaded[_currentVersion]
+                    ? () => _savePagePopup(context, _currentVersion)
+                    : null,
+            tooltip:
+                _imagesLoaded[_currentVersion]
+                    ? 'Save Image'
+                    : 'Waiting for image to load...',
+            backgroundColor:
+                _imagesLoaded[_currentVersion]
+                    ? null
+                    : Theme.of(context).disabledColor,
+            elevation: _imagesLoaded[_currentVersion] ? null : 0.0,
+            child: Icon(
+              Icons.save,
+              color:
                   _imagesLoaded[_currentVersion]
                       ? null
                       : Theme.of(context).disabledColor,
-              elevation: _imagesLoaded[_currentVersion] ? null : 0.0,
-              child: Icon(
-                Icons.save,
-                color:
-                    _imagesLoaded[_currentVersion]
-                        ? null
-                        : Theme.of(context).disabledColor,
-              ),
             ),
-          ],
-        ),
+          ),
+          SizedBox(height: 20.0),
+        ],
       ),
+
       // Thumbnail Bar
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.only(bottom: 50),
