@@ -1045,10 +1045,12 @@ class _PagesState extends State<Pages> {
                               ),
                             ),
                           ),
+                          // Page Index Indicator
                           Positioned(
                             top: 18,
                             left: 12,
                             child: GestureDetector(
+                              // Swap Page Index Dialog
                               onTap: () async {
                                 int? selectedIndex = await showDialog<int>(
                                   context: context,
