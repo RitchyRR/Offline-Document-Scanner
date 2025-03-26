@@ -444,19 +444,17 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
-
       builder: (BuildContext context) {
         return AlertDialog(
-          //insetPadding: EdgeInsets.symmetric(horizontal: 100.0),
-          //actionsOverflowAlignment: OverflowBarAlignment.center,
           title: Text("Save Document"),
 
           actions: [
             ImagesScrollPreview(pagePaths: pagePaths),
             SizedBox(height: 36.0),
+            // Save as Images
             ElevatedButton.icon(
               onPressed: () async {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(context);
                 await FilesHelper.saveDocumentImagesToGallery(docIndex);
               },
               icon: Icon(Icons.image),
@@ -468,7 +466,7 @@ class _MyHomePageState extends State<MyHomePage> {
             // Save as PDF
             ElevatedButton.icon(
               onPressed: () async {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(context);
                 await FilesHelper.pickFolderForDocumentPdf(docIndex);
               },
               icon: Icon(Icons.picture_as_pdf),
@@ -514,12 +512,14 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  // Documents
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Documents")),
       body:
           _docThumbnails.isNotEmpty
+              // Documents Cards
               ? ListView.builder(
                 itemCount: _docThumbnails.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -529,7 +529,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           : "Document ${index + 1}";
                   String creationDate = _docDates[index];
                   int pagesCount = _docPageCounts[index];
-
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -795,6 +794,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
               )
               : const Center(child: Text('No images to display.')),
+      // Floating Action Buttons
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
@@ -978,7 +978,7 @@ class _PagesState extends State<Pages> {
 
     int firstPageIndex = await _processNewPages(picturePaths);
 
-    // only open PreviewPage for first page
+    // Only open PreviewPage for first page
     _openPreviewPage(widget.docIndex, firstPageIndex);
   }
 
@@ -1004,6 +1004,7 @@ class _PagesState extends State<Pages> {
       appBar: AppBar(title: Text("Document ${widget.docIndex + 1}")),
       body:
           _pageThumbnails.isNotEmpty
+              // Pages
               ? ListView.builder(
                 itemCount: _pageThumbnails.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -1143,6 +1144,7 @@ class _PagesState extends State<Pages> {
                 },
               )
               : const Center(child: Text('No images to display.')),
+      // Floating Action Buttons
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
@@ -1261,7 +1263,6 @@ class _PreviewPageState extends State<PreviewPage> {
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
-
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
@@ -1319,7 +1320,7 @@ class _PreviewPageState extends State<PreviewPage> {
           actions: [
             ImagesScrollPreview(pagePaths: [imagePath]),
             SizedBox(height: 36.0),
-            // Share as Images
+            // Share Image
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
@@ -1538,7 +1539,6 @@ class _PreviewPageState extends State<PreviewPage> {
           SizedBox(height: 20.0),
         ],
       ),
-
       // Thumbnail Bar
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.only(bottom: 50),
