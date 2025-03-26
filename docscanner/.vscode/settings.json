@@ -1,0 +1,4 @@
+{
+    "ros.distro": "humble",
+    "cmake.sourceDirectory": "/home/rr/Documents/flutter_projects/docscanner/linux"
+}
