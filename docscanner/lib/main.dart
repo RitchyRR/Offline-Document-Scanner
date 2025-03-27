@@ -1260,13 +1260,13 @@ class _PreviewPageState extends State<PreviewPage> {
   void _checkImagesPeriodically() {
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
       bool anyChange = false;
-
       for (int i = 0; i < _imagePaths.length; i++) {
         if (!_imagesLoaded[i] && File(_imagePaths[i]).existsSync()) {
           _imagesLoaded[i] = true;
           anyChange = true;
         }
       }
+      if (_imagesLoaded[3]) _currentVersion = 3;
       // Update UI when images are found
       if (anyChange && mounted) {
         setState(() {});
@@ -1475,7 +1475,7 @@ class _PreviewPageState extends State<PreviewPage> {
             scrollPhysics: const PageScrollPhysics(),
             itemCount: _imagePaths.length,
             builder: (context, index) {
-              if (!_imagesLoaded[index]) {
+              if (!_imagesLoaded[_currentVersion]) {
                 // Show loading indicator if image is not loaded
                 return PhotoViewGalleryPageOptions.customChild(
                   child: Column(
@@ -1491,7 +1491,7 @@ class _PreviewPageState extends State<PreviewPage> {
               }
               // Show actual image when loaded
               return PhotoViewGalleryPageOptions(
-                imageProvider: FileImage(File(_imagePaths[index])),
+                imageProvider: FileImage(File(_imagePaths[_currentVersion])),
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
@@ -1611,8 +1611,14 @@ class _PreviewPageState extends State<PreviewPage> {
                               fit: BoxFit.cover,
                             )
                             : Container(
-                              width: _currentVersion == index ? 70 : 50,
-                              height: _currentVersion == index ? 70 : 50,
+                              width:
+                                  _currentVersion == index && index != 0
+                                      ? 70
+                                      : 50,
+                              height:
+                                  _currentVersion == index && index != 0
+                                      ? 70
+                                      : 50,
                               color: Theme.of(context).disabledColor,
                               child: const Padding(
                                 padding: EdgeInsets.all(12.0),
