@@ -743,12 +743,11 @@ class OpenCVHelper {
       kernel2,
       borderType: cv.BORDER_REPLICATE,
     );
-
-    //// 3. Median filter hue
-    //cv.VecMat hsvChannels = cv.split(cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV));
-    //hsvChannels[0] = cv.medianBlur(hsvChannels[0], K);
-    //bgSmoothed = cv.cvtColor(cv.merge(hsvChannels), cv.COLOR_HSV2BGR);
-
+    // 3. Median filter hue + saturation
+    cv.VecMat hsvChannels = cv.split(cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV));
+    hsvChannels[0] = cv.medianBlur(hsvChannels[0], (K * 2) + 1);
+    hsvChannels[1] = cv.medianBlur(hsvChannels[1], (K * 2) + 1);
+    bgSmoothed = cv.cvtColor(cv.merge(hsvChannels), cv.COLOR_HSV2BGR);
     // 4. Blur (Gaussian Blur)
     int blurSize = (K ~/ 4) * 2 + 1;
     bgSmoothed = cv.gaussianBlur(bgSmoothed, (
