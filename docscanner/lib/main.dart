@@ -795,52 +795,54 @@ class _MyHomePageState extends State<MyHomePage> {
               )
               : const Center(child: Text('No images to display.')),
       // Floating Action Buttons
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: FloatingActionButton(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: <Widget>[
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                heroTag: "pickImage",
+                onPressed: () {
+                  _openImagePicker(ImageSource.gallery, isMultiImage: true);
+                },
+                tooltip: 'Pick multiple Images from Gallery',
+                child: const Icon(Icons.photo_library),
               ),
-              heroTag: "pickImage",
-              onPressed: () {
-                _openImagePicker(ImageSource.gallery, isMultiImage: true);
-              },
-              tooltip: 'Pick multiple Images from Gallery',
-              child: const Icon(Icons.photo_library),
             ),
-          ),
-          SizedBox(height: 18.0),
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: FloatingActionButton(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            SizedBox(height: 18.0),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                heroTag: "pickImages",
+                onPressed: () {
+                  _openImagePicker(ImageSource.gallery);
+                },
+                tooltip: 'Pick an Image from Gallery',
+                child: const Icon(Icons.photo),
               ),
-              heroTag: "pickImages",
-              onPressed: () {
-                _openImagePicker(ImageSource.gallery);
-              },
-              tooltip: 'Pick an Image from Gallery',
-              child: const Icon(Icons.photo),
             ),
-          ),
-          SizedBox(height: 18.0),
-          if (_picker.supportsImageSource(ImageSource.camera))
-            FloatingActionButton(
-              heroTag: "makePhoto",
-              onPressed: () {
-                _openImagePicker(ImageSource.camera);
-              },
-              tooltip: 'Take a Photo',
-              child: const Icon(Icons.camera_alt),
-            ),
-          SizedBox(height: 20.0),
-        ],
+            SizedBox(height: 18.0),
+            if (_picker.supportsImageSource(ImageSource.camera))
+              FloatingActionButton(
+                heroTag: "makePhoto",
+                onPressed: () {
+                  _openImagePicker(ImageSource.camera);
+                },
+                tooltip: 'Take a Photo',
+                child: const Icon(Icons.camera_alt),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1005,194 +1007,217 @@ class _PagesState extends State<Pages> {
       body:
           _pageThumbnails.isNotEmpty
               // Pages
-              ? ListView.builder(
-                itemCount: _pageThumbnails.length,
-                itemBuilder: (BuildContext context, int index) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).shadowColor.withAlpha(125),
-                            blurRadius: 8,
-                            spreadRadius: -2,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          Image.file(
-                            File(_pageThumbnails[index]),
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Center(
-                                child: Text('This image type is not supported'),
-                              );
-                            },
-                          ),
-                          Positioned.fill(
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap:
-                                    () => _openPreviewPage(
-                                      widget.docIndex,
-                                      index,
-                                    ),
-                                splashColor: Colors.black26,
-                                highlightColor: Colors.black26,
+              ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                child: Scrollbar(
+                  thumbVisibility: false,
+                  interactive: true,
+                  trackVisibility: false,
+                  thickness: 9.0,
+                  radius: Radius.circular(4.0),
+                  child: ListView.builder(
+                    itemCount: _pageThumbnails.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(
+                                  context,
+                                ).shadowColor.withAlpha(125),
+                                blurRadius: 8,
+                                spreadRadius: -2,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
+                            ],
                           ),
-                          // Page Index Indicator
-                          Positioned(
-                            top: 18,
-                            left: 12,
-                            child: GestureDetector(
-                              // Swap Page Index Dialog
-                              onTap: () async {
-                                int? selectedIndex = await showDialog<int>(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    int currentIndex = index;
-                                    return AlertDialog(
-                                      title: Text("Swap Page Index"),
-                                      content: StatefulBuilder(
-                                        builder: (context, setState) {
-                                          return DropdownButton<int>(
-                                            value: currentIndex,
-                                            items: List.generate(
-                                              _pageThumbnails.length,
-                                              (i) => DropdownMenuItem(
-                                                value: i,
-                                                child: Text("Page ${i + 1}"),
-                                              ),
-                                            ),
-                                            onChanged: (int? newValue) {
-                                              if (newValue != null) {
-                                                setState(
-                                                  () => currentIndex = newValue,
-                                                );
-                                              }
-                                            },
-                                          );
-                                        },
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed:
-                                              () => Navigator.pop(context),
-                                          child: Text("Cancel"),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(
-                                              context,
-                                              currentIndex,
-                                            );
-                                          },
-                                          child: Text("OK"),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-
-                                if (selectedIndex != null &&
-                                    selectedIndex != index) {
-                                  await FilesHelper.changePageIndex(
-                                    widget.docIndex,
-                                    index,
-                                    selectedIndex,
-                                  );
-                                  _reloadPageThumbnails();
-                                }
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Color.fromARGB(255, 240, 240, 240),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(
-                                        context,
-                                      ).shadowColor.withAlpha(125),
-                                      blurRadius: 12,
-                                      spreadRadius: -2,
-                                      offset: const Offset(0, 4),
+                          child: Stack(
+                            children: [
+                              Image.file(
+                                File(_pageThumbnails[index]),
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Text(
+                                      'This image type is not supported',
                                     ),
-                                  ],
-                                ),
-                                child: Text(
-                                  "${index + 1}/${_pageThumbnails.length}",
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                                  );
+                                },
+                              ),
+                              Positioned.fill(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap:
+                                        () => _openPreviewPage(
+                                          widget.docIndex,
+                                          index,
+                                        ),
+                                    splashColor: Colors.black26,
+                                    highlightColor: Colors.black26,
                                   ),
                                 ),
                               ),
-                            ),
+                              // Page Index Indicator
+                              Positioned(
+                                top: 18,
+                                left: 12,
+                                child: GestureDetector(
+                                  // Swap Page Index Dialog
+                                  onTap: () async {
+                                    int? selectedIndex = await showDialog<int>(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        int currentIndex = index;
+                                        return AlertDialog(
+                                          title: Text("Swap Page Index"),
+                                          content: StatefulBuilder(
+                                            builder: (context, setState) {
+                                              return DropdownButton<int>(
+                                                value: currentIndex,
+                                                items: List.generate(
+                                                  _pageThumbnails.length,
+                                                  (i) => DropdownMenuItem(
+                                                    value: i,
+                                                    child: Text(
+                                                      "Page ${i + 1}",
+                                                    ),
+                                                  ),
+                                                ),
+                                                onChanged: (int? newValue) {
+                                                  if (newValue != null) {
+                                                    setState(
+                                                      () =>
+                                                          currentIndex =
+                                                              newValue,
+                                                    );
+                                                  }
+                                                },
+                                              );
+                                            },
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              child: Text("Cancel"),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(
+                                                  context,
+                                                  currentIndex,
+                                                );
+                                              },
+                                              child: Text("OK"),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    if (selectedIndex != null &&
+                                        selectedIndex != index) {
+                                      await FilesHelper.changePageIndex(
+                                        widget.docIndex,
+                                        index,
+                                        selectedIndex,
+                                      );
+                                      _reloadPageThumbnails();
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Color.fromARGB(255, 240, 240, 240),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Theme.of(
+                                            context,
+                                          ).shadowColor.withAlpha(125),
+                                          blurRadius: 12,
+                                          spreadRadius: -2,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      "${index + 1}/${_pageThumbnails.length}",
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                        ),
+                      );
+                    },
+                  ),
+                ),
               )
               : const Center(child: Text('No images to display.')),
       // Floating Action Buttons
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: FloatingActionButton(
-              heroTag: "pickImage",
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: <Widget>[
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                heroTag: "pickImage",
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onPressed: () {
+                  _openImagePicker(ImageSource.gallery, isMultiImage: true);
+                },
+                tooltip: 'Pick multiple Images from Gallery',
+                child: const Icon(Icons.photo_library),
               ),
-              onPressed: () {
-                _openImagePicker(ImageSource.gallery, isMultiImage: true);
-              },
-              tooltip: 'Pick multiple Images from Gallery',
-              child: const Icon(Icons.photo_library),
             ),
-          ),
-          SizedBox(height: 18.0),
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: FloatingActionButton(
-              heroTag: "pickImages",
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            SizedBox(height: 18.0),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                heroTag: "pickImages",
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onPressed: () {
+                  _openImagePicker(ImageSource.gallery);
+                },
+                tooltip: 'Pick an Image from Gallery',
+                child: const Icon(Icons.photo),
               ),
-              onPressed: () {
-                _openImagePicker(ImageSource.gallery);
-              },
-              tooltip: 'Pick an Image from Gallery',
-              child: const Icon(Icons.photo),
             ),
-          ),
-          SizedBox(height: 18.0),
-          if (_picker.supportsImageSource(ImageSource.camera))
-            FloatingActionButton(
-              heroTag: "makePhoto",
-              onPressed: () {
-                _openImagePicker(ImageSource.camera);
-              },
-              tooltip: 'Take a Photo',
-              child: const Icon(Icons.camera_alt),
-            ),
-          SizedBox(height: 20.0),
-        ],
+            SizedBox(height: 18.0),
+            if (_picker.supportsImageSource(ImageSource.camera))
+              FloatingActionButton(
+                heroTag: "makePhoto",
+                onPressed: () {
+                  _openImagePicker(ImageSource.camera);
+                },
+                tooltip: 'Take a Photo',
+                child: const Icon(Icons.camera_alt),
+              ),
+          ],
+        ),
       ),
     );
   }
