@@ -1009,7 +1009,7 @@ class _PagesState extends State<Pages> {
                 itemCount: _pageThumbnails.length,
                 itemBuilder: (BuildContext context, int index) {
                   return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: Container(
                       decoration: BoxDecoration(
                         boxShadow: [
