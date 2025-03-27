@@ -435,7 +435,7 @@ class OpenCVHelper {
       cv.MORPH_HITMISS,
       kernel4,
     );
-    // select outer points -> outerPoints
+    // select outer points -> outerPoints (offset for quadrants)
     var outerPoints = List<List<int>>.generate(4, (_) => []);
     var xy1 = _toXYLists(detectedCorners1, yOffset: 0, xOffset: 0);
     var xy2 = _toXYLists(detectedCorners2, yOffset: rows ~/ 2, xOffset: 0);
