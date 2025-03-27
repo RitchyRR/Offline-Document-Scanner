@@ -129,7 +129,7 @@ class OpenCVHelper {
   cv.Mat? _warpImage(cv.Mat? imageMat) {
     if (imageMat == null) return null;
 
-    //// scale down
+    // scale down
     //if (cols > 1080) {
     //  rows = 1080 ~/ cols * rows;
     //  cols = 1080;
@@ -402,16 +402,7 @@ class OpenCVHelper {
   }
 
   /// Step 3: Corner Detection (Hit-or-Miss Transformation)
-  List<List<int>> _detectCorners(cv.Mat? shape) {
-    if (shape == null) {
-      dev.log("Error, _detectCorners: shape is null");
-      return [
-        [0, 0],
-        [rows, 0],
-        [0, cols],
-        [rows, cols],
-      ];
-    }
+  List<List<int>> _detectCorners(cv.Mat shape) {
     // kernels to detect corners -> kernel1, -2, -3, -4
     int hitmissSize = (K * 1.5).round() * 2 + 1;
     int hitmissTolerance = K ~/ 10;
@@ -444,8 +435,6 @@ class OpenCVHelper {
       cv.MORPH_HITMISS,
       kernel4,
     );
-    shape.dispose();
-    shape = null;
     // select outer points -> outerPoints (offset for quadrants)
     var outerPoints = List<List<int>>.generate(4, (_) => []);
     var xy1 = _toXYLists(detectedCorners1, yOffset: 0, xOffset: 0);
@@ -754,7 +743,13 @@ class OpenCVHelper {
       kernel2,
       borderType: cv.BORDER_REPLICATE,
     );
-    // 3. Blur (Gaussian Blur)
+
+    //// 3. Median filter hue
+    //cv.VecMat hsvChannels = cv.split(cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV));
+    //hsvChannels[0] = cv.medianBlur(hsvChannels[0], K);
+    //bgSmoothed = cv.cvtColor(cv.merge(hsvChannels), cv.COLOR_HSV2BGR);
+
+    // 4. Blur (Gaussian Blur)
     int blurSize = (K ~/ 4) * 2 + 1;
     bgSmoothed = cv.gaussianBlur(bgSmoothed, (
       blurSize,
