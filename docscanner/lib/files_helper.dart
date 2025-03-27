@@ -550,7 +550,7 @@ class FilesHelper {
   }) async {
     // Unique filenames in temporary directory to prevent overwrites,
     // because shareXFiles is stupid
-    final tempDir = await getTemporaryDirectory();
+    final tempDir = await getApplicationSupportDirectory();
     await tempDir.create(recursive: true);
     List<XFile> xFiles = [];
 
@@ -565,6 +565,7 @@ class FilesHelper {
     }
 
     await Share.shareXFiles(xFiles);
+    tempDir.delete(recursive: true);
   }
 
   static Future<void> shareDocumentPdf(
@@ -572,17 +573,15 @@ class FilesHelper {
     int docIndex,
   ) async {
     // Save PDF
-    final tempDir = await getTemporaryDirectory();
-    String pdfPath = "$tempDir/document_$docIndex.pdf";
+    final docsPath = await _getDocumentsPath();
+    String pdfPath = "$docsPath/document_$docIndex.pdf";
+
     pw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
-      XFile xFile = XFile(pdfPath);
-
-      await Share.shareXFiles([xFile]);
+      await Share.shareXFiles([XFile(pdfPath)]);
       pdfFile.delete();
-      //dev.log("Temporary PDF deleted");
     } else {
       ScaffoldMessenger.of(
         // ignore: use_build_context_synchronously
@@ -599,9 +598,9 @@ class FilesHelper {
     String? versionName,
   }) async {
     // Save PDF
-    final tempDir = await getTemporaryDirectory();
+    final docsDir = await _getDocumentsPath();
     String pdfPath =
-        "$tempDir/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
+        "$docsDir/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
     pw.Document? pdf = await _convertImagesToPdf(imagePaths);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
@@ -610,7 +609,6 @@ class FilesHelper {
 
       await Share.shareXFiles([xFile]);
       pdfFile.delete();
-      //dev.log("Temporary PDF deleted");
     } else {
       ScaffoldMessenger.of(
         // ignore: use_build_context_synchronously

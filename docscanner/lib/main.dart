@@ -1021,7 +1021,7 @@ class _PagesState extends State<Pages> {
                       return Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: 4,
+                          vertical: 6,
                         ),
                         child: Container(
                           decoration: BoxDecoration(
