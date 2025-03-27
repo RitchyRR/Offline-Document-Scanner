@@ -1239,6 +1239,7 @@ class PreviewPage extends StatefulWidget {
 class _PreviewPageState extends State<PreviewPage> {
   final PageController _pageController = PageController();
   int _currentVersion = 0;
+  bool _currentVersionSet = false;
 
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
@@ -1266,9 +1267,10 @@ class _PreviewPageState extends State<PreviewPage> {
           anyChange = true;
         }
       }
-      if (_imagesLoaded[3]) _currentVersion = 3;
+      if (_imagesLoaded[3] && !_currentVersionSet) _currentVersion = 3;
       // Update UI when images are found
       if (anyChange && mounted) {
+        _currentVersionSet = true;
         setState(() {});
       }
       // Stop checking if all images are loaded
@@ -1601,7 +1603,7 @@ class _PreviewPageState extends State<PreviewPage> {
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8.5),
                     child:
                         _imagesLoaded[index]
                             ? Image.file(
