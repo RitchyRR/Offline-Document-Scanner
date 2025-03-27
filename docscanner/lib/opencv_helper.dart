@@ -221,12 +221,25 @@ class OpenCVHelper {
 
     cv.Mat edges = _rgbEdges(imageMat);
 
-    //cv.Mat tightRiskyShape = _tightRiskyShape(edges);
+    // 1. try just filling edges
+    cv.Mat tightRiskyShape = _tightRiskyShape(edges);
+    if (tightRiskyShape.at<int>(0, 0) == 0 &&
+        tightRiskyShape.at<int>(0, cols ~/ 2) == 0 &&
+        tightRiskyShape.at<int>(0, cols - 1) == 0 &&
+        tightRiskyShape.at<int>(rows - 1, 0) == 0 &&
+        tightRiskyShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
+        tightRiskyShape.at<int>(rows - 1, cols - 1) == 0 &&
+        tightRiskyShape.at<int>(rows ~/ 2, 0) == 0 &&
+        tightRiskyShape.at<int>(rows ~/ 2, cols - 1) == 0) {
+      dev.log("returning documentMask from simple edges");
+      return tightRiskyShape;
+    }
+
     cv.Mat looseSafeShape = _looseSafeShape(edges);
-    //cv.Mat combinedShape = cv.multiply(tightRiskyShape, looseSafeShape);
+    cv.Mat combinedShape = cv.multiply(tightRiskyShape, looseSafeShape);
 
     // edges without stuff around
-    edges = cv.multiply(edges, looseSafeShape);
+    edges = cv.multiply(edges, combinedShape);
 
     cv.Mat shape = _closeEdgesAndFill(edges);
 
@@ -247,20 +260,20 @@ class OpenCVHelper {
     return edges;
   }
 
-  //cv.Mat _tightRiskyShape(cv.Mat edges) {
-  //  cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
-  //  cv.Mat shape1 = edges.clone();
-  //  cv.floodFill(
-  //    shape1, // input + output
-  //    cv.Point(cols ~/ 2, rows ~/ 2),
-  //    cv.Scalar.all(255),
-  //    mask: mask, // useless
-  //  );
-  //  shape1 = cv.subtract(shape1, edges);
-  //  cv.Mat kernel = cv.Mat.ones((K ~/ 10), (K ~/ 10), cv.MatType.CV_8UC1);
-  //  shape1 = cv.dilate(shape1, kernel, borderType: cv.BORDER_CONSTANT);
-  //  return shape1;
-  //}
+  cv.Mat _tightRiskyShape(cv.Mat edges) {
+    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
+    cv.Mat shape1 = edges.clone();
+    cv.floodFill(
+      shape1, // input + output
+      cv.Point(cols ~/ 2, rows ~/ 2),
+      cv.Scalar.all(255),
+      mask: mask, // useless
+    );
+    shape1 = cv.subtract(shape1, edges);
+    cv.Mat kernel = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
+    shape1 = cv.dilate(shape1, kernel, borderType: cv.BORDER_CONSTANT);
+    return shape1;
+  }
 
   cv.Mat _looseSafeShape(cv.Mat edges) {
     // 1. close edges

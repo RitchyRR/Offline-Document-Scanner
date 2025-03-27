@@ -154,12 +154,16 @@ class FilesHelper {
           if (page is Directory && page.listSync().isEmpty) {
             dev.log("Deleting empty page directory: ${page.path}");
             deletePage(docIndex, pageIndex);
+          } else if (page is Directory && page.listSync().length != 4) {
+            // !(page.listSync().any((element) => element.path.contains("processed2")))
+            dev.log("Deleting half-empty page directory: ${page.path}");
+            deletePage(docIndex, pageIndex);
           }
         }
 
         // Check if document is now empty and delete it
-        if (Directory(doc.path).listSync().isEmpty) {
-          dev.log("Deleting empty document directory: ${doc.path}");
+        if ((await getPagesCount(docIndex)) == 0) {
+          dev.log("Deleting empty Document $docIndex");
           deleteDocument(docIndex);
         }
       }
@@ -186,7 +190,7 @@ class FilesHelper {
       fromDirectory = Directory(await getDocumentPath(docIndex + 1));
       toPath = await getDocumentPath(docIndex);
     }
-    globalNotifier.triggerEvent(NotifierEvent.loadDocThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.reloadDocThumbnails);
   }
 
   static Future<void> deletePage(int docIndex, int pageIndex) async {
@@ -212,7 +216,11 @@ class FilesHelper {
       toPath = await getPagePath(docIndex, pageIndex);
     }
     globalNotifier.triggerEvent(NotifierEvent.reloadThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.loadDocThumbnails);
+    // Check if document is now empty and delete it
+    if ((await getPagesCount(docIndex)) == 0) {
+      dev.log("Deleting empty Document $docIndex");
+      deleteDocument(docIndex);
+    }
   }
 
   static Future<(List<List<String>>, int, int)> getNewPaths(

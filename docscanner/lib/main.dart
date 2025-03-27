@@ -19,7 +19,12 @@ import 'package:docscanner/files_helper.dart';
 // global variables:
 late GlobalNotifier globalNotifier;
 
-enum NotifierEvent { loadThumbnails, reloadThumbnails, loadDocThumbnails }
+enum NotifierEvent {
+  loadThumbnails,
+  reloadThumbnails,
+  loadDocThumbnails,
+  reloadDocThumbnails,
+}
 
 void main() {
   globalNotifier = GlobalNotifier();
@@ -273,6 +278,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void _handleGlobalEvent() {
     if (globalNotifier.value == NotifierEvent.loadDocThumbnails) {
       _refreshDocsDisplay();
+    }
+    if (globalNotifier.value == NotifierEvent.reloadDocThumbnails) {
+      _reloadDocsDisplay();
     }
   }
 
