@@ -402,7 +402,16 @@ class OpenCVHelper {
   }
 
   /// Step 3: Corner Detection (Hit-or-Miss Transformation)
-  List<List<int>> _detectCorners(cv.Mat shape) {
+  List<List<int>> _detectCorners(cv.Mat? shape) {
+    if (shape == null) {
+      dev.log("Error, _detectCorners: shape is null");
+      return [
+        [0, 0],
+        [rows, 0],
+        [0, cols],
+        [rows, cols],
+      ];
+    }
     // kernels to detect corners -> kernel1, -2, -3, -4
     int hitmissSize = (K * 1.5).round() * 2 + 1;
     int hitmissTolerance = K ~/ 10;
@@ -435,6 +444,8 @@ class OpenCVHelper {
       cv.MORPH_HITMISS,
       kernel4,
     );
+    shape.dispose();
+    shape = null;
     // select outer points -> outerPoints (offset for quadrants)
     var outerPoints = List<List<int>>.generate(4, (_) => []);
     var xy1 = _toXYLists(detectedCorners1, yOffset: 0, xOffset: 0);
