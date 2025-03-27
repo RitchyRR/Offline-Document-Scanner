@@ -403,7 +403,7 @@ class OpenCVHelper {
 
   /// Step 3: Corner Detection (Hit-or-Miss Transformation)
   List<List<int>> _detectCorners(cv.Mat shape) {
-    // kernels for corners -> detectedCorners
+    // kernels to detect corners -> kernel1, -2, -3, -4
     int hitmissSize = (K * 1.5).round() * 2 + 1;
     int hitmissTolerance = K ~/ 10;
     cv.Mat kernel1 = cv.Mat.zeros(hitmissSize, hitmissSize, cv.MatType.CV_8SC1);
@@ -414,17 +414,37 @@ class OpenCVHelper {
     cv.Mat kernel2 = kernel1.rotate(cv.ROTATE_90_COUNTERCLOCKWISE);
     cv.Mat kernel3 = kernel1.rotate(cv.ROTATE_90_CLOCKWISE);
     cv.Mat kernel4 = kernel1.rotate(cv.ROTATE_180);
-
-    cv.Mat detectedCorners1 = cv.morphologyEx(shape, cv.MORPH_HITMISS, kernel1);
-    cv.Mat detectedCorners2 = cv.morphologyEx(shape, cv.MORPH_HITMISS, kernel2);
-    cv.Mat detectedCorners3 = cv.morphologyEx(shape, cv.MORPH_HITMISS, kernel3);
-    cv.Mat detectedCorners4 = cv.morphologyEx(shape, cv.MORPH_HITMISS, kernel4);
+    // shape.quadrants to detect corners -> detectedCorners
+    cv.Mat detectedCorners1 = cv.morphologyEx(
+      shape.rowRange(0, rows ~/ 2).colRange(0, cols ~/ 2),
+      cv.MORPH_HITMISS,
+      kernel1,
+    );
+    cv.Mat detectedCorners2 = cv.morphologyEx(
+      shape.rowRange(rows ~/ 2, rows).colRange(0, cols ~/ 2),
+      cv.MORPH_HITMISS,
+      kernel2,
+    );
+    cv.Mat detectedCorners3 = cv.morphologyEx(
+      shape.rowRange(0, rows ~/ 2).colRange(cols ~/ 2, cols),
+      cv.MORPH_HITMISS,
+      kernel3,
+    );
+    cv.Mat detectedCorners4 = cv.morphologyEx(
+      shape.rowRange(rows ~/ 2, rows).colRange(cols ~/ 2, cols),
+      cv.MORPH_HITMISS,
+      kernel4,
+    );
     // select outer points -> outerPoints
     var outerPoints = List<List<int>>.generate(4, (_) => []);
-    var xy1 = _toXYLists(detectedCorners1);
-    var xy2 = _toXYLists(detectedCorners2);
-    var xy3 = _toXYLists(detectedCorners3);
-    var xy4 = _toXYLists(detectedCorners4);
+    var xy1 = _toXYLists(detectedCorners1, yOffset: 0, xOffset: 0);
+    var xy2 = _toXYLists(detectedCorners2, yOffset: rows ~/ 2, xOffset: 0);
+    var xy3 = _toXYLists(detectedCorners3, yOffset: 0, xOffset: cols ~/ 2);
+    var xy4 = _toXYLists(
+      detectedCorners4,
+      yOffset: rows ~/ 2,
+      xOffset: cols ~/ 2,
+    );
     outerPoints[0] = [xy1.$2.reduce(math.min), xy1.$1.reduce(math.min)];
     outerPoints[1] = [xy2.$2.reduce(math.max), xy2.$1.reduce(math.min)];
     outerPoints[2] = [xy3.$2.reduce(math.min), xy3.$1.reduce(math.max)];
@@ -474,15 +494,19 @@ class OpenCVHelper {
     //return finalCorners;
   }
 
-  (List<int>, List<int>) _toXYLists(cv.Mat detectedCorners) {
+  (List<int>, List<int>) _toXYLists(
+    cv.Mat detectedCorners, {
+    int xOffset = 0,
+    int yOffset = 0,
+  }) {
     cv.Mat nonZero = cv.findNonZero(detectedCorners);
 
     // Convert to Y, X lists
     List<int> xList = [];
     List<int> yList = [];
     for (int i = 0; i < nonZero.rows; i++) {
-      xList.add(nonZero.at<cv.Vec2i>(i, 0).val1);
-      yList.add(nonZero.at<cv.Vec2i>(i, 0).val2);
+      xList.add(nonZero.at<cv.Vec2i>(i, 0).val1 + xOffset);
+      yList.add(nonZero.at<cv.Vec2i>(i, 0).val2 + yOffset);
     }
 
     return (xList, yList);
