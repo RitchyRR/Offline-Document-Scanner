@@ -1278,7 +1278,7 @@ class _PreviewPageState extends State<PreviewPage> {
   int _currentVersion = 0;
   bool _currentVersionSet = false;
 
-  List<bool> _imagesLoaded = List.filled(4, false);
+  final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
 
   @override
