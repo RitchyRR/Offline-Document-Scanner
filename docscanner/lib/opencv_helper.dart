@@ -714,9 +714,18 @@ class OpenCVHelper {
   cv.Mat _isolateAndSubtractBG1(cv.Mat warped) {
     cv.Mat? bgSmoothed = _blurredBg(warped);
     //return bgSmoothed;
+
     //cv.Mat bwCorrected = _bwCorrection(warped, bgSmoothed);
     //return bwCorrected;
-    //bgSmoothed = _blurredBg(bwCorrected);
+
+    // set bg value to warped value
+    cv.VecMat bgHsvChannels = cv.split(
+      cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV),
+    );
+    cv.VecMat wpHsvChannels = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV));
+    bgHsvChannels[2] = cv.max(bgHsvChannels[2], wpHsvChannels[2]);
+    bgSmoothed = cv.cvtColor(cv.merge(bgHsvChannels), cv.COLOR_HSV2BGR);
+    //return bgSmoothed;
 
     // Subtract background
     cv.Mat subtracted1 = cv.addWeighted(warped, 1, bgSmoothed, -1, 255);
@@ -736,6 +745,8 @@ class OpenCVHelper {
       kernel1,
       borderType: cv.BORDER_REPLICATE,
     );
+    // 3. Median filter hue + saturation
+    bgSmoothed = cv.medianBlur(bgSmoothed, (K * 2) + 1);
     // 2. Remove dark structures (Closing)
     int k2 = K;
     cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_CROSS, (k2, k2));
@@ -746,11 +757,6 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
       iterations: 2,
     );
-    // 3. Median filter hue + saturation
-    cv.VecMat hsvChannels = cv.split(cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV));
-    hsvChannels[0] = cv.medianBlur(hsvChannels[0], (K * 2) + 1);
-    hsvChannels[1] = cv.medianBlur(hsvChannels[1], (K * 2) + 1);
-    bgSmoothed = cv.cvtColor(cv.merge(hsvChannels), cv.COLOR_HSV2BGR);
     // 4. Blur (Gaussian Blur)
     //int blurSize = (K ~/ 4) * 2 + 1;
     //bgSmoothed = cv.gaussianBlur(bgSmoothed, (
