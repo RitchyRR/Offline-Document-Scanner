@@ -721,6 +721,8 @@ class OpenCVHelper {
     // Subtract background
     cv.Mat subtracted1 = cv.addWeighted(warped, 1, bgSmoothed, -1, 255);
 
+    //subtracted1 = _stretchMat(subtracted1, highValue: 255, lowPercentile: 0.01);
+
     return subtracted1;
   }
 
@@ -827,22 +829,30 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. Remove Text (Closing)
-    int k4 = (K ~/ 2.25);
-    cv.Mat kernel4 = cv.getStructuringElement(cv.MORPH_CROSS, (k4, k4));
+    int kDil = (K ~/ 2.25) ~/ 2 * 2 + 1;
+    int kEro = kDil;
+    cv.Mat kernelDil = cv.getStructuringElement(cv.MORPH_ELLIPSE, (kDil, kDil));
+    cv.Mat kernelEro = cv.getStructuringElement(cv.MORPH_RECT, (kEro, kEro));
     bgNoText = cv.morphologyEx(
       bgNoText,
-      cv.MORPH_CLOSE,
-      kernel4,
+      cv.MORPH_DILATE,
+      kernelDil,
       borderType: cv.BORDER_REPLICATE,
     );
-    // bgL for larger structures will just be the color white
+    bgNoText = cv.morphologyEx(
+      bgNoText,
+      cv.MORPH_ERODE,
+      kernelEro,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // bgNoImages for larger structures will just be the color white
 
     // Compute differences
-    // S = small, large difference -> small structure (text)
+    // large difference -> small structure (text)
     cv.Mat? diffText = cv.absDiff(subtracted1, bgNoText);
-    // L = large, large difference -> large structure (images, logos, etc.)
+    // large difference -> large structure (images, logos, etc.)
     cv.Mat white = cv.Mat.ones(height, width, cv.MatType.CV_8UC3).multiply(255);
-    cv.Mat? diffImgs = cv.absDiff(bgNoText, white);
+    cv.Mat? diffImgs = cv.subtract(white, bgNoText);
 
     // Create Combined Background
     cv.Mat? base = subtracted1.clone();
@@ -863,11 +873,17 @@ class OpenCVHelper {
 
     // 3.1 Multipliers for bgImgs and bgTxt
     cv.Mat? multImgs = diffImgs.subtract(0.07);
-    multImgs = multImgs.multiply(16.0);
-    //multImgs = cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    multImgs = multImgs.multiply(2.0);
+    multImgs = // min(0.0)
+        cv.threshold(multImgs, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    multImgs = // max(1.0)
+        cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
     cv.Mat? multText = diffText.subtract(0.03);
-    multText = multText.multiply(15.0);
-    //multText = cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    multText = multText.multiply(2.0);
+    multText = // min(0.0)
+        cv.threshold(multText, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    multText = // max(1.0)
+        cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
     diffText.dispose();
     diffText = null;
     diffImgs.dispose();
@@ -910,14 +926,15 @@ class OpenCVHelper {
     // Step 4.1: Combine and invert prior masks to create baseMask
     cv.Mat? baseMask = cv.add(textMask, imgsMask);
     baseMask = cv.threshold(baseMask, 0, 1, cv.THRESH_BINARY_INV).$2;
-    baseMask = cv.subtract(
-      cv.Mat.ones(height, width, cv.MatType.CV_8UC3),
-      baseMask,
-    );
+    //baseMask = cv.subtract(
+    //  cv.Mat.ones(height, width, cv.MatType.CV_8UC3),
+    //  baseMask,
+    //);
 
     // Step 4.2: Subtract imgsMaks from textMask
     textMask = cv.subtract(textMask, imgsMask);
     textMask = cv.threshold(textMask, 0, 1, cv.THRESH_TOZERO).$2;
+    //return baseMask.multiply(255);
 
     // Step 4.3: Apply masks
     base = cv.multiply(base, baseMask);
@@ -1053,7 +1070,7 @@ class OpenCVHelper {
     cv.Mat mat, {
     final double lowPercentile = 0.05,
     //final double gamma = 0.8,
-    final double highValue = 220,
+    final double highValue = 230,
   }) {
     cv.Mat ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
     ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
