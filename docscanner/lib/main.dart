@@ -36,6 +36,7 @@ class GlobalNotifier extends ValueNotifier<NotifierEvent?> {
 
   void triggerEvent(NotifierEvent event) {
     value = event;
+    notifyListeners();
   }
 }
 
@@ -915,6 +916,8 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
+  final List<double?> _thumbnailHeights = [];
+  List<GlobalKey> _imageKeys = [];
 
   @override
   void initState() {
@@ -938,6 +941,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _loadPageThumbnails() async {
+    // ignore: unused_local_variable
     List<String> thumbnailPaths = await FilesHelper.getPagesThumbnails(
       widget.docIndex,
     ).then((thumbnailPaths) {
@@ -945,11 +949,15 @@ class _PagesState extends State<Pages> {
         // ignore: use_build_context_synchronously
         Navigator.pop(context);
       }
+      int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
+      for (var i = 0; i < tooShortBy; i++) {
+        _thumbnailHeights.add(null);
+        _imageKeys.add(GlobalKey());
+      }
+      setState(() {
+        _pageThumbnails = thumbnailPaths;
+      });
       return thumbnailPaths;
-    });
-
-    setState(() {
-      _pageThumbnails = thumbnailPaths;
     });
   }
 
@@ -1007,6 +1015,23 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
+  // Function to measure and store the image height
+  Widget _measureImageHeight(Widget image, int index) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (_thumbnailHeights[index] == null &&
+            constraints.maxHeight.isFinite) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            setState(() {
+              _thumbnailHeights[index] = constraints.maxHeight;
+            });
+          });
+        }
+        return image;
+      },
+    );
+  }
+
   // Pages
   @override
   Widget build(BuildContext context) {
@@ -1024,6 +1049,7 @@ class _PagesState extends State<Pages> {
                   thickness: 9.0,
                   radius: Radius.circular(4.0),
                   child: ListView.builder(
+                    //cacheExtent: 1000,
                     itemCount: _pageThumbnails.length,
                     itemBuilder: (BuildContext context, int index) {
                       return Padding(
@@ -1046,16 +1072,23 @@ class _PagesState extends State<Pages> {
                           ),
                           child: Stack(
                             children: [
-                              Image.file(
-                                File(_pageThumbnails[index]),
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Text(
-                                      'This image type is not supported',
-                                    ),
-                                  );
+                              // Sized Box for if image disappears from memory management
+                              if (_thumbnailHeights[index] != null)
+                                SizedBox(height: _thumbnailHeights[index]),
+                              // Load and measure the image
+                              MeasureSize(
+                                key: _imageKeys[index],
+                                onChange: (size) {
+                                  setState(() {
+                                    _thumbnailHeights[index] = size.height;
+                                  });
                                 },
+                                child: Image.file(
+                                  File(_pageThumbnails[index]),
+                                  fit: BoxFit.cover,
+                                ),
                               ),
+                              // Open PreviewPage
                               Positioned.fill(
                                 child: Material(
                                   color: Colors.transparent,
@@ -1643,5 +1676,43 @@ class _PreviewPageState extends State<PreviewPage> {
         ),
       ),
     );
+  }
+}
+
+class MeasureSize extends StatefulWidget {
+  final Widget child;
+  final ValueChanged<Size> onChange;
+
+  const MeasureSize({Key? key, required this.child, required this.onChange})
+    : super(key: key);
+
+  @override
+  State<MeasureSize> createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<MeasureSize> {
+  final GlobalKey _key = GlobalKey();
+  Size _oldSize = Size.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(_afterBuild);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(key: _key, child: widget.child);
+  }
+
+  void _afterBuild(_) {
+    final context = _key.currentContext;
+    if (context == null) return;
+
+    final newSize = context.size;
+    if (newSize != null && newSize != _oldSize) {
+      _oldSize = newSize;
+      widget.onChange(newSize);
+    }
   }
 }
