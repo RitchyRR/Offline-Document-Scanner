@@ -214,6 +214,8 @@ class FilesHelper {
       pageIndex++;
       fromDirectory = Directory(await getPagePath(docIndex, pageIndex + 1));
       toPath = await getPagePath(docIndex, pageIndex);
+      // refresh page versions
+      globalNotifier.triggerEvent(NotifierEvent.reloadPageVersions);
     }
     globalNotifier.triggerEvent(NotifierEvent.reloadThumbnails);
     // Check if document is now empty and delete it

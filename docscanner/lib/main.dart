@@ -24,6 +24,7 @@ enum NotifierEvent {
   reloadThumbnails,
   loadDocThumbnails,
   reloadDocThumbnails,
+  reloadPageVersions,
 }
 
 void main() {
@@ -277,6 +278,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _handleGlobalEvent() {
+    if (!mounted) return;
     if (globalNotifier.value == NotifierEvent.loadDocThumbnails) {
       _refreshDocsDisplay();
     }
@@ -933,6 +935,7 @@ class _PagesState extends State<Pages> {
   }
 
   void _handleGlobalEvent() {
+    if (!mounted) return;
     if (globalNotifier.value == NotifierEvent.loadThumbnails) {
       _loadPageThumbnails();
     } else if (globalNotifier.value == NotifierEvent.reloadThumbnails) {
@@ -1275,13 +1278,20 @@ class _PreviewPageState extends State<PreviewPage> {
   int _currentVersion = 0;
   bool _currentVersionSet = false;
 
-  final List<bool> _imagesLoaded = List.filled(4, false);
+  List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
 
   @override
   void initState() {
     super.initState();
+    globalNotifier.addListener(_handleGlobalEvent);
     initAsync();
+  }
+
+  @override
+  void dispose() {
+    globalNotifier.removeListener(_handleGlobalEvent);
+    super.dispose();
   }
 
   Future<void> initAsync() async {
@@ -1320,6 +1330,19 @@ class _PreviewPageState extends State<PreviewPage> {
     "filetred",
     "PRO",
   ];
+
+  void _handleGlobalEvent() {
+    if (!mounted) return;
+    if (globalNotifier.value == NotifierEvent.reloadPageVersions) {
+      _refreshPageVersions();
+    }
+  }
+
+  void _refreshPageVersions() {
+    for (var path in _imagePaths) {
+      imageCache.evict(FileImage(File(path)), includeLive: true);
+    }
+  }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _imagePaths[_currentVersion];
@@ -1477,7 +1500,7 @@ class _PreviewPageState extends State<PreviewPage> {
               switch (value) {
                 case "del":
                   bool deleted = await _deletePagePopup(context);
-                  if (deleted && context.mounted) {
+                  if (deleted && mounted && context.mounted) {
                     Navigator.pop(context);
                   }
                   break;
