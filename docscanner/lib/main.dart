@@ -1275,8 +1275,8 @@ class PreviewPage extends StatefulWidget {
 
 class _PreviewPageState extends State<PreviewPage> {
   final PageController _pageController = PageController();
-  int _currentVersion = 0;
-  bool _currentVersionSet = false;
+  int _selectedThumbnail = 0;
+  bool _initialVersionSet = false;
 
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
@@ -1311,10 +1311,13 @@ class _PreviewPageState extends State<PreviewPage> {
           anyChange = true;
         }
       }
-      if (_imagesLoaded[3] && !_currentVersionSet) _currentVersion = 3;
+      if (!_initialVersionSet && mounted && _imagesLoaded[3]) {
+        setState(() => _selectedThumbnail = 3);
+        _pageController.jumpToPage(_selectedThumbnail);
+        _initialVersionSet = true;
+      }
       // Update UI when images are found
       if (anyChange && mounted) {
-        _currentVersionSet = true;
         setState(() {});
       }
       // Stop checking if all images are loaded
@@ -1345,7 +1348,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _imagePaths[_currentVersion];
+    final String imagePath = _imagePaths[_selectedThumbnail];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1394,7 +1397,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _imagePaths[_currentVersion];
+    final String imagePath = _imagePaths[_selectedThumbnail];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1534,7 +1537,7 @@ class _PreviewPageState extends State<PreviewPage> {
             scrollPhysics: const PageScrollPhysics(),
             itemCount: _imagePaths.length,
             builder: (context, index) {
-              if (!_imagesLoaded[_currentVersion]) {
+              if (!_imagesLoaded[index]) {
                 // Show loading indicator if image is not loaded
                 return PhotoViewGalleryPageOptions.customChild(
                   child: Column(
@@ -1550,7 +1553,7 @@ class _PreviewPageState extends State<PreviewPage> {
               }
               // Show actual image when loaded
               return PhotoViewGalleryPageOptions(
-                imageProvider: FileImage(File(_imagePaths[_currentVersion])),
+                imageProvider: FileImage(File(_imagePaths[index])),
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
@@ -1559,7 +1562,7 @@ class _PreviewPageState extends State<PreviewPage> {
             backgroundDecoration: BoxDecoration(color: Colors.transparent),
             pageController: _pageController,
             onPageChanged: (index) {
-              setState(() => _currentVersion = index);
+              setState(() => _selectedThumbnail = index);
             },
           ),
         ],
@@ -1577,22 +1580,22 @@ class _PreviewPageState extends State<PreviewPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               onPressed:
-                  _imagesLoaded[_currentVersion]
-                      ? () => _sharePagePopup(context, _currentVersion)
+                  _imagesLoaded[_selectedThumbnail]
+                      ? () => _sharePagePopup(context, _selectedThumbnail)
                       : null,
               tooltip:
-                  _imagesLoaded[_currentVersion]
+                  _imagesLoaded[_selectedThumbnail]
                       ? 'Share Image'
                       : 'Waiting for image to load...',
               backgroundColor:
-                  _imagesLoaded[_currentVersion]
+                  _imagesLoaded[_selectedThumbnail]
                       ? null
                       : Theme.of(context).disabledColor,
-              elevation: _imagesLoaded[_currentVersion] ? null : 0.0,
+              elevation: _imagesLoaded[_selectedThumbnail] ? null : 0.0,
               child: Icon(
                 Icons.share,
                 color:
-                    _imagesLoaded[_currentVersion]
+                    _imagesLoaded[_selectedThumbnail]
                         ? null
                         : Theme.of(context).disabledColor,
               ),
@@ -1602,22 +1605,22 @@ class _PreviewPageState extends State<PreviewPage> {
           FloatingActionButton(
             heroTag: "savePageVersion",
             onPressed:
-                _imagesLoaded[_currentVersion]
-                    ? () => _savePagePopup(context, _currentVersion)
+                _imagesLoaded[_selectedThumbnail]
+                    ? () => _savePagePopup(context, _selectedThumbnail)
                     : null,
             tooltip:
-                _imagesLoaded[_currentVersion]
+                _imagesLoaded[_selectedThumbnail]
                     ? 'Save Image'
                     : 'Waiting for image to load...',
             backgroundColor:
-                _imagesLoaded[_currentVersion]
+                _imagesLoaded[_selectedThumbnail]
                     ? null
                     : Theme.of(context).disabledColor,
-            elevation: _imagesLoaded[_currentVersion] ? null : 0.0,
+            elevation: _imagesLoaded[_selectedThumbnail] ? null : 0.0,
             child: Icon(
               Icons.save,
               color:
-                  _imagesLoaded[_currentVersion]
+                  _imagesLoaded[_selectedThumbnail]
                       ? null
                       : Theme.of(context).disabledColor,
             ),
@@ -1635,7 +1638,7 @@ class _PreviewPageState extends State<PreviewPage> {
             children: List.generate(4, (index) {
               return GestureDetector(
                 onTap: () {
-                  setState(() => _currentVersion = index);
+                  setState(() => _selectedThumbnail = index);
                   _pageController.jumpToPage(index);
                 },
                 child: AnimatedContainer(
@@ -1645,7 +1648,7 @@ class _PreviewPageState extends State<PreviewPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color:
-                          _currentVersion == index
+                          _selectedThumbnail == index
                               ? Colors.white
                               : Colors.white54,
                       width: 3,
@@ -1665,17 +1668,17 @@ class _PreviewPageState extends State<PreviewPage> {
                         _imagesLoaded[index]
                             ? Image.file(
                               File(_imagePaths[index]),
-                              width: _currentVersion == index ? 70 : 50,
-                              height: _currentVersion == index ? 70 : 50,
+                              width: _selectedThumbnail == index ? 70 : 50,
+                              height: _selectedThumbnail == index ? 70 : 50,
                               fit: BoxFit.cover,
                             )
                             : Container(
                               width:
-                                  _currentVersion == index && index != 0
+                                  _selectedThumbnail == index && index != 0
                                       ? 70
                                       : 50,
                               height:
-                                  _currentVersion == index && index != 0
+                                  _selectedThumbnail == index && index != 0
                                       ? 70
                                       : 50,
                               color: Theme.of(context).disabledColor,
