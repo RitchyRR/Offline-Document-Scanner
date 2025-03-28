@@ -1015,6 +1015,16 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
+  //double getAvailableAreaHeight(BuildContext context) {
+  //  final mediaQuery = MediaQuery.of(context);
+  //  final screenHeight = mediaQuery.size.height;
+  //  final appBarHeight = Scaffold.of(context).appBarMaxHeight ?? kToolbarHeight;
+  //  final statusBarHeight = mediaQuery.padding.top;
+  //  final bottomNavBarHeight =
+  //      mediaQuery.padding.bottom; // System navigation bar
+  //  return screenHeight - appBarHeight - statusBarHeight - bottomNavBarHeight;
+  //}
+
   // Pages
   @override
   Widget build(BuildContext context) {
@@ -1026,7 +1036,7 @@ class _PagesState extends State<Pages> {
               ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3.0),
                 child: Scrollbar(
-                  thumbVisibility: false,
+                  thumbVisibility: true,
                   interactive: true,
                   trackVisibility: false,
                   thickness: 9.0,
