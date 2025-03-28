@@ -917,7 +917,7 @@ class _PagesState extends State<Pages> {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   final List<double?> _thumbnailHeights = [];
-  List<GlobalKey> _imageKeys = [];
+  final List<GlobalKey> _imageKeys = [];
 
   @override
   void initState() {
@@ -1013,23 +1013,6 @@ class _PagesState extends State<Pages> {
     }
 
     return firstPageIndex;
-  }
-
-  // Function to measure and store the image height
-  Widget _measureImageHeight(Widget image, int index) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_thumbnailHeights[index] == null &&
-            constraints.maxHeight.isFinite) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _thumbnailHeights[index] = constraints.maxHeight;
-            });
-          });
-        }
-        return image;
-      },
-    );
   }
 
   // Pages
@@ -1683,8 +1666,7 @@ class MeasureSize extends StatefulWidget {
   final Widget child;
   final ValueChanged<Size> onChange;
 
-  const MeasureSize({Key? key, required this.child, required this.onChange})
-    : super(key: key);
+  const MeasureSize({super.key, required this.child, required this.onChange});
 
   @override
   State<MeasureSize> createState() => _MeasureSizeState();
