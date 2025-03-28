@@ -737,13 +737,14 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. Remove dark structures (Closing)
-    int k2 = (K * 2);
+    int k2 = K;
     cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_CROSS, (k2, k2));
     bgSmoothed = cv.morphologyEx(
       bgSmoothed,
       cv.MORPH_CLOSE,
       kernel2,
       borderType: cv.BORDER_REPLICATE,
+      iterations: 2,
     );
     // 3. Median filter hue + saturation
     cv.VecMat hsvChannels = cv.split(cv.cvtColor(bgSmoothed, cv.COLOR_BGR2HSV));
@@ -751,11 +752,11 @@ class OpenCVHelper {
     hsvChannels[1] = cv.medianBlur(hsvChannels[1], (K * 2) + 1);
     bgSmoothed = cv.cvtColor(cv.merge(hsvChannels), cv.COLOR_HSV2BGR);
     // 4. Blur (Gaussian Blur)
-    int blurSize = (K ~/ 4) * 2 + 1;
-    bgSmoothed = cv.gaussianBlur(bgSmoothed, (
-      blurSize,
-      blurSize,
-    ), (blurSize - 1) / 6);
+    //int blurSize = (K ~/ 4) * 2 + 1;
+    //bgSmoothed = cv.gaussianBlur(bgSmoothed, (
+    //  blurSize,
+    //  blurSize,
+    //), (blurSize - 1) / 6);
     return bgSmoothed;
   }
 
@@ -818,147 +819,147 @@ class OpenCVHelper {
 
   /// Step 7: Background Subtraction 2
   cv.Mat _isolateAndSubtractBG2(cv.Mat? subtracted1) {
-    // Isolate Background
-    // 1. Remove Glow (Opening)
-    int k1 = (K ~/ 17);
-    cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
-    cv.Mat? bgNoText = cv.morphologyEx(
-      subtracted1!,
-      cv.MORPH_OPEN,
-      kernel1,
-      borderType: cv.BORDER_REPLICATE,
-    );
-    // 2. Remove Text (Closing)
-    int kDil = (K ~/ 2.25) ~/ 2 * 2 + 1;
-    int kEro = kDil;
-    cv.Mat kernelDil = cv.getStructuringElement(cv.MORPH_ELLIPSE, (kDil, kDil));
-    cv.Mat kernelEro = cv.getStructuringElement(cv.MORPH_RECT, (kEro, kEro));
-    bgNoText = cv.morphologyEx(
-      bgNoText,
-      cv.MORPH_DILATE,
-      kernelDil,
-      borderType: cv.BORDER_REPLICATE,
-    );
-    bgNoText = cv.morphologyEx(
-      bgNoText,
-      cv.MORPH_ERODE,
-      kernelEro,
-      borderType: cv.BORDER_REPLICATE,
-    );
-    // bgNoImages for larger structures will just be the color white
-
-    // Compute differences
-    // large difference -> small structure (text)
-    cv.Mat? diffText = cv.absDiff(subtracted1, bgNoText);
-    // large difference -> large structure (images, logos, etc.)
-    cv.Mat white = cv.Mat.ones(height, width, cv.MatType.CV_8UC3).multiply(255);
-    cv.Mat? diffImgs = cv.absDiff(white, bgNoText);
-
-    // Create Combined Background
-    cv.Mat? base = subtracted1.clone();
-
-    // Step 1: Convert to double matrices (CV_32FC3)
-    //base = base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
-    bgNoText = bgNoText.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
-    diffImgs = diffImgs.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
-    diffText = diffText.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
-
-    // Step 2: Create Masks
-    cv.Mat? imgsMask = cv.threshold(diffImgs, 0.09, 1.0, cv.THRESH_BINARY).$2;
-    cv.Mat? textMask = cv.threshold(diffText, 0.04, 1.0, cv.THRESH_BINARY).$2;
-    imgsMask = imgsMask.convertTo(cv.MatType.CV_8UC3);
-    textMask = textMask.convertTo(cv.MatType.CV_8UC3);
-
-    // Step 3: Blend baseBG with bgImgs and bgTxt
-
-    // 3.1 Multipliers for bgImgs and bgTxt
-    cv.Mat? multImgs = diffImgs.subtract(0.07);
-    multImgs = multImgs.multiply(16.0);
-    //multImgs = // min(0.0)
-    //    cv.threshold(multImgs, 0.0, 1.0, cv.THRESH_TOZERO).$2;
-    //multImgs = // max(1.0)
-    //    cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
-    cv.Mat? multText = diffText.subtract(0.03);
-    multText = multText.multiply(15.0);
-    //multText = // min(0.0)
-    //    cv.threshold(multText, 0.0, 1.0, cv.THRESH_TOZERO).$2;
-    //multText = // max(1.0)
-    //    cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
-    diffText.dispose();
-    diffText = null;
-    diffImgs.dispose();
-    diffImgs = null;
-
-    // 3.2 Apply inverse multipliers to base
-    cv.Mat? baseImgs = cv.multiply(
-      base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0),
-      cv.subtract(cv.Mat.ones(height, width, cv.MatType.CV_32FC3), multImgs),
-    );
-    cv.Mat? baseText = cv.multiply(
-      base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0),
-      cv.subtract(cv.Mat.ones(height, width, cv.MatType.CV_32FC3), multText),
-    );
-
-    // 3.2 Apply multipliers to bgImgs and bgTxt // bgImgs = ones
-    //multImgs = cv.multiply(ones(...), multText);
-    multText = cv.multiply(bgNoText, multText);
-    bgNoText.dispose();
-    bgNoText = null;
-
-    // 3.3: Blend with Large and Small Structures
-    cv.Mat? bgImgs = cv
-        .add(baseImgs, multImgs)
-        .convertTo(cv.MatType.CV_8UC3, alpha: 255.0);
-    cv.Mat? bgText = cv
-        .add(baseText, multText)
-        .convertTo(cv.MatType.CV_8UC3, alpha: 255.0);
-    multImgs.dispose();
-    multImgs = null;
-    multText.dispose();
-    multText = null;
-    baseImgs.dispose();
-    baseImgs = null;
-    baseText.dispose();
-    baseText = null;
-
-    // Step 4: Combine blended BGs and base
-
-    // Step 4.1: Combine and invert prior masks to create baseMask
-    cv.Mat? baseMask = cv.add(textMask, imgsMask);
-    baseMask = cv.threshold(baseMask, 0, 1, cv.THRESH_BINARY_INV).$2;
-
-    // Step 4.2: Subtract imgsMaks from textMask
-    textMask = cv.subtract(textMask, imgsMask);
-    textMask = cv.threshold(textMask, 0, 1, cv.THRESH_TOZERO).$2;
-    //return baseMask.multiply(255);
-
-    // Step 4.3: Apply masks
-    base = cv.multiply(base, baseMask);
-    baseMask.dispose();
-    baseMask = null;
-    bgText = cv.multiply(bgText, textMask);
-    textMask.dispose();
-    textMask = null;
-    bgImgs = cv.multiply(bgImgs, imgsMask);
-    imgsMask.dispose();
-    imgsMask = null;
-
-    // Step 4.4: Add masked images together
-    base = cv.add(base, bgText);
-    base = cv.add(base, bgImgs);
-    bgText.dispose();
-    bgText = null;
-    bgImgs.dispose();
-    bgImgs = null;
-
-    // Subtract final Background
-    cv.Mat subtracted2 = cv.addWeighted(subtracted1, 1, base, -1, 255);
-    subtracted1.dispose();
-    subtracted1 = null;
-    base.dispose();
-    base = null;
-
-    subtracted2 = _stretchMat(subtracted2);
+    //// Isolate Background
+    //// 1. Remove Glow (Opening)
+    //int k1 = (K ~/ 17);
+    //cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
+    //cv.Mat? bgNoText = cv.morphologyEx(
+    //  subtracted1!,
+    //  cv.MORPH_OPEN,
+    //  kernel1,
+    //  borderType: cv.BORDER_REPLICATE,
+    //);
+    //// 2. Remove Text (Closing)
+    //int kDil = (K ~/ 2.25) ~/ 2 * 2 + 1;
+    //int kEro = kDil;
+    //cv.Mat kernelDil = cv.getStructuringElement(cv.MORPH_ELLIPSE, (kDil, kDil));
+    //cv.Mat kernelEro = cv.getStructuringElement(cv.MORPH_RECT, (kEro, kEro));
+    //bgNoText = cv.morphologyEx(
+    //  bgNoText,
+    //  cv.MORPH_DILATE,
+    //  kernelDil,
+    //  borderType: cv.BORDER_REPLICATE,
+    //);
+    //bgNoText = cv.morphologyEx(
+    //  bgNoText,
+    //  cv.MORPH_ERODE,
+    //  kernelEro,
+    //  borderType: cv.BORDER_REPLICATE,
+    //);
+    //// bgNoImages for larger structures will just be the color white
+    //
+    //// Compute differences
+    //// large difference -> small structure (text)
+    //cv.Mat? diffText = cv.absDiff(subtracted1, bgNoText);
+    //// large difference -> large structure (images, logos, etc.)
+    //cv.Mat white = cv.Mat.ones(height, width, cv.MatType.CV_8UC3).multiply(255);
+    //cv.Mat? diffImgs = cv.absDiff(white, bgNoText);
+    //
+    //// Create Combined Background
+    //cv.Mat? base = subtracted1.clone();
+    //
+    //// Step 1: Convert to double matrices (CV_32FC3)
+    ////base = base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
+    //bgNoText = bgNoText.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
+    //diffImgs = diffImgs.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
+    //diffText = diffText.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
+    //
+    //// Step 2: Create Masks
+    //cv.Mat? imgsMask = cv.threshold(diffImgs, 0.09, 1.0, cv.THRESH_BINARY).$2;
+    //cv.Mat? textMask = cv.threshold(diffText, 0.04, 1.0, cv.THRESH_BINARY).$2;
+    //imgsMask = imgsMask.convertTo(cv.MatType.CV_8UC3);
+    //textMask = textMask.convertTo(cv.MatType.CV_8UC3);
+    //
+    //// Step 3: Blend baseBG with bgImgs and bgTxt
+    //
+    //// 3.1 Multipliers for bgImgs and bgTxt
+    //cv.Mat? multImgs = diffImgs.subtract(0.07);
+    //multImgs = multImgs.multiply(16.0);
+    ////multImgs = // min(0.0)
+    ////    cv.threshold(multImgs, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    ////multImgs = // max(1.0)
+    ////    cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    //cv.Mat? multText = diffText.subtract(0.03);
+    //multText = multText.multiply(15.0);
+    ////multText = // min(0.0)
+    ////    cv.threshold(multText, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    ////multText = // max(1.0)
+    ////    cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    //diffText.dispose();
+    //diffText = null;
+    //diffImgs.dispose();
+    //diffImgs = null;
+    //
+    //// 3.2 Apply inverse multipliers to base
+    //cv.Mat? baseImgs = cv.multiply(
+    //  base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0),
+    //  cv.subtract(cv.Mat.ones(height, width, cv.MatType.CV_32FC3), multImgs),
+    //);
+    //cv.Mat? baseText = cv.multiply(
+    //  base.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0),
+    //  cv.subtract(cv.Mat.ones(height, width, cv.MatType.CV_32FC3), multText),
+    //);
+    //
+    //// 3.2 Apply multipliers to bgImgs and bgTxt // bgImgs = ones
+    ////multImgs = cv.multiply(ones(...), multText);
+    //multText = cv.multiply(bgNoText, multText);
+    //bgNoText.dispose();
+    //bgNoText = null;
+    //
+    //// 3.3: Blend with Large and Small Structures
+    //cv.Mat? bgImgs = cv
+    //    .add(baseImgs, multImgs)
+    //    .convertTo(cv.MatType.CV_8UC3, alpha: 255.0);
+    //cv.Mat? bgText = cv
+    //    .add(baseText, multText)
+    //    .convertTo(cv.MatType.CV_8UC3, alpha: 255.0);
+    //multImgs.dispose();
+    //multImgs = null;
+    //multText.dispose();
+    //multText = null;
+    //baseImgs.dispose();
+    //baseImgs = null;
+    //baseText.dispose();
+    //baseText = null;
+    //
+    //// Step 4: Combine blended BGs and base
+    //
+    //// Step 4.1: Combine and invert prior masks to create baseMask
+    //cv.Mat? baseMask = cv.add(textMask, imgsMask);
+    //baseMask = cv.threshold(baseMask, 0, 1, cv.THRESH_BINARY_INV).$2;
+    //
+    //// Step 4.2: Subtract imgsMaks from textMask
+    //textMask = cv.subtract(textMask, imgsMask);
+    //textMask = cv.threshold(textMask, 0, 1, cv.THRESH_TOZERO).$2;
+    ////return baseMask.multiply(255);
+    //
+    //// Step 4.3: Apply masks
+    //base = cv.multiply(base, baseMask);
+    //baseMask.dispose();
+    //baseMask = null;
+    //bgText = cv.multiply(bgText, textMask);
+    //textMask.dispose();
+    //textMask = null;
+    //bgImgs = cv.multiply(bgImgs, imgsMask);
+    //imgsMask.dispose();
+    //imgsMask = null;
+    //
+    //// Step 4.4: Add masked images together
+    //base = cv.add(base, bgText);
+    //base = cv.add(base, bgImgs);
+    //bgText.dispose();
+    //bgText = null;
+    //bgImgs.dispose();
+    //bgImgs = null;
+    //
+    //// Subtract final Background
+    //cv.Mat subtracted2 = cv.addWeighted(subtracted1, 1, base, -1, 255);
+    //subtracted1.dispose();
+    //subtracted1 = null;
+    //base.dispose();
+    //base = null;
+    //
+    cv.Mat subtracted2 = _stretchMat(subtracted1!);
 
     return subtracted2;
   }
