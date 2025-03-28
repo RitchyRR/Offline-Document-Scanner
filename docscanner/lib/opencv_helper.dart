@@ -852,7 +852,7 @@ class OpenCVHelper {
     cv.Mat? diffText = cv.absDiff(subtracted1, bgNoText);
     // large difference -> large structure (images, logos, etc.)
     cv.Mat white = cv.Mat.ones(height, width, cv.MatType.CV_8UC3).multiply(255);
-    cv.Mat? diffImgs = cv.subtract(white, bgNoText);
+    cv.Mat? diffImgs = cv.absDiff(white, bgNoText);
 
     // Create Combined Background
     cv.Mat? base = subtracted1.clone();
@@ -873,17 +873,17 @@ class OpenCVHelper {
 
     // 3.1 Multipliers for bgImgs and bgTxt
     cv.Mat? multImgs = diffImgs.subtract(0.07);
-    multImgs = multImgs.multiply(2.0);
-    multImgs = // min(0.0)
-        cv.threshold(multImgs, 0.0, 1.0, cv.THRESH_TOZERO).$2;
-    multImgs = // max(1.0)
-        cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    multImgs = multImgs.multiply(16.0);
+    //multImgs = // min(0.0)
+    //    cv.threshold(multImgs, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    //multImgs = // max(1.0)
+    //    cv.threshold(multImgs, 1.0, 1.0, cv.THRESH_TRUNC).$2;
     cv.Mat? multText = diffText.subtract(0.03);
-    multText = multText.multiply(2.0);
-    multText = // min(0.0)
-        cv.threshold(multText, 0.0, 1.0, cv.THRESH_TOZERO).$2;
-    multText = // max(1.0)
-        cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
+    multText = multText.multiply(15.0);
+    //multText = // min(0.0)
+    //    cv.threshold(multText, 0.0, 1.0, cv.THRESH_TOZERO).$2;
+    //multText = // max(1.0)
+    //    cv.threshold(multText, 1.0, 1.0, cv.THRESH_TRUNC).$2;
     diffText.dispose();
     diffText = null;
     diffImgs.dispose();
@@ -926,10 +926,6 @@ class OpenCVHelper {
     // Step 4.1: Combine and invert prior masks to create baseMask
     cv.Mat? baseMask = cv.add(textMask, imgsMask);
     baseMask = cv.threshold(baseMask, 0, 1, cv.THRESH_BINARY_INV).$2;
-    //baseMask = cv.subtract(
-    //  cv.Mat.ones(height, width, cv.MatType.CV_8UC3),
-    //  baseMask,
-    //);
 
     // Step 4.2: Subtract imgsMaks from textMask
     textMask = cv.subtract(textMask, imgsMask);
