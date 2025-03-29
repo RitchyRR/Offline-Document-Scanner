@@ -3,6 +3,41 @@ import 'dart:typed_data';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
+class AspectRatioInfo {
+  final String name;
+  final String description;
+  final double value;
+
+  AspectRatioInfo(this.name, this.description, this.value);
+}
+
+final List<AspectRatioInfo> commonAspectRatios = [
+  //// International Standard (ISO 216 - A, B, C series)
+  AspectRatioInfo("DIN A4", "DIN A/B/C (√2:1)", math.sqrt(2)), // ~1.414
+  //// North American Paper Sizes (Letter, Legal, etc.)
+  AspectRatioInfo("Letter", "Letter (8.5x11″, US)", 11 / 8.5), // ~1.294
+  AspectRatioInfo("Legal", "Legal (8.5x14″, US)", 14 / 8.5), // ~1.647
+  AspectRatioInfo(
+    "Tabloid",
+    "Tabloid / Ledger (11x17″, US)",
+    17 / 11,
+  ), // ~1.545
+  //// Cards & Paper
+  AspectRatioInfo("Business Card", "Business Card (3.5x2″)", 3.5 / 2), // 1.75
+  AspectRatioInfo(
+    "Credit Card",
+    "Credit Card (ISO/ID-1, 85.6x53.98 mm)",
+    85.6 / 53.98,
+  ), // ~1.586
+  AspectRatioInfo("Square", "1:1 Square (Notes, Covers)", 1.0), // 1.0
+  //// Photo & Monitors
+  AspectRatioInfo("5:4", "5:4 (Photo, Old Monitors)", 5 / 4), // 1.25
+  AspectRatioInfo("4:3", "4:3 (Photo)", 4 / 3), // 1.333
+  AspectRatioInfo("16:9", "16:9 (Video, Widescreen)", 16 / 9), // ~1.777
+  AspectRatioInfo("16:10", "16:10 (Widescreen)", 16 / 10), // 1.6
+  AspectRatioInfo("21:9", "21:9 (Ultrawide, Cinema)", 21 / 9), // ~2.333
+];
+
 class ParamsWarpImage {
   String pathIn = "";
   String pagePath = "";
@@ -32,12 +67,13 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  (Uint8List, List<int>) warpImage(ParamsWarpImage params) {
+  (Uint8List, List<int>, int) warpImage(ParamsWarpImage params) {
     cv.Mat? imageMat = _loadImage(params.pathIn);
 
-    cv.Mat? warped = _warpImage(imageMat);
-
-    return (_returnImage(warped), borderCorrectionDepth);
+    final warpedRes = _warpImage(imageMat);
+    cv.Mat? warped = warpedRes.$1;
+    int ratioIndex = warpedRes.$2;
+    return (_returnImage(warped), borderCorrectionDepth, ratioIndex);
   }
 
   Uint8List processImage1(ParamsProcessImage1 params) {
@@ -126,8 +162,8 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  cv.Mat? _warpImage(cv.Mat? imageMat) {
-    if (imageMat == null) return null;
+  (cv.Mat?, int) _warpImage(cv.Mat? imageMat) {
+    if (imageMat == null) return (null, 0);
 
     // scale down
     //if (cols > 1080) {
@@ -138,7 +174,6 @@ class OpenCVHelper {
 
     // 1. Isolate remove Text and Images to get Shape
     cv.Mat? bg = _removeTextAndImages(imageMat);
-    if (bg == null) return null;
 
     // 2. create a binary image, white representing the shape of the document
     cv.Mat? shape = _documentMask(bg);
@@ -150,16 +185,16 @@ class OpenCVHelper {
     List<List<int>> corners = _detectCorners(shape);
 
     // 4. Perspective transformation
-    _calculateTransformation(shape, corners);
+    final ratioIndex = _calculateTransformation(shape, corners);
     shape.dispose();
     shape = null;
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
-    if (warped == null) return null;
+    if (warped == null) return (null, 0);
     imageMat.dispose();
     imageMat = null;
 
-    return warped;
+    return (warped, ratioIndex);
   }
 
   /// Filter Image 1: subtract background quickly
@@ -190,7 +225,7 @@ class OpenCVHelper {
   }
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
-  cv.Mat? _removeTextAndImages(cv.Mat imageMat) {
+  cv.Mat _removeTextAndImages(cv.Mat imageMat) {
     cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (
       K ~/ 17,
       K ~/ 17,
@@ -515,7 +550,7 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  void _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
+  int _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
     // New pixel count without data loss
     height = math.max(
       (corners[1][0] - corners[0][0]).abs(),
@@ -527,7 +562,9 @@ class OpenCVHelper {
     );
     // Estimate aspect ratio
     double ratio = _calculateAspectRatio(corners); //math.sqrt(2)
-    ratio = _matchAspectRatio(ratio);
+    final matchedRatio = _matchAspectRatio(ratio);
+    ratio = matchedRatio.$1;
+    final ratioIndex = matchedRatio.$2;
     if (width < (height / ratio).round()) {
       width = (height / ratio).round();
     } else {
@@ -612,6 +649,7 @@ class OpenCVHelper {
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+    return ratioIndex;
   }
 
   double _calculateAspectRatio(List<List<int>> corners) {
@@ -658,54 +696,30 @@ class OpenCVHelper {
     return ratio;
   }
 
-  double _matchAspectRatio(double inputAspectRatio) {
+  (double, int) _matchAspectRatio(double inputAspectRatio) {
     bool portrait = true;
     if (inputAspectRatio < 1.0) {
       portrait = false;
       inputAspectRatio = 1.0 / inputAspectRatio;
     }
-    final Map<String, double> commonAspectRatios = {
-      //// International Standard (ISO 216 - A, B, C series)
-      "DIN A/B/C (√2:1)": math.sqrt(2), // ~1.414
-      //// North American Paper Sizes (Letter, Legal, etc.)
-      "Letter (8.5x11 inches, US/Canada)": 11 / 8.5, // ~1.294
-      "Legal (8.5x14 inches, US/Canada)": 14 / 8.5, // ~1.647
-      "Tabloid / Ledger (11x17 inches, US/Canada)": 17 / 11, // ~1.545
-      //// Photo Print Sizes
-      //"5x7 (Photo Print)": 7 / 5, // 1.4
-      "5:4 (Photo Print, Old Monitors)": 5 / 4, // 1.25
-      //// Postcards & Other Print Formats
-      //"3:2 Postcard, Film (6x4 inches)": 6 / 4, // 1.5
-      "Business Card (3.5x2 inches)": 3.5 / 2, // 1.75
-      "Credit Card (ISO/ID-1, 85.6x53.98 mm)": 85.6 / 53.98, // ~1.586
-      //// Monitors
-      "4:3 (Photography)": 4 / 3, // 1.3
-      "16:9 (Video, Widescreen)": 16 / 9, // ~1.777
-      "16:10 (alt. Widescreen)": 16 / 10, // 1.6
-      "21:9 (Ultrawide, Cinema)": 21 / 9, // ~2.333
-      //"2.39:1 (CinemaScope, Anamorphic Film)": 2.39, // 2.39
-      //// Miscellaneous
-      "1:1 Square (Notes, Covers)": 1.0, // 1.0
-      //"Golden Ratio (Art & Design)": (1 + math.sqrt(5)) / 2, // ~1.618
-    };
     // find closest match
-    String closestMatch = "";
+    int matchIndex = 0;
     double smallestDifference = double.infinity;
-    for (var entry in commonAspectRatios.entries) {
-      double difference = (entry.value - inputAspectRatio).abs();
+    for (var (index, ratioInfo) in commonAspectRatios.indexed) {
+      double difference = (ratioInfo.value - inputAspectRatio).abs();
       if (difference < smallestDifference) {
         smallestDifference = difference;
-        closestMatch = entry.key;
+        matchIndex = index;
       }
     }
     dev.log(
-      "Aspect Ratio: $closestMatch: ${commonAspectRatios[closestMatch]} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
+      "Aspect Ratio: ${commonAspectRatios[matchIndex]} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
     );
     double matchingRatio =
         portrait
-            ? commonAspectRatios[closestMatch]!
-            : 1.0 / commonAspectRatios[closestMatch]!;
-    return matchingRatio;
+            ? commonAspectRatios[matchIndex].value
+            : 1.0 / commonAspectRatios[matchIndex].value;
+    return (matchingRatio, matchIndex);
   }
 
   // Step 4.1.1: Set Border Corrections

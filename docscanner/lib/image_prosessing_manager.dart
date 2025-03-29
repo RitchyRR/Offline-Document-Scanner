@@ -1,9 +1,10 @@
 // function:
+import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:docscanner/main.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:async';
-//import 'dart:developer' as dev;
 // my packages:
 import 'opencv_helper.dart';
 import 'package:docscanner/files_helper.dart';
@@ -12,6 +13,7 @@ class ImageProcessingManager {
   static Future<void> processPage(
     String picturePath,
     List<String> versionPaths,
+    String pagePath,
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
@@ -26,6 +28,8 @@ class ImageProcessingManager {
     );
     Uint8List warped = ret.$1;
     List<int> borderCorrectionDepth = ret.$2;
+    int ratioIndex = ret.$3;
+    writePageMetadata(ratioIndex, pagePath);
     await FilesHelper.saveImage(versionPaths[1], warped);
 
     // Processed1 basierend auf dem Warped-Bild
@@ -44,5 +48,43 @@ class ImageProcessingManager {
     // update thumbnails:
     globalNotifier.triggerEvent(NotifierEvent.loadThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadDocThumbnails);
+  }
+
+  static Future<void> writePageMetadata(int ratioIndex, String pagePath) async {
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    //// Read
+    //if (await file.exists()) {
+    //  try {
+    //    String content = await file.readAsString();
+    //    metadata = jsonDecode(content).cast<String, String>();
+    //  } catch (e) {
+    //    dev.log("Error, savePageMetadata: $e");
+    //  }
+    //}
+
+    // Write
+    metadata["apectRatio"] = ratioIndex.toString();
+    await file.writeAsString(jsonEncode(metadata));
+    globalNotifier.triggerEvent(NotifierEvent.loadAspectRatio);
+  }
+
+  static Future<int?> readPageRatio(String pagePath) async {
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
+        return int.parse(metadata["apectRatio"]);
+      } catch (e) {
+        dev.log("Error, readPageRatio: $e");
+      }
+    }
+    dev.log("Error, readPageRatio: Metadata does not exist");
+    return null;
   }
 }

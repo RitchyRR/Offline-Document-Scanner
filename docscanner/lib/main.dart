@@ -1,5 +1,6 @@
 // design:
 import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
@@ -25,6 +26,7 @@ enum NotifierEvent {
   loadDocThumbnails,
   reloadDocThumbnails,
   reloadPageVersions,
+  loadAspectRatio,
 }
 
 void main() {
@@ -228,7 +230,11 @@ class _MyHomePageState extends State<MyHomePage> {
     int firstPageIndex = newDoc.$3;
     // process pages individually
     for (var i = 0; i < picturePaths.length; i++) {
-      ImageProcessingManager.processPage(picturePaths[i], newPaths[i]);
+      ImageProcessingManager.processPage(
+        picturePaths[i],
+        newPaths[i],
+        await FilesHelper.getPagePath(docIndex, i),
+      );
     }
 
     // Creation Date
@@ -1052,7 +1058,11 @@ class _PagesState extends State<Pages> {
     int firstPageIndex = newDoc.$2;
     //process pages individually
     for (var i = 0; i < picturePaths.length; i++) {
-      ImageProcessingManager.processPage(picturePaths[i], newPaths[i]);
+      ImageProcessingManager.processPage(
+        picturePaths[i],
+        newPaths[i],
+        await FilesHelper.getPagePath(widget.docIndex, firstPageIndex + i),
+      );
     }
 
     return firstPageIndex;
@@ -1321,6 +1331,8 @@ class _PreviewPageState extends State<PreviewPage> {
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
 
+  int? _ratioIndex;
+
   @override
   void initState() {
     super.initState();
@@ -1340,10 +1352,11 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.pageIndex,
     );
     _checkImagesPeriodically();
+    _loadPageAsperctRatio();
   }
 
   void _checkImagesPeriodically() {
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       bool anyChange = false;
       for (int i = 0; i < _imagePaths.length; i++) {
         if (!_imagesLoaded[i] && File(_imagePaths[i]).existsSync()) {
@@ -1352,8 +1365,10 @@ class _PreviewPageState extends State<PreviewPage> {
         }
       }
       if (!_initialVersionSet && mounted && _imagesLoaded[3]) {
-        setState(() => _selectedThumbnail = 3);
-        _pageController.jumpToPage(_selectedThumbnail);
+        if (_imagesLoaded[3]) {
+          setState(() => _selectedThumbnail = 3);
+          _pageController.jumpToPage(_selectedThumbnail);
+        }
       }
       // Update UI when images are found
       if (anyChange && mounted) {
@@ -1379,12 +1394,24 @@ class _PreviewPageState extends State<PreviewPage> {
     if (globalNotifier.value == NotifierEvent.reloadPageVersions) {
       _refreshPageVersions();
     }
+    if (globalNotifier.value == NotifierEvent.loadAspectRatio) {
+      _loadPageAsperctRatio();
+    }
   }
 
   void _refreshPageVersions() {
     for (var path in _imagePaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
+  }
+
+  Future<void> _loadPageAsperctRatio() async {
+    String pagePath = await FilesHelper.getPagePath(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    _ratioIndex = await ImageProcessingManager.readPageRatio(pagePath);
+    setState(() => _ratioIndex);
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -1604,6 +1631,105 @@ class _PreviewPageState extends State<PreviewPage> {
             onPageChanged: (index) {
               setState(() => _selectedThumbnail = index);
             },
+          ),
+          Positioned(
+            top: 84,
+            left: 12,
+            child: GestureDetector(
+              // Aspect Ratio
+              onTap: null,
+              //() async {
+              //  int? selectedIndex = await showDialog<int>(
+              //    context: context,
+              //    builder: (BuildContext context) {
+              //      int currentIndex = index;
+              //      return AlertDialog(
+              //        title: Text("Swap Page Index"),
+              //        content: StatefulBuilder(
+              //          builder: (context, setState) {
+              //            return DropdownButton<int>(
+              //              value: currentIndex,
+              //              items: List.generate(
+              //                _pageThumbnails.length,
+              //                (i) => DropdownMenuItem(
+              //                  value: i,
+              //                  child: Text(
+              //                    "Page ${i + 1}",
+              //                  ),
+              //                ),
+              //              ),
+              //              onChanged: (int? newValue) {
+              //                if (newValue != null) {
+              //                  setState(
+              //                    () =>
+              //                        currentIndex =
+              //                            newValue,
+              //                  );
+              //                }
+              //              },
+              //            );
+              //          },
+              //        ),
+              //        actions: [
+              //          TextButton(
+              //            onPressed:
+              //                () => Navigator.pop(context),
+              //            child: Text("Cancel"),
+              //          ),
+              //          TextButton(
+              //            onPressed: () {
+              //              Navigator.pop(
+              //                context,
+              //                currentIndex,
+              //              );
+              //            },
+              //            child: Text("OK"),
+              //          ),
+              //        ],
+              //      );
+              //    },
+              //  );
+              //  if (selectedIndex != null &&
+              //      selectedIndex != index) {
+              //    await FilesHelper.changePageIndex(
+              //      widget.docIndex,
+              //      index,
+              //      selectedIndex,
+              //    );
+              //    _reloadPageThumbnails();
+              //  }
+              //},
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Color.fromARGB(255, 240, 240, 240),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withAlpha(125),
+                      blurRadius: 12,
+                      spreadRadius: -2,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child:
+                    _ratioIndex != null
+                        ? Text(
+                          commonAspectRatios[_ratioIndex!].name,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        )
+                        : SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(),
+                        ),
+              ),
+            ),
           ),
         ],
       ),
