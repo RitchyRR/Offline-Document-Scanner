@@ -673,20 +673,20 @@ class OpenCVHelper {
       "Tabloid / Ledger (11x17 inches, US/Canada)": 17 / 11, // ~1.545
       //// Photo Print Sizes
       //"5x7 (Photo Print)": 7 / 5, // 1.4
-      "4x5 (Photo Print, Old Monitors)": 5 / 4, // 1.25
+      "5:4 (Photo Print, Old Monitors)": 5 / 4, // 1.25
       //// Postcards & Other Print Formats
       //"3:2 Postcard, Film (6x4 inches)": 6 / 4, // 1.5
       "Business Card (3.5x2 inches)": 3.5 / 2, // 1.75
       "Credit Card (ISO/ID-1, 85.6x53.98 mm)": 85.6 / 53.98, // ~1.586
       //// Monitors
-      "4:3 (Standard TV, Photography)": 4 / 3, // 1.3
-      "16:9 (Widescreen, HD Video)": 16 / 9, // ~1.777
-      "16:10 (Widescreen Monitors)": 16 / 10, // 1.6
-      "21:9 (Ultrawide Monitors, Cinema)": 21 / 9, // ~2.333
-      "2.39:1 (CinemaScope, Anamorphic Film)": 2.39, // 2.39
+      "4:3 (Photography)": 4 / 3, // 1.3
+      "16:9 (Video, Widescreen)": 16 / 9, // ~1.777
+      "16:10 (alt. Widescreen)": 16 / 10, // 1.6
+      "21:9 (Ultrawide, Cinema)": 21 / 9, // ~2.333
+      //"2.39:1 (CinemaScope, Anamorphic Film)": 2.39, // 2.39
       //// Miscellaneous
-      "Square (1:1, Notes, Covers)": 1.0, // 1.0
-      "Golden Ratio (Art & Design)": (1 + math.sqrt(5)) / 2, // ~1.618
+      "1:1 Square (Notes, Covers)": 1.0, // 1.0
+      //"Golden Ratio (Art & Design)": (1 + math.sqrt(5)) / 2, // ~1.618
     };
     // find closest match
     String closestMatch = "";

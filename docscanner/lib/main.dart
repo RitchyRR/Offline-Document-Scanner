@@ -798,7 +798,9 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             // Thumbnail (Right Side)
                             ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: 200),
+                              constraints: BoxConstraints(
+                                maxWidth: 184,
+                              ), // space for creation date
                               child: Container(
                                 decoration: BoxDecoration(
                                   boxShadow: [
