@@ -1007,6 +1007,7 @@ class _PagesState extends State<Pages> {
     }
     setState(() {
       _pageThumbnails = [];
+      _thumbnailHeights.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPageThumbnails();

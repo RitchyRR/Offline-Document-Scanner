@@ -516,6 +516,7 @@ class OpenCVHelper {
 
   // Step 4.1: Calculate Border Corrections
   void _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
+    // New pixel count without data loss
     height = math.max(
       (corners[1][0] - corners[0][0]).abs(),
       (corners[3][0] - corners[2][0]).abs(),
@@ -524,10 +525,13 @@ class OpenCVHelper {
       (corners[2][1] - corners[0][1]).abs(),
       (corners[3][1] - corners[1][1]).abs(),
     );
-    if (width < (height / math.sqrt(2)).round()) {
-      width = (height / math.sqrt(2)).round();
+    // Estimate aspect ratio
+    double ratio = _calculateAspectRatio(corners); //math.sqrt(2)
+    ratio = _matchAspectRatio(ratio);
+    if (width < (height / ratio).round()) {
+      width = (height / ratio).round();
     } else {
-      height = (width * math.sqrt(2)).round();
+      height = (width * ratio).round();
     }
 
     cv.Mat warpedShape = _transformImage(shape, corners);
@@ -608,6 +612,100 @@ class OpenCVHelper {
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+  }
+
+  double _calculateAspectRatio(List<List<int>> corners) {
+    // Compute Euclidean distances
+    double widthTop = math.sqrt(
+      math.pow(corners[2][0] - corners[0][0], 2) +
+          math.pow(corners[2][1] - corners[0][1], 2),
+    );
+
+    double widthBottom = math.sqrt(
+      math.pow(corners[3][0] - corners[1][0], 2) +
+          math.pow(corners[3][1] - corners[1][1], 2),
+    );
+
+    double heightLeft = math.sqrt(
+      math.pow(corners[1][0] - corners[0][0], 2) +
+          math.pow(corners[1][1] - corners[0][1], 2),
+    );
+
+    double heightRight = math.sqrt(
+      math.pow(corners[3][0] - corners[2][0], 2) +
+          math.pow(corners[3][1] - corners[2][1], 2),
+    );
+
+    // Compute averages
+    double avgWidth = (widthTop + widthBottom) / 2;
+    double avgHeight = (heightLeft + heightRight) / 2;
+
+    // Calculate distortion factors
+    double widthDistortion = widthTop / widthBottom;
+    double heightDistortion = heightLeft / heightRight;
+    widthDistortion =
+        widthDistortion > 1 ? widthDistortion : 1 / widthDistortion;
+    heightDistortion =
+        heightDistortion > 1 ? heightDistortion : 1 / heightDistortion;
+
+    // Correct for foreshortening
+    double correctedHeight = avgHeight * math.sqrt(widthDistortion);
+    double correctedWidth = avgWidth * math.sqrt(heightDistortion);
+
+    // Return corrected aspect ratio
+    // (assume portrait for now, fixed in _matchAspectRatio)
+    double ratio = correctedHeight / correctedWidth;
+    return ratio;
+  }
+
+  double _matchAspectRatio(double inputAspectRatio) {
+    bool portrait = true;
+    if (inputAspectRatio < 1.0) {
+      portrait = false;
+      inputAspectRatio = 1.0 / inputAspectRatio;
+    }
+    final Map<String, double> commonAspectRatios = {
+      //// International Standard (ISO 216 - A, B, C series)
+      "DIN A/B/C (√2:1)": math.sqrt(2), // ~1.414
+      //// North American Paper Sizes (Letter, Legal, etc.)
+      "Letter (8.5x11 inches, US/Canada)": 11 / 8.5, // ~1.294
+      "Legal (8.5x14 inches, US/Canada)": 14 / 8.5, // ~1.647
+      "Tabloid / Ledger (11x17 inches, US/Canada)": 17 / 11, // ~1.545
+      //// Photo Print Sizes
+      //"5x7 (Photo Print)": 7 / 5, // 1.4
+      "4x5 (Photo Print, Old Monitors)": 5 / 4, // 1.25
+      //// Postcards & Other Print Formats
+      //"3:2 Postcard, Film (6x4 inches)": 6 / 4, // 1.5
+      "Business Card (3.5x2 inches)": 3.5 / 2, // 1.75
+      "Credit Card (ISO/ID-1, 85.6x53.98 mm)": 85.6 / 53.98, // ~1.586
+      //// Monitors
+      "4:3 (Standard TV, Photography)": 4 / 3, // 1.3
+      "16:9 (Widescreen, HD Video)": 16 / 9, // ~1.777
+      "16:10 (Widescreen Monitors)": 16 / 10, // 1.6
+      "21:9 (Ultrawide Monitors, Cinema)": 21 / 9, // ~2.333
+      "2.39:1 (CinemaScope, Anamorphic Film)": 2.39, // 2.39
+      //// Miscellaneous
+      "Square (1:1, Notes, Covers)": 1.0, // 1.0
+      "Golden Ratio (Art & Design)": (1 + math.sqrt(5)) / 2, // ~1.618
+    };
+    // find closest match
+    String closestMatch = "";
+    double smallestDifference = double.infinity;
+    for (var entry in commonAspectRatios.entries) {
+      double difference = (entry.value - inputAspectRatio).abs();
+      if (difference < smallestDifference) {
+        smallestDifference = difference;
+        closestMatch = entry.key;
+      }
+    }
+    dev.log(
+      "Aspect Ratio: $closestMatch: ${commonAspectRatios[closestMatch]} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
+    );
+    double matchingRatio =
+        portrait
+            ? commonAspectRatios[closestMatch]!
+            : 1.0 / commonAspectRatios[closestMatch]!;
+    return matchingRatio;
   }
 
   // Step 4.1.1: Set Border Corrections
