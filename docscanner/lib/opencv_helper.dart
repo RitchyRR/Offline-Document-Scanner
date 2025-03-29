@@ -1031,39 +1031,19 @@ class OpenCVHelper {
     a.removeWhere((value) => value == 255);
     a.sort();
     int lowIndex = (a.length.toDouble() * lowPercentile).toInt();
-    //int highIndex = (a.length.toDouble() * highPercentile).toInt();
     double lowValue = a[lowIndex].toDouble();
-    //double highValue = a[highIndex].toDouble();
-    //dev.log("stretchMat, lowValue: $lowValue");
-    //dev.log("stretchMat, highValue: $highValue");
+
     cv.normalize(
       mat,
       mat,
       normType: cv.NORM_MINMAX,
       alpha: -lowValue,
-      beta: 255,
-    );
-    cv.Mat brightened = mat.clone();
-    cv.normalize(
-      mat,
-      brightened,
-      normType: cv.NORM_MINMAX,
-      alpha: 0,
       beta: (255 - highValue) + 255,
     );
 
-    // apply sharpening only to text / fine lines
-    brightened = _applyToText(
-      mat,
-      brightened,
-      aroundText: false,
-      applyToText: false,
-      textFineness: 25,
-    );
+    if (gamma != null) mat = _applyGammaCorrection(mat, gamma);
 
-    if (gamma != null) brightened = _applyGammaCorrection(brightened, gamma);
-
-    return brightened;
+    return mat;
   }
 
   cv.Mat _applyGammaCorrection(cv.Mat img, double gamma) {
