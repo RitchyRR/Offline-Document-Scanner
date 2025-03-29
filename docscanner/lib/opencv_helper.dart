@@ -718,7 +718,7 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(subtracted, highValue: 255, lowPercentile: 0.01);
+    subtracted = _stretchMat(subtracted, highValue: 255, lowPercentile: 0.005);
     return subtracted;
   }
 
@@ -787,7 +787,7 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(subtracted);
+    subtracted = _stretchMat(subtracted, gamma: 0.8);
     return subtracted;
   }
 
@@ -907,23 +907,51 @@ class OpenCVHelper {
   }
 
   /// Step 9: Sharpen
-  cv.Mat _sharpenImage(cv.Mat warped, {final double sharpeningStrength = 0.4}) {
+  cv.Mat _sharpenImage(cv.Mat warped, {final double sharpeningStrength = 0.8}) {
     // Define the sharpening kernel
-    cv.Mat sharpenKernel = cv.Mat.fromList(3, 3, cv.MatType.CV_32FC1, [
-      -0.135,
-      -0.366,
-      -0.135,
-      -0.366,
+    //[
+    //  -0.155,
+    //  -0.346,
+    //  -0.155,
+    //  -0.346,
+    //  0.0,
+    //  -0.346,
+    //  -0.155,
+    //  -0.346,
+    //  -0.155,
+    //]
+    cv.Mat sharpenKernel = cv.Mat.fromList(5, 5, cv.MatType.CV_32FC1, [
       0.0,
-      -0.366,
-      -0.135,
-      -0.366,
-      -0.135,
+      -0.1,
+      -0.2,
+      -0.1,
+      0.0,
+      -0.1,
+      -0.1,
+      -0.2,
+      -0.1,
+      -0.1,
+      -0.2,
+      -0.2,
+      0.0,
+      -0.2,
+      -0.2,
+      -0.1,
+      -0.1,
+      -0.2,
+      -0.1,
+      -0.1,
+      0.0,
+      -0.1,
+      -0.2,
+      -0.1,
+      0.0,
     ]);
+
     sharpenKernel = sharpenKernel.multiply(sharpeningStrength);
     final double sharpenKernelCenter = -cv.sum(sharpenKernel).val1 + 1.0;
-    sharpenKernel.set<double>(1, 1, sharpenKernelCenter);
-    //dev.log("sharpenKernelCenter: $sharpenKernelCenter");
+    sharpenKernel.set<double>(2, 2, sharpenKernelCenter);
+
     // Apply the filter with border replication
     cv.Mat sharpened = cv.filter2D(
       warped,
@@ -932,7 +960,51 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
 
+    // apply sharpening only to text / fine lines
+    sharpened = _applyToText(warped, sharpened);
+
+    //return mask.multiply(255);
     return sharpened;
+  }
+
+  cv.Mat _applyToText(
+    cv.Mat base,
+    cv.Mat special, {
+    bool aroundText = true,
+    bool applyToText = true,
+    double thresh = 15.0,
+    double textFineness = 22,
+  }) {
+    // find Text or fine lines
+    int k = math.max((K ~/ textFineness) ~/ 2 * 2 + 1, 3);
+    cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k, k));
+    cv.Mat noText = cv.morphologyEx(
+      base,
+      cv.MORPH_CLOSE,
+      kernel1,
+      borderType: cv.BORDER_REPLICATE,
+      iterations: 1,
+    );
+    cv.Mat diff = cv.absDiff(base, noText);
+    if (aroundText) {
+      cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3));
+      diff = cv.morphologyEx(
+        diff,
+        cv.MORPH_DILATE,
+        kernel2,
+        borderType: cv.BORDER_REPLICATE,
+        iterations: 1,
+      );
+    }
+    cv.Mat mask = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY).$2;
+    cv.Mat maskInv = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY_INV).$2;
+
+    if (applyToText) {
+      special = cv.add(cv.multiply(special, mask), cv.multiply(base, maskInv));
+    } else {
+      special = cv.add(cv.multiply(special, maskInv), cv.multiply(base, mask));
+    }
+    return special;
   }
 
   int _percentileValueInt(List<int> a, double percentile) {
@@ -949,9 +1021,9 @@ class OpenCVHelper {
 
   cv.Mat _stretchMat(
     cv.Mat mat, {
-    final double lowPercentile = 0.05,
-    //final double gamma = 0.8,
+    final double lowPercentile = 0.03,
     final double highValue = 230,
+    final double? gamma,
   }) {
     cv.Mat ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
     ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
@@ -969,26 +1041,45 @@ class OpenCVHelper {
       mat,
       normType: cv.NORM_MINMAX,
       alpha: -lowValue,
+      beta: 255,
+    );
+    cv.Mat brightened = mat.clone();
+    cv.normalize(
+      mat,
+      brightened,
+      normType: cv.NORM_MINMAX,
+      alpha: 0,
       beta: (255 - highValue) + 255,
     );
-    //mat = applyGammaCorrection(mat, gamma);
-    return mat;
+
+    // apply sharpening only to text / fine lines
+    brightened = _applyToText(
+      mat,
+      brightened,
+      aroundText: false,
+      applyToText: false,
+      textFineness: 25,
+    );
+
+    if (gamma != null) brightened = _applyGammaCorrection(brightened, gamma);
+
+    return brightened;
   }
 
-  //cv.Mat _applyGammaCorrection(cv.Mat img, double gamma) {
-  //  // Step 1: Create a lookup table (256 values)
-  //  List<num> lookupTable = List.generate(256, (i) {
-  //    double normalized = i / 255.0;
-  //    double corrected = math.pow(normalized, gamma) * 255.0;
-  //    return corrected.clamp(0, 255).toInt();
-  //  });
-  //
-  //  // Step 2: Convert lookup table to a cv.Mat (1 row, 256 columns)
-  //  cv.Mat lut = cv.Mat.fromList(1, 256, cv.MatType.CV_8UC1, lookupTable);
-  //
-  //  // Step 3: Apply lookup table to the image
-  //  cv.Mat result = cv.LUT(img, lut);
-  //
-  //  return result;
-  //}
+  cv.Mat _applyGammaCorrection(cv.Mat img, double gamma) {
+    // Step 1: Create a lookup table (256 values)
+    List<num> lookupTable = List.generate(256, (i) {
+      double normalized = i / 255.0;
+      double corrected = math.pow(normalized, gamma) * 255.0;
+      return corrected.clamp(0, 255).toInt();
+    });
+
+    // Step 2: Convert lookup table to a cv.Mat (1 row, 256 columns)
+    cv.Mat lut = cv.Mat.fromList(1, 256, cv.MatType.CV_8UC1, lookupTable);
+
+    // Step 3: Apply lookup table to the image
+    cv.Mat result = cv.LUT(img, lut);
+
+    return result;
+  }
 }

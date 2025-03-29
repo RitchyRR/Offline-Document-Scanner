@@ -1314,10 +1314,10 @@ class _PreviewPageState extends State<PreviewPage> {
       if (!_initialVersionSet && mounted && _imagesLoaded[3]) {
         setState(() => _selectedThumbnail = 3);
         _pageController.jumpToPage(_selectedThumbnail);
-        _initialVersionSet = true;
       }
       // Update UI when images are found
       if (anyChange && mounted) {
+        _initialVersionSet = true;
         setState(() {});
       }
       // Stop checking if all images are loaded
