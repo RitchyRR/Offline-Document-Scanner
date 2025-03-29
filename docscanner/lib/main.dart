@@ -108,8 +108,9 @@ class _MyAppState extends State<MyApp> {
       //  secondary: lightScheme.secondary,
       //),
       darkScheme.copyWith(
-        //     surface: darkScheme.surface,
-        //     surfaceContainerLow: darkScheme.surfaceContainerLow.withOpacity(0.8),
+        //surface: darkScheme.surfaceContainerLow,
+        //surfaceContainerLow: darkScheme.surfaceContainerHigh, // cards + elevated buttons
+        //surfaceContainer: darkScheme.surfaceContainerHighest,
         //     primary: darkScheme.primary,
         //     secondary: darkScheme.secondary,
         //shadow: Color.fromARGB(255, 0, 0, 0),
@@ -182,6 +183,10 @@ class _MyAppState extends State<MyApp> {
                 statusBarIconBrightness: Brightness.dark,
               ),
             ),
+            //cardTheme: CardTheme(color: lightTheme.surfaceContainerHigh),
+            popupMenuTheme: PopupMenuThemeData(
+              color: lightTheme.primaryContainer,
+            ),
           ),
           darkTheme: ThemeData(
             colorScheme: darkTheme,
@@ -192,6 +197,10 @@ class _MyAppState extends State<MyApp> {
                 statusBarColor: Colors.transparent, // Status bar
                 statusBarIconBrightness: Brightness.light,
               ),
+            ),
+            cardTheme: CardTheme(color: darkTheme.surfaceContainerHigh),
+            popupMenuTheme: PopupMenuThemeData(
+              color: darkTheme.primaryContainer,
             ),
           ),
           themeMode: ThemeMode.system, // device controls theme
@@ -559,168 +568,188 @@ class _MyHomePageState extends State<MyHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // Document Info
-                                  InkWell(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(12.0),
-                                    ),
-                                    onTap: () async {
-                                      int?
-                                      selectedIndex = await showDialog<int>(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          int currentIndex = index;
-                                          TextEditingController nameController =
-                                              TextEditingController(
-                                                text: _docNames[index],
-                                              );
+                                  Flexible(
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(12.0),
+                                      ),
+                                      onTap: () async {
+                                        int?
+                                        selectedIndex = await showDialog<int>(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            int currentIndex = index;
+                                            TextEditingController
+                                            nameController =
+                                                TextEditingController(
+                                                  text: _docNames[index],
+                                                );
 
-                                          return AlertDialog(
-                                            title: Text("Edit Document"),
-                                            content: StatefulBuilder(
-                                              builder: (context, setState) {
-                                                return Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    // TextField for custom document name
-                                                    TextField(
-                                                      controller:
-                                                          nameController,
-                                                      decoration: InputDecoration(
-                                                        labelText:
-                                                            "Document Name",
-                                                        hintText:
-                                                            "Document ${index + 1}",
+                                            return AlertDialog(
+                                              title: Text("Edit Document"),
+                                              content: StatefulBuilder(
+                                                builder: (context, setState) {
+                                                  return Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      // TextField for custom document name
+                                                      TextField(
+                                                        controller:
+                                                            nameController,
+                                                        decoration: InputDecoration(
+                                                          labelText:
+                                                              "Document Name",
+                                                          hintText:
+                                                              "Document ${index + 1}",
+                                                        ),
+                                                        onChanged:
+                                                            (value) => setState(
+                                                              () {
+                                                                nameController
+                                                                        .text =
+                                                                    value;
+                                                              },
+                                                            ),
                                                       ),
-                                                      onChanged:
-                                                          (value) => setState(
-                                                            () {
-                                                              nameController
-                                                                      .text =
-                                                                  value.trim();
-                                                            },
-                                                          ),
-                                                    ),
-                                                    SizedBox(height: 16),
-                                                    // Dropdown for changing the index
-                                                    DropdownButtonFormField<
-                                                      int
-                                                    >(
-                                                      decoration: InputDecoration(
-                                                        labelText:
-                                                            "Swap Document Index",
-                                                      ),
-                                                      value: currentIndex,
-                                                      items: List.generate(
-                                                        _docThumbnails.length,
-                                                        (i) => DropdownMenuItem(
-                                                          value: i,
-                                                          child: Text(
-                                                            (i == index)
-                                                                ? (nameController
-                                                                        .text
-                                                                        .trim()
-                                                                        .isNotEmpty)
-                                                                    ? nameController
-                                                                        .text
-                                                                        .trim()
-                                                                    : "Document ${i + 1}"
-                                                                : _docNames[i]
-                                                                    .isNotEmpty
-                                                                ? _docNames[i]
-                                                                : "Document ${i + 1}",
+                                                      SizedBox(height: 16),
+                                                      // Dropdown for changing the index
+                                                      DropdownButtonFormField<
+                                                        int
+                                                      >(
+                                                        decoration: InputDecoration(
+                                                          labelText:
+                                                              "Swap Document Index",
+                                                        ),
+                                                        value: currentIndex,
+                                                        items: List.generate(
+                                                          _docThumbnails.length,
+                                                          (
+                                                            i,
+                                                          ) => DropdownMenuItem(
+                                                            value: i,
+                                                            child: Text(
+                                                              (i == index)
+                                                                  ? (nameController
+                                                                          .text
+                                                                          .trim()
+                                                                          .isNotEmpty)
+                                                                      ? nameController
+                                                                          .text
+                                                                          .trim()
+                                                                      : "Document ${i + 1}"
+                                                                  : _docNames[i]
+                                                                      .isNotEmpty
+                                                                  ? _docNames[i]
+                                                                  : "Document ${i + 1}",
+                                                            ),
                                                           ),
                                                         ),
+                                                        onChanged: (
+                                                          int? newValue,
+                                                        ) {
+                                                          if (newValue !=
+                                                              null) {
+                                                            setState(
+                                                              () =>
+                                                                  currentIndex =
+                                                                      newValue,
+                                                            );
+                                                          }
+                                                        },
                                                       ),
-                                                      onChanged: (
-                                                        int? newValue,
-                                                      ) {
-                                                        if (newValue != null) {
-                                                          setState(
-                                                            () =>
-                                                                currentIndex =
-                                                                    newValue,
-                                                          );
-                                                        }
-                                                      },
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                    ), // Close popup
-                                                child: Text("Cancel"),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  // Save changes and close
-                                                  setState(() {
-                                                    _docNames[index] =
-                                                        nameController.text
-                                                            .trim();
-                                                  });
-                                                  _saveDocName(index);
-                                                  Navigator.pop(
-                                                    context,
-                                                    currentIndex,
+                                                    ],
                                                   );
                                                 },
-                                                child: Text("OK"),
                                               ),
-                                            ],
-                                          );
-                                        },
-                                      );
-
-                                      // Handle the result after the popup closes
-                                      if (selectedIndex != null &&
-                                          selectedIndex != index) {
-                                        await FilesHelper.changeDocumentIndex(
-                                          index,
-                                          selectedIndex,
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ), // Close popup
+                                                  child: Text("Cancel"),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    // Save changes and close
+                                                    setState(() {
+                                                      _docNames[index] =
+                                                          nameController.text
+                                                              .trim();
+                                                    });
+                                                    _saveDocName(index);
+                                                    Navigator.pop(
+                                                      context,
+                                                      currentIndex,
+                                                    );
+                                                  },
+                                                  child: Text("OK"),
+                                                ),
+                                              ],
+                                            );
+                                          },
                                         );
-                                        _reloadDocsDisplay();
-                                      }
-                                    },
-                                    child: Padding(
-                                      padding: EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            docName,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 6),
-                                          Text(
-                                            "Created: $creationDate",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            "Pages: $pagesCount",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
+
+                                        // Handle the result after the popup closes
+                                        if (selectedIndex != null &&
+                                            selectedIndex != index) {
+                                          await FilesHelper.changeDocumentIndex(
+                                            index,
+                                            selectedIndex,
+                                          );
+                                          _reloadDocsDisplay();
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Builder(
+                                          builder: (context) {
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  docName,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  maxLines: 5,
+                                                ),
+                                                SizedBox(height: 6),
+                                                Text(
+                                                  "Created: $creationDate",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withAlpha(150),
+                                                  ),
+                                                ),
+                                                SizedBox(height: 4),
+                                                Text(
+                                                  "Pages: $pagesCount",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withAlpha(150),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -761,7 +790,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ],
                               ),
                             ),
-
                             // Thumbnail (Right Side)
                             Container(
                               decoration: BoxDecoration(
@@ -780,8 +808,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 children: [
                                   Image.file(
                                     File(_docThumbnails[index]),
-                                    width: 160.0,
-                                    height: 160.0 * 1.414,
+                                    //width: 160.0,
+                                    //height: 160.0 * 1.414,
                                     fit: BoxFit.cover,
                                   ),
                                   Positioned.fill(
