@@ -1637,68 +1637,61 @@ class _PreviewPageState extends State<PreviewPage> {
             left: 12,
             child: GestureDetector(
               // Aspect Ratio
-              onTap: null,
-              //() async {
-              //  int? selectedIndex = await showDialog<int>(
-              //    context: context,
-              //    builder: (BuildContext context) {
-              //      int currentIndex = index;
-              //      return AlertDialog(
-              //        title: Text("Swap Page Index"),
-              //        content: StatefulBuilder(
-              //          builder: (context, setState) {
-              //            return DropdownButton<int>(
-              //              value: currentIndex,
-              //              items: List.generate(
-              //                _pageThumbnails.length,
-              //                (i) => DropdownMenuItem(
-              //                  value: i,
-              //                  child: Text(
-              //                    "Page ${i + 1}",
-              //                  ),
-              //                ),
-              //              ),
-              //              onChanged: (int? newValue) {
-              //                if (newValue != null) {
-              //                  setState(
-              //                    () =>
-              //                        currentIndex =
-              //                            newValue,
-              //                  );
-              //                }
-              //              },
-              //            );
-              //          },
-              //        ),
-              //        actions: [
-              //          TextButton(
-              //            onPressed:
-              //                () => Navigator.pop(context),
-              //            child: Text("Cancel"),
-              //          ),
-              //          TextButton(
-              //            onPressed: () {
-              //              Navigator.pop(
-              //                context,
-              //                currentIndex,
-              //              );
-              //            },
-              //            child: Text("OK"),
-              //          ),
-              //        ],
-              //      );
-              //    },
-              //  );
-              //  if (selectedIndex != null &&
-              //      selectedIndex != index) {
-              //    await FilesHelper.changePageIndex(
-              //      widget.docIndex,
-              //      index,
-              //      selectedIndex,
-              //    );
-              //    _reloadPageThumbnails();
-              //  }
-              //},
+              onTap: () async {
+                int? selectedIndex = await showDialog<int>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    int currentIndex = _ratioIndex ?? 0;
+                    return AlertDialog(
+                      clipBehavior: Clip.hardEdge,
+                      title: Text("Change Aspect Ratio"),
+                      content: StatefulBuilder(
+                        builder: (context, setState) {
+                          return DropdownButton<int>(
+                            isExpanded: true,
+                            value: currentIndex,
+                            items: List.generate(
+                              commonAspectRatios.length,
+                              (i) => DropdownMenuItem(
+                                value: i,
+                                child: Text(commonAspectRatios[i].description),
+                              ),
+                            ),
+                            onChanged: (int? newValue) {
+                              if (newValue != null) {
+                                setState(() => currentIndex = newValue);
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context, currentIndex);
+                          },
+                          child: Text("OK"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (selectedIndex != null &&
+                    _ratioIndex != null &&
+                    selectedIndex != _ratioIndex) {
+                  await ImageProcessingManager.writePageMetadata(
+                    selectedIndex,
+                    await FilesHelper.getPagePath(
+                      widget.docIndex,
+                      widget.pageIndex,
+                    ),
+                  );
+                }
+              },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
