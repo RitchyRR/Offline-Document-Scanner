@@ -1632,97 +1632,101 @@ class _PreviewPageState extends State<PreviewPage> {
               setState(() => _selectedThumbnail = index);
             },
           ),
-          Positioned(
-            top: 84,
-            left: 12,
-            child: GestureDetector(
-              // Aspect Ratio
-              onTap: () async {
-                int? selectedIndex = await showDialog<int>(
-                  context: context,
-                  builder: (BuildContext context) {
-                    int currentIndex = _ratioIndex ?? 0;
-                    return AlertDialog(
-                      clipBehavior: Clip.hardEdge,
-                      title: Text("Change Aspect Ratio"),
-                      content: StatefulBuilder(
-                        builder: (context, setState) {
-                          return DropdownButton<int>(
-                            isExpanded: true,
-                            value: currentIndex,
-                            items: List.generate(
-                              commonAspectRatios.length,
-                              (i) => DropdownMenuItem(
-                                value: i,
-                                child: Text(commonAspectRatios[i].description),
-                              ),
-                            ),
-                            onChanged: (int? newValue) {
-                              if (newValue != null) {
-                                setState(() => currentIndex = newValue);
-                              }
+          _selectedThumbnail == 0
+              ? Positioned(
+                top: 84,
+                left: 12,
+                child: GestureDetector(
+                  // Aspect Ratio
+                  onTap: () async {
+                    int? selectedIndex = await showDialog<int>(
+                      context: context,
+                      builder: (BuildContext context) {
+                        int currentIndex = _ratioIndex ?? 0;
+                        return AlertDialog(
+                          clipBehavior: Clip.hardEdge,
+                          title: Text("Change Aspect Ratio"),
+                          content: StatefulBuilder(
+                            builder: (context, setState) {
+                              return DropdownButton<int>(
+                                isExpanded: true,
+                                value: currentIndex,
+                                items: List.generate(
+                                  commonAspectRatios.length,
+                                  (i) => DropdownMenuItem(
+                                    value: i,
+                                    child: Text(
+                                      commonAspectRatios[i].description,
+                                    ),
+                                  ),
+                                ),
+                                onChanged: (int? newValue) {
+                                  if (newValue != null) {
+                                    setState(() => currentIndex = newValue);
+                                  }
+                                },
+                              );
                             },
-                          );
-                        },
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text("Cancel"),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text("Cancel"),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context, currentIndex);
+                              },
+                              child: Text("OK"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (selectedIndex != null &&
+                        selectedIndex != (_ratioIndex ?? -1)) {
+                      await ImageProcessingManager.writePageMetadata(
+                        selectedIndex,
+                        await FilesHelper.getPagePath(
+                          widget.docIndex,
+                          widget.pageIndex,
                         ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context, currentIndex);
-                          },
-                          child: Text("OK"),
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Color.fromARGB(255, 240, 240, 240),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).shadowColor.withAlpha(125),
+                          blurRadius: 12,
+                          spreadRadius: -2,
+                          offset: const Offset(0, 4),
                         ),
                       ],
-                    );
-                  },
-                );
-                if (selectedIndex != null &&
-                    selectedIndex != (_ratioIndex ?? -1)) {
-                  await ImageProcessingManager.writePageMetadata(
-                    selectedIndex,
-                    await FilesHelper.getPagePath(
-                      widget.docIndex,
-                      widget.pageIndex,
                     ),
-                  );
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Color.fromARGB(255, 240, 240, 240),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).shadowColor.withAlpha(125),
-                      blurRadius: 12,
-                      spreadRadius: -2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                    child:
+                        _ratioIndex != null
+                            ? Text(
+                              commonAspectRatios[_ratioIndex!].name,
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            )
+                            : SizedBox(
+                              height: 14,
+                              width: 14,
+                              child: CircularProgressIndicator(),
+                            ),
+                  ),
                 ),
-                child:
-                    _ratioIndex != null
-                        ? Text(
-                          commonAspectRatios[_ratioIndex!].name,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        )
-                        : SizedBox(
-                          height: 14,
-                          width: 14,
-                          child: CircularProgressIndicator(),
-                        ),
-              ),
-            ),
-          ),
+              )
+              : SizedBox(),
         ],
       ),
       // Floating Buttons
