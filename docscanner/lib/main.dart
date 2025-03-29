@@ -606,6 +606,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           hintText:
                                                               "Document ${index + 1}",
                                                         ),
+                                                        clipBehavior:
+                                                            Clip.hardEdge,
                                                         onChanged:
                                                             (value) => setState(
                                                               () {
@@ -625,6 +627,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                               "Swap Document Index",
                                                         ),
                                                         value: currentIndex,
+                                                        isExpanded: true,
                                                         items: List.generate(
                                                           _docThumbnails.length,
                                                           (
@@ -632,6 +635,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                                           ) => DropdownMenuItem(
                                                             value: i,
                                                             child: Text(
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                               (i == index)
                                                                   ? (nameController
                                                                           .text
