@@ -713,7 +713,7 @@ class OpenCVHelper {
       }
     }
     dev.log(
-      "Aspect Ratio: ${commonAspectRatios[matchIndex]} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
+      "Aspect Ratio: ${commonAspectRatios[matchIndex].name} ${commonAspectRatios[matchIndex].value} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
     );
     double matchingRatio =
         portrait
