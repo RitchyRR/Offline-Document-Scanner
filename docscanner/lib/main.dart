@@ -797,38 +797,41 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             ),
                             // Thumbnail (Right Side)
-                            Container(
-                              decoration: BoxDecoration(
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.of(
-                                      context,
-                                    ).shadowColor.withAlpha(125),
-                                    blurRadius: 8,
-                                    spreadRadius: -2,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Stack(
-                                children: [
-                                  Image.file(
-                                    File(_docThumbnails[index]),
-                                    //width: 160.0,
-                                    //height: 160.0 * 1.414,
-                                    fit: BoxFit.cover,
-                                  ),
-                                  Positioned.fill(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: () => _openDocument(index),
-                                        splashColor: Colors.black26,
-                                        highlightColor: Colors.black26,
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: 200),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Theme.of(
+                                        context,
+                                      ).shadowColor.withAlpha(125),
+                                      blurRadius: 8,
+                                      spreadRadius: -2,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Image.file(
+                                      File(_docThumbnails[index]),
+                                      //width: 160.0,
+                                      //height: 160.0 * 1.414,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned.fill(
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () => _openDocument(index),
+                                          splashColor: Colors.black26,
+                                          highlightColor: Colors.black26,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ],
