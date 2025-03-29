@@ -1681,8 +1681,7 @@ class _PreviewPageState extends State<PreviewPage> {
                   },
                 );
                 if (selectedIndex != null &&
-                    _ratioIndex != null &&
-                    selectedIndex != _ratioIndex) {
+                    selectedIndex != (_ratioIndex ?? -1)) {
                   await ImageProcessingManager.writePageMetadata(
                     selectedIndex,
                     await FilesHelper.getPagePath(
