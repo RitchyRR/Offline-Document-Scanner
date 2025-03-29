@@ -1133,7 +1133,7 @@ class OpenCVHelper {
 
   cv.Mat _stretchMat(
     cv.Mat mat, {
-    final double lowPercentile = 0.03,
+    final double lowPercentile = 0.02,
     final double highValue = 230,
     final double? gamma,
   }) {

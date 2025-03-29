@@ -1718,10 +1718,15 @@ class _PreviewPageState extends State<PreviewPage> {
                                 fontSize: 14,
                               ),
                             )
-                            : SizedBox(
-                              height: 14,
-                              width: 14,
-                              child: CircularProgressIndicator(),
+                            : Padding(
+                              padding: const EdgeInsets.all(3.0),
+                              child: SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
                   ),
                 ),
