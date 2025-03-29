@@ -33,12 +33,12 @@ class ImageProcessingManager {
       cvHelper.processImage1,
       ParamsProcessImage1(versionPaths[1]),
     );
-    await FilesHelper.saveImage(versionPaths[2], processed1);
+    FilesHelper.saveImage(versionPaths[2], processed1);
 
     // Processed2 basierend auf dem Processed1-Bild
     Uint8List processed2 = await compute(
       cvHelper.processImage2,
-      ParamsProcessImage2(versionPaths[2], borderCorrectionDepth),
+      ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
     await FilesHelper.saveImage(versionPaths[3], processed2);
     // update thumbnails:
