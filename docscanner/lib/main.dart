@@ -21,11 +21,11 @@ import 'package:docscanner/files_helper.dart';
 late GlobalNotifier globalNotifier;
 
 enum NotifierEvent {
-  loadThumbnails,
-  reloadThumbnails,
-  loadDocThumbnails,
-  reloadDocThumbnails,
-  reloadPageVersions,
+  loadPagesThumbnails,
+  reloadPagesThumbnails,
+  loadDocsThumbnails,
+  reloadDocsThumbnails,
+  loadPageVersions,
   loadAspectRatio,
 }
 
@@ -39,7 +39,7 @@ class GlobalNotifier extends ValueNotifier<NotifierEvent?> {
 
   void triggerEvent(NotifierEvent event) {
     value = event;
-    notifyListeners();
+    value = null; // reset, so that multiple triggers of the same type can work
   }
 }
 
@@ -58,16 +58,9 @@ class _MyAppState extends State<MyApp> {
           Navigator.pushNamed(
             // ignore: use_build_context_synchronously
             context,
-            '/pages',
-            arguments: {'docIndex': docIndex},
-          ).then((_) {
-            Navigator.pushNamed(
-              // ignore: use_build_context_synchronously
-              context,
-              '/preview',
-              arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
-            );
-          });
+            '/preview',
+            arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
+          );
         });
 
         return Pages(docIndex: docIndex);
@@ -294,11 +287,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _handleGlobalEvent() {
     if (!mounted) return;
-    if (globalNotifier.value == NotifierEvent.loadDocThumbnails) {
-      _refreshDocsDisplay();
-    }
-    if (globalNotifier.value == NotifierEvent.reloadDocThumbnails) {
-      _reloadDocsDisplay();
+    switch (globalNotifier.value) {
+      case NotifierEvent.loadDocsThumbnails:
+        _refreshDocsDisplay();
+        break;
+      case NotifierEvent.reloadDocsThumbnails:
+        _reloadDocsDisplay();
+        break;
+      default:
     }
   }
 
@@ -327,16 +323,20 @@ class _MyHomePageState extends State<MyHomePage> {
           _docNames[docIndex] = metadata["name"] ?? "";
           _docDates[docIndex] = metadata["date"] ?? "";
         } catch (e) {
-          dev.log("Error reading metadata for doc $docIndex: $e");
+          dev.log(
+            "Error, _refreshDocsDisplay: Reading metadata for doc $docIndex: $e",
+          );
         }
       } else {
         _saveDocName(docIndex);
       }
     }
     // Refresh Display
-    setState(() {
-      _docThumbnails = thumbnailPaths;
-    });
+    if (mounted) {
+      setState(() {
+        _docThumbnails = thumbnailPaths;
+      });
+    }
   }
 
   void fixMetadataLengths(int length) {
@@ -352,6 +352,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _saveDocName(int docIndex) async {
     final docPath = await FilesHelper.getDocumentPath(docIndex);
+    if (!Directory(docPath).existsSync()) {
+      dev.log(
+        "Error, _saveDocName: Trying to save metadata into empty Document $docIndex",
+      );
+      return;
+    }
     final file = File('$docPath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -361,14 +367,19 @@ class _MyHomePageState extends State<MyHomePage> {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, String>();
       } catch (e) {
-        dev.log("Error reading existing metadata, creating new one: $e");
-        metadata["date"] = "";
+        dev.log("Error,_saveDocName: Reading metadata: $e");
       }
     }
 
-    fixMetadataLengths(docIndex + 1);
     // Write
+    if (!await file.exists()) {
+      dev.log("Warning,_saveDocName: Metadata file missing, creating new one");
+      metadata = {};
+      metadata["date"] = "";
+    }
     metadata["name"] = _docNames[docIndex];
+    fixMetadataLengths(docIndex + 1);
+
     await file.writeAsString(jsonEncode(metadata));
   }
 
@@ -965,12 +976,13 @@ class _PagesState extends State<Pages> {
   List<String> _pageThumbnails = [];
   final List<double?> _thumbnailHeights = [];
   final List<GlobalKey> _imageKeys = [];
+  bool popped = false;
 
   @override
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
-    _loadPageThumbnails();
+    _loadPagesThumbnails(onFirstLoading: true);
   }
 
   @override
@@ -981,22 +993,29 @@ class _PagesState extends State<Pages> {
 
   void _handleGlobalEvent() {
     if (!mounted) return;
-    if (globalNotifier.value == NotifierEvent.loadThumbnails) {
-      _loadPageThumbnails();
-    } else if (globalNotifier.value == NotifierEvent.reloadThumbnails) {
-      _reloadPageThumbnails();
+    switch (globalNotifier.value) {
+      case NotifierEvent.loadPagesThumbnails:
+        _loadPagesThumbnails();
+        break;
+      case NotifierEvent.reloadPagesThumbnails:
+        _reloadPageThumbnails();
+        break;
+      default:
     }
   }
 
-  Future<void> _loadPageThumbnails() async {
-    // ignore: unused_local_variable
+  Future<void> _loadPagesThumbnails({bool onFirstLoading = false}) async {
     List<String> thumbnailPaths = await FilesHelper.getPagesThumbnails(
       widget.docIndex,
-    ).then((thumbnailPaths) {
-      if (thumbnailPaths.isEmpty) {
-        // ignore: use_build_context_synchronously
+    );
+    if (thumbnailPaths.isEmpty) {
+      if (popped) {
+        dev.log("Error, can't Navigator.pop(context); twice.");
+      } else if (!onFirstLoading && mounted && context.mounted) {
         Navigator.pop(context);
+        popped = true;
       }
+    } else {
       int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
       for (var i = 0; i < tooShortBy; i++) {
         _thumbnailHeights.add(null);
@@ -1005,8 +1024,7 @@ class _PagesState extends State<Pages> {
       setState(() {
         _pageThumbnails = thumbnailPaths;
       });
-      return thumbnailPaths;
-    });
+    }
   }
 
   Future<void> _reloadPageThumbnails() async {
@@ -1021,7 +1039,7 @@ class _PagesState extends State<Pages> {
       _thumbnailHeights.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPageThumbnails();
+      _loadPagesThumbnails();
     });
   }
 
@@ -1364,7 +1382,7 @@ class _PreviewPageState extends State<PreviewPage> {
           anyChange = true;
         }
       }
-      if (!_initialVersionSet && mounted && _imagesLoaded[3]) {
+      if (!_initialVersionSet && mounted) {
         if (_imagesLoaded[3]) {
           setState(() => _selectedThumbnail = 3);
           _pageController.jumpToPage(_selectedThumbnail);
@@ -1391,11 +1409,14 @@ class _PreviewPageState extends State<PreviewPage> {
 
   void _handleGlobalEvent() {
     if (!mounted) return;
-    if (globalNotifier.value == NotifierEvent.reloadPageVersions) {
-      _refreshPageVersions();
-    }
-    if (globalNotifier.value == NotifierEvent.loadAspectRatio) {
-      _loadPageAsperctRatio();
+    switch (globalNotifier.value) {
+      case NotifierEvent.loadPageVersions:
+        _refreshPageVersions();
+        break;
+      case NotifierEvent.loadAspectRatio:
+        _loadPageAsperctRatio();
+        break;
+      default:
     }
   }
 
@@ -1542,6 +1563,21 @@ class _PreviewPageState extends State<PreviewPage> {
     return false;
   }
 
+  void _reprocessingSetup() {
+    for (var i = 1; i < _imagesLoaded.length; i++) {
+      _imagesLoaded[i] = false;
+    }
+    FilesHelper.deleteProcessedVersionsOfPage(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    if (mounted) {
+      _refreshPageVersions();
+      setState(() {});
+      _checkImagesPeriodically();
+    }
+  }
+
   // Preview Page
   @override
   Widget build(BuildContext context) {
@@ -1639,10 +1675,10 @@ class _PreviewPageState extends State<PreviewPage> {
                 child: GestureDetector(
                   // Aspect Ratio
                   onTap: () async {
-                    int? selectedIndex = await showDialog<int>(
+                    int? confirmedRatioIndex = await showDialog<int>(
                       context: context,
                       builder: (BuildContext context) {
-                        int currentIndex = _ratioIndex ?? 0;
+                        int selectedRatioIndex = _ratioIndex ?? 0;
                         return AlertDialog(
                           clipBehavior: Clip.hardEdge,
                           title: Text("Change Aspect Ratio"),
@@ -1650,7 +1686,7 @@ class _PreviewPageState extends State<PreviewPage> {
                             builder: (context, setState) {
                               return DropdownButton<int>(
                                 isExpanded: true,
-                                value: currentIndex,
+                                value: selectedRatioIndex,
                                 items: List.generate(
                                   commonAspectRatios.length,
                                   (i) => DropdownMenuItem(
@@ -1662,7 +1698,9 @@ class _PreviewPageState extends State<PreviewPage> {
                                 ),
                                 onChanged: (int? newValue) {
                                   if (newValue != null) {
-                                    setState(() => currentIndex = newValue);
+                                    setState(
+                                      () => selectedRatioIndex = newValue,
+                                    );
                                   }
                                 },
                               );
@@ -1675,7 +1713,7 @@ class _PreviewPageState extends State<PreviewPage> {
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pop(context, currentIndex);
+                                Navigator.pop(context, selectedRatioIndex);
                               },
                               child: Text("OK"),
                             ),
@@ -1683,14 +1721,24 @@ class _PreviewPageState extends State<PreviewPage> {
                         );
                       },
                     );
-                    if (selectedIndex != null &&
-                        selectedIndex != (_ratioIndex ?? -1)) {
+                    if (confirmedRatioIndex != null &&
+                        confirmedRatioIndex != (_ratioIndex ?? -1)) {
                       await ImageProcessingManager.writePageMetadata(
-                        selectedIndex,
+                        confirmedRatioIndex,
                         await FilesHelper.getPagePath(
                           widget.docIndex,
                           widget.pageIndex,
                         ),
+                      );
+                      _reprocessingSetup();
+                      ImageProcessingManager.processPage(
+                        _imagePaths[0],
+                        _imagePaths,
+                        await FilesHelper.getPagePath(
+                          widget.docIndex,
+                          widget.pageIndex,
+                        ),
+                        inRatioIndex: confirmedRatioIndex,
                       );
                     }
                   },

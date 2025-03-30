@@ -40,9 +40,9 @@ final List<AspectRatioInfo> commonAspectRatios = [
 
 class ParamsWarpImage {
   String pathIn = "";
-  String pagePath = "";
+  int? inRatioIndex;
 
-  ParamsWarpImage(this.pathIn);
+  ParamsWarpImage(this.pathIn, {this.inRatioIndex});
 }
 
 class ParamsProcessImage1 {
@@ -70,7 +70,7 @@ class OpenCVHelper {
   (Uint8List, List<int>, int) warpImage(ParamsWarpImage params) {
     cv.Mat? imageMat = _loadImage(params.pathIn);
 
-    final warpedRes = _warpImage(imageMat);
+    final warpedRes = _warpImage(imageMat, params.inRatioIndex);
     cv.Mat? warped = warpedRes.$1;
     int ratioIndex = warpedRes.$2;
     return (_returnImage(warped), borderCorrectionDepth, ratioIndex);
@@ -162,7 +162,7 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, int) _warpImage(cv.Mat? imageMat) {
+  (cv.Mat?, int) _warpImage(cv.Mat? imageMat, int? inRatioIndex) {
     if (imageMat == null) return (null, 0);
 
     // scale down
@@ -185,7 +185,7 @@ class OpenCVHelper {
     List<List<int>> corners = _detectCorners(shape);
 
     // 4. Perspective transformation
-    final ratioIndex = _calculateTransformation(shape, corners);
+    final ratioIndex = _calculateTransformation(shape, corners, inRatioIndex);
     shape.dispose();
     shape = null;
 
@@ -266,7 +266,7 @@ class OpenCVHelper {
         tightRiskyShape.at<int>(rows - 1, cols - 1) == 0 &&
         tightRiskyShape.at<int>(rows ~/ 2, 0) == 0 &&
         tightRiskyShape.at<int>(rows ~/ 2, cols - 1) == 0) {
-      dev.log("returning documentMask from simple edges");
+      //dev.log("Good, _documentMask: Returning documentMask from simple edges");
       return tightRiskyShape;
     }
 
@@ -550,7 +550,11 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  int _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
+  int _calculateTransformation(
+    cv.Mat shape,
+    List<List<int>> corners,
+    int? inRatioIndex,
+  ) {
     // New pixel count without data loss
     height = math.max(
       (corners[1][0] - corners[0][0]).abs(),
@@ -561,10 +565,15 @@ class OpenCVHelper {
       (corners[3][1] - corners[1][1]).abs(),
     );
     // Estimate aspect ratio
-    double ratio = _calculateAspectRatio(corners); //math.sqrt(2)
-    final matchedRatio = _matchAspectRatio(ratio);
+    double ratio = 0.0;
+    ratio =
+        (inRatioIndex != null)
+            ? commonAspectRatios[inRatioIndex].value
+            : _calculateAspectRatio(corners);
+    final matchedRatio = _matchAspectRatioAndOrientation(ratio, inRatioIndex);
     ratio = matchedRatio.$1;
     final ratioIndex = matchedRatio.$2;
+
     if (width < (height / ratio).round()) {
       width = (height / ratio).round();
     } else {
@@ -696,7 +705,10 @@ class OpenCVHelper {
     return ratio;
   }
 
-  (double, int) _matchAspectRatio(double inputAspectRatio) {
+  (double, int) _matchAspectRatioAndOrientation(
+    double inputAspectRatio,
+    int? inRatioIndex,
+  ) {
     bool portrait = true;
     if (inputAspectRatio < 1.0) {
       portrait = false;
@@ -704,16 +716,20 @@ class OpenCVHelper {
     }
     // find closest match
     int matchIndex = 0;
-    double smallestDifference = double.infinity;
-    for (var (index, ratioInfo) in commonAspectRatios.indexed) {
-      double difference = (ratioInfo.value - inputAspectRatio).abs();
-      if (difference < smallestDifference) {
-        smallestDifference = difference;
-        matchIndex = index;
+    if (inRatioIndex != null) {
+      matchIndex = inRatioIndex;
+    } else {
+      double smallestDifference = double.infinity;
+      for (var (index, ratioInfo) in commonAspectRatios.indexed) {
+        double difference = (ratioInfo.value - inputAspectRatio).abs();
+        if (difference < smallestDifference) {
+          smallestDifference = difference;
+          matchIndex = index;
+        }
       }
     }
     dev.log(
-      "Aspect Ratio: ${commonAspectRatios[matchIndex].name} ${commonAspectRatios[matchIndex].value} (calculated: $inputAspectRatio, ${portrait ? "portrait" : "horizontal"})",
+      "Aspect Ratio: ${commonAspectRatios[matchIndex].name} ${commonAspectRatios[matchIndex].value} (${inRatioIndex == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
     );
     double matchingRatio =
         portrait

@@ -13,8 +13,9 @@ class ImageProcessingManager {
   static Future<void> processPage(
     String picturePath,
     List<String> versionPaths,
-    String pagePath,
-  ) async {
+    String pagePath, {
+    int? inRatioIndex,
+  }) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
     // Original
@@ -24,7 +25,7 @@ class ImageProcessingManager {
     // Warped
     var ret = await compute(
       cvHelper.warpImage,
-      ParamsWarpImage(versionPaths[0]),
+      ParamsWarpImage(versionPaths[0], inRatioIndex: inRatioIndex),
     );
     Uint8List warped = ret.$1;
     List<int> borderCorrectionDepth = ret.$2;
@@ -46,8 +47,8 @@ class ImageProcessingManager {
     );
     await FilesHelper.saveImage(versionPaths[3], processed2);
     // update thumbnails:
-    globalNotifier.triggerEvent(NotifierEvent.loadThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.loadDocThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 
   static Future<void> writePageMetadata(int ratioIndex, String pagePath) async {
@@ -84,7 +85,7 @@ class ImageProcessingManager {
         dev.log("Error, readPageRatio: $e");
       }
     }
-    dev.log("Error, readPageRatio: Metadata does not exist");
+    dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
     return null;
   }
 }

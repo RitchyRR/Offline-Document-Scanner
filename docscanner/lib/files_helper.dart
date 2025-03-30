@@ -42,7 +42,9 @@ class FilesHelper {
 
     String docPath = '$docDir/Document $docIndex';
     if (!Directory(docPath).existsSync()) {
-      dev.log("Warning: Requested directory \"$docPath\" does not exist.");
+      dev.log(
+        "Warning, getDocumentPath: Requested Document $docIndex does not exist.",
+      );
     }
     return docPath;
   }
@@ -63,7 +65,9 @@ class FilesHelper {
     String documentPath = await getDocumentPath(docIndex);
     String pagePath = '$documentPath/Page $pageIndex';
     if (!Directory(pagePath).existsSync()) {
-      dev.log("Warning: Requested directory \"$pagePath\" does not exist.");
+      dev.log(
+        "Warning, getPagePath: Requested directory \"$pagePath\" does not exist.",
+      );
     }
     return pagePath;
   }
@@ -76,7 +80,7 @@ class FilesHelper {
     if (!File(toImagePath).existsSync()) {
       dev.log("Image SAVE FAILED at: $toImagePath");
     } else {
-      dev.log("Image saved at: $toImagePath");
+      //dev.log("Image saved at: $toImagePath");
     }
   }
 
@@ -151,77 +155,106 @@ class FilesHelper {
 
         // Delete empty pages
         for (var (pageIndex, page) in pages.indexed) {
-          if (page is Directory && page.listSync().isEmpty) {
-            dev.log("Deleting empty page directory: ${page.path}");
-            deletePage(docIndex, pageIndex);
-          } else if (page is Directory && page.listSync().length != 4) {
-            // !(page.listSync().any((element) => element.path.contains("processed2")))
-            dev.log("Deleting half-empty page directory: ${page.path}");
-            deletePage(docIndex, pageIndex);
+          int versionCount = await getPageVersionsCount(docIndex, pageIndex);
+          if (versionCount < 4) {
+            if (versionCount == 0) {
+              dev.log("Deleting empty page directory: ${page.path}");
+            } else {
+              dev.log("Deleting half-empty page directory: ${page.path}");
+            }
+            await deletePage(docIndex, pageIndex);
           }
         }
-
-        // Check if document is now empty and delete it
-        if ((await getPagesCount(docIndex)) == 0) {
-          dev.log("Deleting empty Document $docIndex");
-          deleteDocument(docIndex);
-        }
+        // Info: deletePage already deletes as a result empty Documents
       }
     }
   }
 
   static Future<void> deleteDocument(int docIndex) async {
     String docPath = await getDocumentPath(docIndex);
-    if (!await Directory(docPath).exists()) {
-      dev.log("Error: Can't delete nonexistent document directory: $docPath");
-      return;
+    if (!Directory(docPath).existsSync()) {
+      dev.log(
+        "Warning, deleteDocument: Document $docIndex nonexistent, moving following Documents up",
+      );
+    } else {
+      dev.log("deleteDocument: Deleting document directory: $docPath");
+      Directory(docPath).deleteSync(recursive: true);
     }
-    dev.log("Deleting document directory: $docPath");
-    Directory(docPath).deleteSync(recursive: true);
 
-    // rename all with higher pageIndex to close the gap
+    // rename all with higher docIndex to close the gap
     Directory fromDirectory = Directory(await getDocumentPath(docIndex + 1));
     String toPath = docPath;
-    while (await fromDirectory.exists()) {
-      dev.log("Renaming ${fromDirectory.path} -> $toPath");
-      await fromDirectory.rename(toPath);
+    for (int i = docIndex; i < await getDocumentsCount();) {
+      if (fromDirectory.existsSync()) {
+        dev.log("Renaming ${fromDirectory.path} -> $toPath");
+        await fromDirectory.rename(toPath);
+        i++;
+      }
 
       docIndex++;
       fromDirectory = Directory(await getDocumentPath(docIndex + 1));
       toPath = await getDocumentPath(docIndex);
     }
-    globalNotifier.triggerEvent(NotifierEvent.reloadDocThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
   }
 
   static Future<void> deletePage(int docIndex, int pageIndex) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
     if (!await Directory(pagePath).exists()) {
-      dev.log("Error: Can't delete nonexistent page directory: $pagePath");
-      return;
+      dev.log(
+        "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
+      );
+    } else {
+      dev.log("Deleting page directory: $pagePath");
+      Directory(pagePath).deleteSync(recursive: true);
     }
-    dev.log("Deleting page directory: $pagePath");
-    Directory(pagePath).deleteSync(recursive: true);
 
     // rename all with higher pageIndex to close the gap
     Directory fromDirectory = Directory(
       await getPagePath(docIndex, pageIndex + 1),
     );
     String toPath = pagePath;
-    while (await fromDirectory.exists()) {
-      dev.log("Renaming ${fromDirectory.path} -> $toPath");
-      await fromDirectory.rename(toPath);
+    for (int i = pageIndex; i < await getPagesCount(docIndex);) {
+      if (fromDirectory.existsSync()) {
+        dev.log("Renaming ${fromDirectory.path} -> $toPath");
+        await fromDirectory.rename(toPath);
+        i++;
+      }
 
       pageIndex++;
       fromDirectory = Directory(await getPagePath(docIndex, pageIndex + 1));
       toPath = await getPagePath(docIndex, pageIndex);
-      // refresh page versions
-      globalNotifier.triggerEvent(NotifierEvent.reloadPageVersions);
     }
-    globalNotifier.triggerEvent(NotifierEvent.reloadThumbnails);
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
       deleteDocument(docIndex);
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    } else {
+      globalNotifier.triggerEvent(NotifierEvent.loadPageVersions);
+      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+    }
+  }
+
+  static Future<void> deleteProcessedVersionsOfPage(
+    int docIndex,
+    int pageIndex,
+  ) async {
+    String pagePath = await getPagePath(docIndex, pageIndex);
+    if (!await Directory(pagePath).exists()) {
+      dev.log(
+        "Error, deleteProcessedVersionsOfPage: Document $docIndex, Page $pageIndex nonexistent",
+      );
+      return;
+    }
+    List<String> processedNames = ["warped", "processed1", "processed2"];
+    for (var file in Directory(pagePath).listSync()) {
+      for (var name in processedNames) {
+        if (file.path.endsWith("$name.png")) {
+          file.delete();
+          dev.log("deleteProcessedVersionsOfPage: Deleting ${file.path}");
+        }
+      }
     }
   }
 
@@ -355,16 +388,40 @@ class FilesHelper {
     await Directory(tmpPath).rename(newPath);
   }
 
+  static Future<int> getPageVersionsCount(int docIndex, int pageIndex) async {
+    final pageDir = Directory(await getPagePath(docIndex, pageIndex));
+    int versionsCount = 0;
+    if (pageDir.existsSync()) {
+      var pageFiles = pageDir.listSync();
+      for (var file in pageFiles) {
+        if (file.path.endsWith(".png")) versionsCount++;
+      }
+    } else {
+      dev.log(
+        "Warning, getPageVersionsCount: '${pageDir.path}' does not exist",
+      );
+    }
+    return versionsCount;
+  }
+
   static Future<int> getPagesCount(int docIndex) async {
-    List<FileSystemEntity> docDirList =
-        Directory(
-          await getDocumentPath(docIndex),
-        ).listSync().whereType<Directory>().toList();
-    return docDirList.length;
+    final docDir = Directory(await getDocumentPath(docIndex));
+    int? pagesCount;
+    if (docDir.existsSync()) {
+      pagesCount = docDir.listSync().whereType<Directory>().toList().length;
+    } else {
+      dev.log("Warning, getPagesCount: '${docDir.path}' does not exist");
+      pagesCount = 0;
+    }
+    return pagesCount;
   }
 
   static Future<int> getDocumentsCount() async {
-    return (Directory(await _getDocumentsPath()).listSync()).length;
+    List<Directory> dirList =
+        Directory(
+          await _getDocumentsPath(),
+        ).listSync().whereType<Directory>().toList();
+    return dirList.length;
   }
 
   static Future<void> saveDocumentImagesToGallery(int docIndex) async {
