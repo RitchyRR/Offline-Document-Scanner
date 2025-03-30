@@ -41,8 +41,9 @@ final List<AspectRatioInfo> commonAspectRatios = [
 class ParamsWarpImage {
   String pathIn = "";
   int? inRatioIndex;
+  bool? orientation;
 
-  ParamsWarpImage(this.pathIn, {this.inRatioIndex});
+  ParamsWarpImage(this.pathIn, {this.inRatioIndex, this.orientation});
 }
 
 class ParamsProcessImage1 {
@@ -67,13 +68,23 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  (Uint8List, List<int>, int) warpImage(ParamsWarpImage params) {
+  (Uint8List, List<int>, int, bool) warpImage(ParamsWarpImage params) {
     cv.Mat? imageMat = _loadImage(params.pathIn);
 
-    final warpedRes = _warpImage(imageMat, params.inRatioIndex);
+    final warpedRes = _warpImage(
+      imageMat,
+      params.inRatioIndex,
+      params.orientation,
+    );
     cv.Mat? warped = warpedRes.$1;
     int ratioIndex = warpedRes.$2;
-    return (_returnImage(warped), borderCorrectionDepth, ratioIndex);
+    bool orientation = warpedRes.$3;
+    return (
+      _returnImage(warped),
+      borderCorrectionDepth,
+      ratioIndex,
+      orientation,
+    );
   }
 
   Uint8List processImage1(ParamsProcessImage1 params) {
@@ -162,8 +173,12 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, int) _warpImage(cv.Mat? imageMat, int? inRatioIndex) {
-    if (imageMat == null) return (null, 0);
+  (cv.Mat?, int, bool) _warpImage(
+    cv.Mat? imageMat,
+    int? inRatioIndex,
+    bool? orientation,
+  ) {
+    if (imageMat == null) return (null, 0, true);
 
     // scale down
     //if (cols > 1080) {
@@ -185,16 +200,21 @@ class OpenCVHelper {
     List<List<int>> corners = _detectCorners(shape);
 
     // 4. Perspective transformation
-    final ratioIndex = _calculateTransformation(shape, corners, inRatioIndex);
+    final (ratioIndex, newOrientation) = _calculateTransformation(
+      shape,
+      corners,
+      inRatioIndex,
+      orientation,
+    );
     shape.dispose();
     shape = null;
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
-    if (warped == null) return (null, 0);
+    if (warped == null) return (null, 0, true);
     imageMat.dispose();
     imageMat = null;
 
-    return (warped, ratioIndex);
+    return (warped, ratioIndex, newOrientation);
   }
 
   /// Filter Image 1: subtract background quickly
@@ -530,10 +550,11 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  int _calculateTransformation(
+  (int, bool) _calculateTransformation(
     cv.Mat shape,
     List<List<int>> corners,
     int? inRatioIndex,
+    bool? orientation,
   ) {
     // New pixel count without data loss
     height = math.max(
@@ -550,9 +571,14 @@ class OpenCVHelper {
         (inRatioIndex != null)
             ? commonAspectRatios[inRatioIndex].value
             : _calculateAspectRatio(corners);
-    final matchedRatio = _matchAspectRatioAndOrientation(ratio, inRatioIndex);
+    final matchedRatio = _matchAspectRatioAndOrientation(
+      ratio,
+      inRatioIndex,
+      orientation,
+    );
     ratio = matchedRatio.$1;
     final ratioIndex = matchedRatio.$2;
+    orientation = matchedRatio.$3;
 
     if (width < (height / ratio).round()) {
       width = (height / ratio).round();
@@ -638,7 +664,7 @@ class OpenCVHelper {
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
-    return ratioIndex;
+    return (ratioIndex, orientation);
   }
 
   double _calculateAspectRatio(List<List<int>> corners) {
@@ -685,13 +711,18 @@ class OpenCVHelper {
     return ratio;
   }
 
-  (double, int) _matchAspectRatioAndOrientation(
+  (double, int, bool) _matchAspectRatioAndOrientation(
     double inputAspectRatio,
     int? inRatioIndex,
+    bool? portraitOrientation,
   ) {
-    bool portrait = true;
-    if (inputAspectRatio < 1.0) {
-      portrait = false;
+    if (portraitOrientation == null) {
+      portraitOrientation = true;
+      if (inputAspectRatio < 1.0) {
+        portraitOrientation = false;
+      }
+    }
+    if (!portraitOrientation) {
       inputAspectRatio = 1.0 / inputAspectRatio;
     }
     // find closest match
@@ -712,10 +743,10 @@ class OpenCVHelper {
     //  "Aspect Ratio: ${commonAspectRatios[matchIndex].name}: ${commonAspectRatios[matchIndex].value} (${inRatioIndex == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
     //);
     double matchingRatio =
-        portrait
+        portraitOrientation
             ? commonAspectRatios[matchIndex].value
             : 1.0 / commonAspectRatios[matchIndex].value;
-    return (matchingRatio, matchIndex);
+    return (matchingRatio, matchIndex, portraitOrientation);
   }
 
   // Step 4.1.1: Set Border Corrections

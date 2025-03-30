@@ -26,7 +26,7 @@ enum NotifierEvent {
   loadDocsThumbnailsAndInfo,
   reloadDocsThumbnails,
   loadPageVersions,
-  loadAspectRatio,
+  loadPageMetadata,
 }
 
 void main() {
@@ -1242,7 +1242,7 @@ class _PagesState extends State<Pages> {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Color.fromARGB(255, 240, 240, 240),
+                                      color: Color.fromARGB(255, 220, 220, 220),
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: [
                                         BoxShadow(
@@ -1351,6 +1351,7 @@ class _PreviewPageState extends State<PreviewPage> {
   List<String> _imagePaths = [];
 
   int? _ratioIndex;
+  bool? _orientationPortrait;
 
   @override
   void initState() {
@@ -1371,7 +1372,7 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.pageIndex,
     );
     _checkImagesPeriodically();
-    _loadPageAsperctRatio();
+    _loadPageMeatadata();
   }
 
   void _checkImagesPeriodically() {
@@ -1414,8 +1415,8 @@ class _PreviewPageState extends State<PreviewPage> {
       case NotifierEvent.loadPageVersions:
         _refreshPageVersions();
         break;
-      case NotifierEvent.loadAspectRatio:
-        _loadPageAsperctRatio();
+      case NotifierEvent.loadPageMetadata:
+        _loadPageMeatadata();
         break;
       default:
     }
@@ -1427,13 +1428,19 @@ class _PreviewPageState extends State<PreviewPage> {
     }
   }
 
-  Future<void> _loadPageAsperctRatio() async {
+  Future<void> _loadPageMeatadata() async {
     String pagePath = await FilesHelper.getPagePath(
       widget.docIndex,
       widget.pageIndex,
     );
     _ratioIndex = await ImageProcessingManager.readPageRatio(pagePath);
-    setState(() => _ratioIndex);
+    _orientationPortrait = await ImageProcessingManager.readPageOrientation(
+      pagePath,
+    );
+    setState(() {
+      _ratioIndex;
+      _orientationPortrait;
+    });
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -1670,19 +1677,19 @@ class _PreviewPageState extends State<PreviewPage> {
             },
           ),
           _selectedThumbnail == 0
-              ? Positioned(
-                top: 84,
-                left: 12,
-                child: GestureDetector(
-                  // Aspect Ratio
-                  onTap: () async {
-                    await _aspectRatioPopup(context);
-                  },
+              ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Align(
+                  alignment: Alignment.topCenter,
+
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 7, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Color.fromARGB(255, 240, 240, 240),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
                           color: Theme.of(context).shadowColor.withAlpha(125),
@@ -1692,26 +1699,22 @@ class _PreviewPageState extends State<PreviewPage> {
                         ),
                       ],
                     ),
-                    child:
-                        _ratioIndex != null
-                            ? Text(
-                              commonAspectRatios[_ratioIndex!].name,
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            )
-                            : Padding(
-                              padding: const EdgeInsets.all(3.0),
-                              child: SizedBox(
-                                height: 14,
-                                width: 14,
-                                child: CircularProgressIndicator(
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
+                    child: Row(
+                      spacing: 12,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          spacing: 12,
+                          children: [
+                            _aspectRatioDropDown(context),
+                            _orientationDropDown(context),
+                            Icon(Icons.rotate_left),
+                            Icon(Icons.rotate_right),
+                          ],
+                        ),
+                        _confirmReProcessingButton(context),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -1848,63 +1851,213 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
-  Future<void> _aspectRatioPopup(BuildContext context) async {
-    int? confirmedRatioIndex = await showDialog<int>(
-      context: context,
-      builder: (BuildContext context) {
-        int selectedRatioIndex = _ratioIndex ?? 0;
-        return AlertDialog(
-          clipBehavior: Clip.hardEdge,
-          title: Text("Change Aspect Ratio"),
-          content: StatefulBuilder(
-            builder: (context, setState) {
-              return DropdownButton<int>(
-                isExpanded: true,
-                value: selectedRatioIndex,
-                items: List.generate(
-                  commonAspectRatios.length,
-                  (i) => DropdownMenuItem(
-                    value: i,
-                    child: Text(commonAspectRatios[i].description),
-                  ),
-                ),
-                onChanged: (int? newValue) {
-                  if (newValue != null) {
-                    setState(() => selectedRatioIndex = newValue);
-                  }
-                },
-              );
-            },
+  Stack _confirmReProcessingButton(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).shadowColor.withAlpha(125),
+                blurRadius: 12,
+                spreadRadius: -2,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel"),
+        ),
+        SizedBox(
+          height: 36,
+          width: 36,
+          child: Material(
+            color: Colors.transparent, //fromARGB(255, 220, 220, 220),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              child: Icon(Icons.check),
+              onTap: () => _refreshPageVersions(),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context, selectedRatioIndex);
-              },
-              child: Text("OK"),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
-    if (confirmedRatioIndex != null &&
-        confirmedRatioIndex != (_ratioIndex ?? -1)) {
-      await ImageProcessingManager.writePageMetadata(
-        confirmedRatioIndex,
-        await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
-      );
-      _reprocessingSetup();
-      await ImageProcessingManager.processPage(
-        _imagePaths[0],
-        _imagePaths,
-        await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
-        inRatioIndex: confirmedRatioIndex,
-      );
-    }
+  }
+  //child: InkWell(
+  //  onTap: null,
+  //  //() => (int? newValue) async {
+  //  //  if (newValue != null && newValue != _ratioIndex) {
+  //  //    setState(() => _ratioIndex = newValue);
+  //  //    //await ImageProcessingManager.writePageMetadata(
+  //  //    //  newValue,
+  //  //    //  true, //todo
+  //  //    //  await FilesHelper.getPagePath(
+  //  //    //    widget.docIndex,
+  //  //    //    widget.pageIndex,
+  //  //    //  ),
+  //  //    //);
+  //  //    //_reprocessingSetup();
+  //  //    //await ImageProcessingManager.processPage(
+  //  //    //  _imagePaths[0],
+  //  //    //  _imagePaths,
+  //  //    //  await FilesHelper.getPagePath(
+  //  //    //    widget.docIndex,
+  //  //    //    widget.pageIndex,
+  //  //    //  ),
+  //  //    //  inRatioIndex: newValue,
+  //  //    //  orientation: null, //todo
+  //  //    //);
+  //  //  }
+  //  //},
+  //),
+
+  Container _aspectRatioDropDown(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color:
+            Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withAlpha(125),
+            blurRadius: 12,
+            spreadRadius: -2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(20),
+          //dropdownColor: Color.fromARGB(255, 220, 220, 220),
+          isDense: true,
+          isExpanded: false,
+          alignment: Alignment.center,
+          icon:
+              SizedBox.shrink(), //Icon(Icons.arrow_drop_down, color: Colors.black),
+          value: _ratioIndex,
+          items: List.generate(
+            commonAspectRatios.length,
+            (i) => DropdownMenuItem(
+              alignment: Alignment.center,
+              value: i,
+              child: Text(
+                commonAspectRatios[i].name,
+                style: TextStyle(
+                  //color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          onChanged: (int? newValue) async {
+            if (newValue != null && newValue != _ratioIndex) {
+              setState(() => _ratioIndex = newValue);
+              //await ImageProcessingManager.writePageMetadata(
+              //  newValue,
+              //  true, //todo
+              //  await FilesHelper.getPagePath(
+              //    widget.docIndex,
+              //    widget.pageIndex,
+              //  ),
+              //);
+              //_reprocessingSetup();
+              //await ImageProcessingManager.processPage(
+              //  _imagePaths[0],
+              //  _imagePaths,
+              //  await FilesHelper.getPagePath(
+              //    widget.docIndex,
+              //    widget.pageIndex,
+              //  ),
+              //  inRatioIndex: newValue,
+              //  orientation: null, //todo
+              //);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Container _orientationDropDown(BuildContext context) {
+    List<String> orientationsList = ["portrait", "landscape"];
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color:
+            Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withAlpha(125),
+            blurRadius: 12,
+            spreadRadius: -2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(20),
+          //dropdownColor: Color.fromARGB(255, 220, 220, 220),
+          isDense: true,
+          isExpanded: false,
+          alignment: Alignment.center,
+          icon:
+              SizedBox.shrink(), //Icon((_orientationPortrait ?? true)? Icons.crop_portrait: Icons.crop_landscape,),
+          value: (_orientationPortrait ?? true) ? 0 : 1,
+          items: List.generate(
+            orientationsList.length,
+            (j) => DropdownMenuItem(
+              alignment: Alignment.center,
+              value: j,
+              child: Text(
+                orientationsList[j],
+                style: TextStyle(
+                  //color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          onChanged: (int? newValue) async {
+            if (newValue != null &&
+                newValue != ((_orientationPortrait ?? true) ? 0 : 1)) {
+              setState(() => _orientationPortrait = (newValue == 0));
+              //await ImageProcessingManager.writePageMetadata(
+              //  0, //todo
+              //  (newValue == 0),
+              //  await FilesHelper.getPagePath(
+              //    widget.docIndex,
+              //    widget.pageIndex,
+              //  ),
+              //);
+              //_reprocessingSetup();
+              //await ImageProcessingManager.processPage(
+              //  _imagePaths[0],
+              //  _imagePaths,
+              //  await FilesHelper.getPagePath(
+              //    widget.docIndex,
+              //    widget.pageIndex,
+              //  ),
+              //  inRatioIndex: null, //todo
+              //  orientation: (newValue == 0), //todo
+              //);
+            }
+          },
+        ),
+      ),
+    );
   }
 }
 

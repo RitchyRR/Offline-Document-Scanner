@@ -15,6 +15,7 @@ class ImageProcessingManager {
     List<String> versionPaths,
     String pagePath, {
     int? inRatioIndex,
+    bool? orientation,
   }) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
@@ -25,12 +26,17 @@ class ImageProcessingManager {
     // Warped
     var ret = await compute(
       cvHelper.warpImage,
-      ParamsWarpImage(versionPaths[0], inRatioIndex: inRatioIndex),
+      ParamsWarpImage(
+        versionPaths[0],
+        inRatioIndex: inRatioIndex,
+        orientation: orientation,
+      ),
     );
     Uint8List warped = ret.$1;
     List<int> borderCorrectionDepth = ret.$2;
     int ratioIndex = ret.$3;
-    writePageMetadata(ratioIndex, pagePath);
+    orientation = ret.$4;
+    writePageMetadata(ratioIndex, orientation, pagePath);
     await FilesHelper.saveImage(versionPaths[1], warped);
 
     // Processed1 basierend auf dem Warped-Bild
@@ -55,24 +61,32 @@ class ImageProcessingManager {
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnailsAndInfo);
   }
 
-  static Future<void> writePageMetadata(int ratioIndex, String pagePath) async {
+  static Future<void> writePageMetadata(
+    int ratioIndex,
+    bool orientationPortrait,
+    String pagePath,
+  ) async {
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
-    //// Read
-    //if (await file.exists()) {
-    //  try {
-    //    String content = await file.readAsString();
-    //    metadata = jsonDecode(content).cast<String, String>();
-    //  } catch (e) {
-    //    dev.log("Error, savePageMetadata: $e");
-    //  }
-    //}
+    if (await file.exists()) {
+      try {
+        /// Read
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
 
-    // Write
-    metadata["apectRatio"] = ratioIndex.toString();
-    await file.writeAsString(jsonEncode(metadata));
-    globalNotifier.triggerEvent(NotifierEvent.loadAspectRatio);
+        /// Write
+        // aspect ratio
+        metadata["apectRatio"] = ratioIndex.toString();
+        // orientation for aspect ratio (portrait, landscape)
+        metadata["orientation"] =
+            orientationPortrait ? "portrait" : "landscape";
+        await file.writeAsString(jsonEncode(metadata));
+        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+      } catch (e) {
+        dev.log("Error, savePageMetadata: $e");
+      }
+    }
   }
 
   static Future<int?> readPageRatio(String pagePath) async {
@@ -85,6 +99,25 @@ class ImageProcessingManager {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, String>();
         return int.parse(metadata["apectRatio"]);
+      } catch (e) {
+        dev.log("Error, readPageRatio: $e");
+      }
+    }
+    dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+    return null;
+  }
+
+  static Future<bool?> readPageOrientation(String pagePath) async {
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
+        String orientationString = metadata["orientation"];
+        return (orientationString == "portrait" || orientationString == "");
       } catch (e) {
         dev.log("Error, readPageRatio: $e");
       }
