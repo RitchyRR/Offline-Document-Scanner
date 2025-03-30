@@ -406,7 +406,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _reloadDocsDisplay() async {
-    dev.log("Reloading page thumbnails.");
+    //dev.log("Reloading documents thumbnails.");
     for (var path in _docThumbnails) {
       /*final evictRes = */
       imageCache.evict(FileImage(File(path)), includeLive: true);
@@ -1028,7 +1028,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _reloadPageThumbnails() async {
-    dev.log("Reloading page thumbnails.");
+    //dev.log("Reloading pages thumbnails.");
     for (var path in _pageThumbnails) {
       /*final evictRes = */
       imageCache.evict(FileImage(File(path)), includeLive: true);

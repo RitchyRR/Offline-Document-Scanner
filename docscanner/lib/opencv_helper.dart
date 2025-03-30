@@ -728,9 +728,9 @@ class OpenCVHelper {
         }
       }
     }
-    dev.log(
-      "Aspect Ratio: ${commonAspectRatios[matchIndex].name}: ${commonAspectRatios[matchIndex].value} (${inRatioIndex == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
-    );
+    //dev.log(
+    //  "Aspect Ratio: ${commonAspectRatios[matchIndex].name}: ${commonAspectRatios[matchIndex].value} (${inRatioIndex == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
+    //);
     double matchingRatio =
         portrait
             ? commonAspectRatios[matchIndex].value
