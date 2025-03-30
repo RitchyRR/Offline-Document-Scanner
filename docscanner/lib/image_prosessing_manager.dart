@@ -52,7 +52,7 @@ class ImageProcessingManager {
     } else {
       globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
     }
-    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnailsAndInfo);
   }
 
   static Future<void> writePageMetadata(int ratioIndex, String pagePath) async {

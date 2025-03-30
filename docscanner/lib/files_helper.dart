@@ -233,6 +233,9 @@ class FilesHelper {
     } else {
       globalNotifier.triggerEvent(NotifierEvent.loadPageVersions);
       globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+      globalNotifier.triggerEvent(
+        NotifierEvent.loadDocsThumbnailsAndInfo,
+      ); // for page count
     }
   }
 

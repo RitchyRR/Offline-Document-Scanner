@@ -23,7 +23,7 @@ late GlobalNotifier globalNotifier;
 enum NotifierEvent {
   loadPagesThumbnails,
   reloadPagesThumbnails,
-  loadDocsThumbnails,
+  loadDocsThumbnailsAndInfo,
   reloadDocsThumbnails,
   loadPageVersions,
   loadAspectRatio,
@@ -288,7 +288,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _handleGlobalEvent() {
     if (!mounted) return;
     switch (globalNotifier.value) {
-      case NotifierEvent.loadDocsThumbnails:
+      case NotifierEvent.loadDocsThumbnailsAndInfo:
         _refreshDocsDisplay();
         break;
       case NotifierEvent.reloadDocsThumbnails:
