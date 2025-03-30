@@ -252,7 +252,7 @@ class FilesHelper {
       for (var name in processedNames) {
         if (file.path.endsWith("$name.png")) {
           file.delete();
-          dev.log("deleteProcessedVersionsOfPage: Deleting ${file.path}");
+          //dev.log("deleteProcessedVersionsOfPage: Deleting ${file.path}");
         }
       }
     }

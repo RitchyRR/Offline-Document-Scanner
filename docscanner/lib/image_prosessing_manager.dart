@@ -47,7 +47,11 @@ class ImageProcessingManager {
     );
     await FilesHelper.saveImage(versionPaths[3], processed2);
     // update thumbnails:
-    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    if (inRatioIndex == null) {
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    } else {
+      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+    }
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 

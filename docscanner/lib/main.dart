@@ -1731,7 +1731,7 @@ class _PreviewPageState extends State<PreviewPage> {
                         ),
                       );
                       _reprocessingSetup();
-                      ImageProcessingManager.processPage(
+                      await ImageProcessingManager.processPage(
                         _imagePaths[0],
                         _imagePaths,
                         await FilesHelper.getPagePath(
