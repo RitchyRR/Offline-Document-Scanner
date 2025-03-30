@@ -565,7 +565,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           ? _docNames[index]
                           : "Document ${index + 1}";
                   String creationDate = _docDates[index];
-                  int pagesCount = _docPageCounts[index];
+                  int pagesCount =
+                      _docPageCounts.isNotEmpty ? _docPageCounts[index] : -1;
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -641,7 +642,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                       >(
                                                         decoration: InputDecoration(
                                                           labelText:
-                                                              "Swap Document Index",
+                                                              "Change Document Index",
                                                         ),
                                                         value: currentIndex,
                                                         isExpanded: true,
@@ -1172,14 +1173,14 @@ class _PagesState extends State<Pages> {
                                 top: 18,
                                 left: 12,
                                 child: GestureDetector(
-                                  // Swap Page Index Dialog
+                                  // Change Page Index Dialog
                                   onTap: () async {
                                     int? selectedIndex = await showDialog<int>(
                                       context: context,
                                       builder: (BuildContext context) {
                                         int currentIndex = index;
                                         return AlertDialog(
-                                          title: Text("Swap Page Index"),
+                                          title: Text("Change Page Index"),
                                           content: StatefulBuilder(
                                             builder: (context, setState) {
                                               return DropdownButton<int>(
