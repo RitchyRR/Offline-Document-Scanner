@@ -46,7 +46,7 @@ class ImageProcessingManager {
       ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
     await FilesHelper.saveImage(versionPaths[3], processed2);
-    // update thumbnails:
+    // Update thumbnails:
     if (inRatioIndex == null) {
       globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     } else {
