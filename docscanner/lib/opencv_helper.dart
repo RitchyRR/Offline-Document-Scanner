@@ -177,9 +177,9 @@ class OpenCVHelper {
 
     // 2. create a binary image, white representing the shape of the document
     cv.Mat? shape = _documentMask(bg);
+    //return (shape, 0);
     bg.dispose();
     bg = null;
-    //return shape;
 
     // 3. Corner detection
     List<List<int>> corners = _detectCorners(shape);
@@ -454,21 +454,25 @@ class OpenCVHelper {
       shape.rowRange(0, rows ~/ 2).colRange(0, cols ~/ 2),
       cv.MORPH_HITMISS,
       kernel1,
+      borderType: cv.BORDER_REPLICATE,
     );
     cv.Mat detectedCorners2 = cv.morphologyEx(
       shape.rowRange(rows ~/ 2, rows).colRange(0, cols ~/ 2),
       cv.MORPH_HITMISS,
       kernel2,
+      borderType: cv.BORDER_REPLICATE,
     );
     cv.Mat detectedCorners3 = cv.morphologyEx(
       shape.rowRange(0, rows ~/ 2).colRange(cols ~/ 2, cols),
       cv.MORPH_HITMISS,
       kernel3,
+      borderType: cv.BORDER_REPLICATE,
     );
     cv.Mat detectedCorners4 = cv.morphologyEx(
       shape.rowRange(rows ~/ 2, rows).colRange(cols ~/ 2, cols),
       cv.MORPH_HITMISS,
       kernel4,
+      borderType: cv.BORDER_REPLICATE,
     );
     // select outer points -> outerPoints (offset for quadrants)
     var outerPoints = List<List<int>>.generate(4, (_) => []);
@@ -480,53 +484,29 @@ class OpenCVHelper {
       yOffset: rows ~/ 2,
       xOffset: cols ~/ 2,
     );
-    outerPoints[0] = [xy1.$2.reduce(math.min), xy1.$1.reduce(math.min)];
-    outerPoints[1] = [xy2.$2.reduce(math.max), xy2.$1.reduce(math.min)];
-    outerPoints[2] = [xy3.$2.reduce(math.min), xy3.$1.reduce(math.max)];
-    outerPoints[3] = [xy4.$2.reduce(math.max), xy4.$1.reduce(math.max)];
+    try {
+      outerPoints[0] = [xy1.$2.reduce(math.min), xy1.$1.reduce(math.min)];
+    } catch (e) {
+      // fallback in middle if quadrants are empty
+      outerPoints[0] = [rows ~/ 2 - 1, cols ~/ 2 - 1];
+    }
+    try {
+      outerPoints[1] = [xy2.$2.reduce(math.max), xy2.$1.reduce(math.min)];
+    } catch (e) {
+      outerPoints[1] = [rows ~/ 2 + 1, cols ~/ 2 - 1];
+    }
+    try {
+      outerPoints[2] = [xy3.$2.reduce(math.min), xy3.$1.reduce(math.max)];
+    } catch (e) {
+      outerPoints[2] = [rows ~/ 2 - 1, cols ~/ 2 + 1];
+    }
+    try {
+      outerPoints[3] = [xy4.$2.reduce(math.max), xy4.$1.reduce(math.max)];
+    } catch (e) {
+      outerPoints[3] = [rows ~/ 2 + 1, cols ~/ 2 + 1];
+    }
     //dev.log("outerPoints: $outerPoints");
     return outerPoints;
-    // remove detectedCorners distant from outerPoints -> reducedCorners
-    //final kernelSize = K * 12;
-    //cv.Mat kernelReduce = cv.Mat.ones(
-    //  kernelSize,
-    //  kernelSize,
-    //  cv.MatType.CV_8SC1,
-    //);
-    //cv.Mat matReduce = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
-    //matReduce.set(outerPoints[0][0], outerPoints[0][1], 255);
-    //matReduce = cv.dilate(matReduce, kernelReduce);
-    //cv.Mat reducedCorners1 = cv.multiply(detectedCorners1, matReduce);
-    //return reducedCorners1;
-    //
-    //matReduce = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
-    //matReduce.set(outerPoints[1][0], outerPoints[1][1], 1);
-    //matReduce = cv.dilate(matReduce, kernelReduce);
-    //cv.Mat reducedCorners2 = cv.multiply(detectedCorners2, matReduce);
-    //
-    //matReduce = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
-    //matReduce.set(outerPoints[2][0], outerPoints[2][1], 1);
-    //matReduce = cv.dilate(matReduce, kernelReduce);
-    //cv.Mat reducedCorners3 = cv.multiply(detectedCorners3, matReduce);
-    //
-    //matReduce = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
-    //matReduce.set(outerPoints[3][0], outerPoints[3][1], 1);
-    //matReduce = cv.dilate(matReduce, kernelReduce);
-    //cv.Mat reducedCorners4 = cv.multiply(detectedCorners4, matReduce);
-    //
-    // select outer points from reducedCorners -> finalCorners
-    //var finalCorners = List<List<int>>.generate(4, (_) => []);
-    //xy1 = _toXYLists(reducedCorners1);
-    //xy2 = _toXYLists(reducedCorners2);
-    //xy3 = _toXYLists(reducedCorners3);
-    //xy4 = _toXYLists(reducedCorners4);
-    //finalCorners[0] = [xy1.$2.reduce(math.min), xy1.$1.reduce(math.min)];
-    //finalCorners[1] = [xy2.$2.reduce(math.max), xy2.$1.reduce(math.min)];
-    //finalCorners[2] = [xy3.$2.reduce(math.min), xy3.$1.reduce(math.max)];
-    //finalCorners[3] = [xy4.$2.reduce(math.max), xy4.$1.reduce(math.max)];
-    //dev.log("finalCorners: $finalCorners");
-    //
-    //return finalCorners;
   }
 
   (List<int>, List<int>) _toXYLists(
@@ -793,48 +773,6 @@ class OpenCVHelper {
       height,
     ));
 
-    //// visualize corners
-    //cv.Mat? cornersImage = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC3);
-    //for (var corner in corners) {
-    //  cornersImage.set(corner[0], corner[1], cv.Vec3b(255, 255, 255));
-    //}
-    //
-    //cv.Mat? possibleCornersImage = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC3);
-    //for (var (cornerIndex, corner) in possibleCorners.indexed) {
-    //  for (var point in corner) {
-    //    cv.Vec3b color = cv.Vec3b(255, 255, 255);
-    //    switch (cornerIndex) {
-    //      case 0:
-    //        color = cv.Vec3b(255, 0, 0);
-    //        break;
-    //      case 1:
-    //        color = cv.Vec3b(0, 255, 0);
-    //        break;
-    //      case 2:
-    //        color = cv.Vec3b(0, 0, 255);
-    //        break;
-    //      case 3:
-    //        color = cv.Vec3b(255, 0, 255);
-    //        break;
-    //    }
-    //    possibleCornersImage.set(point[0], point[1], color);
-    //  }
-    //}
-    //
-    //shape = cv.subtract(
-    //  imageMat,
-    //  cv.cvtColor(shape.divide(2), cv.COLOR_GRAY2BGR),
-    //);
-    //cv.Mat kernelp = cv.getStructuringElement(cv.MORPH_RECT, (K, K));
-    //shape = cv.subtract(shape, cv.dilate(possibleCornersImage, kernelp));
-    //cv.Mat kernelc = cv.getStructuringElement(cv.MORPH_RECT, (
-    //  K ~/ 2,
-    //  K ~/ 2,
-    //));
-    //cornersImage = cv.add(shape, cv.dilate(cornersImage, kernelc));
-    //
-    //return cornersImage;
-
     return warped;
   }
 
@@ -849,63 +787,6 @@ class OpenCVHelper {
     subtracted = _stretchMat(subtracted, highValue: 255, lowPercentile: 0.005);
     return subtracted;
   }
-
-  ///// Step 6: BW Correction
-  //cv.Mat _bwCorrection(cv.Mat mat, cv.Mat bg) {
-  //  //cv.Mat ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
-  //
-  // Extract saturation channel
-  //cv.Mat refHSV = cv.cvtColor(ref, cv.COLOR_BGR2HSV);
-  //cv.VecMat hsvChannels = cv.split(refHSV);
-  //cv.Mat saturation = hsvChannels[1]; // S channel (Hue, Saturation, Value)
-  //
-  // Mask for low-saturation pixels
-  //cv.Mat lowSatMask =
-  //    cv
-  //        .threshold(
-  //          saturation,
-  //          saturation.mean().val1,
-  //          1,
-  //          cv.THRESH_BINARY_INV,
-  //        )
-  //        .$2;
-  // Average low-saturation pixels
-  //cv.Scalar meanGrayColor = cv.mean(mat /*, mask: lowSatMask*/);
-  //
-  // divide by meanGrayColor
-  //cv.Mat meanMat = cv.Mat.create(
-  //  rows: mat.rows,
-  //  cols: mat.cols,
-  //  type: cv.MatType.CV_8UC3,
-  //  r: meanGrayColor.val1.toInt(),
-  //  g: meanGrayColor.val2.toInt(),
-  //  b: meanGrayColor.val3.toInt(),
-  //);
-  //double averageGrayBrightness =
-  //    (meanGrayColor.val1.toInt() +
-  //            meanGrayColor.val2.toInt() +
-  //            meanGrayColor.val3.toInt())
-  //        .toDouble() /
-  //    3;
-  //meanMat = meanMat.convertTo(
-  //  cv.MatType.CV_32FC3,
-  //  alpha: 1.0 / averageGrayBrightness,
-  //);
-  //
-  //  //cv.Mat bgHSV = cv.cvtColor(bg, cv.COLOR_BGR2HSV);
-  //cv.VecMat hsvChannels = cv.split(bgHSV);
-  //cv.Mat value1C = hsvChannels[2]; // V channel
-  //  bg = bg.convertTo(cv.MatType.CV_32FC3);
-  //  cv.Mat value1C = cv.cvtColor(bg, cv.COLOR_BGR2GRAY);
-  //  cv.Mat value3C = cv.merge([value1C, value1C, value1C].asVec());
-  //  cv.Mat normBg = bg.divideMat(value3C);
-  //
-  //  mat = mat.convertTo(cv.MatType.CV_32FC3, alpha: 1.0 / 255.0);
-  //  cv.Mat correctedMat = mat.divideMat(normBg);
-  //  correctedMat = correctedMat.convertTo(cv.MatType.CV_8UC3, alpha: 255.0);
-  //
-  //  return correctedMat;
-  //}
 
   /// Step 7: Background Subtraction 2
   cv.Mat _isolateAndSubtractBG(cv.Mat warped) {
@@ -1036,18 +917,6 @@ class OpenCVHelper {
 
   /// Step 9: Sharpen
   cv.Mat _sharpenImage(cv.Mat warped, {final double sharpeningStrength = 0.8}) {
-    // Define the sharpening kernel
-    //[
-    //  -0.155,
-    //  -0.346,
-    //  -0.155,
-    //  -0.346,
-    //  0.0,
-    //  -0.346,
-    //  -0.155,
-    //  -0.346,
-    //  -0.155,
-    //]
     cv.Mat sharpenKernel = cv.Mat.fromList(5, 5, cv.MatType.CV_32FC1, [
       0.0,
       -0.1,
@@ -1140,12 +1009,6 @@ class OpenCVHelper {
     int index = (a.length.toDouble() * percentile).toInt();
     return a[index];
   }
-
-  //double _percentileValueDouble(List<double> a, double percentile) {
-  //  a.sort();
-  //  int index = (a.length.toDouble() * percentile).toInt();
-  //  return a[index];
-  //}
 
   cv.Mat _stretchMat(
     cv.Mat mat, {

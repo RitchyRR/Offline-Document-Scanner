@@ -1676,72 +1676,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 child: GestureDetector(
                   // Aspect Ratio
                   onTap: () async {
-                    int? confirmedRatioIndex = await showDialog<int>(
-                      context: context,
-                      builder: (BuildContext context) {
-                        int selectedRatioIndex = _ratioIndex ?? 0;
-                        return AlertDialog(
-                          clipBehavior: Clip.hardEdge,
-                          title: Text("Change Aspect Ratio"),
-                          content: StatefulBuilder(
-                            builder: (context, setState) {
-                              return DropdownButton<int>(
-                                isExpanded: true,
-                                value: selectedRatioIndex,
-                                items: List.generate(
-                                  commonAspectRatios.length,
-                                  (i) => DropdownMenuItem(
-                                    value: i,
-                                    child: Text(
-                                      commonAspectRatios[i].description,
-                                    ),
-                                  ),
-                                ),
-                                onChanged: (int? newValue) {
-                                  if (newValue != null) {
-                                    setState(
-                                      () => selectedRatioIndex = newValue,
-                                    );
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text("Cancel"),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context, selectedRatioIndex);
-                              },
-                              child: Text("OK"),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    if (confirmedRatioIndex != null &&
-                        confirmedRatioIndex != (_ratioIndex ?? -1)) {
-                      await ImageProcessingManager.writePageMetadata(
-                        confirmedRatioIndex,
-                        await FilesHelper.getPagePath(
-                          widget.docIndex,
-                          widget.pageIndex,
-                        ),
-                      );
-                      _reprocessingSetup();
-                      await ImageProcessingManager.processPage(
-                        _imagePaths[0],
-                        _imagePaths,
-                        await FilesHelper.getPagePath(
-                          widget.docIndex,
-                          widget.pageIndex,
-                        ),
-                        inRatioIndex: confirmedRatioIndex,
-                      );
-                    }
+                    await _aspectRatioPopup(context);
                   },
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1911,6 +1846,65 @@ class _PreviewPageState extends State<PreviewPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _aspectRatioPopup(BuildContext context) async {
+    int? confirmedRatioIndex = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        int selectedRatioIndex = _ratioIndex ?? 0;
+        return AlertDialog(
+          clipBehavior: Clip.hardEdge,
+          title: Text("Change Aspect Ratio"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return DropdownButton<int>(
+                isExpanded: true,
+                value: selectedRatioIndex,
+                items: List.generate(
+                  commonAspectRatios.length,
+                  (i) => DropdownMenuItem(
+                    value: i,
+                    child: Text(commonAspectRatios[i].description),
+                  ),
+                ),
+                onChanged: (int? newValue) {
+                  if (newValue != null) {
+                    setState(() => selectedRatioIndex = newValue);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, selectedRatioIndex);
+              },
+              child: Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmedRatioIndex != null &&
+        confirmedRatioIndex != (_ratioIndex ?? -1)) {
+      await ImageProcessingManager.writePageMetadata(
+        confirmedRatioIndex,
+        await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
+      );
+      _reprocessingSetup();
+      await ImageProcessingManager.processPage(
+        _imagePaths[0],
+        _imagePaths,
+        await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
+        inRatioIndex: confirmedRatioIndex,
+      );
+    }
   }
 }
 
