@@ -1689,9 +1689,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                     );
                                 _totalRotation = (_totalRotation - 90) % 360;
                                 setState(() {
-                                  _imagesLoaded[0] = false;
                                   _imagePaths[0] = rotatedImagePath;
-                                  _checkImagesPeriodically();
                                 });
                               },
                               isFlat: true,
@@ -1711,9 +1709,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                     );
                                 _totalRotation = (_totalRotation + 90) % 360;
                                 setState(() {
-                                  _imagesLoaded[0] = false;
                                   _imagePaths[0] = rotatedImagePath;
-                                  _checkImagesPeriodically();
                                 });
                               },
                               isFlat: true,

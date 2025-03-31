@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate' show Isolate, ReceivePort, SendPort;
 import 'dart:typed_data';
 import 'package:docscanner/main.dart';
 import 'package:flutter/material.dart';
@@ -692,27 +693,65 @@ class FilesHelper {
     String imagePath, {
     int angle = 90,
   }) async {
-    File file = File(imagePath);
-    if (!file.existsSync()) {
-      dev.log("Error, _rotateAndSaveImage: File does not exist");
-      return "";
-    }
-    final imgBytes = await file.readAsBytes();
     final tmpDir = await getTemporaryDirectory();
-    File rotatedFile = File(
-      "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png",
+    final rotatedFilePath =
+        "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png";
+
+    final receivePort = ReceivePort();
+    await Isolate.spawn(
+      _rotateImageInTmpDir,
+      RIITDParams(receivePort.sendPort, imagePath, angle, rotatedFilePath),
     );
-    img.Image? originalImage = img.decodeImage(imgBytes);
-    if (originalImage == null) {
-      dev.log("Error, _rotateAndSaveImage: Image empty");
-      return "";
+
+    // Wait for the background isolate to finish
+    await receivePort.first;
+
+    return rotatedFilePath;
+  }
+
+  static Future<void> _rotateImageInTmpDir(RIITDParams params) async {
+    try {
+      final file = File(params.imagePath);
+      if (!file.existsSync()) {
+        dev.log("Error: File does not exist");
+        params.sendPort.send(null);
+        return;
+      }
+
+      final imgBytes = await file.readAsBytes();
+      final originalImage = img.decodeImage(imgBytes);
+
+      if (originalImage == null) {
+        dev.log("Error: Failed to decode image");
+        params.sendPort.send(null);
+        return;
+      }
+
+      final rotatedImage = img.copyRotate(originalImage, angle: params.angle);
+      final rotatedFile = File(params.rotatedFilePath);
+
+      await rotatedFile.writeAsBytes(
+        Uint8List.fromList(img.encodePng(rotatedImage)),
+      );
+
+      // Notify the main isolate that we're done
+      params.sendPort.send(true);
+    } catch (e) {
+      dev.log("Error in isolate: $e");
+      params.sendPort.send(null);
     }
-    img.Image rotatedImage = img.copyRotate(originalImage, angle: angle);
-    rotatedFile.writeAsBytes(Uint8List.fromList(img.encodePng(rotatedImage)));
-    return rotatedFile.path;
   }
 
   static Future<void> deleteTmpDir() async {
     (await getTemporaryDirectory()).delete(recursive: true);
   }
+}
+
+class RIITDParams {
+  final SendPort sendPort;
+  final String imagePath;
+  final int angle;
+  final String rotatedFilePath;
+
+  RIITDParams(this.sendPort, this.imagePath, this.angle, this.rotatedFilePath);
 }
