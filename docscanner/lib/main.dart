@@ -1672,8 +1672,22 @@ class _PreviewPageState extends State<PreviewPage> {
                           children: [
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
-                            Icon(Icons.rotate_left),
-                            Icon(Icons.rotate_right),
+                            CustomIconButton(
+                              onTap: null,
+                              icon: Icon(Icons.rotate_left),
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                            ),
+                            CustomIconButton(
+                              onTap: null,
+                              icon: Icon(Icons.rotate_right),
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                            ),
                           ],
                         ),
                         _confirmReProcessingButton(context),
@@ -1809,29 +1823,29 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   CustomIconButton _confirmReProcessingButton(BuildContext context) {
-    return (((_ratioIndex ?? 0) == _newRatioIndex) &&
-            ((_orientationPortrait ?? 0) == _newOrientationPortrait))
-        ? CustomIconButton(onTap: null)
-        : CustomIconButton(
-          constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
-          color: Theme.of(context).colorScheme.primaryContainer,
-          icon: const Icon(Icons.check),
-          onTap: () async {
-            await ImageProcessingManager.writePageMetadata(
-              _newRatioIndex,
-              _newOrientationPortrait == 0,
-              await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
-            );
-            _reprocessingSetup();
-            await ImageProcessingManager.processPage(
-              _imagePaths[0],
-              _imagePaths,
-              await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
-              inRatioIndex: _newRatioIndex,
-              orientation: _newOrientationPortrait == 0,
-            );
-          },
+    return CustomIconButton(
+      constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
+      color: Theme.of(context).colorScheme.primaryContainer,
+      icon: const Icon(Icons.check),
+      isHidden:
+          !(((_ratioIndex ?? 0) == _newRatioIndex) &&
+              ((_orientationPortrait ?? 0) == _newOrientationPortrait)),
+      onTap: () async {
+        await ImageProcessingManager.writePageMetadata(
+          _newRatioIndex,
+          _newOrientationPortrait == 0,
+          await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
         );
+        _reprocessingSetup();
+        await ImageProcessingManager.processPage(
+          _imagePaths[0],
+          _imagePaths,
+          await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
+          inRatioIndex: _newRatioIndex,
+          orientation: _newOrientationPortrait == 0,
+        );
+      },
+    );
   }
 
   Container _aspectRatioDropDown(BuildContext context) {
@@ -1987,6 +2001,7 @@ class CustomIconButton extends StatelessWidget {
   final Icon icon;
   final double radius;
   final bool isFlat;
+  final bool isHidden;
 
   const CustomIconButton({
     super.key,
@@ -1996,11 +2011,12 @@ class CustomIconButton extends StatelessWidget {
     this.icon = const Icon(Icons.check), // Default icon
     this.radius = 20,
     this.isFlat = false,
+    this.isHidden = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return onTap == null
+    return isHidden
         ? Stack()
         : Stack(
           children: [
