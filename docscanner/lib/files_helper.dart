@@ -711,4 +711,8 @@ class FilesHelper {
     rotatedFile.writeAsBytes(Uint8List.fromList(img.encodePng(rotatedImage)));
     return rotatedFile.path;
   }
+
+  static Future<void> deleteTmpDir() async {
+    (await getTemporaryDirectory()).delete(recursive: true);
+  }
 }

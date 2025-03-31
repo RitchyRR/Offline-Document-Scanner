@@ -1334,6 +1334,7 @@ class _PreviewPageState extends State<PreviewPage> {
   @override
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
+    FilesHelper.deleteTmpDir();
     super.dispose();
   }
 
