@@ -1405,12 +1405,12 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.docIndex,
       widget.pageIndex,
     );
-    _ratioIndex = await ImageProcessingManager.readPageRatio(pagePath);
-    _orientationPortrait = await ImageProcessingManager.readPageOrientation(
-      pagePath,
-    );
-    _newOrientationPortrait = _orientationPortrait;
-    _newRatioIndex = _ratioIndex;
+    _newRatioIndex =
+        _ratioIndex = await ImageProcessingManager.readPageRatio(pagePath);
+    _newOrientationPortrait =
+        _orientationPortrait = await ImageProcessingManager.readPageOrientation(
+          pagePath,
+        );
     setState(() {
       _ratioIndex;
       _orientationPortrait;
@@ -1546,6 +1546,9 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   void _reprocessingSetup() {
+    _ratioIndex = null; // don't reset _new values, for display
+    _orientationPortrait = null;
+    _totalRotation = 0;
     for (var i = 0; i < _imagesLoaded.length; i++) {
       _imagesLoaded[i] = false;
     }
@@ -1692,7 +1695,8 @@ class _PreviewPageState extends State<PreviewPage> {
                                 });
                               },
                               isFlat: true,
-                              icon: Icon(Icons.rotate_left),
+                              isDisabled: _ratioIndex == null,
+                              icon: Icons.rotate_left,
                               color:
                                   Theme.of(
                                     context,
@@ -1713,7 +1717,8 @@ class _PreviewPageState extends State<PreviewPage> {
                                 });
                               },
                               isFlat: true,
-                              icon: Icon(Icons.rotate_right),
+                              isDisabled: _ratioIndex == null,
+                              icon: Icons.rotate_right,
                               color:
                                   Theme.of(
                                     context,
@@ -1857,7 +1862,8 @@ class _PreviewPageState extends State<PreviewPage> {
     return CustomIconButton(
       constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
       color: Theme.of(context).colorScheme.primaryContainer,
-      icon: const Icon(Icons.check),
+      icon: Icons.check,
+      isDisabled: _ratioIndex == null,
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
               (_orientationPortrait == _newOrientationPortrait) &&
@@ -2034,10 +2040,11 @@ class CustomIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final BoxConstraints constraints;
   final Color color;
-  final Icon icon;
+  final IconData icon;
   final double radius;
   final bool isFlat;
   final bool isHidden;
+  final bool isDisabled;
   final String? tooltip;
 
   const CustomIconButton({
@@ -2045,10 +2052,11 @@ class CustomIconButton extends StatelessWidget {
     required this.onTap,
     this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
     this.color = Colors.blue, // Default color if not provided
-    this.icon = const Icon(Icons.check), // Default icon
+    this.icon = Icons.check, // Default icon
     this.radius = 20,
     this.isFlat = false,
     this.isHidden = false,
+    this.isDisabled = false,
     this.tooltip,
   });
 
@@ -2064,7 +2072,10 @@ class CustomIconButton extends StatelessWidget {
                   isFlat
                       ? null
                       : BoxDecoration(
-                        color: color,
+                        color:
+                            isDisabled
+                                ? Theme.of(context).disabledColor
+                                : color,
                         borderRadius: BorderRadius.circular(radius),
                         boxShadow: [smallBoxShadow()],
                       ),
@@ -2079,8 +2090,14 @@ class CustomIconButton extends StatelessWidget {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(radius),
-                    onTap: onTap,
-                    child: Center(child: icon),
+                    onTap: isDisabled ? null : onTap,
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        color:
+                            isDisabled ? Theme.of(context).disabledColor : null,
+                      ),
+                    ),
                   ),
                 ),
               ),
