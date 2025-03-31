@@ -1319,9 +1319,9 @@ class _PreviewPageState extends State<PreviewPage> {
 
   // Reprocessing Parameters:
   int? _ratioIndex;
-  int _newRatioIndex = 0;
+  int? _newRatioIndex;
   int? _orientationPortrait;
-  int _newOrientationPortrait = 0;
+  int? _newOrientationPortrait;
   int _totalRotation = 0;
 
   @override
@@ -1409,8 +1409,8 @@ class _PreviewPageState extends State<PreviewPage> {
     _orientationPortrait = await ImageProcessingManager.readPageOrientation(
       pagePath,
     );
-    _newOrientationPortrait = _orientationPortrait ?? 0;
-    _newRatioIndex = _ratioIndex ?? 0;
+    _newOrientationPortrait = _orientationPortrait;
+    _newRatioIndex = _ratioIndex;
     setState(() {
       _ratioIndex;
       _orientationPortrait;
@@ -1684,7 +1684,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                       _imagePaths[0],
                                       angle: -90,
                                     );
-                                _totalRotation -= 90;
+                                _totalRotation = (_totalRotation - 90) % 360;
                                 setState(() {
                                   _imagesLoaded[0] = false;
                                   _imagePaths[0] = rotatedImagePath;
@@ -1705,7 +1705,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                       _imagePaths[0],
                                       angle: 90,
                                     );
-                                _totalRotation += 90;
+                                _totalRotation = (_totalRotation + 90) % 360;
                                 setState(() {
                                   _imagesLoaded[0] = false;
                                   _imagePaths[0] = rotatedImagePath;
@@ -1859,14 +1859,14 @@ class _PreviewPageState extends State<PreviewPage> {
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: const Icon(Icons.check),
       isHidden:
-          (((_ratioIndex ?? 0) == _newRatioIndex) &&
-              ((_orientationPortrait ?? 0) == _newOrientationPortrait) &&
-              _totalRotation % 360 == 0),
+          ((_ratioIndex == _newRatioIndex) &&
+              (_orientationPortrait == _newOrientationPortrait) &&
+              _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
         await ImageProcessingManager.writePageMetadata(
-          _newRatioIndex,
-          _newOrientationPortrait == 0,
+          _newRatioIndex ?? 0,
+          (_newOrientationPortrait ?? 0) == 0,
           await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
         );
         _reprocessingSetup();
@@ -1878,7 +1878,7 @@ class _PreviewPageState extends State<PreviewPage> {
           ), // correct paths, without potentially rotated image in _imagePaths[0]
           await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
           inRatioIndex: _newRatioIndex,
-          orientation: _newOrientationPortrait == 0,
+          orientation: (_newOrientationPortrait ?? 0) == 0,
         );
       },
     );
