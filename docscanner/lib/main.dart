@@ -1682,6 +1682,9 @@ class _PreviewPageState extends State<PreviewPage> {
                             _orientationDropDown(context),
                             CustomIconButton(
                               onTap: () async {
+                                setState(() {
+                                  _imagesLoaded[0] = false;
+                                });
                                 String rotatedImagePath =
                                     await FilesHelper.rotateImageInTmpDir(
                                       _imagePaths[0],
@@ -1690,10 +1693,11 @@ class _PreviewPageState extends State<PreviewPage> {
                                 _totalRotation = (_totalRotation - 90) % 360;
                                 setState(() {
                                   _imagePaths[0] = rotatedImagePath;
+                                  _imagesLoaded[0] = true;
                                 });
                               },
                               isFlat: true,
-                              isDisabled: _ratioIndex == null,
+                              isDisabled: reprocessingBlocked(),
                               icon: Icons.rotate_left,
                               color:
                                   Theme.of(
@@ -1702,6 +1706,9 @@ class _PreviewPageState extends State<PreviewPage> {
                             ),
                             CustomIconButton(
                               onTap: () async {
+                                setState(() {
+                                  _imagesLoaded[0] = false;
+                                });
                                 String rotatedImagePath =
                                     await FilesHelper.rotateImageInTmpDir(
                                       _imagePaths[0],
@@ -1710,10 +1717,11 @@ class _PreviewPageState extends State<PreviewPage> {
                                 _totalRotation = (_totalRotation + 90) % 360;
                                 setState(() {
                                   _imagePaths[0] = rotatedImagePath;
+                                  _imagesLoaded[0] = true;
                                 });
                               },
                               isFlat: true,
-                              isDisabled: _ratioIndex == null,
+                              isDisabled: reprocessingBlocked(),
                               icon: Icons.rotate_right,
                               color:
                                   Theme.of(
@@ -1859,7 +1867,7 @@ class _PreviewPageState extends State<PreviewPage> {
       constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
-      isDisabled: _ratioIndex == null,
+      isDisabled: reprocessingBlocked(),
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
               (_orientationPortrait == _newOrientationPortrait) &&
@@ -1885,6 +1893,12 @@ class _PreviewPageState extends State<PreviewPage> {
       },
     );
   }
+
+  bool reprocessingBlocked() =>
+      (_ratioIndex == null ||
+          _orientationPortrait == null ||
+          !_imagesLoaded[0] ||
+          !_imagesLoaded[1]);
 
   Container _aspectRatioDropDown(BuildContext context) {
     return Container(
@@ -2073,7 +2087,7 @@ class CustomIconButton extends StatelessWidget {
                                 ? Theme.of(context).disabledColor
                                 : color,
                         borderRadius: BorderRadius.circular(radius),
-                        boxShadow: [smallBoxShadow()],
+                        boxShadow: isDisabled ? null : [smallBoxShadow()],
                       ),
             ),
             SizedBox(

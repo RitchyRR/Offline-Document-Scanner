@@ -698,10 +698,12 @@ class FilesHelper {
         "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png";
 
     final receivePort = ReceivePort();
-    Isolate.spawn(
-      _rotateImageInTmpDir,
-      RIITDParams(receivePort.sendPort, imagePath, angle, rotatedFilePath),
-    );
+    Isolate.spawn(_rotateImageInTmpDir, [
+      receivePort.sendPort,
+      imagePath,
+      angle,
+      rotatedFilePath,
+    ]);
 
     // Wait for the background isolate to finish
     await receivePort.first;
@@ -709,12 +711,12 @@ class FilesHelper {
     return rotatedFilePath;
   }
 
-  static Future<void> _rotateImageInTmpDir(RIITDParams params) async {
+  static Future<void> _rotateImageInTmpDir(args) async {
     try {
-      final file = File(params.imagePath);
+      final file = File(args[1]);
       if (!file.existsSync()) {
         dev.log("Error, _rotateImageInTmpDir: File does not exist");
-        params.sendPort.send(null);
+        args[0].send(null);
         return;
       }
 
@@ -723,35 +725,26 @@ class FilesHelper {
 
       if (originalImage == null) {
         dev.log("Error, _rotateImageInTmpDir: Failed to decode image");
-        params.sendPort.send(null);
+        args[0].send(null);
         return;
       }
 
-      final rotatedImage = img.copyRotate(originalImage, angle: params.angle);
-      final rotatedFile = File(params.rotatedFilePath);
+      final rotatedImage = img.copyRotate(originalImage, angle: args[2]);
+      final rotatedFile = File(args[3]);
 
       await rotatedFile.writeAsBytes(
         Uint8List.fromList(img.encodePng(rotatedImage)),
       );
 
       // Notify the main isolate that we're done
-      params.sendPort.send(true);
+      args[0].send(true);
     } catch (e) {
       dev.log("Error, _rotateImageInTmpDir: $e");
-      params.sendPort.send(null);
+      args[0].send(null);
     }
   }
 
   static Future<void> deleteTmpDir() async {
     (await getTemporaryDirectory()).delete(recursive: true);
   }
-}
-
-class RIITDParams {
-  final SendPort sendPort;
-  final String imagePath;
-  final int angle;
-  final String rotatedFilePath;
-
-  RIITDParams(this.sendPort, this.imagePath, this.angle, this.rotatedFilePath);
 }
