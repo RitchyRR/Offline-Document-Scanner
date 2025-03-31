@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:isolate' show Isolate, ReceivePort, SendPort;
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:docscanner/main.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +11,7 @@ import 'package:image/image.dart' as img; //rotate iamge
 import 'dart:developer' as dev;
 
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/widgets.dart' as pdfw;
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -490,7 +490,7 @@ class FilesHelper {
     return imagePaths;
   }
 
-  static Future<pw.Document?> _convertDocumentToPdf(int docIndex) async {
+  static Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
     try {
       List<String> imagePaths = await getPagesThumbnails(docIndex);
       if (imagePaths.isEmpty) {
@@ -505,24 +505,24 @@ class FilesHelper {
     return null;
   }
 
-  static Future<pw.Document?> _convertImagesToPdf(
+  static Future<pdfw.Document?> _convertImagesToPdf(
     List<String> imagePaths,
   ) async {
     try {
       // Create PDF
-      final pdf = pw.Document();
+      final pdf = pdfw.Document();
       for (String imagePath in imagePaths) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
-          final image = pw.MemoryImage(imageBytes);
+          final image = pdfw.MemoryImage(imageBytes);
 
           pdf.addPage(
-            pw.Page(
+            pdfw.Page(
               pageFormat: PdfPageFormat.a4,
-              build: (pw.Context context) {
-                return pw.Center(
-                  child: pw.Image(image, fit: pw.BoxFit.contain),
+              build: (pdfw.Context context) {
+                return pdfw.Center(
+                  child: pdfw.Image(image, fit: pdfw.BoxFit.contain),
                 );
               },
             ),
@@ -549,7 +549,7 @@ class FilesHelper {
       }
       // Save PDF
       String pdfPath = "$selectedDirectory/document_$docIndex.pdf";
-      pw.Document? pdf = await _convertDocumentToPdf(docIndex);
+      pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
       if (pdf == null) return;
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
@@ -584,7 +584,7 @@ class FilesHelper {
       // Save PDF
       String pdfPath =
           "$selectedDirectory/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
-      pw.Document? pdf = await _convertImagesToPdf([imagePath]);
+      pdfw.Document? pdf = await _convertImagesToPdf([imagePath]);
       if (pdf == null) return;
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
@@ -648,7 +648,7 @@ class FilesHelper {
     final docsPath = await _getDocumentsPath();
     String pdfPath = "$docsPath/document_$docIndex.pdf";
 
-    pw.Document? pdf = await _convertDocumentToPdf(docIndex);
+    pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
@@ -673,7 +673,7 @@ class FilesHelper {
     final docsDir = await _getDocumentsPath();
     String pdfPath =
         "$docsDir/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
-    pw.Document? pdf = await _convertImagesToPdf(imagePaths);
+    pdfw.Document? pdf = await _convertImagesToPdf(imagePaths);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
@@ -698,7 +698,7 @@ class FilesHelper {
         "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png";
 
     final receivePort = ReceivePort();
-    await Isolate.spawn(
+    Isolate.spawn(
       _rotateImageInTmpDir,
       RIITDParams(receivePort.sendPort, imagePath, angle, rotatedFilePath),
     );
@@ -713,7 +713,7 @@ class FilesHelper {
     try {
       final file = File(params.imagePath);
       if (!file.existsSync()) {
-        dev.log("Error: File does not exist");
+        dev.log("Error, _rotateImageInTmpDir: File does not exist");
         params.sendPort.send(null);
         return;
       }
@@ -722,7 +722,7 @@ class FilesHelper {
       final originalImage = img.decodeImage(imgBytes);
 
       if (originalImage == null) {
-        dev.log("Error: Failed to decode image");
+        dev.log("Error, _rotateImageInTmpDir: Failed to decode image");
         params.sendPort.send(null);
         return;
       }
@@ -737,7 +737,7 @@ class FilesHelper {
       // Notify the main isolate that we're done
       params.sendPort.send(true);
     } catch (e) {
-      dev.log("Error in isolate: $e");
+      dev.log("Error, _rotateImageInTmpDir: $e");
       params.sendPort.send(null);
     }
   }
