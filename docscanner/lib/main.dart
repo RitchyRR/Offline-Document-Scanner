@@ -1351,7 +1351,9 @@ class _PreviewPageState extends State<PreviewPage> {
   List<String> _imagePaths = [];
 
   int? _ratioIndex;
-  bool? _orientationPortrait;
+  int _newRatioIndex = 0;
+  int? _orientationPortrait;
+  int _newOrientationPortrait = 0;
 
   @override
   void initState() {
@@ -1437,6 +1439,8 @@ class _PreviewPageState extends State<PreviewPage> {
     _orientationPortrait = await ImageProcessingManager.readPageOrientation(
       pagePath,
     );
+    _newOrientationPortrait = _orientationPortrait ?? 0;
+    _newRatioIndex = _ratioIndex ?? 0;
     setState(() {
       _ratioIndex;
       _orientationPortrait;
@@ -1708,8 +1712,8 @@ class _PreviewPageState extends State<PreviewPage> {
                           children: [
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
-                            Icon(Icons.rotate_left),
-                            Icon(Icons.rotate_right),
+                            //Icon(Icons.rotate_left),
+                            //Icon(Icons.rotate_right),
                           ],
                         ),
                         _confirmReProcessingButton(context),
@@ -1852,65 +1856,61 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Stack _confirmReProcessingButton(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).shadowColor.withAlpha(125),
-                blurRadius: 12,
-                spreadRadius: -2,
-                offset: const Offset(0, 4),
+    return (((_ratioIndex ?? 0) == _newRatioIndex) &&
+            ((_orientationPortrait ?? 0) == _newOrientationPortrait))
+        ? Stack()
+        : Stack(
+          children: [
+            Container(
+              constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).shadowColor.withAlpha(125),
+                    blurRadius: 12,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 36,
-          width: 36,
-          child: Material(
-            color: Colors.transparent, //fromARGB(255, 220, 220, 220),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              child: Icon(Icons.check),
-              onTap: () => _refreshPageVersions(),
             ),
-          ),
-        ),
-      ],
-    );
+            SizedBox(
+              height: 36,
+              width: 36,
+              child: Material(
+                color: Colors.transparent, //fromARGB(255, 220, 220, 220),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Icon(Icons.check),
+                  onTap: () async {
+                    await ImageProcessingManager.writePageMetadata(
+                      _newRatioIndex,
+                      _newOrientationPortrait == 0,
+                      await FilesHelper.getPagePath(
+                        widget.docIndex,
+                        widget.pageIndex,
+                      ),
+                    );
+                    _reprocessingSetup();
+                    await ImageProcessingManager.processPage(
+                      _imagePaths[0],
+                      _imagePaths,
+                      await FilesHelper.getPagePath(
+                        widget.docIndex,
+                        widget.pageIndex,
+                      ),
+                      inRatioIndex: _newRatioIndex,
+                      orientation: _newOrientationPortrait == 0,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
   }
-  //child: InkWell(
-  //  onTap: null,
-  //  //() => (int? newValue) async {
-  //  //  if (newValue != null && newValue != _ratioIndex) {
-  //  //    setState(() => _ratioIndex = newValue);
-  //  //    //await ImageProcessingManager.writePageMetadata(
-  //  //    //  newValue,
-  //  //    //  true, //todo
-  //  //    //  await FilesHelper.getPagePath(
-  //  //    //    widget.docIndex,
-  //  //    //    widget.pageIndex,
-  //  //    //  ),
-  //  //    //);
-  //  //    //_reprocessingSetup();
-  //  //    //await ImageProcessingManager.processPage(
-  //  //    //  _imagePaths[0],
-  //  //    //  _imagePaths,
-  //  //    //  await FilesHelper.getPagePath(
-  //  //    //    widget.docIndex,
-  //  //    //    widget.pageIndex,
-  //  //    //  ),
-  //  //    //  inRatioIndex: newValue,
-  //  //    //  orientation: null, //todo
-  //  //    //);
-  //  //  }
-  //  //},
-  //),
 
   Container _aspectRatioDropDown(BuildContext context) {
     return Container(
@@ -1940,7 +1940,7 @@ class _PreviewPageState extends State<PreviewPage> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon(Icons.arrow_drop_down, color: Colors.black),
-          value: _ratioIndex,
+          value: _newRatioIndex,
           items: List.generate(
             commonAspectRatios.length,
             (i) => DropdownMenuItem(
@@ -1957,27 +1957,8 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged: (int? newValue) async {
-            if (newValue != null && newValue != _ratioIndex) {
-              setState(() => _ratioIndex = newValue);
-              //await ImageProcessingManager.writePageMetadata(
-              //  newValue,
-              //  true, //todo
-              //  await FilesHelper.getPagePath(
-              //    widget.docIndex,
-              //    widget.pageIndex,
-              //  ),
-              //);
-              //_reprocessingSetup();
-              //await ImageProcessingManager.processPage(
-              //  _imagePaths[0],
-              //  _imagePaths,
-              //  await FilesHelper.getPagePath(
-              //    widget.docIndex,
-              //    widget.pageIndex,
-              //  ),
-              //  inRatioIndex: newValue,
-              //  orientation: null, //todo
-              //);
+            if (newValue != null && newValue != _newRatioIndex) {
+              setState(() => _newRatioIndex = newValue);
             }
           },
         ),
@@ -2014,7 +1995,7 @@ class _PreviewPageState extends State<PreviewPage> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon((_orientationPortrait ?? true)? Icons.crop_portrait: Icons.crop_landscape,),
-          value: (_orientationPortrait ?? true) ? 0 : 1,
+          value: _newOrientationPortrait,
           items: List.generate(
             orientationsList.length,
             (j) => DropdownMenuItem(
@@ -2031,28 +2012,8 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged: (int? newValue) async {
-            if (newValue != null &&
-                newValue != ((_orientationPortrait ?? true) ? 0 : 1)) {
-              setState(() => _orientationPortrait = (newValue == 0));
-              //await ImageProcessingManager.writePageMetadata(
-              //  0, //todo
-              //  (newValue == 0),
-              //  await FilesHelper.getPagePath(
-              //    widget.docIndex,
-              //    widget.pageIndex,
-              //  ),
-              //);
-              //_reprocessingSetup();
-              //await ImageProcessingManager.processPage(
-              //  _imagePaths[0],
-              //  _imagePaths,
-              //  await FilesHelper.getPagePath(
-              //    widget.docIndex,
-              //    widget.pageIndex,
-              //  ),
-              //  inRatioIndex: null, //todo
-              //  orientation: (newValue == 0), //todo
-              //);
+            if (newValue != null && newValue != _newOrientationPortrait) {
+              setState(() => _newOrientationPortrait = newValue);
             }
           },
         ),

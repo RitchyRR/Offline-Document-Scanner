@@ -69,23 +69,22 @@ class ImageProcessingManager {
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
-    if (await file.exists()) {
-      try {
-        /// Read
+    try {
+      /// Read
+      if (await file.exists()) {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, String>();
-
-        /// Write
-        // aspect ratio
-        metadata["apectRatio"] = ratioIndex.toString();
-        // orientation for aspect ratio (portrait, landscape)
-        metadata["orientation"] =
-            orientationPortrait ? "portrait" : "landscape";
-        await file.writeAsString(jsonEncode(metadata));
-        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-      } catch (e) {
-        dev.log("Error, savePageMetadata: $e");
       }
+
+      /// Write
+      // aspect ratio
+      metadata["apectRatio"] = ratioIndex.toString();
+      // orientation for aspect ratio (portrait, landscape)
+      metadata["orientation"] = orientationPortrait ? "portrait" : "landscape";
+      await file.writeAsString(jsonEncode(metadata));
+      globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+    } catch (e) {
+      dev.log("Error, savePageMetadata: $e");
     }
   }
 
@@ -107,7 +106,7 @@ class ImageProcessingManager {
     return null;
   }
 
-  static Future<bool?> readPageOrientation(String pagePath) async {
+  static Future<int?> readPageOrientation(String pagePath) async {
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -117,7 +116,9 @@ class ImageProcessingManager {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, String>();
         String orientationString = metadata["orientation"];
-        return (orientationString == "portrait" || orientationString == "");
+        return (orientationString == "portrait" || orientationString == "")
+            ? 0
+            : 1;
       } catch (e) {
         dev.log("Error, readPageRatio: $e");
       }
