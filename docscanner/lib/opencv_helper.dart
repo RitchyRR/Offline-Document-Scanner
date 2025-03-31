@@ -594,7 +594,7 @@ class OpenCVHelper {
     int calculatedBoderSize = 0;
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
-      for (int i = 1; i < maxBorderSize; i++) {
+      for (int i = 0; i < maxBorderSize; i++) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
@@ -630,7 +630,7 @@ class OpenCVHelper {
     calculatedBoderSize = 0;
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
-      for (int j = 1; j < maxBorderSize; j++) {
+      for (int j = 0; j < maxBorderSize; j++) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = j;
           depths[i] = val;
@@ -898,10 +898,11 @@ class OpenCVHelper {
     // Top border
     for (int j = 0; j < width; j++) {
       wasWhite = false;
-      for (int i = borderCorrectionDepth[0]; i > 0; i--) {
+      for (int i = borderCorrectionDepth[0]; i >= 0; i--) {
         if (warped.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
-        } else if (wasWhite) {
+        }
+        if (wasWhite) {
           borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
         }
       }
@@ -910,10 +911,11 @@ class OpenCVHelper {
     // Bottom border
     for (int j = 0; j < width; j++) {
       wasWhite = false;
-      for (int i = height - borderCorrectionDepth[1]; i < height; i++) {
+      for (int i = height - borderCorrectionDepth[1] - 1; i < height; i++) {
         if (warped.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
-        } else if (wasWhite) {
+        }
+        if (wasWhite) {
           borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
         }
       }
@@ -922,10 +924,11 @@ class OpenCVHelper {
     // Left border
     for (int i = 0; i < height; i++) {
       wasWhite = false;
-      for (int j = borderCorrectionDepth[2]; j > 0; j--) {
+      for (int j = borderCorrectionDepth[2]; j >= 0; j--) {
         if (warped.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
-        } else if (wasWhite) {
+        }
+        if (wasWhite) {
           borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
         }
       }
@@ -934,10 +937,11 @@ class OpenCVHelper {
     // Right border
     for (int i = 0; i < height; i++) {
       wasWhite = false;
-      for (int j = width - borderCorrectionDepth[3]; j < width; j++) {
+      for (int j = width - borderCorrectionDepth[3] - 1; j < width; j++) {
         if (warped.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
-        } else if (wasWhite) {
+        }
+        if (wasWhite) {
           borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
         }
       }
