@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
@@ -105,6 +106,32 @@ class OpenCVHelper {
     return _returnImage(filtered2);
   }
 
+  Future<void> rotateImageInTmpDir(args) async {
+    try {
+      cv.Mat? mat = _loadImage(args[1]);
+
+      if (args[2] != 0) {
+        mat = mat?.rotate(
+          args[2] == 90
+              ? cv.ROTATE_90_CLOCKWISE
+              : (args[2] == 270)
+              ? cv.ROTATE_90_COUNTERCLOCKWISE
+              : cv.ROTATE_180,
+        );
+      }
+
+      Uint8List rotatedBytes = _returnImage(mat);
+
+      File(args[3]).writeAsBytes(rotatedBytes);
+
+      // Notify the main isolate that we're done
+      args[0].send(true);
+    } catch (e) {
+      dev.log("Error, _rotateImageInTmpDir: $e");
+      args[0].send(null);
+    }
+  }
+
   cv.Mat? _loadImage(String imagePath) {
     // Load image
     cv.Mat? imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
@@ -112,13 +139,6 @@ class OpenCVHelper {
       dev.log("Error: Failed to load picture.");
       return null;
     }
-    cv.normalize(
-      imageMat,
-      imageMat,
-      normType: cv.NORM_MINMAX,
-      alpha: 0,
-      beta: 255,
-    );
 
     // Compute K based on image dimensions
     rows = imageMat.rows;
@@ -138,17 +158,8 @@ class OpenCVHelper {
       dev.log("Error: Failed to load warped/processed1/processed2 image.");
       return null;
     }
-    cv.normalize(
-      imageMat,
-      imageMat,
-      normType: cv.NORM_MINMAX,
-      alpha: 0,
-      beta: 255,
-    );
 
     // Compute K based on image dimensions
-    //rows = imageMat.rows;
-    //cols = imageMat.cols;
     height = imageMat.rows;
     width = imageMat.cols;
     K = ((height + width) ~/ 50.0);

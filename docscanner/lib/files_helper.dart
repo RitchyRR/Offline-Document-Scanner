@@ -2,12 +2,12 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:docscanner/main.dart';
+import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image/image.dart' as img; //rotate iamge
 import 'dart:developer' as dev;
 
 import 'package:pdf/pdf.dart';
@@ -689,16 +689,14 @@ class FilesHelper {
     }
   }
 
-  static Future<String> rotateImageInTmpDir(
-    String imagePath, {
-    int angle = 90,
-  }) async {
+  static Future<String> rotateImageInTmpDir(String imagePath, int angle) async {
     final tmpDir = await getTemporaryDirectory();
-    final rotatedFilePath =
-        "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png";
+    final rotatedFilePath = "${tmpDir.path}/rotated_$angle.png";
 
+    if (File(rotatedFilePath).existsSync()) return rotatedFilePath;
     final receivePort = ReceivePort();
-    Isolate.spawn(_rotateImageInTmpDir, [
+    OpenCVHelper cvHelper = OpenCVHelper();
+    Isolate.spawn(cvHelper.rotateImageInTmpDir, [
       receivePort.sendPort,
       imagePath,
       angle,
@@ -709,39 +707,6 @@ class FilesHelper {
     await receivePort.first;
 
     return rotatedFilePath;
-  }
-
-  static Future<void> _rotateImageInTmpDir(args) async {
-    try {
-      final file = File(args[1]);
-      if (!file.existsSync()) {
-        dev.log("Error, _rotateImageInTmpDir: File does not exist");
-        args[0].send(null);
-        return;
-      }
-
-      final imgBytes = await file.readAsBytes();
-      final originalImage = img.decodeImage(imgBytes);
-
-      if (originalImage == null) {
-        dev.log("Error, _rotateImageInTmpDir: Failed to decode image");
-        args[0].send(null);
-        return;
-      }
-
-      final rotatedImage = img.copyRotate(originalImage, angle: args[2]);
-      final rotatedFile = File(args[3]);
-
-      await rotatedFile.writeAsBytes(
-        Uint8List.fromList(img.encodePng(rotatedImage)),
-      );
-
-      // Notify the main isolate that we're done
-      args[0].send(true);
-    } catch (e) {
-      dev.log("Error, _rotateImageInTmpDir: $e");
-      args[0].send(null);
-    }
   }
 
   static Future<void> deleteTmpDir() async {

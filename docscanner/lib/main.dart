@@ -1316,6 +1316,7 @@ class _PreviewPageState extends State<PreviewPage> {
 
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
+  late String _picturePath;
 
   // Reprocessing Parameters:
   int? _ratioIndex;
@@ -1365,6 +1366,7 @@ class _PreviewPageState extends State<PreviewPage> {
       // Update UI when images are found
       if (anyChange && mounted) {
         _initialVersionSet = true;
+        _picturePath = _imagePaths[0];
         setState(() {});
       }
       // Stop checking if all images are loaded
@@ -1682,19 +1684,25 @@ class _PreviewPageState extends State<PreviewPage> {
                             _orientationDropDown(context),
                             CustomIconButton(
                               onTap: () async {
-                                setState(() {
-                                  _imagesLoaded[0] = false;
-                                });
-                                String rotatedImagePath =
-                                    await FilesHelper.rotateImageInTmpDir(
-                                      _imagePaths[0],
-                                      angle: -90,
-                                    );
                                 _totalRotation = (_totalRotation - 90) % 360;
-                                setState(() {
-                                  _imagePaths[0] = rotatedImagePath;
-                                  _imagesLoaded[0] = true;
-                                });
+                                if (_totalRotation == 0) {
+                                  setState(() {
+                                    _imagePaths[0] = _picturePath;
+                                  });
+                                } else {
+                                  setState(() {
+                                    _imagesLoaded[0] = false;
+                                  });
+                                  String rotatedImagePath =
+                                      await FilesHelper.rotateImageInTmpDir(
+                                        _picturePath,
+                                        _totalRotation,
+                                      );
+                                  setState(() {
+                                    _imagePaths[0] = rotatedImagePath;
+                                    _imagesLoaded[0] = true;
+                                  });
+                                }
                               },
                               isFlat: true,
                               isDisabled: reprocessingBlocked(),
@@ -1706,19 +1714,25 @@ class _PreviewPageState extends State<PreviewPage> {
                             ),
                             CustomIconButton(
                               onTap: () async {
-                                setState(() {
-                                  _imagesLoaded[0] = false;
-                                });
-                                String rotatedImagePath =
-                                    await FilesHelper.rotateImageInTmpDir(
-                                      _imagePaths[0],
-                                      angle: 90,
-                                    );
                                 _totalRotation = (_totalRotation + 90) % 360;
-                                setState(() {
-                                  _imagePaths[0] = rotatedImagePath;
-                                  _imagesLoaded[0] = true;
-                                });
+                                if (_totalRotation == 0) {
+                                  setState(() {
+                                    _imagePaths[0] = _picturePath;
+                                  });
+                                } else {
+                                  setState(() {
+                                    _imagesLoaded[0] = false;
+                                  });
+                                  String rotatedImagePath =
+                                      await FilesHelper.rotateImageInTmpDir(
+                                        _picturePath,
+                                        _totalRotation,
+                                      );
+                                  setState(() {
+                                    _imagePaths[0] = rotatedImagePath;
+                                    _imagesLoaded[0] = true;
+                                  });
+                                }
                               },
                               isFlat: true,
                               isDisabled: reprocessingBlocked(),
