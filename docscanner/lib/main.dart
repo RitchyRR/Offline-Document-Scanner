@@ -821,16 +821,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ), // space for creation date
                               child: Container(
                                 decoration: BoxDecoration(
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Theme.of(
-                                        context,
-                                      ).shadowColor.withAlpha(125),
-                                      blurRadius: 8,
-                                      spreadRadius: -2,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  boxShadow: [bigBoxShadow(context)],
                                 ),
                                 child: Stack(
                                   children: [
@@ -938,16 +929,7 @@ class ImagesScrollPreview extends StatelessWidget {
                     12.0,
                   ), // Spacing between images
                   child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).shadowColor.withAlpha(125),
-                          blurRadius: 8,
-                          spreadRadius: -2,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                    decoration: BoxDecoration(boxShadow: [smallBoxShadow()]),
                     child: Image.file(
                       File(path),
                       height: 160.0 * 1.414,
@@ -1124,16 +1106,7 @@ class _PagesState extends State<Pages> {
                         ),
                         child: Container(
                           decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Theme.of(
-                                  context,
-                                ).shadowColor.withAlpha(125),
-                                blurRadius: 8,
-                                spreadRadius: -2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            boxShadow: [bigBoxShadow(context)],
                           ),
                           child: Stack(
                             children: [
@@ -1242,23 +1215,17 @@ class _PagesState extends State<Pages> {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Color.fromARGB(255, 220, 220, 220),
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Theme.of(
+                                      color:
+                                          Theme.of(
                                             context,
-                                          ).shadowColor.withAlpha(125),
-                                          blurRadius: 12,
-                                          spreadRadius: -2,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
+                                          ).colorScheme.surfaceBright,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [smallBoxShadow()],
                                     ),
                                     child: Text(
                                       "${index + 1}/${_pageThumbnails.length}",
                                       style: TextStyle(
-                                        color: Colors.black,
+                                        //color: Colors.black,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
                                       ),
@@ -1694,14 +1661,7 @@ class _PreviewPageState extends State<PreviewPage> {
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).shadowColor.withAlpha(125),
-                          blurRadius: 12,
-                          spreadRadius: -2,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      boxShadow: [smallBoxShadow()],
                     ),
                     child: Row(
                       spacing: 12,
@@ -1712,8 +1672,8 @@ class _PreviewPageState extends State<PreviewPage> {
                           children: [
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
-                            //Icon(Icons.rotate_left),
-                            //Icon(Icons.rotate_right),
+                            Icon(Icons.rotate_left),
+                            Icon(Icons.rotate_right),
                           ],
                         ),
                         _confirmReProcessingButton(context),
@@ -1811,14 +1771,7 @@ class _PreviewPageState extends State<PreviewPage> {
                               : Colors.white54,
                       width: 3,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).shadowColor.withAlpha(125),
-                        blurRadius: 8,
-                        spreadRadius: -2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: [bigBoxShadow(context)],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8.5),
@@ -1866,14 +1819,7 @@ class _PreviewPageState extends State<PreviewPage> {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).shadowColor.withAlpha(125),
-                    blurRadius: 12,
-                    spreadRadius: -2,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                boxShadow: [smallBoxShadow()],
               ),
             ),
             SizedBox(
@@ -1921,14 +1867,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 .colorScheme
                 .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withAlpha(125),
-            blurRadius: 12,
-            spreadRadius: -2,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [smallBoxShadow()],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -1976,14 +1915,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 .colorScheme
                 .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).shadowColor.withAlpha(125),
-            blurRadius: 12,
-            spreadRadius: -2,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: [smallBoxShadow()],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -2020,6 +1952,19 @@ class _PreviewPageState extends State<PreviewPage> {
       ),
     );
   }
+}
+
+BoxShadow bigBoxShadow(BuildContext context) {
+  return BoxShadow(
+    color: Theme.of(context).shadowColor.withAlpha(125),
+    blurRadius: 8,
+    spreadRadius: -2,
+    offset: const Offset(0, 4),
+  );
+}
+
+BoxShadow smallBoxShadow() {
+  return BoxShadow(blurRadius: 6, spreadRadius: -4, offset: const Offset(0, 2));
 }
 
 class MeasureSize extends StatefulWidget {
