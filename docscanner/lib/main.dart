@@ -1808,53 +1808,29 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
-  Stack _confirmReProcessingButton(BuildContext context) {
+  CustomIconButton _confirmReProcessingButton(BuildContext context) {
     return (((_ratioIndex ?? 0) == _newRatioIndex) &&
             ((_orientationPortrait ?? 0) == _newOrientationPortrait))
-        ? Stack()
-        : Stack(
-          children: [
-            Container(
-              constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [smallBoxShadow()],
-              ),
-            ),
-            SizedBox(
-              height: 36,
-              width: 36,
-              child: Material(
-                color: Colors.transparent, //fromARGB(255, 220, 220, 220),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Icon(Icons.check),
-                  onTap: () async {
-                    await ImageProcessingManager.writePageMetadata(
-                      _newRatioIndex,
-                      _newOrientationPortrait == 0,
-                      await FilesHelper.getPagePath(
-                        widget.docIndex,
-                        widget.pageIndex,
-                      ),
-                    );
-                    _reprocessingSetup();
-                    await ImageProcessingManager.processPage(
-                      _imagePaths[0],
-                      _imagePaths,
-                      await FilesHelper.getPagePath(
-                        widget.docIndex,
-                        widget.pageIndex,
-                      ),
-                      inRatioIndex: _newRatioIndex,
-                      orientation: _newOrientationPortrait == 0,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+        ? CustomIconButton(onTap: null)
+        : CustomIconButton(
+          constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
+          color: Theme.of(context).colorScheme.primaryContainer,
+          icon: const Icon(Icons.check),
+          onTap: () async {
+            await ImageProcessingManager.writePageMetadata(
+              _newRatioIndex,
+              _newOrientationPortrait == 0,
+              await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
+            );
+            _reprocessingSetup();
+            await ImageProcessingManager.processPage(
+              _imagePaths[0],
+              _imagePaths,
+              await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
+              inRatioIndex: _newRatioIndex,
+              orientation: _newOrientationPortrait == 0,
+            );
+          },
         );
   }
 
@@ -2001,5 +1977,57 @@ class _MeasureSizeState extends State<MeasureSize> {
       _oldSize = newSize;
       widget.onChange(newSize);
     }
+  }
+}
+
+class CustomIconButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final BoxConstraints constraints;
+  final Color color;
+  final Icon icon;
+  final double radius;
+  final bool isFlat;
+
+  const CustomIconButton({
+    super.key,
+    required this.onTap,
+    this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
+    this.color = Colors.blue, // Default color if not provided
+    this.icon = const Icon(Icons.check), // Default icon
+    this.radius = 20,
+    this.isFlat = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return onTap == null
+        ? Stack()
+        : Stack(
+          children: [
+            Container(
+              constraints: constraints,
+              decoration:
+                  isFlat
+                      ? null
+                      : BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(radius),
+                        boxShadow: [smallBoxShadow()],
+                      ),
+            ),
+            SizedBox(
+              height: constraints.maxHeight,
+              width: constraints.maxWidth,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: onTap,
+                  child: Center(child: icon),
+                ),
+              ),
+            ),
+          ],
+        );
   }
 }
