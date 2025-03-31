@@ -1317,10 +1317,12 @@ class _PreviewPageState extends State<PreviewPage> {
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
 
+  // Reprocessing Parameters:
   int? _ratioIndex;
   int _newRatioIndex = 0;
   int? _orientationPortrait;
   int _newOrientationPortrait = 0;
+  int _totalRotation = 0;
 
   @override
   void initState() {
@@ -1543,7 +1545,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   void _reprocessingSetup() {
-    for (var i = 1; i < _imagesLoaded.length; i++) {
+    for (var i = 0; i < _imagesLoaded.length; i++) {
       _imagesLoaded[i] = false;
     }
     FilesHelper.deleteProcessedVersionsOfPage(
@@ -1594,9 +1596,10 @@ class _PreviewPageState extends State<PreviewPage> {
           ),
         ],
       ),
-      // Page Versions
+      // Images (Page Versions)
       body: Stack(
         children: [
+          // Bg Shadow
           Align(
             alignment: Alignment.center,
             child: SizedBox(
@@ -1616,6 +1619,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           PhotoViewGallery.builder(
+            wantKeepAlive: false,
             scrollPhysics: const PageScrollPhysics(),
             itemCount: _imagePaths.length,
             builder: (context, index) {
@@ -1673,7 +1677,19 @@ class _PreviewPageState extends State<PreviewPage> {
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
                             CustomIconButton(
-                              onTap: _refreshPageVersions,
+                              onTap: () async {
+                                String rotatedImagePath =
+                                    await FilesHelper.rotateImageInTmpDir(
+                                      _imagePaths[0],
+                                      angle: -90,
+                                    );
+                                _totalRotation -= 90;
+                                setState(() {
+                                  _imagesLoaded[0] = false;
+                                  _imagePaths[0] = rotatedImagePath;
+                                  _checkImagesPeriodically();
+                                });
+                              },
                               isFlat: true,
                               icon: Icon(Icons.rotate_left),
                               color:
@@ -1682,7 +1698,19 @@ class _PreviewPageState extends State<PreviewPage> {
                                   ).colorScheme.surfaceContainerHighest,
                             ),
                             CustomIconButton(
-                              onTap: _refreshPageVersions,
+                              onTap: () async {
+                                String rotatedImagePath =
+                                    await FilesHelper.rotateImageInTmpDir(
+                                      _imagePaths[0],
+                                      angle: 90,
+                                    );
+                                _totalRotation += 90;
+                                setState(() {
+                                  _imagesLoaded[0] = false;
+                                  _imagePaths[0] = rotatedImagePath;
+                                  _checkImagesPeriodically();
+                                });
+                              },
                               isFlat: true,
                               icon: Icon(Icons.rotate_right),
                               color:
@@ -1831,7 +1859,8 @@ class _PreviewPageState extends State<PreviewPage> {
       icon: const Icon(Icons.check),
       isHidden:
           (((_ratioIndex ?? 0) == _newRatioIndex) &&
-              ((_orientationPortrait ?? 0) == _newOrientationPortrait)),
+              ((_orientationPortrait ?? 0) == _newOrientationPortrait) &&
+              _totalRotation % 360 == 0),
       tooltip: "Confirm changes",
       onTap: () async {
         await ImageProcessingManager.writePageMetadata(
@@ -1841,8 +1870,11 @@ class _PreviewPageState extends State<PreviewPage> {
         );
         _reprocessingSetup();
         await ImageProcessingManager.processPage(
-          _imagePaths[0],
-          _imagePaths,
+          _imagePaths[0], // potentially rotated image
+          await FilesHelper.getImagePathsForPage(
+            widget.docIndex,
+            widget.pageIndex,
+          ), // correct paths, without potentially rotated image in _imagePaths[0]
           await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
           inRatioIndex: _newRatioIndex,
           orientation: _newOrientationPortrait == 0,

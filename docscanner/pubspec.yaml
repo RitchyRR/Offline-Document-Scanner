@@ -28,6 +28,7 @@ dependencies:
   share_plus: # share files
   pdf: 
   file_picker: # select directory to save pdfs to
+  image:
   # image processing:
   opencv_core: # image processing
   

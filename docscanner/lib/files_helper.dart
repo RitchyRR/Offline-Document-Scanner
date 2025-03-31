@@ -6,6 +6,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image/image.dart' as img; //rotate iamge
 import 'dart:developer' as dev;
 
 import 'package:pdf/pdf.dart';
@@ -685,5 +686,29 @@ class FilesHelper {
         context,
       ).showSnackBar(SnackBar(content: Text("No PDF available to share.")));
     }
+  }
+
+  static Future<String> rotateImageInTmpDir(
+    String imagePath, {
+    int angle = 90,
+  }) async {
+    File file = File(imagePath);
+    if (!file.existsSync()) {
+      dev.log("Error, _rotateAndSaveImage: File does not exist");
+      return "";
+    }
+    final imgBytes = await file.readAsBytes();
+    final tmpDir = await getTemporaryDirectory();
+    File rotatedFile = File(
+      "${tmpDir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.png",
+    );
+    img.Image? originalImage = img.decodeImage(imgBytes);
+    if (originalImage == null) {
+      dev.log("Error, _rotateAndSaveImage: Image empty");
+      return "";
+    }
+    img.Image rotatedImage = img.copyRotate(originalImage, angle: angle);
+    rotatedFile.writeAsBytes(Uint8List.fromList(img.encodePng(rotatedImage)));
+    return rotatedFile.path;
   }
 }
