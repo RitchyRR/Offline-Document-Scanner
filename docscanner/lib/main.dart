@@ -1673,7 +1673,8 @@ class _PreviewPageState extends State<PreviewPage> {
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
                             CustomIconButton(
-                              onTap: null,
+                              onTap: _refreshPageVersions,
+                              isFlat: true,
                               icon: Icon(Icons.rotate_left),
                               color:
                                   Theme.of(
@@ -1681,7 +1682,8 @@ class _PreviewPageState extends State<PreviewPage> {
                                   ).colorScheme.surfaceContainerHighest,
                             ),
                             CustomIconButton(
-                              onTap: null,
+                              onTap: _refreshPageVersions,
+                              isFlat: true,
                               icon: Icon(Icons.rotate_right),
                               color:
                                   Theme.of(
@@ -1828,8 +1830,9 @@ class _PreviewPageState extends State<PreviewPage> {
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: const Icon(Icons.check),
       isHidden:
-          !(((_ratioIndex ?? 0) == _newRatioIndex) &&
+          (((_ratioIndex ?? 0) == _newRatioIndex) &&
               ((_orientationPortrait ?? 0) == _newOrientationPortrait)),
+      tooltip: "Confirm changes",
       onTap: () async {
         await ImageProcessingManager.writePageMetadata(
           _newRatioIndex,
@@ -2002,6 +2005,7 @@ class CustomIconButton extends StatelessWidget {
   final double radius;
   final bool isFlat;
   final bool isHidden;
+  final String? tooltip;
 
   const CustomIconButton({
     super.key,
@@ -2012,6 +2016,7 @@ class CustomIconButton extends StatelessWidget {
     this.radius = 20,
     this.isFlat = false,
     this.isHidden = false,
+    this.tooltip,
   });
 
   @override
@@ -2034,12 +2039,16 @@ class CustomIconButton extends StatelessWidget {
             SizedBox(
               height: constraints.maxHeight,
               width: constraints.maxWidth,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: onTap,
-                  child: Center(child: icon),
+              child: Tooltip(
+                message: tooltip ?? "",
+                waitDuration: Duration(milliseconds: 400),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(radius),
+                    onTap: onTap,
+                    child: Center(child: icon),
+                  ),
                 ),
               ),
             ),
