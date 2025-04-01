@@ -710,6 +710,11 @@ class FilesHelper {
   }
 
   static Future<void> deleteTmpDir() async {
-    (await getTemporaryDirectory()).delete(recursive: true);
+    var tmpDir = await getTemporaryDirectory();
+    List<FileSystemEntity> files = tmpDir.listSync(recursive: true);
+    for (var file in files) {
+      imageCache.evict(FileImage(File(file.path)), includeLive: true);
+    }
+    await tmpDir.delete(recursive: true);
   }
 }

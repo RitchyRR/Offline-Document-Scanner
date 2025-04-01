@@ -3,6 +3,7 @@ import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 // function:
@@ -1340,15 +1341,16 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> initAsync() async {
+    await _checkImagesPeriodically();
+    _loadPageMeatadata();
+  }
+
+  Future<void> _checkImagesPeriodically() async {
     _imagePaths = await FilesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _checkImagesPeriodically();
-    _loadPageMeatadata();
-  }
-
-  void _checkImagesPeriodically() {
+    _picturePath = _imagePaths[0];
     Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       bool anyChange = false;
       for (int i = 0; i < _imagePaths.length; i++) {
@@ -1366,7 +1368,6 @@ class _PreviewPageState extends State<PreviewPage> {
       // Update UI when images are found
       if (anyChange && mounted) {
         _initialVersionSet = true;
-        _picturePath = _imagePaths[0];
         setState(() {});
       }
       // Stop checking if all images are loaded
@@ -1400,6 +1401,7 @@ class _PreviewPageState extends State<PreviewPage> {
     for (var path in _imagePaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
+    imageCache.evict(FileImage(File(_picturePath)), includeLive: true);
   }
 
   Future<void> _loadPageMeatadata() async {
@@ -1548,7 +1550,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   void _reprocessingSetup() {
-    _ratioIndex = null; // don't reset _new values, for display
+    _ratioIndex = null; // don't reset _new values, for uninterrupted display
     _orientationPortrait = null;
     _totalRotation = 0;
     for (var i = 0; i < _imagesLoaded.length; i++) {
@@ -1904,6 +1906,7 @@ class _PreviewPageState extends State<PreviewPage> {
           inRatioIndex: _newRatioIndex,
           orientation: (_newOrientationPortrait ?? 0) == 0,
         );
+        FilesHelper.deleteTmpDir(); // delete cached rotated images
       },
     );
   }
