@@ -841,9 +841,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                   children: [
                                     Image.file(
                                       File(_docThumbnails[index]),
-                                      //width: 160.0,
-                                      //height: 160.0 * 1.414,
                                       fit: BoxFit.cover,
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return const Icon(Icons.broken_image);
+                                      },
                                     ),
                                     Positioned.fill(
                                       child: Material(
@@ -866,7 +871,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 },
               )
-              : const Center(child: Text('No images to display.')),
+              : const Center(
+                child: Text(
+                  textAlign: TextAlign.center,
+                  'To add a new document,\nuse the floating buttons\nin the bottom right corner.',
+                ),
+              ),
       // Floating Action Buttons
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -948,6 +958,9 @@ class ImagesScrollPreview extends StatelessWidget {
                       File(path),
                       height: 160.0 * 1.414,
                       fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.broken_image);
+                      },
                     ),
                   ),
                 );
@@ -1148,6 +1161,9 @@ class _PagesState extends State<Pages> {
                                 child: Image.file(
                                   File(_pageThumbnails[index]),
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(Icons.broken_image);
+                                  },
                                 ),
                               ),
                               // Open PreviewPage
@@ -1873,6 +1889,9 @@ class _PreviewPageState extends State<PreviewPage> {
                               width: _selectedThumbnail == index ? 70 : 50,
                               height: _selectedThumbnail == index ? 70 : 50,
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.broken_image);
+                              },
                             )
                             : Container(
                               width:

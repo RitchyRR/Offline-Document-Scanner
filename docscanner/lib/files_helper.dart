@@ -86,7 +86,7 @@ class FilesHelper {
   ) async {
     await File(toImagePath).writeAsBytes(imageBytes);
     if (!File(toImagePath).existsSync()) {
-      dev.log("Image SAVE FAILED at: $toImagePath");
+      dev.log("Error, saveImage: Failed to save $toImagePath");
     } else {
       //dev.log("Image saved at: $toImagePath");
     }
@@ -203,18 +203,25 @@ class FilesHelper {
       fromDirectory = Directory(await getDocumentPath(docIndex + 1));
       toPath = await getDocumentPath(docIndex);
     }
-    globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
+    globalNotifier.triggerEvent(
+      NotifierEvent.reloadDocsThumbnails,
+    ); // to not show deleted document
   }
 
   Future<void> deletePage(int docIndex, int pageIndex) async {
-    String pagePath = await getPagePath(docIndex, pageIndex);
-    if (!await Directory(pagePath).exists()) {
+    final pagePath = await getPagePath(docIndex, pageIndex);
+    final pageDir = Directory(pagePath);
+    if (!await pageDir.exists()) {
       dev.log(
         "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
       );
     } else {
       dev.log("Deleting page directory: $pagePath");
-      Directory(pagePath).deleteSync(recursive: true);
+      List<FileSystemEntity> files = pageDir.listSync(recursive: true);
+      for (var file in files) {
+        imageCache.evict(FileImage(File(file.path)), includeLive: true);
+      }
+      pageDir.deleteSync(recursive: true);
     }
 
     // rename all with higher pageIndex to close the gap
@@ -237,10 +244,16 @@ class FilesHelper {
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
       deleteDocument(docIndex);
-      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(
+        NotifierEvent.loadPagesThumbnails,
+      ); // to not show deleted page and to Navigator.pop
     } else {
-      globalNotifier.triggerEvent(NotifierEvent.loadPageVersions);
-      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+      globalNotifier.triggerEvent(
+        NotifierEvent.loadPageVersions,
+      ); // otherwise they show the ones of other pages
+      globalNotifier.triggerEvent(
+        NotifierEvent.reloadPagesThumbnails,
+      ); // otherwise they show the ones of other pages
       globalNotifier.triggerEvent(
         NotifierEvent.loadDocsThumbnailsAndInfo,
       ); // for page count
