@@ -16,17 +16,21 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 class FilesHelper {
-  static Future<String> _getDocumentsPath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    String docPath = '${directory.path}/Documents';
+  late String docPath;
+
+  Future<String> _getDocumentsPath() async {
+    if (Directory(docPath).existsSync()) return docPath;
+
+    final baseDir = await getApplicationDocumentsDirectory();
+    docPath = '${baseDir.path}/Documents';
     var docDir = Directory(docPath);
     if (!docDir.existsSync()) {
-      await docDir.create(recursive: true); // Ensure folder exists
+      await docDir.create(recursive: true);
     }
     return docPath;
   }
 
-  static Future<(String, int)> _reserveNewDocument() async {
+  Future<(String, int)> _reserveNewDocument() async {
     String docDir = await _getDocumentsPath();
 
     int docIndex = 0;
@@ -39,7 +43,7 @@ class FilesHelper {
     return (newDocPath, docIndex);
   }
 
-  static Future<String> getDocumentPath(int docIndex) async {
+  Future<String> getDocumentPath(int docIndex) async {
     String docDir = await _getDocumentsPath();
 
     String docPath = '$docDir/Document $docIndex';
@@ -51,7 +55,7 @@ class FilesHelper {
     return docPath;
   }
 
-  static Future<(String, int)> _reserveNewPage(int docIndex) async {
+  Future<(String, int)> _reserveNewPage(int docIndex) async {
     String documentPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
     while (await Directory('$documentPath/Page $pageIndex').exists()) {
@@ -63,7 +67,7 @@ class FilesHelper {
     return (newPagePath, pageIndex);
   }
 
-  static Future<String> getPagePath(int docIndex, int pageIndex) async {
+  Future<String> getPagePath(int docIndex, int pageIndex) async {
     String documentPath = await getDocumentPath(docIndex);
     String pagePath = '$documentPath/Page $pageIndex';
     if (!Directory(pagePath).existsSync()) {
@@ -86,7 +90,7 @@ class FilesHelper {
     }
   }
 
-  static Future<List<String>> getDocThumbnails() async {
+  Future<List<String>> getDocThumbnails() async {
     String docsPath = await _getDocumentsPath();
     List<String> docThumbnails = [];
     List<FileSystemEntity> docs =
@@ -115,7 +119,7 @@ class FilesHelper {
     return docThumbnails;
   }
 
-  static Future<List<String>> getPagesThumbnails(int docIndex) async {
+  Future<List<String>> getPagesThumbnails(int docIndex) async {
     String docsPath = await _getDocumentsPath();
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
@@ -144,7 +148,7 @@ class FilesHelper {
     return thumbnailPaths;
   }
 
-  static Future<void> deleteEmptyDirectories() async {
+  Future<void> deleteEmptyDirectories() async {
     String docsDir = await _getDocumentsPath();
     if (!await Directory(docsDir).exists()) return;
 
@@ -172,7 +176,7 @@ class FilesHelper {
     }
   }
 
-  static Future<void> deleteDocument(int docIndex) async {
+  Future<void> deleteDocument(int docIndex) async {
     String docPath = await getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -200,7 +204,7 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
   }
 
-  static Future<void> deletePage(int docIndex, int pageIndex) async {
+  Future<void> deletePage(int docIndex, int pageIndex) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
     if (!await Directory(pagePath).exists()) {
       dev.log(
@@ -241,7 +245,7 @@ class FilesHelper {
     }
   }
 
-  static Future<void> deleteProcessedVersionsOfPage(
+  Future<void> deleteProcessedVersionsOfPage(
     int docIndex,
     int pageIndex,
   ) async {
@@ -263,39 +267,33 @@ class FilesHelper {
     }
   }
 
-  static Future<(int, int)> createNewDocument(int pageCount) async {
+  Future<(int, int)> createNewDocument(int pageCount) async {
     if (pageCount <= 0) return (0, 0);
     final newDoc = await _reserveNewDocument();
     int docIndex = newDoc.$2;
     int? firstPageIndex;
     for (var i = 0; i < pageCount; i++) {
-      final newPage = await FilesHelper._reserveNewPage(docIndex);
+      final newPage = await _reserveNewPage(docIndex);
       firstPageIndex ??= newPage.$2;
     }
 
     return (docIndex, firstPageIndex!);
   }
 
-  static Future<int> reserveNewPagesInDocment(
-    int docIndex,
-    int pageCount,
-  ) async {
+  Future<int> reserveNewPagesInDocment(int docIndex, int pageCount) async {
     if (pageCount <= 0) return 0;
     int? firstPageIndex;
     for (var i = 0; i < pageCount; i++) {
-      final newPage = await FilesHelper._reserveNewPage(docIndex);
+      final newPage = await _reserveNewPage(docIndex);
       firstPageIndex ??= newPage.$2;
     }
 
     return firstPageIndex!;
   }
 
-  static Future<List<String>> getImagePathsForPage(
-    int docIndex,
-    int pageIndex,
-  ) async {
+  Future<List<String>> getImagePathsForPage(int docIndex, int pageIndex) async {
     List<String> imageNames = ["picture", "warped", "processed1", "processed2"];
-    String pagePath = await FilesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath = await getPagePath(docIndex, pageIndex);
 
     List<String> imagePaths = [];
     for (var imageName in imageNames) {
@@ -305,7 +303,7 @@ class FilesHelper {
     return imagePaths;
   }
 
-  static changeDocumentIndex(int currentIndex, int newIndex) async {
+  changeDocumentIndex(int currentIndex, int newIndex) async {
     //int pagesCount = await getDocumentsCount();
     String currentPath = await getDocumentPath(currentIndex);
     var tmpDoc = await _reserveNewDocument();
@@ -340,7 +338,7 @@ class FilesHelper {
     await Directory(tmpDocPath).rename(newPath);
   }
 
-  static changePageIndex(int docIndex, int currentIndex, int newIndex) async {
+  changePageIndex(int docIndex, int currentIndex, int newIndex) async {
     // pages Count
     //int pagesCount = await getPagesCount(docIndex);
     String currentPath = await getPagePath(docIndex, currentIndex);
@@ -375,7 +373,7 @@ class FilesHelper {
     await Directory(tmpPath).rename(newPath);
   }
 
-  static Future<int> getPageVersionsCount(int docIndex, int pageIndex) async {
+  Future<int> getPageVersionsCount(int docIndex, int pageIndex) async {
     final pageDir = Directory(await getPagePath(docIndex, pageIndex));
     int versionsCount = 0;
     if (pageDir.existsSync()) {
@@ -391,7 +389,7 @@ class FilesHelper {
     return versionsCount;
   }
 
-  static Future<int> getPagesCount(int docIndex) async {
+  Future<int> getPagesCount(int docIndex) async {
     final docDir = Directory(await getDocumentPath(docIndex));
     int? pagesCount;
     if (docDir.existsSync()) {
@@ -403,7 +401,7 @@ class FilesHelper {
     return pagesCount;
   }
 
-  static Future<int> getDocumentsCount() async {
+  Future<int> getDocumentsCount() async {
     List<Directory> dirList =
         Directory(
           await _getDocumentsPath(),
@@ -411,7 +409,7 @@ class FilesHelper {
     return dirList.length;
   }
 
-  static Future<void> saveDocumentImagesToGallery(int docIndex) async {
+  Future<void> saveDocumentImagesToGallery(int docIndex) async {
     List<String> imagePaths = await getPagesThumbnails(docIndex);
     final albumName = "Scanned Documents";
 
@@ -472,7 +470,7 @@ class FilesHelper {
     return imagePaths;
   }
 
-  static Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
+  Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
     try {
       List<String> imagePaths = await getPagesThumbnails(docIndex);
       if (imagePaths.isEmpty) {
@@ -519,7 +517,7 @@ class FilesHelper {
     return null;
   }
 
-  static Future<void> pickFolderForDocumentPdf(int docIndex) async {
+  Future<void> pickFolderForDocumentPdf(int docIndex) async {
     try {
       // Ask user to pick a folder
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
@@ -583,11 +581,8 @@ class FilesHelper {
     }
   }
 
-  static Future<void> shareDocumentImages(
-    BuildContext context,
-    int docIndex,
-  ) async {
-    List<String> imagePaths = await FilesHelper.getPagesThumbnails(docIndex);
+  Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
+    List<String> imagePaths = await getPagesThumbnails(docIndex);
     if (imagePaths.isNotEmpty) {
       shareImages(imagePaths, docIndex: docIndex);
     } else {
@@ -622,10 +617,7 @@ class FilesHelper {
     tempDir.delete(recursive: true);
   }
 
-  static Future<void> shareDocumentPdf(
-    BuildContext context,
-    int docIndex,
-  ) async {
+  Future<void> shareDocumentPdf(BuildContext context, int docIndex) async {
     // Save PDF
     final docsPath = await _getDocumentsPath();
     String pdfPath = "$docsPath/document_$docIndex.pdf";
@@ -644,7 +636,7 @@ class FilesHelper {
     }
   }
 
-  static Future<void> shareImagesPdf(
+  Future<void> shareImagesPdf(
     BuildContext context,
     List<String> imagePaths, {
     int? docIndex,

@@ -1,4 +1,6 @@
 // design:
+import 'dart:isolate';
+
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -216,14 +218,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  FilesHelper filesHelper = FilesHelper();
+
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
-    var newDoc = await FilesHelper.createNewDocument(picturePaths.length);
+    var newDoc = await filesHelper.createNewDocument(picturePaths.length);
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
-    // process pages individually
-    for (var i = 0; i < picturePaths.length; i++) {
-      ImageProcessingManager.processPage(docIndex, i, picturePaths[i]);
-    }
+
+    // Run processing in an isolate
+    final receivePort = ReceivePort();
+    Isolate.spawn(ImageProcessingManager.processPages, (
+      receivePort.sendPort,
+      docIndex,
+      picturePaths,
+      0,
+      null,
+      null,
+    ));
+    await receivePort.first;
 
     // Creation Date
     final now = DateTime.now();
@@ -270,7 +282,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
-    await FilesHelper.deleteEmptyDirectories();
+    await filesHelper.deleteEmptyDirectories();
     _refreshDocsDisplay();
   }
 
@@ -298,16 +310,16 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<String> _docDates = [];
   Future<void> _refreshDocsDisplay() async {
     // Thumbnails
-    List<String> thumbnailPaths = await FilesHelper.getDocThumbnails();
+    List<String> thumbnailPaths = await filesHelper.getDocThumbnails();
     // Page Counts
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
-      _docPageCounts.add(await FilesHelper.getPagesCount(docIndex));
+      _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
     }
     // Document Metadata (Names + Dates)
     fixMetadataLengths(thumbnailPaths.length);
     for (int docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
-      final docPath = await FilesHelper.getDocumentPath(docIndex);
+      final docPath = await filesHelper.getDocumentPath(docIndex);
       final metaDataPath = File('$docPath/metadata.json');
 
       if (await metaDataPath.exists()) {
@@ -346,7 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _saveDocName(int docIndex) async {
-    final docPath = await FilesHelper.getDocumentPath(docIndex);
+    final docPath = await filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Error, _saveDocName: Trying to save metadata into empty Document $docIndex",
@@ -379,7 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _saveDocDate(int docIndex) async {
-    final docPath = await FilesHelper.getDocumentPath(docIndex);
+    final docPath = await filesHelper.getDocumentPath(docIndex);
     final file = File('$docPath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -424,7 +436,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex,
     int pagesCount,
   ) async {
-    final pagePaths = await FilesHelper.getPagesThumbnails(docIndex);
+    final pagePaths = await filesHelper.getPagesThumbnails(docIndex);
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -438,7 +450,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context); // Close dialog
-                await FilesHelper.shareDocumentImages(context, docIndex);
+                await filesHelper.shareDocumentImages(context, docIndex);
               },
               icon: Icon(Icons.image),
               label: Text(
@@ -450,7 +462,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context); // Close dialog
-                await FilesHelper.shareDocumentPdf(context, docIndex);
+                await filesHelper.shareDocumentPdf(context, docIndex);
               },
               icon: Icon(Icons.picture_as_pdf),
               label: Text("Share combined PDF"),
@@ -472,7 +484,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex,
     int pagesCount,
   ) async {
-    final pagePaths = await FilesHelper.getPagesThumbnails(docIndex);
+    final pagePaths = await filesHelper.getPagesThumbnails(docIndex);
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -487,7 +499,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
-                await FilesHelper.saveDocumentImagesToGallery(docIndex);
+                await filesHelper.saveDocumentImagesToGallery(docIndex);
               },
               icon: Icon(Icons.image),
               label: Text(
@@ -499,7 +511,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
-                await FilesHelper.pickFolderForDocumentPdf(docIndex);
+                await filesHelper.pickFolderForDocumentPdf(docIndex);
               },
               icon: Icon(Icons.picture_as_pdf),
               label: Text("Save combined PDF to Directory"),
@@ -539,7 +551,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     if (confirmDelete == true) {
-      await FilesHelper.deleteDocument(docIndex);
+      await filesHelper.deleteDocument(docIndex);
       _reloadDocsDisplay();
     }
   }
@@ -716,7 +728,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         // Handle the result after the popup closes
                                         if (selectedIndex != null &&
                                             selectedIndex != index) {
-                                          await FilesHelper.changeDocumentIndex(
+                                          await filesHelper.changeDocumentIndex(
                                             index,
                                             selectedIndex,
                                           );
@@ -950,6 +962,7 @@ class Pages extends StatefulWidget {
 }
 
 class _PagesState extends State<Pages> {
+  FilesHelper filesHelper = FilesHelper();
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   final List<double?> _thumbnailHeights = [];
@@ -983,7 +996,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _loadPagesThumbnails({bool onFirstLoading = false}) async {
-    List<String> thumbnailPaths = await FilesHelper.getPagesThumbnails(
+    List<String> thumbnailPaths = await filesHelper.getPagesThumbnails(
       widget.docIndex,
     );
     if (thumbnailPaths.isEmpty) {
@@ -1046,18 +1059,22 @@ class _PagesState extends State<Pages> {
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
-    int firstPageIndex = await FilesHelper.reserveNewPagesInDocment(
+    int firstPageIndex = await filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       picturePaths.length,
     );
-    //process pages individually
-    for (var i = 0; i < picturePaths.length; i++) {
-      ImageProcessingManager.processPage(
-        widget.docIndex,
-        firstPageIndex + i,
-        picturePaths[i],
-      );
-    }
+
+    // Run processing in an isolate
+    final receivePort = ReceivePort();
+    Isolate.spawn(ImageProcessingManager.processPages, (
+      receivePort.sendPort,
+      widget.docIndex,
+      picturePaths,
+      firstPageIndex,
+      null,
+      null,
+    ));
+    await receivePort.first;
 
     return firstPageIndex;
   }
@@ -1194,7 +1211,7 @@ class _PagesState extends State<Pages> {
 
                                     if (selectedIndex != null &&
                                         selectedIndex != index) {
-                                      await FilesHelper.changePageIndex(
+                                      await filesHelper.changePageIndex(
                                         widget.docIndex,
                                         index,
                                         selectedIndex,
@@ -1303,6 +1320,7 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
+  FilesHelper filesHelper = FilesHelper();
   final PageController _pageController = PageController();
   int _selectedThumbnail = 0;
   bool _alreadyProcessed = false;
@@ -1333,7 +1351,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> initAsync() async {
-    _imagePaths = await FilesHelper.getImagePathsForPage(
+    _imagePaths = await filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -1489,7 +1507,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
-                await FilesHelper.shareImagesPdf(
+                await filesHelper.shareImagesPdf(
                   context,
                   [imagePath],
                   docIndex: widget.docIndex,
@@ -1535,7 +1553,7 @@ class _PreviewPageState extends State<PreviewPage> {
       },
     );
     if (confirmDelete != null && confirmDelete == true) {
-      await FilesHelper.deletePage(widget.docIndex, widget.pageIndex);
+      await filesHelper.deletePage(widget.docIndex, widget.pageIndex);
       return true;
     }
     return false;
@@ -1548,7 +1566,7 @@ class _PreviewPageState extends State<PreviewPage> {
     for (var i = 0; i < _imagesLoaded.length; i++) {
       _imagesLoaded[i] = false;
     }
-    FilesHelper.deleteProcessedVersionsOfPage(
+    filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -1881,13 +1899,18 @@ class _PreviewPageState extends State<PreviewPage> {
           (_newOrientationPortrait ?? 0) == 0,
         );
         _reprocessingSetup();
-        await ImageProcessingManager.processPage(
+
+        final receivePort = ReceivePort();
+        Isolate.spawn(ImageProcessingManager.processPages, (
+          receivePort.sendPort,
           widget.docIndex,
+          [_imagePaths[0]], // potentially rotated image
           widget.pageIndex,
-          _imagePaths[0], // potentially rotated image
-          ratioIndexIn: _newRatioIndex,
-          orientationIn: (_newOrientationPortrait ?? 0) == 0,
-        );
+          _newRatioIndex,
+          (_newOrientationPortrait ?? 0) == 0,
+        ));
+        await receivePort.first;
+
         FilesHelper.deleteTmpDir(); // delete cached rotated images
       },
     );
