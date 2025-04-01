@@ -217,17 +217,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
-    var newDoc = await FilesHelper.getNewPaths(picturePaths.length);
-    List<List<String>> newPaths = newDoc.$1;
-    int docIndex = newDoc.$2;
-    int firstPageIndex = newDoc.$3;
+    var newDoc = await FilesHelper.createNewDocument(picturePaths.length);
+    int docIndex = newDoc.$1;
+    int firstPageIndex = newDoc.$2;
     // process pages individually
     for (var i = 0; i < picturePaths.length; i++) {
-      ImageProcessingManager.processPage(
-        picturePaths[i],
-        newPaths[i],
-        await FilesHelper.getPagePath(docIndex, i),
-      );
+      ImageProcessingManager.processPage(docIndex, i, picturePaths[i]);
     }
 
     // Creation Date
@@ -1051,18 +1046,16 @@ class _PagesState extends State<Pages> {
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
-    var newDoc = await FilesHelper.getNewPathsForDoc(
+    int firstPageIndex = await FilesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       picturePaths.length,
     );
-    List<List<String>> newPaths = newDoc.$1;
-    int firstPageIndex = newDoc.$2;
     //process pages individually
     for (var i = 0; i < picturePaths.length; i++) {
       ImageProcessingManager.processPage(
+        widget.docIndex,
+        firstPageIndex + i,
         picturePaths[i],
-        newPaths[i],
-        await FilesHelper.getPagePath(widget.docIndex, firstPageIndex + i),
       );
     }
 
@@ -1404,15 +1397,15 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _loadPageMeatadata() async {
-    String pagePath = await FilesHelper.getPagePath(
-      widget.docIndex,
-      widget.pageIndex,
-    );
     _newRatioIndex =
-        _ratioIndex = await ImageProcessingManager.readPageRatio(pagePath);
+        _ratioIndex = await ImageProcessingManager.readPageRatio(
+          widget.docIndex,
+          widget.pageIndex,
+        );
     _newOrientationPortrait =
         _orientationPortrait = await ImageProcessingManager.readPageOrientation(
-          pagePath,
+          widget.docIndex,
+          widget.pageIndex,
         );
     setState(() {
       _ratioIndex;
@@ -1882,20 +1875,18 @@ class _PreviewPageState extends State<PreviewPage> {
       tooltip: "Confirm changes",
       onTap: () async {
         await ImageProcessingManager.writePageMetadata(
+          widget.docIndex,
+          widget.pageIndex,
           _newRatioIndex ?? 0,
           (_newOrientationPortrait ?? 0) == 0,
-          await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
         );
         _reprocessingSetup();
         await ImageProcessingManager.processPage(
+          widget.docIndex,
+          widget.pageIndex,
           _imagePaths[0], // potentially rotated image
-          await FilesHelper.getImagePathsForPage(
-            widget.docIndex,
-            widget.pageIndex,
-          ), // correct paths, without potentially rotated image in _imagePaths[0]
-          await FilesHelper.getPagePath(widget.docIndex, widget.pageIndex),
-          inRatioIndex: _newRatioIndex,
-          orientation: (_newOrientationPortrait ?? 0) == 0,
+          ratioIndexIn: _newRatioIndex,
+          orientationIn: (_newOrientationPortrait ?? 0) == 0,
         );
         FilesHelper.deleteTmpDir(); // delete cached rotated images
       },

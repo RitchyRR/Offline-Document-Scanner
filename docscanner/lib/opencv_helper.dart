@@ -110,11 +110,11 @@ class OpenCVHelper {
     try {
       cv.Mat? mat = _loadImage(args[1]);
 
-      if (args[2] != 0) {
+      if (args[3] != 0) {
         mat = mat?.rotate(
-          args[2] == 90
+          args[3] == 90
               ? cv.ROTATE_90_CLOCKWISE
-              : (args[2] == 270)
+              : (args[3] == 270)
               ? cv.ROTATE_90_COUNTERCLOCKWISE
               : cv.ROTATE_180,
         );
@@ -122,7 +122,7 @@ class OpenCVHelper {
 
       Uint8List rotatedBytes = _returnImage(mat);
 
-      File(args[3]).writeAsBytes(rotatedBytes);
+      File(args[2]).writeAsBytes(rotatedBytes);
 
       // Notify the main isolate that we're done
       args[0].send(true);

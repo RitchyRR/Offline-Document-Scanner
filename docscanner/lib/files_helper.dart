@@ -26,7 +26,7 @@ class FilesHelper {
     return docPath;
   }
 
-  static Future<(String, int)> getNewDocumentPath() async {
+  static Future<(String, int)> _reserveNewDocument() async {
     String docDir = await _getDocumentsPath();
 
     int docIndex = 0;
@@ -51,7 +51,7 @@ class FilesHelper {
     return docPath;
   }
 
-  static Future<(String, int)> getNewPagePath(int docIndex) async {
+  static Future<(String, int)> _reserveNewPage(int docIndex) async {
     String documentPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
     while (await Directory('$documentPath/Page $pageIndex').exists()) {
@@ -263,49 +263,31 @@ class FilesHelper {
     }
   }
 
-  static Future<(List<List<String>>, int, int)> getNewPaths(
-    int pageCount,
-  ) async {
-    List<List<String>> newPaths = [];
-    if (pageCount <= 0) return (newPaths, 0, 0);
-    List<String> imageNames = ["picture", "warped", "processed1", "processed2"];
-    final newDoc = await FilesHelper.getNewDocumentPath();
+  static Future<(int, int)> createNewDocument(int pageCount) async {
+    if (pageCount <= 0) return (0, 0);
+    final newDoc = await _reserveNewDocument();
     int docIndex = newDoc.$2;
     int? firstPageIndex;
     for (var i = 0; i < pageCount; i++) {
-      List<String> imagePaths = [];
-      final newPage = await FilesHelper.getNewPagePath(docIndex);
-      String pagePath = newPage.$1;
+      final newPage = await FilesHelper._reserveNewPage(docIndex);
       firstPageIndex ??= newPage.$2;
-      for (var imageName in imageNames) {
-        imagePaths.add('$pagePath/$imageName.png');
-      }
-      newPaths.add(imagePaths);
     }
 
-    return (newPaths, docIndex, firstPageIndex!);
+    return (docIndex, firstPageIndex!);
   }
 
-  static Future<(List<List<String>>, int)> getNewPathsForDoc(
+  static Future<int> reserveNewPagesInDocment(
     int docIndex,
     int pageCount,
   ) async {
-    List<List<String>> newPaths = [];
-    if (pageCount <= 0) return (newPaths, 0);
-    List<String> imageNames = ["picture", "warped", "processed1", "processed2"];
+    if (pageCount <= 0) return 0;
     int? firstPageIndex;
     for (var i = 0; i < pageCount; i++) {
-      List<String> imagePaths = [];
-      final newPage = await FilesHelper.getNewPagePath(docIndex);
-      String pagePath = newPage.$1;
+      final newPage = await FilesHelper._reserveNewPage(docIndex);
       firstPageIndex ??= newPage.$2;
-      for (var imageName in imageNames) {
-        imagePaths.add('$pagePath/$imageName.png');
-      }
-      newPaths.add(imagePaths);
     }
 
-    return (newPaths, firstPageIndex!);
+    return firstPageIndex!;
   }
 
   static Future<List<String>> getImagePathsForPage(
@@ -326,7 +308,7 @@ class FilesHelper {
   static changeDocumentIndex(int currentIndex, int newIndex) async {
     //int pagesCount = await getDocumentsCount();
     String currentPath = await getDocumentPath(currentIndex);
-    var tmpDoc = await getNewDocumentPath();
+    var tmpDoc = await _reserveNewDocument();
     String tmpDocPath = tmpDoc.$1;
     //String tmpDocIndex = tmpDoc.$1;
     await Directory(currentPath).rename(tmpDocPath);
@@ -362,7 +344,7 @@ class FilesHelper {
     // pages Count
     //int pagesCount = await getPagesCount(docIndex);
     String currentPath = await getPagePath(docIndex, currentIndex);
-    var tmpPage = await getNewPagePath(docIndex);
+    var tmpPage = await _reserveNewPage(docIndex);
     String tmpPath = tmpPage.$1;
     await Directory(currentPath).rename(tmpPath);
     // up or down?
@@ -699,8 +681,8 @@ class FilesHelper {
     Isolate.spawn(cvHelper.rotateImageInTmpDir, [
       receivePort.sendPort,
       imagePath,
-      angle,
       rotatedFilePath,
+      angle,
     ]);
 
     // Wait for the background isolate to finish
