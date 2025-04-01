@@ -1396,8 +1396,8 @@ class _PreviewPageState extends State<PreviewPage> {
       for (int i = 0; i < _imagePaths.length; i++) {
         final file = File(_imagePaths[i]);
         if (!_imagesLoaded[i] &&
-            file.existsSync() &&
-            file.lengthSync() > 10000) {
+            await file.exists() &&
+            await file.length() > 10000) {
           // check length to ensure that image fully exists, because of isolate
           // -> min image size 100 x 100
           _imagesLoaded[i] = true;
