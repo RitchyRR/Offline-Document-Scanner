@@ -1305,7 +1305,7 @@ class PreviewPage extends StatefulWidget {
 class _PreviewPageState extends State<PreviewPage> {
   final PageController _pageController = PageController();
   int _selectedThumbnail = 0;
-  bool _initialVersionSet = false;
+  bool _alreadyProcessed = false;
 
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
@@ -1351,7 +1351,7 @@ class _PreviewPageState extends State<PreviewPage> {
           anyChange = true;
         }
       }
-      if (!_initialVersionSet && mounted) {
+      if (!_alreadyProcessed && mounted) {
         if (_imagesLoaded[3]) {
           setState(() => _selectedThumbnail = 3);
           _pageController.jumpToPage(_selectedThumbnail);
@@ -1359,7 +1359,7 @@ class _PreviewPageState extends State<PreviewPage> {
       }
       // Update UI when images are found
       if (anyChange && mounted) {
-        _initialVersionSet = true;
+        _alreadyProcessed = true;
         setState(() {});
       }
       // Stop checking if all images are loaded
