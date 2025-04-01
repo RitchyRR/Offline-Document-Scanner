@@ -1341,16 +1341,16 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> initAsync() async {
-    await _checkImagesPeriodically();
-    _loadPageMeatadata();
-  }
-
-  Future<void> _checkImagesPeriodically() async {
     _imagePaths = await FilesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
     _picturePath = _imagePaths[0];
+    _checkImagesPeriodically();
+    _loadPageMeatadata();
+  }
+
+  Future<void> _checkImagesPeriodically() async {
     Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       bool anyChange = false;
       for (int i = 0; i < _imagePaths.length; i++) {
@@ -1388,7 +1388,7 @@ class _PreviewPageState extends State<PreviewPage> {
     if (!mounted) return;
     switch (globalNotifier.value) {
       case NotifierEvent.loadPageVersions:
-        _refreshPageVersions();
+        _clearPageVersions();
         break;
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
@@ -1397,7 +1397,7 @@ class _PreviewPageState extends State<PreviewPage> {
     }
   }
 
-  void _refreshPageVersions() {
+  void _clearPageVersions() {
     for (var path in _imagePaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
@@ -1561,8 +1561,10 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.pageIndex,
     );
     if (mounted) {
-      _refreshPageVersions();
-      setState(() {});
+      _clearPageVersions();
+      setState(() {
+        _imagePaths[0] = _picturePath;
+      });
       _checkImagesPeriodically();
     }
   }
@@ -1702,7 +1704,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                       );
                                   setState(() {
                                     _imagePaths[0] = rotatedImagePath;
-                                    _imagesLoaded[0] = true;
+                                    _checkImagesPeriodically();
                                   });
                                 }
                               },
@@ -1732,7 +1734,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                       );
                                   setState(() {
                                     _imagePaths[0] = rotatedImagePath;
-                                    _imagesLoaded[0] = true;
+                                    _checkImagesPeriodically();
                                   });
                                 }
                               },
