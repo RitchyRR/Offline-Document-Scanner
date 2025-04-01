@@ -229,13 +229,20 @@ class _MyHomePageState extends State<MyHomePage> {
     final receivePort = ReceivePort();
     Isolate.spawn(ImageProcessingManager.processPages, (
       receivePort.sendPort,
+      filesHelper,
       docIndex,
       picturePaths,
       0,
       null,
       null,
     ));
-    await receivePort.first;
+    receivePort.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        receivePort.close(); // Stop listening
+      }
+    });
 
     // Creation Date
     final now = DateTime.now();
@@ -1068,13 +1075,20 @@ class _PagesState extends State<Pages> {
     final receivePort = ReceivePort();
     Isolate.spawn(ImageProcessingManager.processPages, (
       receivePort.sendPort,
+      filesHelper,
       widget.docIndex,
       picturePaths,
       firstPageIndex,
       null,
       null,
     ));
-    await receivePort.first;
+    receivePort.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        receivePort.close(); // Stop listening
+      }
+    });
 
     return firstPageIndex;
   }
@@ -1364,7 +1378,12 @@ class _PreviewPageState extends State<PreviewPage> {
     Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       bool anyChange = false;
       for (int i = 0; i < _imagePaths.length; i++) {
-        if (!_imagesLoaded[i] && File(_imagePaths[i]).existsSync()) {
+        final file = File(_imagePaths[i]);
+        if (!_imagesLoaded[i] &&
+            file.existsSync() &&
+            file.lengthSync() > 10000) {
+          // check length to ensure that image fully exists, because of isolate
+          // -> min image size 100 x 100
           _imagesLoaded[i] = true;
           anyChange = true;
         }
@@ -1893,6 +1912,8 @@ class _PreviewPageState extends State<PreviewPage> {
       tooltip: "Confirm changes",
       onTap: () async {
         await ImageProcessingManager.writePageMetadata(
+          null,
+          filesHelper,
           widget.docIndex,
           widget.pageIndex,
           _newRatioIndex ?? 0,
@@ -1903,13 +1924,20 @@ class _PreviewPageState extends State<PreviewPage> {
         final receivePort = ReceivePort();
         Isolate.spawn(ImageProcessingManager.processPages, (
           receivePort.sendPort,
+          filesHelper,
           widget.docIndex,
           [_imagePaths[0]], // potentially rotated image
           widget.pageIndex,
           _newRatioIndex,
           (_newOrientationPortrait ?? 0) == 0,
         ));
-        await receivePort.first;
+        receivePort.listen((message) {
+          if (message is NotifierEvent) {
+            globalNotifier.triggerEvent(message);
+          } else if (message == 'done') {
+            receivePort.close(); // Stop listening
+          }
+        });
 
         FilesHelper.deleteTmpDir(); // delete cached rotated images
       },

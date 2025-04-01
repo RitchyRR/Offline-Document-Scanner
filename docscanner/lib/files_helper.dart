@@ -16,37 +16,39 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 class FilesHelper {
-  late String docPath;
+  String docsPath = "";
 
   Future<String> _getDocumentsPath() async {
-    if (Directory(docPath).existsSync()) return docPath;
+    if (docsPath.isNotEmpty && Directory(docsPath).existsSync()) {
+      return docsPath;
+    }
 
     final baseDir = await getApplicationDocumentsDirectory();
-    docPath = '${baseDir.path}/Documents';
-    var docDir = Directory(docPath);
-    if (!docDir.existsSync()) {
-      await docDir.create(recursive: true);
+    docsPath = '${baseDir.path}/Documents';
+    var docsDir = Directory(docsPath);
+    if (!docsDir.existsSync()) {
+      await docsDir.create(recursive: true);
     }
-    return docPath;
+    return docsPath;
   }
 
   Future<(String, int)> _reserveNewDocument() async {
-    String docDir = await _getDocumentsPath();
+    String docsPath = await _getDocumentsPath();
 
     int docIndex = 0;
-    while (await Directory('$docDir/Document $docIndex').exists()) {
+    while (await Directory('$docsPath/Document $docIndex').exists()) {
       docIndex++;
     }
 
-    String newDocPath = '$docDir/Document $docIndex';
+    String newDocPath = '$docsPath/Document $docIndex';
     await Directory(newDocPath).create();
     return (newDocPath, docIndex);
   }
 
   Future<String> getDocumentPath(int docIndex) async {
-    String docDir = await _getDocumentsPath();
+    String docsPath = await _getDocumentsPath();
 
-    String docPath = '$docDir/Document $docIndex';
+    String docPath = '$docsPath/Document $docIndex';
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Warning, getDocumentPath: Requested Document $docIndex does not exist.",

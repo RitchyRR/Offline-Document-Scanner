@@ -12,13 +12,14 @@ import 'package:docscanner/files_helper.dart';
 
 class ImageProcessingManager {
   static Future<void> _processPage(
+    SendPort sendPort,
+    FilesHelper filesHelper,
     int docIndex,
     int pageIndex,
     String pathIn,
     int? ratioIndexIn,
     bool? orientationIn,
   ) async {
-    FilesHelper filesHelper = FilesHelper();
     OpenCVHelper cvHelper = OpenCVHelper();
 
     List<String> pathsOut = await filesHelper.getImagePathsForPage(
@@ -42,14 +43,21 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = ret.$2;
     int ratioIndex = ret.$3;
     orientationIn = ret.$4;
-    writePageMetadata(docIndex, pageIndex, ratioIndex, orientationIn);
+    writePageMetadata(
+      sendPort,
+      filesHelper,
+      docIndex,
+      pageIndex,
+      ratioIndex,
+      orientationIn,
+    );
     await FilesHelper.saveImage(pathsOut[1], warped);
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
       ParamsProcessImage1(pathsOut[1]),
     );
-    FilesHelper.saveImage(pathsOut[2], processed1);
+    await FilesHelper.saveImage(pathsOut[2], processed1);
 
     // Processed2 basierend auf dem Processed1-Bild
     Uint8List processed2 = cvHelper.processImage2(
@@ -58,16 +66,17 @@ class ImageProcessingManager {
     await FilesHelper.saveImage(pathsOut[3], processed2);
     // Update thumbnails:
     if (ratioIndexIn == null) {
-      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      sendPort.send(NotifierEvent.loadPagesThumbnails);
     } else {
-      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+      sendPort.send(NotifierEvent.reloadPagesThumbnails);
     }
-    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnailsAndInfo);
+    sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
   }
 
-  static void processPages(
+  static Future<void> processPages(
     (
       SendPort sendPort,
+      FilesHelper filesHelper,
       int docIndex,
       List<String> pathsIn,
       int firstPageIndex,
@@ -75,29 +84,45 @@ class ImageProcessingManager {
       bool? orientationIn,
     )
     data,
-  ) {
+  ) async {
     SendPort sendPort = data.$1;
-    int docIndex = data.$2;
-    List<String> pathsIn = data.$3;
-    int firstPageIndex = data.$4;
+    FilesHelper filesHelper = data.$2;
+    int docIndex = data.$3;
+    List<String> pathsIn = data.$4;
+    int firstPageIndex = data.$5;
 
-    int? ratioIndexIn = data.$5;
-    bool? orientationIn = data.$6;
+    int? ratioIndexIn = data.$6;
+    bool? orientationIn = data.$7;
 
-    for (var i = firstPageIndex; i < pathsIn.length + firstPageIndex; i++) {
-      _processPage(docIndex, i, pathsIn[i], ratioIndexIn, orientationIn);
+    // Collect all processing tasks in a list of futures
+    // -> sendPort.send('done'); waits correctly
+    List<Future<void>> processingTasks = [];
+
+    for (var i = 0; i < pathsIn.length; i++) {
+      processingTasks.add(
+        _processPage(
+          sendPort,
+          filesHelper,
+          docIndex,
+          firstPageIndex + i,
+          pathsIn[i],
+          ratioIndexIn,
+          orientationIn,
+        ),
+      );
     }
-
-    sendPort.send(true);
+    await Future.wait(processingTasks);
+    sendPort.send('done');
   }
 
   static Future<void> writePageMetadata(
+    SendPort? sendPort,
+    FilesHelper filesHelper,
     int docIndex,
     int pageIndex,
     int ratioIndex,
     bool orientationPortrait,
   ) async {
-    FilesHelper filesHelper = FilesHelper();
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
@@ -115,7 +140,11 @@ class ImageProcessingManager {
       // orientation for aspect ratio (portrait, landscape)
       metadata["orientation"] = orientationPortrait ? "portrait" : "landscape";
       await file.writeAsString(jsonEncode(metadata));
-      globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+      if (sendPort != null) {
+        sendPort.send(NotifierEvent.loadPageMetadata);
+      } else {
+        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+      }
     } catch (e) {
       dev.log("Error, savePageMetadata: $e");
     }
