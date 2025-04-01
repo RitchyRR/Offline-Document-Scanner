@@ -1694,18 +1694,13 @@ class _PreviewPageState extends State<PreviewPage> {
                                     _imagePaths[0] = _picturePath;
                                   });
                                 } else {
-                                  setState(() {
-                                    _imagesLoaded[0] = false;
-                                  });
-                                  String rotatedImagePath =
+                                  _imagePaths[0] =
                                       await FilesHelper.rotateImageInTmpDir(
                                         _picturePath,
                                         _totalRotation,
                                       );
-                                  setState(() {
-                                    _imagePaths[0] = rotatedImagePath;
-                                    _checkImagesPeriodically();
-                                  });
+                                  _imagesLoaded[0] = false;
+                                  _checkImagesPeriodically();
                                 }
                               },
                               isFlat: true,
@@ -1724,18 +1719,13 @@ class _PreviewPageState extends State<PreviewPage> {
                                     _imagePaths[0] = _picturePath;
                                   });
                                 } else {
-                                  setState(() {
-                                    _imagesLoaded[0] = false;
-                                  });
-                                  String rotatedImagePath =
+                                  _imagePaths[0] =
                                       await FilesHelper.rotateImageInTmpDir(
                                         _picturePath,
                                         _totalRotation,
                                       );
-                                  setState(() {
-                                    _imagePaths[0] = rotatedImagePath;
-                                    _checkImagesPeriodically();
-                                  });
+                                  _imagesLoaded[0] = false;
+                                  _checkImagesPeriodically();
                                 }
                               },
                               isFlat: true,
