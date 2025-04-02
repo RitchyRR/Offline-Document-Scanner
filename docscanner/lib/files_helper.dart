@@ -702,12 +702,24 @@ class FilesHelper {
     return rotatedFilePath;
   }
 
-  static Future<void> deleteTmpDir() async {
-    var tmpDir = await getTemporaryDirectory();
-    List<FileSystemEntity> files = tmpDir.listSync(recursive: true);
-    for (var file in files) {
-      imageCache.evict(FileImage(File(file.path)), includeLive: true);
+  static Future<void> deleteRoatedImages() async {
+    List<String> paths = [];
+    final tmpDir = await getTemporaryDirectory();
+    for (var angle = 90; angle <= 270; angle += 90) {
+      paths.add("${tmpDir.path}/rotated_$angle.png");
     }
-    await tmpDir.delete(recursive: true);
+    deleteImages(paths);
+  }
+
+  static Future<void> deleteImages(List<String> paths) async {
+    List<Future<void>> futures = [];
+    for (var path in paths) {
+      final file = File(path);
+      if (file.existsSync()) {
+        imageCache.evict(FileImage(File(path)), includeLive: true);
+        futures.add(file.delete(recursive: true));
+      }
+    }
+    await Future.wait(futures);
   }
 }

@@ -1346,7 +1346,7 @@ class _PreviewPageState extends State<PreviewPage> {
   @override
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
-    FilesHelper.deleteTmpDir();
+    FilesHelper.deleteRoatedImages();
     super.dispose();
   }
 
@@ -1622,7 +1622,7 @@ class _PreviewPageState extends State<PreviewPage> {
         _imagePaths[0] = _picturePath;
       }
     }
-    FilesHelper.deleteTmpDir(); // delete cached rotated images
+    FilesHelper.deleteRoatedImages(); // delete cached rotated images
   }
 
   // Preview Page
@@ -1883,9 +1883,9 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _refreshAfterBrokenImage(int index) async {
-    await Future.delayed(Duration(milliseconds: 200));
     _imagesLoaded[index] = false;
     imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
+    await Future.delayed(Duration(milliseconds: 100));
     _checkImagesPeriodically();
   }
 

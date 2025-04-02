@@ -91,25 +91,31 @@ class ImageProcessingManager {
     int firstPageIndex = data.$4;
     List<String> pathsIn = data.$5;
 
-    // Collect all processing tasks in a list of futures
-    // -> sendPort.send('done'); waits correctly
-    List<Future<void>> processingTasks = [];
+    // process max 2 pages at a time
+    const int maxConcurrentPagesProcessing = 2;
+    List<Future<void>> futures = [];
 
-    for (var i = 0; i < pathsIn.length; i++) {
-      processingTasks.add(
-        _processPage(
-          sendPort,
-          filesHelper,
-          false,
-          docIndex,
-          firstPageIndex + i,
-          pathsIn[i],
-          null,
-          null,
-        ),
+    for (int i = 0; i < pathsIn.length; i++) {
+      // Start processing a new page
+      Future<void> future = _processPage(
+        sendPort,
+        filesHelper,
+        false,
+        docIndex,
+        firstPageIndex + i,
+        pathsIn[i],
+        null,
+        null,
       );
+      futures.add(future);
+      // register removal from list when future completes
+      future.whenComplete(() => futures.remove(future));
+
+      if (futures.length >= maxConcurrentPagesProcessing) {
+        await Future.any(futures);
+      }
     }
-    await Future.wait(processingTasks);
+    await Future.wait(futures);
     sendPort.send('done');
   }
 
@@ -152,11 +158,11 @@ class ImageProcessingManager {
     int firstPageIndex,
     List<String> pathsIn,
   ) async {
-    final pagePort = ReceivePort();
-    final pagesPort = ReceivePort();
     final filesHelper = FilesHelper();
     await filesHelper.initializeDocumentsPath();
 
+    // First page is prioritized
+    final pagePort = ReceivePort();
     Isolate.spawn(_processPageIsolate, (
       pagePort.sendPort,
       filesHelper,
@@ -166,15 +172,6 @@ class ImageProcessingManager {
       null,
       null,
     ));
-    pathsIn.removeAt(0);
-    Isolate.spawn(_processPagesIsolate, (
-      pagesPort.sendPort,
-      filesHelper,
-      docIndex,
-      firstPageIndex + 1,
-      pathsIn,
-    ));
-
     pagePort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -182,13 +179,27 @@ class ImageProcessingManager {
         pagePort.close();
       }
     });
-    pagesPort.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
-        pagesPort.close();
-      }
-    });
+
+    // Remaining pages
+    pathsIn.removeAt(1);
+    if (pathsIn.isNotEmpty) {
+      await Future.delayed(Duration(milliseconds: 100));
+      final pagesPort = ReceivePort();
+      Isolate.spawn(_processPagesIsolate, (
+        pagesPort.sendPort,
+        filesHelper,
+        docIndex,
+        firstPageIndex + 1,
+        pathsIn,
+      ));
+      pagesPort.listen((message) {
+        if (message is NotifierEvent) {
+          globalNotifier.triggerEvent(message);
+        } else if (message == 'done') {
+          pagesPort.close();
+        }
+      });
+    }
   }
 
   static Future<void> processPage(
