@@ -1,6 +1,4 @@
 // design:
-import 'dart:isolate';
-
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +27,7 @@ enum NotifierEvent {
   reloadDocsThumbnails,
   loadPageVersions,
   loadPageMetadata,
+  processPagePictureDone,
 }
 
 void main() {
@@ -225,22 +224,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
-    // Run processing in an isolate
-    final receivePort = ReceivePort();
-    Isolate.spawn(ImageProcessingManager.processPages, (
-      receivePort.sendPort,
-      filesHelper,
-      docIndex,
-      0,
-      picturePaths,
-    ));
-    receivePort.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
-        receivePort.close(); // Stop listening
-      }
-    });
+    ImageProcessingManager.processPages(docIndex, 0, picturePaths);
 
     // Creation Date
     final now = DateTime.now();
@@ -1082,22 +1066,11 @@ class _PagesState extends State<Pages> {
       picturePaths.length,
     );
 
-    // Run processing in an isolate
-    final receivePort = ReceivePort();
-    Isolate.spawn(ImageProcessingManager.processPages, (
-      receivePort.sendPort,
-      filesHelper,
+    ImageProcessingManager.processPages(
       widget.docIndex,
       firstPageIndex,
       picturePaths,
-    ));
-    receivePort.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
-        receivePort.close(); // Stop listening
-      }
-    });
+    );
 
     return firstPageIndex;
   }
@@ -1349,7 +1322,7 @@ class _PreviewPageState extends State<PreviewPage> {
   FilesHelper filesHelper = FilesHelper();
   final PageController _pageController = PageController();
   int _selectedThumbnail = 0;
-  bool _alreadyProcessed = false;
+  bool _processing = false;
 
   final List<bool> _imagesLoaded = List.filled(4, false);
   List<String> _imagePaths = [];
@@ -1393,23 +1366,23 @@ class _PreviewPageState extends State<PreviewPage> {
       for (int i = 0; i < _imagePaths.length; i++) {
         final file = File(_imagePaths[i]);
         if (!_imagesLoaded[i] && await file.exists()) {
-          bool fileExists = false;
-          if (await file.length() > 10000) {
-            // check length to ensure that image fully exists, because of isolate
-            // -> min image size 100 x 100
-            fileExists = true;
-          } else {
-            await Future.delayed(Duration(milliseconds: 300));
-            // wait for image to load for smaller images
-            fileExists = true;
-          }
-          if (fileExists) {
-            _imagesLoaded[i] = true;
-            anyChange = true;
-          }
+          //bool fileExists = false;
+          //if (await file.length() > 10000) {
+          //  // check length to ensure that image fully exists, because of isolate
+          //  // -> min image size 100 x 100
+          //  fileExists = true;
+          //} else {
+          //  await Future.delayed(Duration(milliseconds: 300));
+          //  // wait for image to load for smaller images
+          //  fileExists = true;
+          //}
+          //if (fileExists) {
+          _imagesLoaded[i] = true;
+          anyChange = true;
+          //}
         }
       }
-      if (!_alreadyProcessed && mounted) {
+      if (!_processing && mounted) {
         if (_imagesLoaded[3]) {
           setState(() {
             _selectedThumbnail = 3;
@@ -1420,7 +1393,7 @@ class _PreviewPageState extends State<PreviewPage> {
       // Update UI when images are found
       if (anyChange) {
         if (mounted) setState(() {});
-        _alreadyProcessed = true;
+        _processing = true;
         // Stop checking if all images are loaded
         if (_imagesLoaded.every((loaded) => loaded)) {
           timer.cancel();
@@ -1433,22 +1406,22 @@ class _PreviewPageState extends State<PreviewPage> {
     Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       final file = File(_imagePaths[0]);
       if (await file.exists()) {
-        bool fileExists = false;
-        if (await file.length() > 10000) {
-          // check length to ensure that image fully exists, because of isolate
-          // -> min image size 100 x 100
-          fileExists = true;
-        } else {
-          await Future.delayed(Duration(milliseconds: 300));
-          // wait for image to load for smaller images
-          fileExists = true;
-        }
-        if (fileExists) {
-          setState(() {
-            _rotationOngoing = false;
-          });
-          timer.cancel();
-        }
+        //bool fileExists = false;
+        //if (await file.length() > 10000) {
+        //  // check length to ensure that image fully exists, because of isolate
+        //  // -> min image size 100 x 100
+        //  fileExists = true;
+        //} else {
+        //  await Future.delayed(Duration(milliseconds: 300));
+        //  // wait for image to load for smaller images
+        //  fileExists = true;
+        //}
+        //if (fileExists) {
+        setState(() {
+          _rotationOngoing = false;
+        });
+        timer.cancel();
+        //}
       }
     });
   }
@@ -1468,6 +1441,9 @@ class _PreviewPageState extends State<PreviewPage> {
         break;
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
+        break;
+      case NotifierEvent.processPagePictureDone:
+        _reprocessingCleanup();
         break;
       default:
     }
@@ -1636,15 +1612,15 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.docIndex,
       widget.pageIndex,
     );
+    _clearPageVersions();
+    _checkImagesPeriodically();
   }
 
   void _reprocessingCleanup() {
     if (mounted) {
-      setState(() {
+      if (_imagePaths.isNotEmpty && _imagePaths[0] != _picturePath) {
         _imagePaths[0] = _picturePath;
-      });
-      _checkImagesPeriodically();
-      _clearPageVersions();
+      }
     }
     FilesHelper.deleteTmpDir(); // delete cached rotated images
   }
@@ -1719,14 +1695,7 @@ class _PreviewPageState extends State<PreviewPage> {
               if (!_imagesLoaded[index]) {
                 // Show loading indicator if image is not loaded
                 return PhotoViewGalleryPageOptions.customChild(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      const Text("Processing image..."),
-                    ],
-                  ),
+                  child: _indicatorProcessingImage(),
                   disableGestures: true,
                 );
               }
@@ -1736,6 +1705,10 @@ class _PreviewPageState extends State<PreviewPage> {
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
+                errorBuilder: (context, error, stackTrace) {
+                  _refreshAfterBrokenImage(index);
+                  return _indicatorProcessingImage();
+                },
               );
             },
             backgroundDecoration: BoxDecoration(color: Colors.transparent),
@@ -1909,6 +1882,13 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
+  Future<void> _refreshAfterBrokenImage(int index) async {
+    await Future.delayed(Duration(milliseconds: 200));
+    _imagesLoaded[index] = false;
+    imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
+    _checkImagesPeriodically();
+  }
+
   CustomIconButton _rotateButton(
     BuildContext context,
     int rotation,
@@ -1961,25 +1941,13 @@ class _PreviewPageState extends State<PreviewPage> {
           (_newOrientationPortrait ?? 0) == 0,
         );
         _reprocessingSetup();
-        final receivePort = ReceivePort();
-        Isolate.spawn(ImageProcessingManager.processPage, (
-          receivePort.sendPort,
-          filesHelper,
-          widget.docIndex, widget.pageIndex,
+        ImageProcessingManager.processPage(
+          widget.docIndex,
+          widget.pageIndex,
           _imagePaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
           (_newOrientationPortrait ?? 0) == 0,
-        ));
-        receivePort.listen((message) {
-          if (message is NotifierEvent) {
-            globalNotifier.triggerEvent(message);
-            if (message == NotifierEvent.loadPageMetadata) {
-              _reprocessingCleanup();
-            }
-          } else if (message == 'done') {
-            receivePort.close(); // Stop listening
-          }
-        });
+        );
       },
     );
   }
@@ -2089,6 +2057,22 @@ class _PreviewPageState extends State<PreviewPage> {
                   },
         ),
       ),
+    );
+  }
+}
+
+class _indicatorProcessingImage extends StatelessWidget {
+  const _indicatorProcessingImage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(),
+        const SizedBox(height: 16),
+        const Text("Processing image..."),
+      ],
     );
   }
 }

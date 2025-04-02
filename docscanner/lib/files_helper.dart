@@ -19,8 +19,13 @@ class FilesHelper {
   String docsPath = "";
 
   Future<String> _getDocumentsPath() async {
-    if (docsPath.isNotEmpty && Directory(docsPath).existsSync()) {
-      return docsPath;
+    await initializeDocumentsPath();
+    return docsPath;
+  }
+
+  Future<void> initializeDocumentsPath() async {
+    if (Directory(docsPath).existsSync()) {
+      return;
     }
 
     final baseDir = await getApplicationDocumentsDirectory();
@@ -29,7 +34,6 @@ class FilesHelper {
     if (!docsDir.existsSync()) {
       await docsDir.create(recursive: true);
     }
-    return docsPath;
   }
 
   Future<(String, int)> _reserveNewDocument() async {

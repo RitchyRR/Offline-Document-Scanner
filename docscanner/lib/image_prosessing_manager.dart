@@ -14,6 +14,7 @@ class ImageProcessingManager {
   static Future<void> _processPage(
     SendPort sendPort,
     FilesHelper filesHelper,
+    bool primary,
     int docIndex,
     int pageIndex,
     String pathIn,
@@ -30,6 +31,7 @@ class ImageProcessingManager {
     // Original
     Uint8List picture = File(pathIn).readAsBytesSync();
     await FilesHelper.saveImage(pathsOut[0], picture);
+    if (primary) sendPort.send(NotifierEvent.processPagePictureDone);
 
     // Warped
     var ret = cvHelper.warpImage(
@@ -73,7 +75,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
   }
 
-  static Future<void> processPages(
+  static Future<void> _processPagesIsolate(
     (
       SendPort sendPort,
       FilesHelper filesHelper,
@@ -98,6 +100,7 @@ class ImageProcessingManager {
         _processPage(
           sendPort,
           filesHelper,
+          false,
           docIndex,
           firstPageIndex + i,
           pathsIn[i],
@@ -110,7 +113,7 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  static Future<void> processPage(
+  static Future<void> _processPageIsolate(
     (
       SendPort sendPort,
       FilesHelper filesHelper,
@@ -134,14 +137,88 @@ class ImageProcessingManager {
     await _processPage(
       sendPort,
       filesHelper,
+      true,
       docIndex,
       pageIndex,
       pathIn,
       ratioIndexIn,
       orientationIn,
     );
-
     sendPort.send('done');
+  }
+
+  static Future<void> processPages(
+    int docIndex,
+    int firstPageIndex,
+    List<String> pathsIn,
+  ) async {
+    final pagePort = ReceivePort();
+    final pagesPort = ReceivePort();
+    final filesHelper = FilesHelper();
+    await filesHelper.initializeDocumentsPath();
+
+    Isolate.spawn(_processPageIsolate, (
+      pagePort.sendPort,
+      filesHelper,
+      docIndex,
+      firstPageIndex,
+      pathsIn[0],
+      null,
+      null,
+    ));
+    pathsIn.removeAt(0);
+    Isolate.spawn(_processPagesIsolate, (
+      pagesPort.sendPort,
+      filesHelper,
+      docIndex,
+      firstPageIndex + 1,
+      pathsIn,
+    ));
+
+    pagePort.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        pagePort.close();
+      }
+    });
+    pagesPort.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        pagesPort.close();
+      }
+    });
+  }
+
+  static Future<void> processPage(
+    int docIndex,
+    int pageIndex,
+    String pathIn,
+    int? ratioIndexIn,
+    bool? orientationIn,
+  ) async {
+    final port = ReceivePort();
+    final filesHelper = FilesHelper();
+    await filesHelper.initializeDocumentsPath();
+
+    Isolate.spawn(_processPageIsolate, (
+      port.sendPort,
+      filesHelper,
+      docIndex,
+      pageIndex,
+      pathIn,
+      ratioIndexIn,
+      orientationIn,
+    ));
+
+    port.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        port.close();
+      }
+    });
   }
 
   static Future<void> writePageMetadata(
