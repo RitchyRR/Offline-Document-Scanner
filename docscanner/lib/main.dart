@@ -1750,7 +1750,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                 }
                               },
                               isFlat: true,
-                              isDisabled: _reprocessingBlocked(),
+                              isDisabled: _metadataBlocked(),
                               icon: Icons.rotate_left,
                               color:
                                   Theme.of(
@@ -1775,7 +1775,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                 }
                               },
                               isFlat: true,
-                              isDisabled: _reprocessingBlocked(),
+                              isDisabled: _metadataBlocked(),
                               icon: Icons.rotate_right,
                               color:
                                   Theme.of(
@@ -1964,11 +1964,12 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
-  bool _reprocessingBlocked() =>
+  bool _metadataBlocked() =>
       (_ratioIndex == null ||
           _orientationPortrait == null ||
           !_imagesLoaded[0] ||
           !_imagesLoaded[1]);
+  bool _reprocessingBlocked() => (!_imagesLoaded[0] || !_imagesLoaded[3]);
 
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
@@ -2010,7 +2011,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              _reprocessingBlocked()
+              _metadataBlocked()
                   ? null
                   : (int? newValue) async {
                     if (newValue != null && newValue != _newRatioIndex) {
@@ -2058,7 +2059,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              _reprocessingBlocked()
+              _metadataBlocked()
                   ? null
                   : (int? newValue) async {
                     if (newValue != null &&
