@@ -1605,13 +1605,17 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.docIndex,
       widget.pageIndex,
     );
+  }
+
+  void _reprocessingCleanup() {
     if (mounted) {
-      _clearPageVersions();
       setState(() {
         _imagePaths[0] = _picturePath;
       });
       _checkImagesPeriodically();
+      _clearPageVersions();
     }
+    FilesHelper.deleteTmpDir(); // delete cached rotated images
   }
 
   // Preview Page
@@ -1940,7 +1944,6 @@ class _PreviewPageState extends State<PreviewPage> {
           (_newOrientationPortrait ?? 0) == 0,
         );
         _reprocessingSetup();
-
         final receivePort = ReceivePort();
         Isolate.spawn(ImageProcessingManager.processPages, (
           receivePort.sendPort,
@@ -1948,18 +1951,19 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.docIndex,
           [_imagePaths[0]], // potentially rotated image
           widget.pageIndex,
-          _newRatioIndex,
+          _newRatioIndex ?? 0,
           (_newOrientationPortrait ?? 0) == 0,
         ));
         receivePort.listen((message) {
           if (message is NotifierEvent) {
             globalNotifier.triggerEvent(message);
+            if (message == NotifierEvent.loadPageMetadata) {
+              _reprocessingCleanup();
+            }
           } else if (message == 'done') {
             receivePort.close(); // Stop listening
           }
         });
-
-        FilesHelper.deleteTmpDir(); // delete cached rotated images
       },
     );
   }
