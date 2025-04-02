@@ -1396,29 +1396,39 @@ class _PreviewPageState extends State<PreviewPage> {
       bool anyChange = false;
       for (int i = 0; i < _imagePaths.length; i++) {
         final file = File(_imagePaths[i]);
-        if (!_imagesLoaded[i] &&
-            await file.exists() &&
-            await file.length() > 10000) {
-          // check length to ensure that image fully exists, because of isolate
-          // -> min image size 100 x 100
-          _imagesLoaded[i] = true;
-          anyChange = true;
+        if (!_imagesLoaded[i] && await file.exists()) {
+          bool fileExists = false;
+          if (await file.length() > 10000) {
+            // check length to ensure that image fully exists, because of isolate
+            // -> min image size 100 x 100
+            fileExists = true;
+          } else {
+            await Future.delayed(Duration(milliseconds: 100));
+            // wait for image to load for smaller images
+            fileExists = true;
+          }
+          if (fileExists) {
+            _imagesLoaded[i] = true;
+            anyChange = true;
+          }
         }
       }
       if (!_alreadyProcessed && mounted) {
         if (_imagesLoaded[3]) {
-          setState(() => _selectedThumbnail = 3);
+          setState(() {
+            _selectedThumbnail = 3;
+          });
           _pageController.jumpToPage(_selectedThumbnail);
         }
       }
       // Update UI when images are found
-      if (anyChange && mounted) {
+      if (anyChange) {
+        if (mounted) setState(() {});
         _alreadyProcessed = true;
-        setState(() {});
-      }
-      // Stop checking if all images are loaded
-      if (_imagesLoaded.every((loaded) => loaded)) {
-        timer.cancel();
+        // Stop checking if all images are loaded
+        if (_imagesLoaded.every((loaded) => loaded)) {
+          timer.cancel();
+        }
       }
     });
   }
@@ -1426,13 +1436,23 @@ class _PreviewPageState extends State<PreviewPage> {
   Future<void> _checkRotatedImagePeriodically() async {
     Timer.periodic(const Duration(milliseconds: 100), (timer) async {
       final file = File(_imagePaths[0]);
-      if (await file.exists() && await file.length() > 10000) {
-        // check length to ensure that image fully exists, because of isolate
-        // -> min image size 100 x 100
-        setState(() {
-          _rotationOngoing = false;
-        });
-        timer.cancel();
+      if (await file.exists()) {
+        bool fileExists = false;
+        if (await file.length() > 10000) {
+          // check length to ensure that image fully exists, because of isolate
+          // -> min image size 100 x 100
+          fileExists = true;
+        } else {
+          await Future.delayed(Duration(milliseconds: 100));
+          // wait for image to load for smaller images
+          fileExists = true;
+        }
+        if (fileExists) {
+          setState(() {
+            _rotationOngoing = false;
+          });
+          timer.cancel();
+        }
       }
     });
   }
