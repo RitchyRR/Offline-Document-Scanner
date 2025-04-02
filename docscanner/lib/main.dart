@@ -1716,7 +1716,8 @@ class _PreviewPageState extends State<PreviewPage> {
                   alignment: Alignment.topCenter,
 
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    constraints: BoxConstraints(minHeight: 48),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(24),
@@ -1749,7 +1750,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                 }
                               },
                               isFlat: true,
-                              isDisabled: reprocessingBlocked(),
+                              isDisabled: _reprocessingBlocked(),
                               icon: Icons.rotate_left,
                               color:
                                   Theme.of(
@@ -1774,7 +1775,7 @@ class _PreviewPageState extends State<PreviewPage> {
                                 }
                               },
                               isFlat: true,
-                              isDisabled: reprocessingBlocked(),
+                              isDisabled: _reprocessingBlocked(),
                               icon: Icons.rotate_right,
                               color:
                                   Theme.of(
@@ -1920,10 +1921,10 @@ class _PreviewPageState extends State<PreviewPage> {
 
   CustomIconButton _confirmReProcessingButton(BuildContext context) {
     return CustomIconButton(
-      constraints: BoxConstraints(maxHeight: 36, maxWidth: 36),
+      constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
-      isDisabled: reprocessingBlocked(),
+      isDisabled: _reprocessingBlocked(),
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
               (_orientationPortrait == _newOrientationPortrait) &&
@@ -1963,15 +1964,17 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
-  bool reprocessingBlocked() =>
+  bool _reprocessingBlocked() =>
       (_ratioIndex == null ||
           _orientationPortrait == null ||
           !_imagesLoaded[0] ||
           !_imagesLoaded[1]);
 
   Container _aspectRatioDropDown(BuildContext context) {
+    const double height = 30;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      constraints: const BoxConstraints(maxHeight: height, minHeight: height),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color:
             Theme.of(context)
@@ -2006,20 +2009,25 @@ class _PreviewPageState extends State<PreviewPage> {
               ),
             ),
           ),
-          onChanged: (int? newValue) async {
-            if (newValue != null && newValue != _newRatioIndex) {
-              setState(() => _newRatioIndex = newValue);
-            }
-          },
+          onChanged:
+              _reprocessingBlocked()
+                  ? null
+                  : (int? newValue) async {
+                    if (newValue != null && newValue != _newRatioIndex) {
+                      setState(() => _newRatioIndex = newValue);
+                    }
+                  },
         ),
       ),
     );
   }
 
   Container _orientationDropDown(BuildContext context) {
+    const double height = 30;
     List<String> orientationsList = ["portrait", "landscape"];
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      constraints: const BoxConstraints(maxHeight: height, minHeight: height),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color:
             Theme.of(context)
@@ -2032,7 +2040,6 @@ class _PreviewPageState extends State<PreviewPage> {
         child: DropdownButton<int>(
           elevation: 8,
           borderRadius: BorderRadius.circular(20),
-          //dropdownColor: Color.fromARGB(255, 220, 220, 220),
           isDense: true,
           isExpanded: false,
           alignment: Alignment.center,
@@ -2046,19 +2053,19 @@ class _PreviewPageState extends State<PreviewPage> {
               value: j,
               child: Text(
                 orientationsList[j],
-                style: TextStyle(
-                  //color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
-          onChanged: (int? newValue) async {
-            if (newValue != null && newValue != _newOrientationPortrait) {
-              setState(() => _newOrientationPortrait = newValue);
-            }
-          },
+          onChanged:
+              _reprocessingBlocked()
+                  ? null
+                  : (int? newValue) async {
+                    if (newValue != null &&
+                        newValue != _newOrientationPortrait) {
+                      setState(() => _newOrientationPortrait = newValue);
+                    }
+                  },
         ),
       ),
     );
