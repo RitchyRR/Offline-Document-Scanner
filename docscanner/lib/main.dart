@@ -1365,6 +1365,7 @@ class _PreviewPageState extends State<PreviewPage> {
   int? _orientationPortrait;
   int? _newOrientationPortrait;
   int _totalRotation = 0;
+  bool _rotationOngoing = false;
 
   @override
   void initState() {
@@ -1738,10 +1739,14 @@ class _PreviewPageState extends State<PreviewPage> {
                             _orientationDropDown(context),
                             CustomIconButton(
                               onTap: () async {
+                                setState(() {
+                                  _rotationOngoing = true;
+                                });
                                 _totalRotation = (_totalRotation - 90) % 360;
                                 if (_totalRotation == 0) {
                                   setState(() {
                                     _imagePaths[0] = _picturePath;
+                                    _rotationOngoing = false;
                                   });
                                 } else {
                                   _imagePaths[0] =
@@ -1749,8 +1754,9 @@ class _PreviewPageState extends State<PreviewPage> {
                                         _picturePath,
                                         _totalRotation,
                                       );
-                                  _imagesLoaded[0] = false;
-                                  _checkImagesPeriodically();
+                                  setState(() {
+                                    _rotationOngoing = false;
+                                  });
                                 }
                               },
                               isFlat: true,
@@ -1763,10 +1769,14 @@ class _PreviewPageState extends State<PreviewPage> {
                             ),
                             CustomIconButton(
                               onTap: () async {
+                                setState(() {
+                                  _rotationOngoing = true;
+                                });
                                 _totalRotation = (_totalRotation + 90) % 360;
                                 if (_totalRotation == 0) {
                                   setState(() {
                                     _imagePaths[0] = _picturePath;
+                                    _rotationOngoing = false;
                                   });
                                 } else {
                                   _imagePaths[0] =
@@ -1774,8 +1784,9 @@ class _PreviewPageState extends State<PreviewPage> {
                                         _picturePath,
                                         _totalRotation,
                                       );
-                                  _imagesLoaded[0] = false;
-                                  _checkImagesPeriodically();
+                                  setState(() {
+                                    _rotationOngoing = false;
+                                  });
                                 }
                               },
                               isFlat: true,
@@ -1972,7 +1983,7 @@ class _PreviewPageState extends State<PreviewPage> {
       (_ratioIndex == null ||
           _orientationPortrait == null ||
           !_imagesLoaded[0] ||
-          !_imagesLoaded[1]);
+          _rotationOngoing);
   bool _reprocessingBlocked() => (!_imagesLoaded[0] || !_imagesLoaded[3]);
 
   Container _aspectRatioDropDown(BuildContext context) {
