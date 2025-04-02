@@ -231,10 +231,8 @@ class _MyHomePageState extends State<MyHomePage> {
       receivePort.sendPort,
       filesHelper,
       docIndex,
-      picturePaths,
       0,
-      null,
-      null,
+      picturePaths,
     ));
     receivePort.listen((message) {
       if (message is NotifierEvent) {
@@ -1090,10 +1088,8 @@ class _PagesState extends State<Pages> {
       receivePort.sendPort,
       filesHelper,
       widget.docIndex,
-      picturePaths,
       firstPageIndex,
-      null,
-      null,
+      picturePaths,
     ));
     receivePort.listen((message) {
       if (message is NotifierEvent) {
@@ -1403,7 +1399,7 @@ class _PreviewPageState extends State<PreviewPage> {
             // -> min image size 100 x 100
             fileExists = true;
           } else {
-            await Future.delayed(Duration(milliseconds: 100));
+            await Future.delayed(Duration(milliseconds: 300));
             // wait for image to load for smaller images
             fileExists = true;
           }
@@ -1443,7 +1439,7 @@ class _PreviewPageState extends State<PreviewPage> {
           // -> min image size 100 x 100
           fileExists = true;
         } else {
-          await Future.delayed(Duration(milliseconds: 100));
+          await Future.delayed(Duration(milliseconds: 300));
           // wait for image to load for smaller images
           fileExists = true;
         }
@@ -1966,12 +1962,11 @@ class _PreviewPageState extends State<PreviewPage> {
         );
         _reprocessingSetup();
         final receivePort = ReceivePort();
-        Isolate.spawn(ImageProcessingManager.processPages, (
+        Isolate.spawn(ImageProcessingManager.processPage, (
           receivePort.sendPort,
           filesHelper,
-          widget.docIndex,
-          [_imagePaths[0]], // potentially rotated image
-          widget.pageIndex,
+          widget.docIndex, widget.pageIndex,
+          _imagePaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
           (_newOrientationPortrait ?? 0) == 0,
         ));

@@ -78,21 +78,16 @@ class ImageProcessingManager {
       SendPort sendPort,
       FilesHelper filesHelper,
       int docIndex,
-      List<String> pathsIn,
       int firstPageIndex,
-      int? ratioIndexIn,
-      bool? orientationIn,
+      List<String> pathsIn,
     )
     data,
   ) async {
     SendPort sendPort = data.$1;
     FilesHelper filesHelper = data.$2;
     int docIndex = data.$3;
-    List<String> pathsIn = data.$4;
-    int firstPageIndex = data.$5;
-
-    int? ratioIndexIn = data.$6;
-    bool? orientationIn = data.$7;
+    int firstPageIndex = data.$4;
+    List<String> pathsIn = data.$5;
 
     // Collect all processing tasks in a list of futures
     // -> sendPort.send('done'); waits correctly
@@ -106,12 +101,46 @@ class ImageProcessingManager {
           docIndex,
           firstPageIndex + i,
           pathsIn[i],
-          ratioIndexIn,
-          orientationIn,
+          null,
+          null,
         ),
       );
     }
     await Future.wait(processingTasks);
+    sendPort.send('done');
+  }
+
+  static Future<void> processPage(
+    (
+      SendPort sendPort,
+      FilesHelper filesHelper,
+      int docIndex,
+      int pageIndex,
+      String pathIn,
+      int? ratioIndexIn,
+      bool? orientationIn,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    FilesHelper filesHelper = data.$2;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    String pathIn = data.$5;
+
+    int? ratioIndexIn = data.$6;
+    bool? orientationIn = data.$7;
+
+    await _processPage(
+      sendPort,
+      filesHelper,
+      docIndex,
+      pageIndex,
+      pathIn,
+      ratioIndexIn,
+      orientationIn,
+    );
+
     sendPort.send('done');
   }
 
