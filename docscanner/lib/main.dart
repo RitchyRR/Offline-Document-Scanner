@@ -1423,6 +1423,20 @@ class _PreviewPageState extends State<PreviewPage> {
     });
   }
 
+  Future<void> _checkRotatedImagePeriodically() async {
+    Timer.periodic(const Duration(milliseconds: 100), (timer) async {
+      final file = File(_imagePaths[0]);
+      if (await file.exists() && await file.length() > 10000) {
+        // check length to ensure that image fully exists, because of isolate
+        // -> min image size 100 x 100
+        setState(() {
+          _rotationOngoing = false;
+        });
+        timer.cancel();
+      }
+    });
+  }
+
   static List<String> versionNames = [
     "unprocessed",
     "warped",
@@ -1737,66 +1751,8 @@ class _PreviewPageState extends State<PreviewPage> {
                           children: [
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
-                            CustomIconButton(
-                              onTap: () async {
-                                setState(() {
-                                  _rotationOngoing = true;
-                                });
-                                _totalRotation = (_totalRotation - 90) % 360;
-                                if (_totalRotation == 0) {
-                                  setState(() {
-                                    _imagePaths[0] = _picturePath;
-                                    _rotationOngoing = false;
-                                  });
-                                } else {
-                                  _imagePaths[0] =
-                                      await FilesHelper.rotateImageInTmpDir(
-                                        _picturePath,
-                                        _totalRotation,
-                                      );
-                                  setState(() {
-                                    _rotationOngoing = false;
-                                  });
-                                }
-                              },
-                              isFlat: true,
-                              isDisabled: _metadataBlocked(),
-                              icon: Icons.rotate_left,
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                            ),
-                            CustomIconButton(
-                              onTap: () async {
-                                setState(() {
-                                  _rotationOngoing = true;
-                                });
-                                _totalRotation = (_totalRotation + 90) % 360;
-                                if (_totalRotation == 0) {
-                                  setState(() {
-                                    _imagePaths[0] = _picturePath;
-                                    _rotationOngoing = false;
-                                  });
-                                } else {
-                                  _imagePaths[0] =
-                                      await FilesHelper.rotateImageInTmpDir(
-                                        _picturePath,
-                                        _totalRotation,
-                                      );
-                                  setState(() {
-                                    _rotationOngoing = false;
-                                  });
-                                }
-                              },
-                              isFlat: true,
-                              isDisabled: _metadataBlocked(),
-                              icon: Icons.rotate_right,
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                            ),
+                            _rotateButton(context, -90, Icons.rotate_left),
+                            _rotateButton(context, 90, Icons.rotate_right),
                           ],
                         ),
                         _confirmReProcessingButton(context),
@@ -1931,6 +1887,37 @@ class _PreviewPageState extends State<PreviewPage> {
           ),
         ),
       ),
+    );
+  }
+
+  CustomIconButton _rotateButton(
+    BuildContext context,
+    int rotation,
+    IconData icon,
+  ) {
+    return CustomIconButton(
+      onTap: () async {
+        setState(() {
+          _rotationOngoing = true;
+        });
+        _totalRotation = (_totalRotation + rotation) % 360;
+        if (_totalRotation == 0) {
+          setState(() {
+            _imagePaths[0] = _picturePath;
+            _rotationOngoing = false;
+          });
+        } else {
+          _imagePaths[0] = await FilesHelper.rotateImageInTmpDir(
+            _picturePath,
+            _totalRotation,
+          );
+          _checkRotatedImagePeriodically();
+        }
+      },
+      isFlat: true,
+      isDisabled: _metadataBlocked(),
+      icon: icon,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
     );
   }
 
