@@ -1676,13 +1676,16 @@ class _PreviewPageState extends State<PreviewPage> {
           // Bg Shadow
           Align(
             alignment: Alignment.center,
-            child: SizedBox(
-              height: MediaQuery.of(context).size.width * 1.414,
+            child: AspectRatio(
+              aspectRatio:
+                  (((_orientationPortrait ?? 0) == 0)
+                      ? 1.0 / commonAspectRatios[_ratioIndex ?? 0].value
+                      : commonAspectRatios[_ratioIndex ?? 0].value),
               child: Container(
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withAlpha(40),
+                      color: Theme.of(context).shadowColor.withAlpha(25),
                       blurRadius: 50,
                       spreadRadius: -20,
                       offset: const Offset(0, 4),
