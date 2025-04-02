@@ -1695,7 +1695,7 @@ class _PreviewPageState extends State<PreviewPage> {
               if (!_imagesLoaded[index]) {
                 // Show loading indicator if image is not loaded
                 return PhotoViewGalleryPageOptions.customChild(
-                  child: _indicatorProcessingImage(),
+                  child: IndicatorProcessingImage(),
                   disableGestures: true,
                 );
               }
@@ -1707,7 +1707,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 maxScale: 1.0,
                 errorBuilder: (context, error, stackTrace) {
                   _refreshAfterBrokenImage(index);
-                  return _indicatorProcessingImage();
+                  return IndicatorProcessingImage();
                 },
               );
             },
@@ -2061,8 +2061,8 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 }
 
-class _indicatorProcessingImage extends StatelessWidget {
-  const _indicatorProcessingImage({super.key});
+class IndicatorProcessingImage extends StatelessWidget {
+  const IndicatorProcessingImage({super.key});
 
   @override
   Widget build(BuildContext context) {
