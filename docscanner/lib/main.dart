@@ -1842,12 +1842,40 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _refreshAfterBrokenImage(int index) async {
-    _imagesLoaded[index] = false;
-    setState(() {});
+    //WidgetsBinding.instance.addPostFrameCallback((_) {
+    //  if (mounted) {
+    //    setState(() {
+    //      _imagesLoaded[index] = false;
+    //    });
+    //  }
+    //});
+    await Future.microtask(() {
+      if (mounted) {
+        setState(() {
+          _imagesLoaded[index] = false;
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 1: not mounted");
+      }
+    });
     imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
-    await Future.delayed(Duration(milliseconds: 100));
-    _imagesLoaded[index] = true;
-    setState(() {});
+    //WidgetsBinding.instance.addPostFrameCallback((_) {
+    //  if (mounted) {
+    //    setState(() {
+    //      _imagesLoaded[index] = true;
+    //    });
+    //  }
+    //});
+    Future.microtask(() async {
+      await Future.delayed(Duration(milliseconds: 100));
+      if (mounted) {
+        setState(() {
+          _imagesLoaded[index] = true;
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+      }
+    });
   }
 
   CustomIconButton _rotateButton(
