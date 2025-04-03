@@ -1816,7 +1816,12 @@ class _PreviewPageState extends State<PreviewPage> {
                               height: _selectedThumbnail == index ? 70 : 50,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.broken_image);
+                                _refreshAfterBrokenImage(index);
+                                return const SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: Icon(Icons.broken_image),
+                                );
                               },
                             )
                             : Container(
