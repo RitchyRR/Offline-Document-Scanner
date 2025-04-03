@@ -292,7 +292,11 @@ class ImageProcessingManager {
     }
   }
 
-  static Future<int?> readPageRatio(int docIndex, int pageIndex) async {
+  static Future<int?> readPageRatio(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarning = false,
+  }) async {
     FilesHelper filesHelper = FilesHelper();
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
@@ -308,11 +312,17 @@ class ImageProcessingManager {
         dev.log("Error, readPageRatio: $e");
       }
     }
-    dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+    if (!supressWarning) {
+      dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+    }
     return null;
   }
 
-  static Future<int?> readPageOrientation(int docIndex, int pageIndex) async {
+  static Future<int?> readPageOrientation(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarning = false,
+  }) async {
     FilesHelper filesHelper = FilesHelper();
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
@@ -331,7 +341,9 @@ class ImageProcessingManager {
         dev.log("Error, readPageRatio: $e");
       }
     }
-    dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+    if (!supressWarning) {
+      dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+    }
     return null;
   }
 }

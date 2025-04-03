@@ -270,7 +270,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
-    await filesHelper.deleteEmptyDirectories();
+    await filesHelper.repairDirectoryStructure();
     _refreshDocsDisplay();
   }
 
@@ -1345,8 +1345,7 @@ class _PreviewPageState extends State<PreviewPage> {
     );
     _picturePath = _imagePaths[0];
     _showAllImages();
-    //_checkImagesPeriodically();
-    _loadPageMeatadata();
+    _loadPageMeatadata(supressWarning: true);
   }
 
   @override
@@ -1403,16 +1402,18 @@ class _PreviewPageState extends State<PreviewPage> {
     imageCache.evict(FileImage(File(_picturePath)), includeLive: true);
   }
 
-  Future<void> _loadPageMeatadata() async {
+  Future<void> _loadPageMeatadata({bool supressWarning = false}) async {
     _newRatioIndex =
         _ratioIndex = await ImageProcessingManager.readPageRatio(
           widget.docIndex,
           widget.pageIndex,
+          supressWarning: supressWarning,
         );
     _newOrientation =
         _orientation = await ImageProcessingManager.readPageOrientation(
           widget.docIndex,
           widget.pageIndex,
+          supressWarning: supressWarning,
         );
     setState(() {
       _newRatioIndex;
@@ -1842,30 +1843,44 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _refreshAfterBrokenImage(int index) async {
-    //WidgetsBinding.instance.addPostFrameCallback((_) {
-    //  if (mounted) {
-    //    setState(() {
-    //      _imagesLoaded[index] = false;
-    //    });
-    //  }
-    //});
-    await Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         setState(() {
           _imagesLoaded[index] = false;
         });
       } else {
         dev.log("Error, _refreshAfterBrokenImage 1: not mounted");
+        setState(() {
+          _imagesLoaded[index] = true;
+        });
+      }
+    });
+    await Future.microtask(() {
+      if (mounted) {
+        setState(() {
+          _imagesLoaded[index] = false;
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+        setState(() {
+          _imagesLoaded[index] = false;
+        });
       }
     });
     imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
-    //WidgetsBinding.instance.addPostFrameCallback((_) {
-    //  if (mounted) {
-    //    setState(() {
-    //      _imagesLoaded[index] = true;
-    //    });
-    //  }
-    //});
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 100));
+      if (mounted) {
+        setState(() {
+          _imagesLoaded[index] = true;
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 3: not mounted");
+        setState(() {
+          _imagesLoaded[index] = true;
+        });
+      }
+    });
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 100));
       if (mounted) {
@@ -1873,7 +1888,10 @@ class _PreviewPageState extends State<PreviewPage> {
           _imagesLoaded[index] = true;
         });
       } else {
-        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+        dev.log("Error, _refreshAfterBrokenImage 4: not mounted");
+        setState(() {
+          _imagesLoaded[index] = true;
+        });
       }
     });
   }
