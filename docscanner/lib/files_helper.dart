@@ -98,9 +98,9 @@ class FilesHelper {
     await File(toImagePath).writeAsBytes(imageBytes);
     if (!File(toImagePath).existsSync()) {
       dev.log("Error, saveImage: Failed to save $toImagePath");
-    } else {
-      //dev.log("Image saved at: $toImagePath");
-    }
+    } //else {
+    //dev.log("Image saved at: $toImagePath");
+    //}
   }
 
   Future<List<String>> getDocThumbnails() async {
@@ -156,9 +156,9 @@ class FilesHelper {
       final thumbnailPath = ('$pagePath/$imageName.png');
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths.add(thumbnailPath);
-      } else if (!supressWarning) {
-        dev.log("Warning, getPagesThumbnails: Image NOT Found: $thumbnailPath");
-      }
+      } //else if (!supressWarning) {
+      //dev.log("Warning, getPagesThumbnails: Image NOT Found: $thumbnailPath");
+      //}
     }
 
     return thumbnailPaths;
