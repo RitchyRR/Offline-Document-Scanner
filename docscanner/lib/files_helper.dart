@@ -687,22 +687,20 @@ class FilesHelper {
     final rotatedFilePath = "${tmpDir.path}/rotated_$angle.png";
 
     if (File(rotatedFilePath).existsSync()) return rotatedFilePath;
-    final receivePort = ReceivePort();
+    final port = ReceivePort();
     OpenCVHelper cvHelper = OpenCVHelper();
-    Isolate.spawn(cvHelper.rotateImageInTmpDir, [
-      receivePort.sendPort,
+    Isolate.spawn(cvHelper.rotateImageInTmpDir, (
+      port.sendPort,
       imagePath,
       rotatedFilePath,
       angle,
-    ]);
-
-    // Wait for the background isolate to finish
-    await receivePort.first;
-
+    ));
+    await port.first;
+    port.close();
     return rotatedFilePath;
   }
 
-  static Future<void> deleteRoatedImages() async {
+  static Future<void> deleteCachedRoatedImages() async {
     List<String> paths = [];
     final tmpDir = await getTemporaryDirectory();
     for (var angle = 90; angle <= 270; angle += 90) {

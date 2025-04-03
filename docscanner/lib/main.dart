@@ -18,7 +18,8 @@ import 'dart:developer' as dev;
 import 'package:docscanner/files_helper.dart';
 
 // global variables:
-late GlobalNotifier globalNotifier;
+final GlobalNotifier globalNotifier = GlobalNotifier();
+final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 
 enum NotifierEvent {
   loadPagesThumbnails,
@@ -27,11 +28,13 @@ enum NotifierEvent {
   reloadDocsThumbnails,
   loadPageVersions,
   loadPageMetadata,
-  processPagePictureDone,
+  pictureSaved,
+  warpSaved,
+  processed1Saved,
+  processed2Saved,
 }
 
 void main() {
-  globalNotifier = GlobalNotifier();
   runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
 }
 
@@ -52,23 +55,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Route _pushPagesThenPreview(int docIndex, int pageIndex) {
-    return MaterialPageRoute(
-      builder: (context) {
-        Future.microtask(() {
-          Navigator.pushNamed(
-            // ignore: use_build_context_synchronously
-            context,
-            '/preview',
-            arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
-          );
-        });
-
-        return Pages(docIndex: docIndex);
-      },
-    );
-  }
-
   Future<(ColorScheme, ColorScheme)> generateAdaptiveColorSchemes() async {
     final corePalette = await DynamicColorPlugin.getCorePalette();
     // Fallback
@@ -160,9 +146,22 @@ class _MyAppState extends State<MyApp> {
 
               case '/pages/preview':
                 final args = settings.arguments as Map<String, dynamic>;
-                return _pushPagesThenPreview(
-                  args['docIndex'],
-                  args['pageIndex'],
+                return MaterialPageRoute(
+                  builder: (context) {
+                    Future.microtask(() {
+                      Navigator.pushNamed(
+                        // ignore: use_build_context_synchronously
+                        context,
+                        '/preview',
+                        arguments: {
+                          'docIndex': args['docIndex'],
+                          'pageIndex': args['pageIndex'],
+                        },
+                      );
+                    });
+
+                    return Pages(docIndex: args['docIndex']);
+                  },
                 );
               default:
                 return MaterialPageRoute(builder: (_) => MyHomePage());
@@ -224,7 +223,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
-    ImageProcessingManager.processPages(docIndex, 0, picturePaths);
+    imageProcessingManager.processPages(docIndex, 0, picturePaths);
 
     // Creation Date
     final now = DateTime.now();
@@ -1066,7 +1065,7 @@ class _PagesState extends State<Pages> {
       picturePaths.length,
     );
 
-    ImageProcessingManager.processPages(
+    imageProcessingManager.processPages(
       widget.docIndex,
       firstPageIndex,
       picturePaths,
@@ -1074,16 +1073,6 @@ class _PagesState extends State<Pages> {
 
     return firstPageIndex;
   }
-
-  //double getAvailableAreaHeight(BuildContext context) {
-  //  final mediaQuery = MediaQuery.of(context);
-  //  final screenHeight = mediaQuery.size.height;
-  //  final appBarHeight = Scaffold.of(context).appBarMaxHeight ?? kToolbarHeight;
-  //  final statusBarHeight = mediaQuery.padding.top;
-  //  final bottomNavBarHeight =
-  //      mediaQuery.padding.bottom; // System navigation bar
-  //  return screenHeight - appBarHeight - statusBarHeight - bottomNavBarHeight;
-  //}
 
   // Pages
   @override
@@ -1319,137 +1308,95 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-  FilesHelper filesHelper = FilesHelper();
+  final FilesHelper filesHelper = FilesHelper();
   final PageController _pageController = PageController();
-  int _selectedThumbnail = 0;
-  bool _processing = false;
-
-  final List<bool> _imagesLoaded = List.filled(4, false);
-  List<String> _imagePaths = [];
-  late String _picturePath;
-
-  // Reprocessing Parameters:
-  int? _ratioIndex;
-  int? _newRatioIndex;
-  int? _orientationPortrait;
-  int? _newOrientationPortrait;
-  int _totalRotation = 0;
-  bool _rotationOngoing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
-    initAsync();
-  }
-
-  @override
-  void dispose() {
-    globalNotifier.removeListener(_handleGlobalEvent);
-    FilesHelper.deleteRoatedImages();
-    super.dispose();
-  }
-
-  Future<void> initAsync() async {
-    _imagePaths = await filesHelper.getImagePathsForPage(
-      widget.docIndex,
-      widget.pageIndex,
-    );
-    _picturePath = _imagePaths[0];
-    _checkImagesPeriodically();
-    _loadPageMeatadata();
-  }
-
-  Future<void> _checkImagesPeriodically() async {
-    Timer.periodic(const Duration(milliseconds: 100), (timer) async {
-      bool anyChange = false;
-      for (int i = 0; i < _imagePaths.length; i++) {
-        final file = File(_imagePaths[i]);
-        if (!_imagesLoaded[i] && await file.exists()) {
-          //bool fileExists = false;
-          //if (await file.length() > 10000) {
-          //  // check length to ensure that image fully exists, because of isolate
-          //  // -> min image size 100 x 100
-          //  fileExists = true;
-          //} else {
-          //  await Future.delayed(Duration(milliseconds: 300));
-          //  // wait for image to load for smaller images
-          //  fileExists = true;
-          //}
-          //if (fileExists) {
-          _imagesLoaded[i] = true;
-          anyChange = true;
-          //}
-        }
-      }
-      if (!_processing && mounted) {
-        if (_imagesLoaded[3]) {
-          setState(() {
-            _selectedThumbnail = 3;
-          });
-          _pageController.jumpToPage(_selectedThumbnail);
-        }
-      }
-      // Update UI when images are found
-      if (anyChange) {
-        if (mounted) setState(() {});
-        _processing = true;
-        // Stop checking if all images are loaded
-        if (_imagesLoaded.every((loaded) => loaded)) {
-          timer.cancel();
-        }
-      }
-    });
-  }
-
-  Future<void> _checkRotatedImagePeriodically() async {
-    Timer.periodic(const Duration(milliseconds: 100), (timer) async {
-      final file = File(_imagePaths[0]);
-      if (await file.exists()) {
-        //bool fileExists = false;
-        //if (await file.length() > 10000) {
-        //  // check length to ensure that image fully exists, because of isolate
-        //  // -> min image size 100 x 100
-        //  fileExists = true;
-        //} else {
-        //  await Future.delayed(Duration(milliseconds: 300));
-        //  // wait for image to load for smaller images
-        //  fileExists = true;
-        //}
-        //if (fileExists) {
-        setState(() {
-          _rotationOngoing = false;
-        });
-        timer.cancel();
-        //}
-      }
-    });
-  }
-
   static List<String> versionNames = [
     "unprocessed",
     "warped",
     "filetred",
     "PRO",
   ];
+  // Widget
+  int _selectedThumbnail = 0;
+  final List<bool> _imagesLoaded = List.filled(4, false);
+  List<String> _imagePaths = [];
+  late String _picturePath;
+  // Reprocessing Parameters
+  int? _ratioIndex;
+  int? _newRatioIndex;
+  int? _orientation;
+  int? _newOrientation;
+  int _totalRotation = 0;
+  // Status
+  bool _rotationOngoing = false;
+  bool _metadataBlocked = true;
+
+  @override
+  void initState() {
+    super.initState();
+    globalNotifier.addListener(_handleGlobalEvent);
+    _initAsync();
+  }
+
+  Future<void> _initAsync() async {
+    _imagePaths = await filesHelper.getImagePathsForPage(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    _picturePath = _imagePaths[0];
+    _showAllImages();
+    //_checkImagesPeriodically();
+    _loadPageMeatadata();
+  }
+
+  @override
+  void dispose() {
+    globalNotifier.removeListener(_handleGlobalEvent);
+    FilesHelper.deleteCachedRoatedImages();
+    super.dispose();
+  }
 
   void _handleGlobalEvent() {
     if (!mounted) return;
     switch (globalNotifier.value) {
       case NotifierEvent.loadPageVersions:
-        _clearPageVersions();
+        _clearPageVersionsCache();
         break;
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
         break;
-      case NotifierEvent.processPagePictureDone:
+
+      case NotifierEvent.pictureSaved:
+        setState(() => _imagesLoaded[0] = true);
         _reprocessingCleanup();
+        break;
+      case NotifierEvent.warpSaved:
+        setState(() => _imagesLoaded[1] = true);
+        break;
+      case NotifierEvent.processed1Saved:
+        setState(() => _imagesLoaded[2] = true);
+        break;
+      case NotifierEvent.processed2Saved:
+        setState(() => _imagesLoaded[3] = true);
         break;
       default:
     }
   }
 
-  void _clearPageVersions() {
+  _showAllImages() {
+    if (!mounted || _imagePaths.isEmpty) return;
+    for (var imagePath in _imagePaths) {
+      if (!File(imagePath).existsSync()) return;
+    }
+
+    _imagesLoaded.setAll(0, [true, true, true, true]);
+    setState(() {
+      _selectedThumbnail = 3;
+    });
+    _pageController.jumpToPage(_selectedThumbnail);
+  }
+
+  void _clearPageVersionsCache() {
     for (var path in _imagePaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
@@ -1462,14 +1409,17 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.docIndex,
           widget.pageIndex,
         );
-    _newOrientationPortrait =
-        _orientationPortrait = await ImageProcessingManager.readPageOrientation(
+    _newOrientation =
+        _orientation = await ImageProcessingManager.readPageOrientation(
           widget.docIndex,
           widget.pageIndex,
         );
     setState(() {
-      _ratioIndex;
-      _orientationPortrait;
+      _newRatioIndex;
+      //dev.log("Updated _newRatioIndex: $_newRatioIndex");
+      _newOrientation;
+      //dev.log("Updated _newOrientation: $_newOrientation");
+      _metadataBlocked = false;
     });
   }
 
@@ -1602,18 +1552,17 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   void _reprocessingSetup() {
+    _metadataBlocked = true;
     _ratioIndex = null; // don't reset _new values, for uninterrupted display
-    _orientationPortrait = null;
+    _orientation = null;
     _totalRotation = 0;
-    for (var i = 0; i < _imagesLoaded.length; i++) {
-      _imagesLoaded[i] = false;
-    }
+    _imagesLoaded.setAll(0, [false, false, false, false]);
+
     filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _clearPageVersions();
-    _checkImagesPeriodically();
+    _clearPageVersionsCache();
   }
 
   void _reprocessingCleanup() {
@@ -1622,7 +1571,7 @@ class _PreviewPageState extends State<PreviewPage> {
         _imagePaths[0] = _picturePath;
       }
     }
-    FilesHelper.deleteRoatedImages(); // delete cached rotated images
+    FilesHelper.deleteCachedRoatedImages();
   }
 
   // Preview Page
@@ -1670,7 +1619,7 @@ class _PreviewPageState extends State<PreviewPage> {
             alignment: Alignment.center,
             child: AspectRatio(
               aspectRatio:
-                  (((_orientationPortrait ?? 0) == 0)
+                  (((_orientation ?? 0) == 0)
                       ? 1.0 / commonAspectRatios[_ratioIndex ?? 0].value
                       : commonAspectRatios[_ratioIndex ?? 0].value),
               child: Container(
@@ -1743,8 +1692,18 @@ class _PreviewPageState extends State<PreviewPage> {
                           children: [
                             _aspectRatioDropDown(context),
                             _orientationDropDown(context),
-                            _rotateButton(context, -90, Icons.rotate_left),
-                            _rotateButton(context, 90, Icons.rotate_right),
+                            _rotateButton(
+                              context,
+                              -90,
+                              Icons.rotate_left,
+                              "Rotate 90° left",
+                            ),
+                            _rotateButton(
+                              context,
+                              90,
+                              Icons.rotate_right,
+                              "Rotate 90° right",
+                            ),
                           ],
                         ),
                         _confirmReProcessingButton(context),
@@ -1884,21 +1843,22 @@ class _PreviewPageState extends State<PreviewPage> {
 
   Future<void> _refreshAfterBrokenImage(int index) async {
     _imagesLoaded[index] = false;
+    setState(() {});
     imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
     await Future.delayed(Duration(milliseconds: 100));
-    _checkImagesPeriodically();
+    _imagesLoaded[index] = true;
+    setState(() {});
   }
 
   CustomIconButton _rotateButton(
     BuildContext context,
     int rotation,
     IconData icon,
+    String tooltip,
   ) {
     return CustomIconButton(
       onTap: () async {
-        setState(() {
-          _rotationOngoing = true;
-        });
+        setState(() => _rotationOngoing = true);
         _totalRotation = (_totalRotation + rotation) % 360;
         if (_totalRotation == 0) {
           setState(() {
@@ -1910,13 +1870,14 @@ class _PreviewPageState extends State<PreviewPage> {
             _picturePath,
             _totalRotation,
           );
-          _checkRotatedImagePeriodically();
+          setState(() => _rotationOngoing = false);
         }
       },
       isFlat: true,
-      isDisabled: _metadataBlocked(),
+      //isDisabled: _rotationOngoing,
       icon: icon,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      tooltip: tooltip,
     );
   }
 
@@ -1925,39 +1886,34 @@ class _PreviewPageState extends State<PreviewPage> {
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
-      isDisabled: _reprocessingBlocked(),
+      isDisabled: _reprocessingBlocked() || _rotationOngoing,
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
-              (_orientationPortrait == _newOrientationPortrait) &&
+              (_orientation == _newOrientation) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
+        imageProcessingManager.killPrimaryIsolate();
         await ImageProcessingManager.writePageMetadata(
-          null,
           filesHelper,
           widget.docIndex,
           widget.pageIndex,
           _newRatioIndex ?? 0,
-          (_newOrientationPortrait ?? 0) == 0,
+          (_newOrientation ?? 0) == 0,
         );
         _reprocessingSetup();
-        ImageProcessingManager.processPage(
+        imageProcessingManager.processPage(
           widget.docIndex,
           widget.pageIndex,
           _imagePaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
-          (_newOrientationPortrait ?? 0) == 0,
+          (_newOrientation ?? 0) == 0,
         );
       },
     );
   }
 
-  bool _metadataBlocked() =>
-      (_ratioIndex == null ||
-          _orientationPortrait == null ||
-          !_imagesLoaded[0] ||
-          _rotationOngoing);
-  bool _reprocessingBlocked() => (!_imagesLoaded[0] || !_imagesLoaded[3]);
+  bool _reprocessingBlocked() => (!_imagesLoaded[0] || _metadataBlocked);
 
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
@@ -1965,10 +1921,7 @@ class _PreviewPageState extends State<PreviewPage> {
       constraints: const BoxConstraints(maxHeight: height, minHeight: height),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [smallBoxShadow()],
       ),
@@ -1976,7 +1929,6 @@ class _PreviewPageState extends State<PreviewPage> {
         child: DropdownButton<int>(
           elevation: 8,
           borderRadius: BorderRadius.circular(20),
-          //dropdownColor: Color.fromARGB(255, 220, 220, 220),
           isDense: true,
           isExpanded: false,
           alignment: Alignment.center,
@@ -1990,16 +1942,12 @@ class _PreviewPageState extends State<PreviewPage> {
               value: i,
               child: Text(
                 commonAspectRatios[i].name,
-                style: TextStyle(
-                  //color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
           onChanged:
-              _metadataBlocked()
+              _reprocessingBlocked()
                   ? null
                   : (int? newValue) async {
                     if (newValue != null && newValue != _newRatioIndex) {
@@ -2013,15 +1961,12 @@ class _PreviewPageState extends State<PreviewPage> {
 
   Container _orientationDropDown(BuildContext context) {
     const double height = 30;
-    List<String> orientationsList = ["portrait", "landscape"];
+    List<String> orientationsList = ["Portrait", "Landscape"];
     return Container(
       constraints: const BoxConstraints(maxHeight: height, minHeight: height),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest, //fromARGB(255, 220, 220, 220),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [smallBoxShadow()],
       ),
@@ -2034,25 +1979,24 @@ class _PreviewPageState extends State<PreviewPage> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon((_orientationPortrait ?? true)? Icons.crop_portrait: Icons.crop_landscape,),
-          value: _newOrientationPortrait,
+          value: _newOrientation,
           items: List.generate(
             orientationsList.length,
-            (j) => DropdownMenuItem(
+            (i) => DropdownMenuItem(
               alignment: Alignment.center,
-              value: j,
+              value: i,
               child: Text(
-                orientationsList[j],
+                orientationsList[i],
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
           onChanged:
-              _metadataBlocked()
+              _reprocessingBlocked()
                   ? null
                   : (int? newValue) async {
-                    if (newValue != null &&
-                        newValue != _newOrientationPortrait) {
-                      setState(() => _newOrientationPortrait = newValue);
+                    if (newValue != null && newValue != _newOrientation) {
+                      setState(() => _newOrientation = newValue);
                     }
                   },
         ),

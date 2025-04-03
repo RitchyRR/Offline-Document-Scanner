@@ -14,7 +14,7 @@ class ImageProcessingManager {
   static Future<void> _processPage(
     SendPort sendPort,
     FilesHelper filesHelper,
-    bool primary,
+    bool isPrimary,
     int docIndex,
     int pageIndex,
     String pathIn,
@@ -31,7 +31,7 @@ class ImageProcessingManager {
     // Original
     Uint8List picture = File(pathIn).readAsBytesSync();
     await FilesHelper.saveImage(pathsOut[0], picture);
-    if (primary) sendPort.send(NotifierEvent.processPagePictureDone);
+    if (isPrimary) sendPort.send(NotifierEvent.pictureSaved);
 
     // Warped
     var ret = cvHelper.warpImage(
@@ -43,29 +43,41 @@ class ImageProcessingManager {
     );
     Uint8List warped = ret.$1;
     List<int> borderCorrectionDepth = ret.$2;
+    // Metadata
     int ratioIndex = ret.$3;
     orientationIn = ret.$4;
-    writePageMetadata(
-      sendPort,
+    Future<void> metadataFuture = writePageMetadata(
       filesHelper,
       docIndex,
       pageIndex,
       ratioIndex,
       orientationIn,
+      whileImageProcessing: true,
     );
+    if (isPrimary) {
+      metadataFuture.whenComplete(
+        () => sendPort.send(NotifierEvent.loadPageMetadata),
+      );
+    }
     await FilesHelper.saveImage(pathsOut[1], warped);
+    if (isPrimary) sendPort.send(NotifierEvent.warpSaved);
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
       ParamsProcessImage1(pathsOut[1]),
     );
-    await FilesHelper.saveImage(pathsOut[2], processed1);
+    Future<void> p1Future = FilesHelper.saveImage(pathsOut[2], processed1);
+    if (isPrimary) {
+      p1Future.whenComplete(() => sendPort.send(NotifierEvent.processed1Saved));
+    }
 
     // Processed2 basierend auf dem Processed1-Bild
     Uint8List processed2 = cvHelper.processImage2(
       ParamsProcessImage2(pathsOut[1], borderCorrectionDepth),
     );
     await FilesHelper.saveImage(pathsOut[3], processed2);
+    if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
+
     // Update thumbnails:
     if (ratioIndexIn == null) {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -73,6 +85,12 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.reloadPagesThumbnails);
     }
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+
+    // Make sure that futures are waited for,
+    // to make sendPort.send('done'); wait,
+    // otherwise their events might not be sent
+    await metadataFuture;
+    await p1Future;
   }
 
   static Future<void> _processPagesIsolate(
@@ -153,18 +171,28 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  static Future<void> processPages(
+  Future<Isolate>? primaryIsolate;
+  Future<void> killPrimaryIsolate() async {
+    if (primaryIsolate == null) {
+      dev.log("Warning, killPrimaryIsolate: isolate is null");
+      return;
+    }
+    (await primaryIsolate)!.kill(priority: Isolate.immediate);
+  }
+
+  Future<void> processPages(
     int docIndex,
     int firstPageIndex,
     List<String> pathsIn,
   ) async {
+    if (pathsIn.isEmpty) return;
+    ReceivePort primaryPort = ReceivePort();
     final filesHelper = FilesHelper();
     await filesHelper.initializeDocumentsPath();
 
     // First page is prioritized
-    final pagePort = ReceivePort();
-    Isolate.spawn(_processPageIsolate, (
-      pagePort.sendPort,
+    primaryIsolate = Isolate.spawn(_processPageIsolate, (
+      primaryPort.sendPort,
       filesHelper,
       docIndex,
       firstPageIndex,
@@ -172,16 +200,16 @@ class ImageProcessingManager {
       null,
       null,
     ));
-    pagePort.listen((message) {
+    primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
-        pagePort.close();
+        primaryPort.close();
       }
     });
 
     // Remaining pages
-    pathsIn.removeAt(1);
+    pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
       await Future.delayed(Duration(milliseconds: 100));
       final pagesPort = ReceivePort();
@@ -202,19 +230,19 @@ class ImageProcessingManager {
     }
   }
 
-  static Future<void> processPage(
+  Future<void> processPage(
     int docIndex,
     int pageIndex,
     String pathIn,
     int? ratioIndexIn,
     bool? orientationIn,
   ) async {
-    final port = ReceivePort();
+    ReceivePort primaryPort = ReceivePort();
     final filesHelper = FilesHelper();
     await filesHelper.initializeDocumentsPath();
 
-    Isolate.spawn(_processPageIsolate, (
-      port.sendPort,
+    primaryIsolate = Isolate.spawn(_processPageIsolate, (
+      primaryPort.sendPort,
       filesHelper,
       docIndex,
       pageIndex,
@@ -222,24 +250,23 @@ class ImageProcessingManager {
       ratioIndexIn,
       orientationIn,
     ));
-
-    port.listen((message) {
+    primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
-        port.close();
+        primaryPort.close();
       }
     });
   }
 
   static Future<void> writePageMetadata(
-    SendPort? sendPort,
     FilesHelper filesHelper,
     int docIndex,
     int pageIndex,
     int ratioIndex,
-    bool orientationPortrait,
-  ) async {
+    bool orientationPortrait, {
+    bool whileImageProcessing = false,
+  }) async {
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
@@ -257,9 +284,7 @@ class ImageProcessingManager {
       // orientation for aspect ratio (portrait, landscape)
       metadata["orientation"] = orientationPortrait ? "portrait" : "landscape";
       await file.writeAsString(jsonEncode(metadata));
-      if (sendPort != null) {
-        sendPort.send(NotifierEvent.loadPageMetadata);
-      } else {
+      if (!whileImageProcessing) {
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
       }
     } catch (e) {
