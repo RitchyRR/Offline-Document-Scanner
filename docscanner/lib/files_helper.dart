@@ -234,7 +234,7 @@ class FilesHelper {
     String toPath = docPath;
     for (int i = docIndex; i < await getDocumentsCount();) {
       if (fromDirectory.existsSync()) {
-        dev.log("Renaming ${fromDirectory.path} -> $toPath");
+        dev.log("Renaming Document ${docIndex + 1} -> Document $docIndex");
         await fromDirectory.rename(toPath);
         i++;
       }
@@ -273,7 +273,9 @@ class FilesHelper {
     String toPath = pagePath;
     for (int i = pageIndex; i < await getPagesCount(docIndex);) {
       if (fromDirectory.existsSync()) {
-        dev.log("Renaming ${fromDirectory.path} -> $toPath");
+        dev.log(
+          "Renaming Page ${pageIndex + 1} -> Page $pageIndex (in Document $docIndex)",
+        );
         await fromDirectory.rename(toPath);
         i++;
       }
