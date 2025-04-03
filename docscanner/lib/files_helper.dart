@@ -132,7 +132,10 @@ class FilesHelper {
     return docThumbnails;
   }
 
-  Future<List<String>> getPagesThumbnails(int docIndex) async {
+  Future<List<String>> getPagesThumbnails(
+    int docIndex, {
+    bool supressWarning = false,
+  }) async {
     await initializeDocumentsPath();
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
@@ -153,7 +156,7 @@ class FilesHelper {
       final thumbnailPath = ('$pagePath/$imageName.png');
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths.add(thumbnailPath);
-      } else {
+      } else if (!supressWarning) {
         dev.log("Warning, getPagesThumbnails: Image NOT Found: $thumbnailPath");
       }
     }
@@ -211,14 +214,16 @@ class FilesHelper {
     }
   }
 
-  Future<void> deleteDocument(int docIndex) async {
+  Future<void> deleteDocument(int docIndex, {bool supressInfo = false}) async {
     String docPath = await getDocumentPath(docIndex, supressWarning: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Warning, deleteDocument: Document $docIndex nonexistent, moving following Documents up",
       );
     } else {
-      dev.log("deleteDocument: Deleting document directory: $docPath");
+      if (!supressInfo) {
+        dev.log("deleteDocument: Deleting document directory: $docPath");
+      }
       Directory(docPath).deleteSync(recursive: true);
     }
 
@@ -282,7 +287,7 @@ class FilesHelper {
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
-      deleteDocument(docIndex);
+      await deleteDocument(docIndex, supressInfo: true);
       globalNotifier.triggerEvent(
         NotifierEvent.loadPagesThumbnails,
       ); // to not show deleted page and to Navigator.pop

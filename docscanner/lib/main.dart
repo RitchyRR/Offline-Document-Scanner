@@ -968,13 +968,12 @@ class _PagesState extends State<Pages> {
   List<String> _pageThumbnails = [];
   final List<double?> _thumbnailHeights = [];
   final List<GlobalKey> _imageKeys = [];
-  bool popped = false;
 
   @override
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
-    _loadPagesThumbnails(onFirstLoading: true);
+    _loadPagesThumbnails(onInit: true);
   }
 
   @override
@@ -996,16 +995,14 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  Future<void> _loadPagesThumbnails({bool onFirstLoading = false}) async {
+  Future<void> _loadPagesThumbnails({bool onInit = false}) async {
     List<String> thumbnailPaths = await filesHelper.getPagesThumbnails(
       widget.docIndex,
+      supressWarning: onInit,
     );
     if (thumbnailPaths.isEmpty) {
-      if (popped) {
-        dev.log("Error, can't Navigator.pop(context); twice.");
-      } else if (!onFirstLoading && mounted && context.mounted) {
+      if (!onInit && mounted && context.mounted) {
         Navigator.pop(context);
-        popped = true;
       }
     } else {
       int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
