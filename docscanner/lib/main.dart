@@ -413,9 +413,11 @@ class _MyHomePageState extends State<MyHomePage> {
       imageCache.evict(FileImage(File(path)), includeLive: true);
       //dev.log("reordering evictRes: $evictRes");
     }
-    setState(() {
-      _docThumbnails = [];
-    });
+    if (mounted) {
+      setState(() {
+        _docThumbnails = [];
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshDocsDisplay();
     });
@@ -1024,7 +1026,7 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  Future<void> _reloadPageThumbnails() async {
+  void _reloadPageThumbnails() {
     //dev.log("Reloading pages thumbnails.");
     for (var path in _pageThumbnails) {
       /*final evictRes = */
@@ -1035,6 +1037,7 @@ class _PagesState extends State<Pages> {
       _pageThumbnails = [];
       _thumbnailHeights.clear();
     });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPagesThumbnails();
     });
@@ -1420,13 +1423,15 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
           supressWarning: supressWarning,
         );
-    setState(() {
-      _newRatioIndex;
-      //dev.log("Updated _newRatioIndex: $_newRatioIndex");
-      _newOrientation;
-      //dev.log("Updated _newOrientation: $_newOrientation");
-      _metadataBlocked = false;
-    });
+    if (mounted) {
+      setState(() {
+        _newRatioIndex;
+        //dev.log("Updated _newRatioIndex: $_newRatioIndex");
+        _newOrientation;
+        //dev.log("Updated _newOrientation: $_newOrientation");
+        _metadataBlocked = false;
+      });
+    }
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -1912,7 +1917,9 @@ class _PreviewPageState extends State<PreviewPage> {
             _picturePath,
             _totalRotation,
           );
-          setState(() => _rotationOngoing = false);
+          if (mounted) {
+            setState(() => _rotationOngoing = false);
+          }
         }
       },
       isFlat: true,
@@ -1991,7 +1998,7 @@ class _PreviewPageState extends State<PreviewPage> {
           onChanged:
               _reprocessingBlocked()
                   ? null
-                  : (int? newValue) async {
+                  : (int? newValue) {
                     if (newValue != null && newValue != _newRatioIndex) {
                       setState(() => _newRatioIndex = newValue);
                     }
@@ -2036,7 +2043,7 @@ class _PreviewPageState extends State<PreviewPage> {
           onChanged:
               _reprocessingBlocked()
                   ? null
-                  : (int? newValue) async {
+                  : (int? newValue) {
                     if (newValue != null && newValue != _newOrientation) {
                       setState(() => _newOrientation = newValue);
                     }
