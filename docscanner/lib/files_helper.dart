@@ -225,6 +225,7 @@ class FilesHelper {
       if (!supressInfo) {
         dev.log("deleteDocument: Deleting document directory: $docPath");
       }
+      imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
     }
 
@@ -264,6 +265,7 @@ class FilesHelper {
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
     }
 

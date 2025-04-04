@@ -171,13 +171,55 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  Future<Isolate>? primaryIsolate;
+  Map<(int, int), Future<Isolate>> primaryIsolates = {};
+  Map<int, Future<Isolate>> secondaryIsolates = {};
   Future<void> killPrimaryIsolate() async {
-    if (primaryIsolate == null) {
-      dev.log("Warning, killPrimaryIsolate: isolate is null");
+    if (primaryIsolates.isEmpty) {
+      dev.log("Warning, killPrimaryIsolate: no primary isolate");
       return;
     }
-    (await primaryIsolate)!.kill(priority: Isolate.immediate);
+    // only kill currently displayed isolate
+    (await primaryIsolates.values.last).kill(priority: Isolate.immediate);
+  }
+
+  //Future<void> killAllIsolates() async {
+  //  if (primaryIsolates.isNotEmpty) {
+  //    for (var future in primaryIsolates.values) {
+  //      (await future).kill(priority: Isolate.immediate);
+  //    }
+  //  }
+  //  if (secondaryIsolates.isNotEmpty) {
+  //    for (var future in secondaryIsolates.values) {
+  //      (await future).kill(priority: Isolate.immediate);
+  //    }
+  //  }
+  //}
+
+  Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+    var key = (docIndex, pageIndex);
+    if (primaryIsolates.containsKey(key)) {
+      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      primaryIsolates.remove(key);
+    }
+    // killing secondary isolates for specific pages is impossible
+    // -> ignore
+  }
+
+  Future<void> killIsolatesOfDocument(int docIndex) async {
+    List<(int, int)> keys = [];
+    for (var key in primaryIsolates.keys) {
+      if (key.$1 == docIndex) {
+        keys.add(key);
+      }
+    }
+    for (var key in keys) {
+      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      primaryIsolates.remove(key);
+    }
+    if (secondaryIsolates.containsKey(docIndex)) {
+      (await secondaryIsolates[docIndex]!).kill(priority: Isolate.immediate);
+      secondaryIsolates.remove(docIndex);
+    }
   }
 
   Future<void> processPages(
@@ -191,15 +233,20 @@ class ImageProcessingManager {
     await filesHelper.initializeDocumentsPath();
 
     // First page is prioritized
-    primaryIsolate = Isolate.spawn(_processPageIsolate, (
-      primaryPort.sendPort,
-      filesHelper,
-      docIndex,
-      firstPageIndex,
-      pathsIn[0],
-      null,
-      null,
-    ));
+    primaryIsolates.addEntries([
+      MapEntry(
+        (docIndex, firstPageIndex),
+        Isolate.spawn(_processPageIsolate, (
+          primaryPort.sendPort,
+          filesHelper,
+          docIndex,
+          firstPageIndex,
+          pathsIn[0],
+          null,
+          null,
+        )),
+      ),
+    ]);
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -213,13 +260,18 @@ class ImageProcessingManager {
     if (pathsIn.isNotEmpty) {
       await Future.delayed(Duration(milliseconds: 100));
       final pagesPort = ReceivePort();
-      Isolate.spawn(_processPagesIsolate, (
-        pagesPort.sendPort,
-        filesHelper,
-        docIndex,
-        firstPageIndex + 1,
-        pathsIn,
-      ));
+      secondaryIsolates.addEntries([
+        MapEntry(
+          docIndex,
+          Isolate.spawn(_processPagesIsolate, (
+            pagesPort.sendPort,
+            filesHelper,
+            docIndex,
+            firstPageIndex + 1,
+            pathsIn,
+          )),
+        ),
+      ]);
       pagesPort.listen((message) {
         if (message is NotifierEvent) {
           globalNotifier.triggerEvent(message);
@@ -241,15 +293,20 @@ class ImageProcessingManager {
     final filesHelper = FilesHelper();
     await filesHelper.initializeDocumentsPath();
 
-    primaryIsolate = Isolate.spawn(_processPageIsolate, (
-      primaryPort.sendPort,
-      filesHelper,
-      docIndex,
-      pageIndex,
-      pathIn,
-      ratioIndexIn,
-      orientationIn,
-    ));
+    primaryIsolates.addEntries([
+      MapEntry(
+        (docIndex, pageIndex),
+        Isolate.spawn(_processPageIsolate, (
+          primaryPort.sendPort,
+          filesHelper,
+          docIndex,
+          pageIndex,
+          pathIn,
+          ratioIndexIn,
+          orientationIn,
+        )),
+      ),
+    ]);
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
