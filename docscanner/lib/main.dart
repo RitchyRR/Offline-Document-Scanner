@@ -1378,13 +1378,24 @@ class _PreviewPageState extends State<PreviewPage> {
         _reprocessingCleanup();
         break;
       case NotifierEvent.warpSaved:
-        setState(() => _imagesLoaded[1] = true);
+        setState(() {
+          _imagesLoaded[1] = true;
+          _imagesLoaded[0] = true;
+        });
         break;
       case NotifierEvent.processed1Saved:
-        setState(() => _imagesLoaded[2] = true);
+        setState(() {
+          _imagesLoaded[2] = true;
+          _imagesLoaded[1] = true;
+          _imagesLoaded[0] = true;
+        });
         break;
       case NotifierEvent.processed2Saved:
-        setState(() => _imagesLoaded[3] = true);
+        setState(() {
+          _imagesLoaded[3] = true;
+          _imagesLoaded[1] = true;
+          _imagesLoaded[0] = true;
+        });
         break;
       default:
     }
