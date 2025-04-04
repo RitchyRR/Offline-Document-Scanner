@@ -149,7 +149,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(
                   builder: (context) {
                     Future.microtask(() async {
-                      await Navigator.pushNamed(
+                      /*Future<void> future = */
+                      Navigator.pushNamed(
                         // ignore: use_build_context_synchronously
                         context,
                         '/preview',
@@ -158,9 +159,11 @@ class _MyAppState extends State<MyApp> {
                           'pageIndex': args['pageIndex'],
                         },
                       );
-                      globalNotifier.triggerEvent(
-                        NotifierEvent.loadPagesThumbnails,
-                      );
+                      /*future.whenComplete(
+                        () => globalNotifier.triggerEvent(
+                          NotifierEvent.loadPagesThumbnails,
+                        ),
+                      );*/
                     });
 
                     return Pages(docIndex: args['docIndex']);
@@ -1455,8 +1458,8 @@ class _PreviewPageState extends State<PreviewPage> {
                 Navigator.pop(context);
                 await FilesHelper.pickFolderForImagePdf(
                   imagePath,
-                  docIndex: widget.docIndex,
-                  pageIndex: widget.pageIndex,
+                  widget.docIndex,
+                  widget.pageIndex,
                   versionName: versionNames[versionIndex],
                 );
               },
@@ -1505,8 +1508,8 @@ class _PreviewPageState extends State<PreviewPage> {
                 await filesHelper.shareImagesPdf(
                   context,
                   [imagePath],
-                  docIndex: widget.docIndex,
-                  pageIndex: widget.pageIndex,
+                  widget.docIndex,
+                  widget.pageIndex,
                   versionName: versionNames[versionIndex],
                 );
               },

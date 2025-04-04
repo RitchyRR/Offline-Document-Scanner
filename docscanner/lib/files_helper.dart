@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
+import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/main.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -553,7 +554,7 @@ class FilesHelper {
           "Error, _convertDocumentToPdf: No images in Document $docIndex",
         );
       }
-      return _convertImagesToPdf(imagePaths);
+      return _convertImagesToPdf(imagePaths, docIndex, 0);
     } catch (e) {
       dev.log("Error, _convertDocumentToPdf: $e");
     }
@@ -562,11 +563,54 @@ class FilesHelper {
 
   static Future<pdfw.Document?> _convertImagesToPdf(
     List<String> imagePaths,
+    int docIndex,
+    int firstPageIndex,
   ) async {
+    // Metadata
+    List<int> ratioIndexes = [];
+    List<int> orientations = [];
+    for (
+      var pageIndex = firstPageIndex;
+      pageIndex < imagePaths.length;
+      pageIndex++
+    ) {
+      ratioIndexes.add(
+        await ImageProcessingManager.readPageRatio(docIndex, pageIndex) ?? 0,
+      );
+      orientations.add(
+        await ImageProcessingManager.readPageOrientation(docIndex, pageIndex) ??
+            0,
+      );
+    }
+
     try {
+      // Select Aspect ratio
+      double width = 21.0 * PdfPageFormat.cm;
+      // 1. Get common width (shared across pages)
+      for (int ratioIndex in ratioIndexes) {
+        if (ratioIndex == 0) // A4
+        {
+          width = 21.0 * PdfPageFormat.cm;
+          break;
+        } else if (ratioIndex == 1 || ratioIndex == 2) // Legal / Letter
+        {
+          width = 8.5 * PdfPageFormat.inch;
+          break;
+        }
+      }
+      // 2. Set correct aspect ratio
+      List<PdfPageFormat> pageFormats = [];
+      for (var (i, ratioIndex) in ratioIndexes.indexed) {
+        double height =
+            (orientations[i] == 0)
+                ? width * commonAspectRatios[ratioIndex].value
+                : width / commonAspectRatios[ratioIndex].value;
+        pageFormats.add(PdfPageFormat(width, height));
+      }
+
       // Create PDF
       final pdf = pdfw.Document();
-      for (String imagePath in imagePaths) {
+      for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
@@ -574,7 +618,7 @@ class FilesHelper {
 
           pdf.addPage(
             pdfw.Page(
-              pageFormat: PdfPageFormat.a4,
+              pageFormat: pageFormats[i],
               build: (pdfw.Context context) {
                 return pdfw.Center(
                   child: pdfw.Image(image, fit: pdfw.BoxFit.contain),
@@ -603,7 +647,13 @@ class FilesHelper {
         return;
       }
       // Save PDF
-      String pdfPath = "$selectedDirectory/document_$docIndex.pdf";
+      String pdfPath = "$selectedDirectory/doc${docIndex + 1}.pdf";
+      File file = File(pdfPath);
+      if (file.existsSync()) {
+        file.renameSync(
+          "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
+        );
+      }
       pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
       if (pdf == null) return;
       final pdfFile = File(pdfPath);
@@ -622,9 +672,9 @@ class FilesHelper {
   }
 
   static Future<void> pickFolderForImagePdf(
-    String imagePath, {
-    int? docIndex,
-    int? pageIndex,
+    String imagePath,
+    int docIndex,
+    int pageIndex, {
     String? versionName,
   }) async {
     try {
@@ -638,8 +688,18 @@ class FilesHelper {
       }
       // Save PDF
       String pdfPath =
-          "$selectedDirectory/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
-      pdfw.Document? pdf = await _convertImagesToPdf([imagePath]);
+          "$selectedDirectory/doc${docIndex + 1}_page${pageIndex + 1}${versionName != null ? "_$versionName" : ""}}.pdf";
+      File file = File(pdfPath);
+      if (file.existsSync()) {
+        file.renameSync(
+          "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
+        );
+      }
+      pdfw.Document? pdf = await _convertImagesToPdf(
+        [imagePath],
+        docIndex,
+        pageIndex,
+      );
       if (pdf == null) return;
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
@@ -695,7 +755,7 @@ class FilesHelper {
   Future<void> shareDocumentPdf(BuildContext context, int docIndex) async {
     // Save PDF
     final docsPath = await _getDocumentsPath();
-    String pdfPath = "$docsPath/document_$docIndex.pdf";
+    String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
 
     pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
@@ -713,16 +773,20 @@ class FilesHelper {
 
   Future<void> shareImagesPdf(
     BuildContext context,
-    List<String> imagePaths, {
-    int? docIndex,
-    int? pageIndex,
+    List<String> imagePaths,
+    int docIndex,
+    int firstPageIndex, {
     String? versionName,
   }) async {
     // Save PDF
     final docsDir = await _getDocumentsPath();
     String pdfPath =
-        "$docsDir/doc${docIndex != null ? docIndex + 1 : ""}_page${pageIndex != null ? pageIndex + 1 : ""}${versionName != null ? "_$versionName" : ""}.pdf";
-    pdfw.Document? pdf = await _convertImagesToPdf(imagePaths);
+        "$docsDir/doc${docIndex + 1}${imagePaths.length == 1 ? "_page${firstPageIndex + 1}" : ""}${versionName != null ? "_$versionName" : ""}}.pdf";
+    pdfw.Document? pdf = await _convertImagesToPdf(
+      imagePaths,
+      docIndex,
+      firstPageIndex,
+    );
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
