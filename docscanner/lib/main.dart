@@ -34,7 +34,12 @@ enum NotifierEvent {
   processed2Saved,
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    //DeviceOrientation.portraitDown,
+  ]);
   runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
 }
 
