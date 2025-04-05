@@ -230,7 +230,24 @@ class FilesHelper {
   //}
 
   Future<void> repairDirectoryStructure() async {
-    await _initializeDocumentsPath();
+    // repeat repairing until there are no more changes
+    var i = 0;
+    for (; i < 5; i++) {
+      try {
+        if (!(await _repairDirectoryStructure())) break;
+      } catch (e) {
+        dev.log("Error, repairDirectoryStructure: $e");
+      }
+    }
+    if (i == 5) {
+      dev.log(
+        "Warning, repairDirectoryStructure: Could not repair after $i tries.",
+      );
+    }
+  }
+
+  Future<bool> _repairDirectoryStructure() async {
+    bool anyChange = false;
 
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync().whereType<Directory>().toList();
@@ -243,6 +260,7 @@ class FilesHelper {
       if (doc.path != expectedDocPath) {
         dev.log("Renaming ${doc.path} -> $expectedDocPath");
         doc.renameSync(expectedDocPath);
+        anyChange = true;
       }
 
       List<FileSystemEntity> pages =
@@ -258,11 +276,13 @@ class FilesHelper {
           if (page.path != expectedPagePath) {
             dev.log("Renaming ${page.path} -> $expectedPagePath");
             page.renameSync(expectedPagePath);
+            anyChange = true;
           }
 
           // Delete empty pages
           int versionCount = await getPageVersionsCount(docIndex, pageIndex);
           if (versionCount < 5) {
+            anyChange = true;
             if (versionCount == 0) {
               dev.log("Deleting empty Page $pageIndex");
             } else {
@@ -274,9 +294,11 @@ class FilesHelper {
           }
         }
       } else {
+        anyChange = true;
         deleteDocument(docIndex);
       }
     }
+    return anyChange;
   }
 
   Future<void> deleteDocument(int docIndex, {bool supressInfo = false}) async {
