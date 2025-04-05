@@ -17,14 +17,29 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 class FilesHelper {
-  String docsPath = "";
+  late String docsPath = "";
+  int screenWidth;
+
+  FilesHelper() : screenWidth = 1080 {
+    _initializeDocumentsPath();
+  }
+
+  int calculateScreenWidth(BuildContext context) {
+    if (context.mounted) {
+      double logicalWidth = MediaQuery.of(context).size.width;
+      double pixelRatio = MediaQuery.of(context).devicePixelRatio;
+      return (logicalWidth * pixelRatio).round();
+    } else {
+      return 0;
+    }
+  }
 
   Future<String> _getDocumentsPath() async {
-    await initializeDocumentsPath();
+    await _initializeDocumentsPath();
     return docsPath;
   }
 
-  Future<void> initializeDocumentsPath() async {
+  Future<void> _initializeDocumentsPath() async {
     if (Directory(docsPath).existsSync()) {
       return;
     }
@@ -54,7 +69,7 @@ class FilesHelper {
     int docIndex, {
     bool supressWarning = false,
   }) async {
-    await initializeDocumentsPath();
+    await _initializeDocumentsPath();
 
     String docPath = '$docsPath/Document $docIndex';
     if (!Directory(docPath).existsSync() && !supressWarning) {
@@ -92,20 +107,18 @@ class FilesHelper {
     return pagePath;
   }
 
-  static Future<void> saveImage(
-    String toImagePath,
-    Uint8List imageBytes,
-  ) async {
-    await File(toImagePath).writeAsBytes(imageBytes);
+  Future<void> saveImage(String toImagePath, Uint8List imageBytes) async {
+    File(toImagePath).writeAsBytesSync(imageBytes);
     if (!File(toImagePath).existsSync()) {
       dev.log("Error, saveImage: Failed to save $toImagePath");
+      return;
     } //else {
     //dev.log("Image saved at: $toImagePath");
     //}
   }
 
   Future<List<String>> getDocThumbnails() async {
-    await initializeDocumentsPath();
+    await _initializeDocumentsPath();
     List<String> docThumbnails = [];
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
@@ -121,7 +134,7 @@ class FilesHelper {
       } else {
         continue;
       }
-      final imageName = "processed2";
+      final imageName = "thumbnail";
       final thumbnailPath = ('$page0Path/$imageName.png');
       if (File(thumbnailPath).existsSync()) {
         docThumbnails.add(thumbnailPath);
@@ -137,7 +150,7 @@ class FilesHelper {
     int docIndex, {
     bool supressWarning = false,
   }) async {
-    await initializeDocumentsPath();
+    await _initializeDocumentsPath();
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
           ..sort((a, b) => a.path.compareTo(b.path));
@@ -153,7 +166,7 @@ class FilesHelper {
     List<String> thumbnailPaths = [];
     for (var page in pages) {
       final pagePath = page.path;
-      final imageName = "processed2";
+      final imageName = "thumbnail";
       final thumbnailPath = ('$pagePath/$imageName.png');
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths.add(thumbnailPath);
@@ -166,7 +179,7 @@ class FilesHelper {
   }
 
   Future<void> repairDirectoryStructure() async {
-    await initializeDocumentsPath();
+    await _initializeDocumentsPath();
 
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync().whereType<Directory>().toList();
@@ -182,7 +195,7 @@ class FilesHelper {
       }
 
       List<FileSystemEntity> pages =
-          Directory(doc.path).listSync().whereType<Directory>().toList();
+          Directory(expectedDocPath).listSync().whereType<Directory>().toList();
       if (pages.isNotEmpty) {
         for (var (pageIndex, page) in pages.indexed) {
           // Reanme pages to match their index
@@ -198,7 +211,7 @@ class FilesHelper {
 
           // Delete empty pages
           int versionCount = await getPageVersionsCount(docIndex, pageIndex);
-          if (versionCount < 4) {
+          if (versionCount < 5) {
             if (versionCount == 0) {
               dev.log("Deleting empty Page $pageIndex");
             } else {

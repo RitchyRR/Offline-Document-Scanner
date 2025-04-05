@@ -23,6 +23,7 @@ dependencies:
   photo_view: 
   # image handling:
   path_provider: 
+  path:
   image_picker: 
   gal: # save to gallery
   share_plus: # share files

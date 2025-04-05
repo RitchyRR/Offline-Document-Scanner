@@ -20,6 +20,7 @@ import 'package:docscanner/files_helper.dart';
 // global variables:
 final GlobalNotifier globalNotifier = GlobalNotifier();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
+final FilesHelper filesHelper = FilesHelper();
 
 enum NotifierEvent {
   loadPagesThumbnails,
@@ -104,6 +105,21 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        filesHelper.calculateScreenWidth(context);
+      } else {
+        dev.log("Error, _MyAppState, initAsync(): not mounted");
+      }
+    });
+    initAsync();
+  }
+
+  Future<void> initAsync() async {}
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +243,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  FilesHelper filesHelper = FilesHelper();
-
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
     var newDoc = await filesHelper.createNewDocument(picturePaths.length);
     int docIndex = newDoc.$1;
@@ -976,7 +990,6 @@ class Pages extends StatefulWidget {
 }
 
 class _PagesState extends State<Pages> {
-  FilesHelper filesHelper = FilesHelper();
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   final List<double?> _thumbnailHeights = [];
@@ -1321,7 +1334,6 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-  final FilesHelper filesHelper = FilesHelper();
   final PageController _pageController = PageController();
   static List<String> versionNames = [
     "unprocessed",
@@ -1960,7 +1972,6 @@ class _PreviewPageState extends State<PreviewPage> {
       onTap: () async {
         imageProcessingManager.killPrimaryIsolate();
         await ImageProcessingManager.writePageMetadata(
-          filesHelper,
           widget.docIndex,
           widget.pageIndex,
           _newRatioIndex ?? 0,
