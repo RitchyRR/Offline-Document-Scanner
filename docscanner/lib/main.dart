@@ -466,12 +466,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _shareDocumentPopup(
-    BuildContext context,
-    int docIndex,
-    int pagesCount,
-  ) async {
-    final pagePaths = (await filesHelper.getPagesThumbnails(docIndex)).$1;
+  Future<void> _shareDocumentPopup(BuildContext context, int docIndex) async {
+    final pThumbs = await filesHelper.getPagesThumbnails(docIndex);
+    final List<String> pagePaths = pThumbs.$1;
+    final int pagesCount = pThumbs.$2;
+    final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
+
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -481,13 +481,39 @@ class _MyHomePageState extends State<MyHomePage> {
           actions: [
             ImagesScrollPreview(pagePaths: pagePaths),
             SizedBox(height: 36.0),
+            !allPagesLoaded
+                ? Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info, color: Colors.red),
+                      SizedBox(width: 8.0),
+                      SizedBox(
+                        width: 190,
+                        child: Text(
+                          "Try again, when all images are done processing.",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : Row(),
+
             // Share as Images
             ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context); // Close dialog
-                await filesHelper.shareDocumentImages(context, docIndex);
-              },
-              icon: Icon(Icons.image),
+              onPressed:
+                  allPagesLoaded
+                      ? () async {
+                        Navigator.pop(context); // Close dialog
+                        await filesHelper.shareDocumentImages(
+                          context,
+                          docIndex,
+                        );
+                      }
+                      : null,
+              icon: Icon(allPagesLoaded ? Icons.image : Icons.broken_image),
               label: Text(
                 "Share ${pagesCount == 1 ? "one Image" : "$pagesCount Images"}",
               ),
@@ -495,11 +521,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
             // Share PDF
             ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context); // Close dialog
-                await filesHelper.shareDocumentPdf(context, docIndex);
-              },
-              icon: Icon(Icons.picture_as_pdf),
+              onPressed:
+                  allPagesLoaded
+                      ? () async {
+                        Navigator.pop(context); // Close dialog
+                        await filesHelper.shareDocumentPdf(context, docIndex);
+                      }
+                      : null,
+              icon: Icon(
+                allPagesLoaded ? Icons.picture_as_pdf : Icons.broken_image,
+              ),
               label: Text("Share combined PDF"),
             ),
 
@@ -514,29 +545,51 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _saveDocumentPopup(
-    BuildContext context,
-    int docIndex,
-    int pagesCount,
-  ) async {
-    final pagePaths = (await filesHelper.getPagesThumbnails(docIndex)).$1;
+  Future<void> _saveDocumentPopup(BuildContext context, int docIndex) async {
+    final pThumbs = await filesHelper.getPagesThumbnails(docIndex);
+    final List<String> pagePaths = pThumbs.$1;
+    final int pagesCount = pThumbs.$2;
+    final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
+
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text("Save Document"),
-
           actions: [
             ImagesScrollPreview(pagePaths: pagePaths),
             SizedBox(height: 36.0),
+            !allPagesLoaded
+                ? Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info, color: Colors.red),
+                      SizedBox(width: 8.0),
+                      SizedBox(
+                        width: 190,
+                        child: Text(
+                          "Try again, when all images are done processing.",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                : Row(),
+
             // Save as Images
             ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                await filesHelper.saveDocumentImagesToGallery(docIndex);
-              },
-              icon: Icon(Icons.image),
+              onPressed:
+                  allPagesLoaded
+                      ? () async {
+                        Navigator.pop(context);
+                        await filesHelper.saveDocumentImagesToGallery(docIndex);
+                      }
+                      : null,
+              icon: Icon(allPagesLoaded ? Icons.image : Icons.broken_image),
               label: Text(
                 "Save ${pagesCount == 1 ? "one Image" : "$pagesCount Images"} to Gallery",
               ),
@@ -544,11 +597,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
             // Save as PDF
             ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                await filesHelper.pickFolderForDocumentPdf(docIndex);
-              },
-              icon: Icon(Icons.picture_as_pdf),
+              onPressed:
+                  allPagesLoaded
+                      ? () async {
+                        Navigator.pop(context);
+                        await filesHelper.pickFolderForDocumentPdf(docIndex);
+                      }
+                      : null,
+              icon: Icon(
+                allPagesLoaded ? Icons.picture_as_pdf : Icons.broken_image,
+              ),
               label: Text("Save combined PDF to Directory"),
             ),
 
@@ -829,7 +887,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                             () => _saveDocumentPopup(
                                               context,
                                               index,
-                                              pagesCount,
                                             ),
                                         icon: Icon(Icons.save),
                                       ),
@@ -838,7 +895,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                             () => _shareDocumentPopup(
                                               context,
                                               index,
-                                              pagesCount,
                                             ),
                                         icon: Icon(Icons.share),
                                       ),
