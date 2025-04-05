@@ -128,13 +128,14 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  Map<(int, int), Future<Isolate>> primaryIsolates = {};
+  Map<(int, int), Isolate> primaryIsolates = {};
   Map<(int, int), Isolate> secondaryIsolates = {};
+  List<Completer> comleters = [];
 
   Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
     if (primaryIsolates.containsKey(key)) {
-      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
   }
@@ -142,7 +143,7 @@ class ImageProcessingManager {
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
     if (primaryIsolates.containsKey(key)) {
-      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
     if (secondaryIsolates.containsKey(key)) {
@@ -159,7 +160,7 @@ class ImageProcessingManager {
       }
     }
     for (var key in primaryKeys) {
-      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
 
@@ -184,32 +185,34 @@ class ImageProcessingManager {
 
     // First page is prioritized
     ReceivePort primaryPort = ReceivePort();
-    primaryIsolates.addEntries([
-      MapEntry(
-        (docIndex, firstPageIndex),
-        Isolate.spawn(_processPageIsolate, (
-          primaryPort.sendPort,
-          filesHelper,
-          true,
-          docIndex,
-          firstPageIndex,
-          pathsIn[0],
-          null,
-          null,
-        )),
-      ),
-    ]);
+    final primaryCompleter = Completer<void>();
+    comleters.add(primaryCompleter);
+    Isolate primaryIolate = await Isolate.spawn(_processPageIsolate, (
+      primaryPort.sendPort,
+      filesHelper,
+      true,
+      docIndex,
+      firstPageIndex,
+      pathsIn[0],
+      null,
+      null,
+    ));
+    primaryIsolates[(docIndex, firstPageIndex)] = primaryIolate;
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         primaryPort.close();
+        primaryCompleter.complete();
+        comleters.remove(primaryCompleter);
+        //primaryIolate.kill();
+        primaryIsolates.removeWhere((key, value) => value == primaryIolate);
       }
     });
 
     List<Future<dynamic>> beforeSecundary = [];
-    beforeSecundary.add(Future.delayed(Duration(milliseconds: 2000)));
-    beforeSecundary.add(primaryIsolates.values.last);
+    beforeSecundary.add(Future.delayed(Duration(milliseconds: 1000)));
+    beforeSecundary.add(primaryCompleter.future);
 
     // Remaining pages
     pathsIn.removeAt(0);
@@ -217,7 +220,6 @@ class ImageProcessingManager {
       await Future.any(beforeSecundary);
 
       final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
-      List<Completer> comleters = [];
       for (var (index, path) in pathsIn.indexed) {
         if (comleters.length >= maxIsolates) {
           await Future.any(comleters.map((c) => c.future));
@@ -260,27 +262,28 @@ class ImageProcessingManager {
     bool? orientationIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
-
-    primaryIsolates.addEntries([
-      MapEntry(
-        (docIndex, pageIndex),
-        Isolate.spawn(_processPageIsolate, (
-          primaryPort.sendPort,
-          filesHelper,
-          true,
-          docIndex,
-          pageIndex,
-          pathIn,
-          ratioIndexIn,
-          orientationIn,
-        )),
-      ),
-    ]);
+    final primaryCompleter = Completer<void>();
+    comleters.add(primaryCompleter);
+    Isolate primaryIolate = await Isolate.spawn(_processPageIsolate, (
+      primaryPort.sendPort,
+      filesHelper,
+      true,
+      docIndex,
+      pageIndex,
+      pathIn,
+      ratioIndexIn,
+      orientationIn,
+    ));
+    primaryIsolates[(docIndex, pageIndex)] = primaryIolate;
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         primaryPort.close();
+        primaryCompleter.complete();
+        comleters.remove(primaryCompleter);
+        //primaryIolate.kill();
+        primaryIsolates.removeWhere((key, value) => value == primaryIolate);
       }
     });
   }
