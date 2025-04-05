@@ -167,9 +167,14 @@ class FilesHelper {
     if (docs.isEmpty) return [];
     if (docs.length - 1 < docIndex) return [];
     String docPath = docs[docIndex].path;
-    List<FileSystemEntity> pages =
-        Directory(docPath).listSync().whereType<Directory>().toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
+    List<FileSystemEntity> pages = [];
+    try {
+      pages =
+          Directory(docPath).listSync().whereType<Directory>().toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
+    } catch (e) {
+      dev.log('Error while listing pages: $e');
+    }
     if (pages.isEmpty) return [];
 
     List<String> thumbnailPaths = [];
@@ -194,6 +199,36 @@ class FilesHelper {
 
     return thumbnailPaths;
   }
+
+  //Future<List<String>> getCacheBustingImages(
+  //  List<String> thumbnailPathsIn,
+  //) async {
+  //  List<String> thumbnailPathsOut = [];
+  //  String tmpPath = (await getApplicationDocumentsDirectory()).path;
+  //  for (var pathIn in thumbnailPathsIn) {
+  //    thumbnailPathsOut.add(
+  //      p.join(
+  //        tmpPath,
+  //        DateTime.now().millisecondsSinceEpoch.toString() + p.basename(pathIn),
+  //      ),
+  //    );
+  //    File(
+  //      thumbnailPathsOut.last,
+  //    ).writeAsBytesSync(File(pathIn).readAsBytesSync());
+  //  }
+  //
+  //  WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //    await Future.delayed(Duration(milliseconds: 100));
+  //    for (var pathOut in thumbnailPathsOut) {
+  //      if (File(pathOut).existsSync()) {
+  //        File(pathOut).delete();
+  //      } else {
+  //        dev.log("Warning, getCacheBustingImages: Unnecessary delete");
+  //      }
+  //    }
+  //  });
+  //  return thumbnailPathsOut;
+  //}
 
   Future<void> repairDirectoryStructure() async {
     await _initializeDocumentsPath();

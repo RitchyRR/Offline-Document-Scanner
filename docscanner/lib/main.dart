@@ -170,8 +170,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(
                   builder: (context) {
                     Future.microtask(() async {
-                      /*Future<void> future = */
-                      Navigator.pushNamed(
+                      Future<void> future = Navigator.pushNamed(
                         // ignore: use_build_context_synchronously
                         context,
                         '/preview',
@@ -180,11 +179,19 @@ class _MyAppState extends State<MyApp> {
                           'pageIndex': args['pageIndex'],
                         },
                       );
-                      /*future.whenComplete(
-                        () => globalNotifier.triggerEvent(
-                          NotifierEvent.loadPagesThumbnails,
-                        ),
-                      );*/
+                      future.whenComplete(() async {
+                        List<String> pageImages = await filesHelper
+                            .getImagePathsForPage(
+                              args['docIndex'],
+                              args['pageIndex'],
+                            );
+                        for (var path in pageImages) {
+                          imageCache.evict(
+                            FileImage(File(path)),
+                            includeLive: true,
+                          );
+                        }
+                      });
                     });
 
                     return Pages(docIndex: args['docIndex']);
@@ -1048,9 +1055,6 @@ class _PagesState extends State<Pages> {
     for (var path in _pageThumbnails) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
-    //List<String> tmpThumbnailPaths = await filesHelper.getCacheBustingImages(
-    //  _pageThumbnails,
-    //);
     setState(() {
       _pageThumbnails = [];
       _thumbnailHeights.clear();
@@ -1062,11 +1066,20 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _openPreviewPage(int docIndex, int pageIndex) async {
-    Navigator.pushNamed(
+    Future<void> future = Navigator.pushNamed(
       context,
       '/preview',
       arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
     );
+    future.whenComplete(() async {
+      List<String> pageImages = await filesHelper.getImagePathsForPage(
+        docIndex,
+        pageIndex,
+      );
+      for (var path in pageImages) {
+        imageCache.evict(FileImage(File(path)), includeLive: true);
+      }
+    });
   }
 
   Future<void> _openImagePicker(
