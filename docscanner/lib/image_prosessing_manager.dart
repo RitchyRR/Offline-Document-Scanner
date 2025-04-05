@@ -84,7 +84,7 @@ class ImageProcessingManager {
     }
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
 
-    writeScaledThumbnail(
+    await writeScaledThumbnail(
       sendPort,
       pathsOut[3],
       filesHelperIn.screenWidth,
