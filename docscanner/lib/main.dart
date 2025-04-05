@@ -283,11 +283,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _openNewPreviewPage(int docIndex, int pageIndex) async {
-    await Navigator.pushNamed(
+    Future<void> future = Navigator.pushNamed(
       context,
       '/pages/preview',
       arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
     );
+    future.whenComplete(() async {
+      _refreshDocsDisplay();
+    });
   }
 
   final ImagePicker _picker = ImagePicker();
@@ -328,9 +331,12 @@ class _MyHomePageState extends State<MyHomePage> {
   List<int> _docPageCounts = [];
   final List<String> _docNames = [];
   final List<String> _docDates = [];
+  int _docsCount = 0;
   Future<void> _refreshDocsDisplay() async {
     // Thumbnails
-    List<String> thumbnailPaths = await filesHelper.getDocThumbnails();
+    var thumbs = await filesHelper.getDocThumbnails();
+    List<String> thumbnailPaths = thumbs.$1;
+    _docsCount = thumbs.$2;
     // Page Counts
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
@@ -450,7 +456,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _openDocument(int docIndex) async {
-    Navigator.pushNamed(context, '/pages', arguments: {'docIndex': docIndex});
+    Future<void> future = Navigator.pushNamed(
+      context,
+      '/pages',
+      arguments: {'docIndex': docIndex},
+    );
+    future.whenComplete(() async {
+      _refreshDocsDisplay();
+    });
   }
 
   Future<void> _shareDocumentPopup(
@@ -587,7 +600,7 @@ class _MyHomePageState extends State<MyHomePage> {
           _docThumbnails.isNotEmpty
               // Documents Cards
               ? ListView.builder(
-                itemCount: _docThumbnails.length,
+                itemCount: _docsCount,
                 itemBuilder: (BuildContext context, int index) {
                   String docName =
                       _docNames[index].isNotEmpty
@@ -854,17 +867,35 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                                 child: Stack(
                                   children: [
-                                    Image.file(
-                                      File(_docThumbnails[index]),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (
-                                        context,
-                                        error,
-                                        stackTrace,
-                                      ) {
-                                        return const Icon(Icons.broken_image);
-                                      },
-                                    ),
+                                    (_docThumbnails[index].isNotEmpty)
+                                        ? Image.file(
+                                          File(_docThumbnails[index]),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return const Icon(
+                                              Icons.broken_image,
+                                            );
+                                          },
+                                        )
+                                        : AspectRatio(
+                                          aspectRatio: 1.0 / 1.414,
+                                          child: Builder(
+                                            builder: (context) {
+                                              return Material(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.surfaceBright,
+                                                child:
+                                                    IndicatorProcessingImage(),
+                                              );
+                                            },
+                                          ),
+                                        ),
                                     Positioned.fill(
                                       child: Material(
                                         color: Colors.transparent,
@@ -878,7 +909,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ],
                                 ),
                               ),
-                            ),
+                            ), // Pages Skeleton
                           ],
                         ),
                       ),
@@ -1030,10 +1061,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _loadPagesThumbnails({bool onInit = false}) async {
-    var thumbs = await filesHelper.getPagesThumbnails(
-      widget.docIndex,
-      supressWarning: onInit,
-    );
+    var thumbs = await filesHelper.getPagesThumbnails(widget.docIndex);
     List<String> thumbnailPaths = thumbs.$1;
     _pagesCount = thumbs.$2;
 
@@ -1173,6 +1201,7 @@ class _PagesState extends State<Pages> {
                                       },
                                     ),
                                   )
+                                  // Pages Skeleton
                                   : AspectRatio(
                                     aspectRatio: 1.0 / 1.414,
                                     child: IndicatorProcessingImage(),

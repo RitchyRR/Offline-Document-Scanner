@@ -117,14 +117,17 @@ class FilesHelper {
     //}
   }
 
-  Future<List<String>> getDocThumbnails({bool supressWarning = false}) async {
+  Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
-    List<String> thumbnailPaths = [];
+    int docsCount = await filesHelper.getDocumentsCount();
+    List<String> thumbnailPaths = List.generate(docsCount, (_) {
+      return "";
+    });
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
           ..sort((a, b) => a.path.compareTo(b.path));
-    if (docs.isEmpty) return [];
-    for (var doc in docs) {
+    if (docs.isEmpty) return (thumbnailPaths, docsCount);
+    for (var (docIndex, doc) in docs.indexed) {
       List<FileSystemEntity> pages =
           (Directory(doc.path).listSync().whereType<Directory>().toList()
             ..sort((a, b) => a.path.compareTo(b.path)));
@@ -137,27 +140,20 @@ class FilesHelper {
       final thumbnailName = "thumbnail";
       final thumbnailPath = ('$page0Path/$thumbnailName.png');
       if (File(thumbnailPath).existsSync()) {
-        thumbnailPaths.add(thumbnailPath);
+        thumbnailPaths[docIndex] = thumbnailPath;
       } else {
         final backupName = "processed2";
         final backupPath = ('$page0Path/$backupName.png');
         if (File(backupPath).existsSync()) {
-          thumbnailPaths.add(backupPath);
-        } else if (!supressWarning) {
-          dev.log(
-            "Warning, getPagesThumbnails: Image NOT Found: $backupName / $thumbnailName",
-          );
+          thumbnailPaths[docIndex] = backupPath;
         }
       }
     }
 
-    return thumbnailPaths;
+    return (thumbnailPaths, docsCount);
   }
 
-  Future<(List<String>, int)> getPagesThumbnails(
-    int docIndex, {
-    bool supressWarning = false,
-  }) async {
+  Future<(List<String>, int)> getPagesThumbnails(int docIndex) async {
     await _initializeDocumentsPath();
     int pagesCount = await filesHelper.getPagesCount(docIndex);
     List<String> thumbnailPaths = List.generate(pagesCount, (_) {
@@ -184,10 +180,6 @@ class FilesHelper {
         final backupPath = ('$pagePath/$backupName.png');
         if (File(backupPath).existsSync()) {
           thumbnailPaths[pageIndex] = backupPath;
-        } else if (!supressWarning) {
-          //dev.log(
-          //  "Warning, getPagesThumbnails: Image NOT Found: $backupName / $thumbnailName",
-          //);
         }
       }
     }
