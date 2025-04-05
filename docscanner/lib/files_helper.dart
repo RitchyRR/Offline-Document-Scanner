@@ -154,18 +154,16 @@ class FilesHelper {
     return thumbnailPaths;
   }
 
-  Future<List<String>> getPagesThumbnails(
+  Future<(List<String>, int)> getPagesThumbnails(
     int docIndex, {
     bool supressWarning = false,
   }) async {
     await _initializeDocumentsPath();
-    List<FileSystemEntity> docs =
-        Directory(docsPath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path));
-
-    if (docs.isEmpty) return [];
-    if (docs.length - 1 < docIndex) return [];
-    String docPath = docs[docIndex].path;
+    int pagesCount = await filesHelper.getPagesCount(docIndex);
+    List<String> thumbnailPaths = List.generate(pagesCount, (_) {
+      return "";
+    });
+    String docPath = await getDocumentPath(docIndex);
     List<FileSystemEntity> pages = [];
     try {
       pages =
@@ -174,20 +172,18 @@ class FilesHelper {
     } catch (e) {
       dev.log('Error while listing pages: $e');
     }
-    if (pages.isEmpty) return [];
-
-    List<String> thumbnailPaths = [];
-    for (var page in pages) {
+    if (pages.isEmpty) return (thumbnailPaths, pagesCount);
+    for (var (pageIndex, page) in pages.indexed) {
       final pagePath = page.path;
       final thumbnailName = "thumbnail";
       final thumbnailPath = ('$pagePath/$thumbnailName.png');
       if (File(thumbnailPath).existsSync()) {
-        thumbnailPaths.add(thumbnailPath);
+        thumbnailPaths[pageIndex] = thumbnailPath;
       } else {
         final backupName = "processed2";
         final backupPath = ('$pagePath/$backupName.png');
         if (File(backupPath).existsSync()) {
-          thumbnailPaths.add(backupPath);
+          thumbnailPaths[pageIndex] = backupPath;
         } else if (!supressWarning) {
           //dev.log(
           //  "Warning, getPagesThumbnails: Image NOT Found: $backupName / $thumbnailName",
@@ -196,7 +192,7 @@ class FilesHelper {
       }
     }
 
-    return thumbnailPaths;
+    return (thumbnailPaths, pagesCount);
   }
 
   //Future<List<String>> getCacheBustingImages(
@@ -230,6 +226,7 @@ class FilesHelper {
   //}
 
   Future<void> repairDirectoryStructure() async {
+    await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     var i = 0;
     for (; i < 5; i++) {
@@ -574,7 +571,7 @@ class FilesHelper {
   }
 
   Future<void> saveDocumentImagesToGallery(int docIndex) async {
-    List<String> imagePaths = await getPagesThumbnails(docIndex);
+    List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
     final albumName = "Scanned Documents";
 
     int i = 0;
@@ -636,7 +633,7 @@ class FilesHelper {
 
   Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
     try {
-      List<String> imagePaths = await getPagesThumbnails(docIndex);
+      List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
       if (imagePaths.isEmpty) {
         dev.log(
           "Error, _convertDocumentToPdf: No images in Document $docIndex",
@@ -805,7 +802,7 @@ class FilesHelper {
   }
 
   Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
-    List<String> imagePaths = await getPagesThumbnails(docIndex);
+    List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
     if (imagePaths.isNotEmpty) {
       shareImages(imagePaths, docIndex: docIndex);
     } else {

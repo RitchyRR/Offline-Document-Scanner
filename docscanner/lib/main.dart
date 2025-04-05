@@ -458,7 +458,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex,
     int pagesCount,
   ) async {
-    final pagePaths = await filesHelper.getPagesThumbnails(docIndex);
+    final pagePaths = (await filesHelper.getPagesThumbnails(docIndex)).$1;
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -506,7 +506,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex,
     int pagesCount,
   ) async {
-    final pagePaths = await filesHelper.getPagesThumbnails(docIndex);
+    final pagePaths = (await filesHelper.getPagesThumbnails(docIndex)).$1;
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -999,6 +999,7 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
+  int _pagesCount = 0;
   final List<double?> _thumbnailHeights = [];
   final List<GlobalKey> _imageKeys = [];
 
@@ -1029,10 +1030,13 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _loadPagesThumbnails({bool onInit = false}) async {
-    List<String> thumbnailPaths = await filesHelper.getPagesThumbnails(
+    var thumbs = await filesHelper.getPagesThumbnails(
       widget.docIndex,
       supressWarning: onInit,
     );
+    List<String> thumbnailPaths = thumbs.$1;
+    _pagesCount = thumbs.$2;
+
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
         Navigator.pop(context);
@@ -1131,7 +1135,7 @@ class _PagesState extends State<Pages> {
                   radius: Radius.circular(4.0),
                   child: ListView.builder(
                     //cacheExtent: 1000,
-                    itemCount: _pageThumbnails.length,
+                    itemCount: _pagesCount,
                     itemBuilder: (BuildContext context, int index) {
                       return Padding(
                         padding: EdgeInsets.symmetric(
@@ -1145,25 +1149,34 @@ class _PagesState extends State<Pages> {
                           child: Stack(
                             children: [
                               // Sized Box for if image disappears from memory management
-                              if (_thumbnailHeights.isNotEmpty &&
+                              if (_thumbnailHeights.length > index &&
                                   _thumbnailHeights[index] != null)
                                 SizedBox(height: _thumbnailHeights[index]),
                               // Load and measure the image
-                              MeasureSize(
-                                key: _imageKeys[index],
-                                onChange: (size) {
-                                  setState(() {
-                                    _thumbnailHeights[index] = size.height;
-                                  });
-                                },
-                                child: Image.file(
-                                  File(_pageThumbnails[index]),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.broken_image);
-                                  },
-                                ),
-                              ),
+                              (_pageThumbnails[index].isNotEmpty)
+                                  ? MeasureSize(
+                                    key: _imageKeys[index],
+                                    onChange: (size) {
+                                      setState(() {
+                                        _thumbnailHeights[index] = size.height;
+                                      });
+                                    },
+                                    child: Image.file(
+                                      File(_pageThumbnails[index]),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return const Icon(Icons.broken_image);
+                                      },
+                                    ),
+                                  )
+                                  : AspectRatio(
+                                    aspectRatio: 1.0 / 1.414,
+                                    child: IndicatorProcessingImage(),
+                                  ),
                               // Open PreviewPage
                               Positioned.fill(
                                 child: Material(
@@ -1261,7 +1274,7 @@ class _PagesState extends State<Pages> {
                                       boxShadow: [smallBoxShadow()],
                                     ),
                                     child: Text(
-                                      "${index + 1}/${_pageThumbnails.length}",
+                                      "${index + 1}/$_pagesCount",
                                       style: TextStyle(
                                         //color: Colors.black,
                                         fontWeight: FontWeight.bold,
