@@ -83,6 +83,13 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+
+    writeScaledThumbnail(
+      sendPort,
+      pathsOut[3],
+      filesHelperIn.screenWidth,
+      overwrite: true,
+    );
   }
 
   static Future<void> _processPageIsolate(
@@ -243,13 +250,6 @@ class ImageProcessingManager {
         });
       }
     }
-
-    //writeScaledThumbnail(
-    //  sendPort,
-    //  pathsOut[3],
-    //  filesHelperIn.screenWidth,
-    //  overwrite: true,
-    //);
   }
 
   Future<void> processPage(
@@ -405,7 +405,7 @@ class ImageProcessingManager {
           (screenWidth.toDouble() * 0.927083333)
               .toInt(), // thumbnail width in Pages Widget
       maintainAspect: true,
-      interpolation: img.Interpolation.cubic,
+      interpolation: img.Interpolation.linear,
     );
     // Check if aspect ratio is different
     //bool newAspectRatio = false;
