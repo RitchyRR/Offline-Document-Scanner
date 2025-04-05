@@ -79,7 +79,15 @@ class ImageProcessingManager {
     await filesHelperIn.saveImage(pathsOut[3], processed2);
     if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
 
-    await writeScaledThumbnail(
+    // Update thumbnails:
+    if (ratioIndexIn != null) {
+      sendPort.send(NotifierEvent.reloadPagesThumbnails);
+    } else {
+      sendPort.send(NotifierEvent.loadPagesThumbnails);
+    }
+    sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+
+    writeScaledThumbnail(
       sendPort,
       pathsOut[3],
       filesHelperIn.screenWidth,
@@ -108,8 +116,8 @@ class ImageProcessingManager {
     int firstPageIndex = data.$4;
     List<String> pathsIn = data.$5;
 
-    // process max 2 pages at a time
-    const int maxConcurrentPagesProcessing = 2;
+    // process max 3 pages at a time (quad-core: 1 UI, 3 pages)
+    const int maxConcurrentPagesProcessing = 3;
     List<Future<void>> futures = [];
 
     for (int i = 0; i < pathsIn.length; i++) {
@@ -252,10 +260,14 @@ class ImageProcessingManager {
       }
     });
 
+    List<Future<dynamic>> beforeSecundary = [];
+    beforeSecundary.add(Future.delayed(Duration(milliseconds: 1000)));
+    beforeSecundary.add(primaryIsolates.values.last);
+
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.any(beforeSecundary);
       final secondaryPagesPort = ReceivePort();
       secondaryIsolates.addEntries([
         MapEntry(
@@ -410,12 +422,12 @@ class ImageProcessingManager {
     File fileIn = File(pathIn);
     File fileOut = File(pathOut);
 
-    bool fileOutExists = false;
+    //bool fileOutExists = false;
     if (!fileIn.existsSync()) {
       dev.log("Error, writeScaledThumbnail: $pathIn does not exist");
       return;
     } else if (fileOut.existsSync()) {
-      fileOutExists = true;
+      //fileOutExists = true;
       if (overwrite) {
         dev.log("Overwriting, writeScaledThumbnail: $pathIn");
       } else {
@@ -436,21 +448,21 @@ class ImageProcessingManager {
       interpolation: img.Interpolation.cubic,
     );
     // Check if aspect ratio is different
-    bool newAspectRatio = false;
-    if (fileOutExists &&
-        resized.height !=
-            (img.decodeImage(await fileOut.readAsBytes())?.width ?? 0)) {
-      newAspectRatio = true;
-    }
+    //bool newAspectRatio = false;
+    //if (fileOutExists &&
+    //    resized.height !=
+    //        (img.decodeImage(await fileOut.readAsBytes())?.width ?? 0)) {
+    //  newAspectRatio = true;
+    //}
     // Save
     fileOut.writeAsBytesSync(img.encodePng(resized));
 
     // Update thumbnails:
-    if (newAspectRatio) {
-      sendPort.send(NotifierEvent.reloadPagesThumbnails);
-    } else {
-      sendPort.send(NotifierEvent.loadPagesThumbnails);
-    }
+    //if (newAspectRatio) {
+    //  sendPort.send(NotifierEvent.reloadPagesThumbnails);
+    //} else {
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    //}
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
   }
 }

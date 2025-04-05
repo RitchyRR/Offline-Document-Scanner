@@ -166,13 +166,21 @@ class FilesHelper {
     List<String> thumbnailPaths = [];
     for (var page in pages) {
       final pagePath = page.path;
-      final imageName = "thumbnail";
-      final thumbnailPath = ('$pagePath/$imageName.png');
+      final thumbnailName = "thumbnail";
+      final thumbnailPath = ('$pagePath/$thumbnailName.png');
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths.add(thumbnailPath);
-      } //else if (!supressWarning) {
-      //dev.log("Warning, getPagesThumbnails: Image NOT Found: $thumbnailPath");
-      //}
+      } else {
+        final backupName = "processed2";
+        final backupPath = ('$pagePath/$backupName.png');
+        if (File(backupPath).existsSync()) {
+          thumbnailPaths.add(backupPath);
+        } else if (!supressWarning) {
+          //dev.log(
+          //  "Warning, getPagesThumbnails: Image NOT Found: $backupName / $thumbnailName",
+          //);
+        }
+      }
     }
 
     return thumbnailPaths;
