@@ -338,20 +338,18 @@ class ImageProcessingManager {
     Map<String, dynamic> metadata = {};
 
     try {
-      /// Read
-      if (await file.exists()) {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
-      }
+      // Read
+      //if (await file.exists()) {
+      //  String content = await file.readAsString();
+      //  metadata = jsonDecode(content).cast<String, String>();
+      //}
 
-      /// Write
-      // aspect ratio
+      // Write
       metadata["apectRatio"] = ratioIndex.toString();
-      // orientation for aspect ratio (portrait, landscape)
       metadata["orientation"] = orientationPortrait ? "portrait" : "landscape";
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
-        // started outside of isolate
+        // if started outside of isolate
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
       }
     } catch (e) {
