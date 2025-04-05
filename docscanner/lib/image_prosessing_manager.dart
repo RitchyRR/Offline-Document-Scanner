@@ -48,18 +48,15 @@ class ImageProcessingManager {
     // Metadata
     int ratioIndex = ret.$3;
     orientationIn = ret.$4;
-    Future<void> metadataFuture = writePageMetadata(
+    await writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
       orientationIn,
       filesHelperIn: filesHelperIn,
     );
-    if (isPrimary) {
-      metadataFuture.whenComplete(
-        () => sendPort.send(NotifierEvent.loadPageMetadata),
-      );
-    }
+    if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
+
     await filesHelperIn.saveImage(pathsOut[1], warped);
     if (isPrimary) sendPort.send(NotifierEvent.warpSaved);
 
@@ -67,9 +64,9 @@ class ImageProcessingManager {
     Uint8List processed1 = cvHelper.processImage1(
       ParamsProcessImage1(pathsOut[1]),
     );
-    Future<void> p1Future = filesHelperIn.saveImage(pathsOut[2], processed1);
+    await filesHelperIn.saveImage(pathsOut[2], processed1);
     if (isPrimary) {
-      p1Future.whenComplete(() => sendPort.send(NotifierEvent.processed1Saved));
+      sendPort.send(NotifierEvent.processed1Saved);
     }
 
     // Processed2 basierend auf dem Processed1-Bild
@@ -86,68 +83,13 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
     sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
-
-    writeScaledThumbnail(
-      sendPort,
-      pathsOut[3],
-      filesHelperIn.screenWidth,
-      overwrite: true,
-    );
-    // Make sure that futures are waited for,
-    // to make sendPort.send('done'); wait,
-    // otherwise their events might not be sent
-    await metadataFuture;
-    await p1Future;
-  }
-
-  static Future<void> _processPagesIsolate(
-    (
-      SendPort sendPort,
-      FilesHelper filesHelperIn,
-      int docIndex,
-      int firstPageIndex,
-      List<String> pathsIn,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    int docIndex = data.$3;
-    int firstPageIndex = data.$4;
-    List<String> pathsIn = data.$5;
-
-    // process max 3 pages at a time (quad-core: 1 UI, 3 pages)
-    const int maxConcurrentPagesProcessing = 3;
-    List<Future<void>> futures = [];
-
-    for (int i = 0; i < pathsIn.length; i++) {
-      // Start processing a new page
-      Future<void> future = _processPage(
-        sendPort,
-        filesHelperIn,
-        false,
-        docIndex,
-        firstPageIndex + i,
-        pathsIn[i],
-        null,
-        null,
-      );
-      futures.add(future);
-      // register removal from list when future completes
-      future.whenComplete(() => futures.remove(future));
-
-      if (futures.length >= maxConcurrentPagesProcessing) {
-        await Future.any(futures);
-      }
-    }
-    await Future.wait(futures);
-    sendPort.send('done');
   }
 
   static Future<void> _processPageIsolate(
     (
       SendPort sendPort,
       FilesHelper filesHelperIn,
+      bool isPrimary,
       int docIndex,
       int pageIndex,
       String pathIn,
@@ -158,17 +100,18 @@ class ImageProcessingManager {
   ) async {
     SendPort sendPort = data.$1;
     FilesHelper filesHelperIn = data.$2;
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    String pathIn = data.$5;
+    bool isPrimary = data.$3;
+    int docIndex = data.$4;
+    int pageIndex = data.$5;
+    String pathIn = data.$6;
 
-    int? ratioIndexIn = data.$6;
-    bool? orientationIn = data.$7;
+    int? ratioIndexIn = data.$7;
+    bool? orientationIn = data.$8;
 
     await _processPage(
       sendPort,
       filesHelperIn,
-      true,
+      isPrimary,
       docIndex,
       pageIndex,
       pathIn,
@@ -179,19 +122,7 @@ class ImageProcessingManager {
   }
 
   Map<(int, int), Future<Isolate>> primaryIsolates = {};
-  Map<int, Future<Isolate>> secondaryIsolates = {};
-  //Future<void> killAllIsolates() async {
-  //  if (primaryIsolates.isNotEmpty) {
-  //    for (var future in primaryIsolates.values) {
-  //      (await future).kill(priority: Isolate.immediate);
-  //    }
-  //  }
-  //  if (secondaryIsolates.isNotEmpty) {
-  //    for (var future in secondaryIsolates.values) {
-  //      (await future).kill(priority: Isolate.immediate);
-  //    }
-  //  }
-  //}
+  Map<(int, int), Isolate> secondaryIsolates = {};
 
   Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
@@ -199,24 +130,41 @@ class ImageProcessingManager {
       (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
-    // killing secondary isolates for specific pages is impossible
-    // -> ignore
   }
 
-  Future<void> killIsolatesOfDocument(int docIndex) async {
-    List<(int, int)> keys = [];
-    for (var key in primaryIsolates.keys) {
-      if (key.$1 == docIndex) {
-        keys.add(key);
-      }
-    }
-    for (var key in keys) {
+  Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+    var key = (docIndex, pageIndex);
+    if (primaryIsolates.containsKey(key)) {
       (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
-    if (secondaryIsolates.containsKey(docIndex)) {
-      (await secondaryIsolates[docIndex]!).kill(priority: Isolate.immediate);
-      secondaryIsolates.remove(docIndex);
+    if (secondaryIsolates.containsKey(key)) {
+      (secondaryIsolates[key]!).kill(priority: Isolate.immediate);
+      secondaryIsolates.remove(key);
+    }
+  }
+
+  Future<void> killIsolatesOfDocument(int docIndex) async {
+    List<(int, int)> primaryKeys = [];
+    for (var key in primaryIsolates.keys) {
+      if (key.$1 == docIndex) {
+        primaryKeys.add(key);
+      }
+    }
+    for (var key in primaryKeys) {
+      (await primaryIsolates[key]!).kill(priority: Isolate.immediate);
+      primaryIsolates.remove(key);
+    }
+
+    List<(int, int)> secundaryKeys = [];
+    for (var key in secondaryIsolates.keys) {
+      if (key.$1 == docIndex) {
+        secundaryKeys.add(key);
+      }
+    }
+    for (var key in secundaryKeys) {
+      (secondaryIsolates[key]!).kill(priority: Isolate.immediate);
+      secondaryIsolates.remove(key);
     }
   }
 
@@ -235,6 +183,7 @@ class ImageProcessingManager {
         Isolate.spawn(_processPageIsolate, (
           primaryPort.sendPort,
           filesHelper,
+          true,
           docIndex,
           firstPageIndex,
           pathsIn[0],
@@ -252,34 +201,55 @@ class ImageProcessingManager {
     });
 
     List<Future<dynamic>> beforeSecundary = [];
-    beforeSecundary.add(Future.delayed(Duration(milliseconds: 1000)));
+    beforeSecundary.add(Future.delayed(Duration(milliseconds: 2000)));
     beforeSecundary.add(primaryIsolates.values.last);
 
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
       await Future.any(beforeSecundary);
-      final secondaryPagesPort = ReceivePort();
-      secondaryIsolates.addEntries([
-        MapEntry(
-          docIndex,
-          Isolate.spawn(_processPagesIsolate, (
-            secondaryPagesPort.sendPort,
-            filesHelper,
-            docIndex,
-            firstPageIndex + 1,
-            pathsIn,
-          )),
-        ),
-      ]);
-      secondaryPagesPort.listen((message) {
-        if (message is NotifierEvent) {
-          globalNotifier.triggerEvent(message);
-        } else if (message == 'done') {
-          secondaryPagesPort.close();
+
+      final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+      List<Completer> comleters = [];
+      for (var (index, path) in pathsIn.indexed) {
+        if (comleters.length >= maxIsolates) {
+          await Future.any(comleters.map((c) => c.future));
         }
-      });
+
+        ReceivePort secondaryPort = ReceivePort();
+        final completer = Completer<void>();
+        comleters.add(completer);
+        Isolate isolate = await Isolate.spawn(_processPageIsolate, (
+          secondaryPort.sendPort,
+          filesHelper,
+          false,
+          docIndex,
+          firstPageIndex + 1 + index,
+          path,
+          null,
+          null,
+        ));
+        secondaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
+        secondaryPort.listen((message) {
+          if (message is NotifierEvent) {
+            globalNotifier.triggerEvent(message);
+          } else if (message == 'done') {
+            secondaryPort.close();
+            completer.complete();
+            comleters.remove(completer);
+            //isolate.kill();
+            secondaryIsolates.removeWhere((key, value) => value == isolate);
+          }
+        });
+      }
     }
+
+    //writeScaledThumbnail(
+    //  sendPort,
+    //  pathsOut[3],
+    //  filesHelperIn.screenWidth,
+    //  overwrite: true,
+    //);
   }
 
   Future<void> processPage(
@@ -297,6 +267,7 @@ class ImageProcessingManager {
         Isolate.spawn(_processPageIsolate, (
           primaryPort.sendPort,
           filesHelper,
+          true,
           docIndex,
           pageIndex,
           pathIn,

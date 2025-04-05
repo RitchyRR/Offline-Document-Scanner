@@ -1977,7 +1977,7 @@ class _PreviewPageState extends State<PreviewPage> {
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
-      isDisabled: _reprocessingBlocked() || _rotationOngoing,
+      isDisabled: !_imagesLoaded[0] || _metadataBlocked || _rotationOngoing,
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
               (_orientation == _newOrientation) &&
@@ -2005,8 +2005,6 @@ class _PreviewPageState extends State<PreviewPage> {
       },
     );
   }
-
-  bool _reprocessingBlocked() => (!_imagesLoaded[0] || _metadataBlocked);
 
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
@@ -2040,7 +2038,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              _reprocessingBlocked()
+              !_imagesLoaded[0] || _metadataBlocked
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _newRatioIndex) {
@@ -2085,7 +2083,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              _reprocessingBlocked()
+              !_imagesLoaded[0] || _metadataBlocked
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _newOrientation) {
