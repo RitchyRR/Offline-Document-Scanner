@@ -180,15 +180,6 @@ class ImageProcessingManager {
 
   Map<(int, int), Future<Isolate>> primaryIsolates = {};
   Map<int, Future<Isolate>> secondaryIsolates = {};
-  Future<void> killPrimaryIsolate() async {
-    if (primaryIsolates.isEmpty) {
-      dev.log("Warning, killPrimaryIsolate: no primary isolate");
-      return;
-    }
-    // only kill currently displayed isolate
-    (await primaryIsolates.values.last).kill(priority: Isolate.immediate);
-  }
-
   //Future<void> killAllIsolates() async {
   //  if (primaryIsolates.isNotEmpty) {
   //    for (var future in primaryIsolates.values) {
@@ -202,7 +193,7 @@ class ImageProcessingManager {
   //  }
   //}
 
-  Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+  Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
     if (primaryIsolates.containsKey(key)) {
       (await primaryIsolates[key]!).kill(priority: Isolate.immediate);

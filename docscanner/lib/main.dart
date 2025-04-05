@@ -1045,12 +1045,12 @@ class _PagesState extends State<Pages> {
   }
 
   void _reloadPageThumbnails() {
-    //dev.log("Reloading pages thumbnails.");
     for (var path in _pageThumbnails) {
-      /*final evictRes = */
       imageCache.evict(FileImage(File(path)), includeLive: true);
-      //dev.log("reordering evictRes: $evictRes");
     }
+    //List<String> tmpThumbnailPaths = await filesHelper.getCacheBustingImages(
+    //  _pageThumbnails,
+    //);
     setState(() {
       _pageThumbnails = [];
       _thumbnailHeights.clear();
@@ -1132,7 +1132,8 @@ class _PagesState extends State<Pages> {
                           child: Stack(
                             children: [
                               // Sized Box for if image disappears from memory management
-                              if (_thumbnailHeights[index] != null)
+                              if (_thumbnailHeights.isNotEmpty &&
+                                  _thumbnailHeights[index] != null)
                                 SizedBox(height: _thumbnailHeights[index]),
                               // Load and measure the image
                               MeasureSize(
@@ -1970,7 +1971,10 @@ class _PreviewPageState extends State<PreviewPage> {
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
-        imageProcessingManager.killPrimaryIsolate();
+        imageProcessingManager.killPrimaryIsolateOfPage(
+          widget.docIndex,
+          widget.pageIndex,
+        );
         await ImageProcessingManager.writePageMetadata(
           widget.docIndex,
           widget.pageIndex,

@@ -9,6 +9,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'dart:developer' as dev;
 
 import 'package:pdf/pdf.dart';
@@ -117,9 +118,9 @@ class FilesHelper {
     //}
   }
 
-  Future<List<String>> getDocThumbnails() async {
+  Future<List<String>> getDocThumbnails({bool supressWarning = false}) async {
     await _initializeDocumentsPath();
-    List<String> docThumbnails = [];
+    List<String> thumbnailPaths = [];
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync()
           ..sort((a, b) => a.path.compareTo(b.path));
@@ -134,16 +135,24 @@ class FilesHelper {
       } else {
         continue;
       }
-      final imageName = "thumbnail";
-      final thumbnailPath = ('$page0Path/$imageName.png');
+      final thumbnailName = "thumbnail";
+      final thumbnailPath = ('$page0Path/$thumbnailName.png');
       if (File(thumbnailPath).existsSync()) {
-        docThumbnails.add(thumbnailPath);
+        thumbnailPaths.add(thumbnailPath);
       } else {
-        dev.log("Warning, getDocThumbnails: Image NOT Found: $thumbnailPath");
+        final backupName = "processed2";
+        final backupPath = ('$page0Path/$backupName.png');
+        if (File(backupPath).existsSync()) {
+          thumbnailPaths.add(backupPath);
+        } else if (!supressWarning) {
+          dev.log(
+            "Warning, getPagesThumbnails: Image NOT Found: $backupName / $thumbnailName",
+          );
+        }
       }
     }
 
-    return docThumbnails;
+    return thumbnailPaths;
   }
 
   Future<List<String>> getPagesThumbnails(
@@ -286,7 +295,7 @@ class FilesHelper {
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      imageProcessingManager.killPrimaryIsolateOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
     }
 
