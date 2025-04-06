@@ -47,12 +47,12 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = ret.$2;
     // Metadata
     int ratioIndex = ret.$3;
-    orientationIn = ret.$4;
+    bool orientation = ret.$4;
     await writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
-      orientationIn,
+      orientation,
       filesHelperIn: filesHelperIn,
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
