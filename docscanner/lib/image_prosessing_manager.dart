@@ -77,12 +77,13 @@ class ImageProcessingManager {
     if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
 
     // Update thumbnails:
-    if (ratioIndexIn != null) {
+    if (ratioIndexIn != null && orientationIn != null) {
       sendPort.send(NotifierEvent.reloadPagesThumbnails);
+      sendPort.send(NotifierEvent.reloadDocsThumbnails);
     } else {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
+      sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
     }
-    sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
 
     await writeScaledThumbnail(
       sendPort,
