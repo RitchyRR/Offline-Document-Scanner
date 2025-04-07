@@ -2036,7 +2036,10 @@ class _PreviewPageState extends State<PreviewPage> {
   ) {
     return CustomIconButton(
       onTap: () async {
-        setState(() => _rotationOngoing = true);
+        setState(() {
+          _rotationOngoing = true;
+          _newOrientation = ((_newOrientation ?? 0) - 1) * (-1); // toggle
+        });
         _totalRotation = (_totalRotation + rotation) % 360;
         if (_totalRotation == 0) {
           setState(() {
