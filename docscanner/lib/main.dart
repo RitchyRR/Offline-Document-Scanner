@@ -1762,7 +1762,6 @@ class _PreviewPageState extends State<PreviewPage> {
           ),
         ],
       ),
-      // Images (Page Versions)
       body: Stack(
         children: [
           // Bg Shadow
@@ -1787,6 +1786,7 @@ class _PreviewPageState extends State<PreviewPage> {
               ),
             ),
           ),
+          // Images (Page Versions)
           PhotoViewGallery.builder(
             wantKeepAlive: false,
             scrollPhysics: const PageScrollPhysics(),
@@ -1817,53 +1817,70 @@ class _PreviewPageState extends State<PreviewPage> {
               setState(() => _selectedThumbnail = index);
             },
           ),
-          _selectedThumbnail == 0
-              ? Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: Align(
-                  alignment: Alignment.topCenter,
+          // Reprocessing Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Align(
+              alignment:
+                  _selectedThumbnail == 0
+                      ? Alignment.topCenter
+                      : Alignment.topLeft,
 
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    constraints: BoxConstraints(minHeight: 48),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [smallBoxShadow()],
-                    ),
-                    child: Row(
-                      spacing: 12,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          spacing: 12,
-                          children: [
-                            _aspectRatioDropDown(context),
-                            _orientationDropDown(context),
-                            _rotateButton(
-                              context,
-                              -90,
-                              Icons.rotate_left,
-                              "Rotate 90° left",
-                            ),
-                            _rotateButton(
-                              context,
-                              90,
-                              Icons.rotate_right,
-                              "Rotate 90° right",
-                            ),
-                          ],
-                        ),
-                        _confirmReProcessingButton(context),
-                      ],
-                    ),
-                  ),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                constraints: BoxConstraints(minHeight: 48, maxHeight: 48),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [smallBoxShadow()],
                 ),
-              )
-              : SizedBox(),
+                child:
+                    _selectedThumbnail == 0
+                        ? Row(
+                          spacing: 12,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              spacing: 12,
+                              children: [
+                                _aspectRatioDropDown(context),
+                                _orientationDropDown(context),
+                                _rotateButton(
+                                  context,
+                                  -90,
+                                  Icons.rotate_left,
+                                  "Rotate 90° left",
+                                ),
+                                _rotateButton(
+                                  context,
+                                  90,
+                                  Icons.rotate_right,
+                                  "Rotate 90° right",
+                                ),
+                              ],
+                            ),
+                            _confirmReProcessingButton(context),
+                          ],
+                        )
+                        : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: CustomIconButton(
+                            onTap: () {
+                              _pageController.jumpToPage(0);
+                            },
+                            icon: Icons.keyboard_arrow_left,
+                            color:
+                                Theme.of(context).colorScheme.primaryContainer,
+                            constraints: BoxConstraints(
+                              maxHeight: 30,
+                              maxWidth: 60,
+                            ),
+                            child: Icon(Icons.edit),
+                          ),
+                        ),
+              ),
+            ),
+          ),
         ],
       ),
       // Floating Buttons
@@ -2264,6 +2281,7 @@ class CustomIconButton extends StatelessWidget {
   final bool isHidden;
   final bool isDisabled;
   final String? tooltip;
+  final Widget child;
 
   const CustomIconButton({
     super.key,
@@ -2276,6 +2294,7 @@ class CustomIconButton extends StatelessWidget {
     this.isHidden = false,
     this.isDisabled = false,
     this.tooltip,
+    this.child = const SizedBox(),
   });
 
   @override
@@ -2309,12 +2328,19 @@ class CustomIconButton extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(radius),
                     onTap: isDisabled ? null : onTap,
-                    child: Center(
-                      child: Icon(
-                        icon,
-                        color:
-                            isDisabled ? Theme.of(context).disabledColor : null,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icon,
+                          color:
+                              isDisabled
+                                  ? Theme.of(context).disabledColor
+                                  : null,
+                        ),
+                        child,
+                      ],
                     ),
                   ),
                 ),
