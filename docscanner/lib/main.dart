@@ -1864,22 +1864,7 @@ class _PreviewPageState extends State<PreviewPage> {
                             _confirmReProcessingButton(context),
                           ],
                         )
-                        : Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: CustomIconButton(
-                            onTap: () {
-                              _pageController.jumpToPage(0);
-                            },
-                            icon: Icons.keyboard_arrow_left,
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            constraints: BoxConstraints(
-                              maxHeight: 30,
-                              maxWidth: 60,
-                            ),
-                            child: Icon(Icons.edit),
-                          ),
-                        ),
+                        : _toEditingButton(context),
               ),
             ),
           ),
@@ -2013,6 +1998,22 @@ class _PreviewPageState extends State<PreviewPage> {
             }),
           ),
         ),
+      ),
+    );
+  }
+
+  Padding _toEditingButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: CustomIconButton(
+        onTap: () {
+          setState(() => _selectedThumbnail = 0);
+          _pageController.jumpToPage(0);
+        },
+        icon: Icons.keyboard_arrow_left,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        constraints: BoxConstraints(maxHeight: 30, maxWidth: 60),
+        child: Icon(Icons.edit),
       ),
     );
   }
