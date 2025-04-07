@@ -512,57 +512,88 @@ class OpenCVHelper {
       kernel4,
       borderType: cv.BORDER_REPLICATE,
     );
+
+    //// quadrants
+    //cv.Mat q1 = shape.rowRange(0, rows ~/ 2).colRange(0, cols ~/ 2);
+    //cv.Mat q2 = shape.rowRange(rows ~/ 2, rows).colRange(0, cols ~/ 2);
+    //cv.Mat q3 = shape.rowRange(0, rows ~/ 2).colRange(cols ~/ 2, cols);
+    //cv.Mat q4 = shape.rowRange(rows ~/ 2, rows).colRange(cols ~/ 2, cols);
+
     // select outer points -> outerPoints (offset for quadrants)
-    var outerPoints = List<List<int>>.generate(4, (_) => []);
-    var xy1 = _toXYLists(detectedCorners1, yOffset: 0, xOffset: 0);
-    var xy2 = _toXYLists(detectedCorners2, yOffset: rows ~/ 2, xOffset: 0);
-    var xy3 = _toXYLists(detectedCorners3, yOffset: 0, xOffset: cols ~/ 2);
-    var xy4 = _toXYLists(
+    var outerPoints = List<cv.Point>.generate(4, (_) => cv.Point(0, 0));
+    var xy1 = _toPoints(detectedCorners1, yOffset: 0, xOffset: 0);
+    var xy2 = _toPoints(detectedCorners2, yOffset: rows ~/ 2, xOffset: 0);
+    var xy3 = _toPoints(detectedCorners3, yOffset: 0, xOffset: cols ~/ 2);
+    var xy4 = _toPoints(
       detectedCorners4,
       yOffset: rows ~/ 2,
       xOffset: cols ~/ 2,
     );
     try {
-      outerPoints[0] = [xy1.$2.reduce(math.min), xy1.$1.reduce(math.min)];
+      outerPoints[0] = xy1.reduce((a, b) {
+        int scoreA = -a.y - a.x;
+        int scoreB = -b.y - b.x;
+        return scoreA > scoreB ? a : b;
+      });
     } catch (e) {
       // fallback in middle if quadrants are empty
-      outerPoints[0] = [rows ~/ 2 - 1, cols ~/ 2 - 1];
+      outerPoints[0] = cv.Point(rows ~/ 2 - 1, cols ~/ 2 - 1);
     }
     try {
-      outerPoints[1] = [xy2.$2.reduce(math.max), xy2.$1.reduce(math.min)];
+      outerPoints[1] = xy2.reduce((a, b) {
+        int scoreA = a.y - a.x;
+        int scoreB = b.y - b.x;
+        return scoreA > scoreB ? a : b;
+      });
     } catch (e) {
-      outerPoints[1] = [rows ~/ 2 + 1, cols ~/ 2 - 1];
+      outerPoints[1] = cv.Point(rows ~/ 2 + 1, cols ~/ 2 - 1);
     }
     try {
-      outerPoints[2] = [xy3.$2.reduce(math.min), xy3.$1.reduce(math.max)];
+      outerPoints[2] = xy3.reduce((a, b) {
+        int scoreA = -a.y + a.x;
+        int scoreB = -b.y + b.x;
+        return scoreA > scoreB ? a : b;
+      });
     } catch (e) {
-      outerPoints[2] = [rows ~/ 2 - 1, cols ~/ 2 + 1];
+      outerPoints[2] = cv.Point(rows ~/ 2 - 1, cols ~/ 2 + 1);
     }
     try {
-      outerPoints[3] = [xy4.$2.reduce(math.max), xy4.$1.reduce(math.max)];
+      outerPoints[3] = xy4.reduce((a, b) {
+        int scoreA = a.y + a.x;
+        int scoreB = b.y + b.x;
+        return scoreA > scoreB ? a : b;
+      });
     } catch (e) {
-      outerPoints[3] = [rows ~/ 2 + 1, cols ~/ 2 + 1];
+      outerPoints[3] = cv.Point(rows ~/ 2 + 1, cols ~/ 2 + 1);
+    }
+
+    List<List<int>> outerPointsList = [];
+    for (var point in outerPoints) {
+      outerPointsList.add([point.y, point.x]);
     }
     //dev.log("outerPoints: $outerPoints");
-    return outerPoints;
+    return outerPointsList;
   }
 
-  (List<int>, List<int>) _toXYLists(
+  List<cv.Point> _toPoints(
     cv.Mat detectedCorners, {
     int xOffset = 0,
     int yOffset = 0,
   }) {
+    List<cv.Point> edgePoints = [];
     cv.Mat nonZero = cv.findNonZero(detectedCorners);
 
-    // Convert to Y, X lists
-    List<int> xList = [];
-    List<int> yList = [];
+    // Convert to points
     for (int i = 0; i < nonZero.rows; i++) {
-      xList.add(nonZero.at<cv.Vec2i>(i, 0).val1 + xOffset);
-      yList.add(nonZero.at<cv.Vec2i>(i, 0).val2 + yOffset);
+      edgePoints.add(
+        cv.Point(
+          nonZero.at<cv.Vec2i>(i, 0).val1 + xOffset,
+          nonZero.at<cv.Vec2i>(i, 0).val2 + yOffset,
+        ),
+      );
     }
 
-    return (xList, yList);
+    return edgePoints;
   }
 
   /// Step 4: Perspective Transformation
