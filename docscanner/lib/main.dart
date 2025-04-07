@@ -2010,9 +2010,10 @@ class _PreviewPageState extends State<PreviewPage> {
           setState(() => _selectedThumbnail = 0);
           _pageController.jumpToPage(0);
         },
+        isFlat: true,
         icon: Icons.keyboard_arrow_left,
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        constraints: BoxConstraints(maxHeight: 30, maxWidth: 60),
+        constraints: BoxConstraints(maxHeight: 46, maxWidth: 60),
         child: Icon(Icons.edit),
       ),
     );
@@ -2021,6 +2022,10 @@ class _PreviewPageState extends State<PreviewPage> {
   Future<void> _refreshAfterBrokenImage(int index) async {
     dev.log("_refreshAfterBrokenImage");
     Future.delayed(const Duration(milliseconds: 200), () {
+      imageCache.evict(
+        FileImage(File(_thumbnailPaths[index])),
+        includeLive: true,
+      );
       if (mounted) {
         setState(() {
           _imageRetry = (_imageRetry - 1) * (-1);
