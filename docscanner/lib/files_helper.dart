@@ -187,36 +187,6 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  //Future<List<String>> getCacheBustingImages(
-  //  List<String> thumbnailPathsIn,
-  //) async {
-  //  List<String> thumbnailPathsOut = [];
-  //  String tmpPath = (await getApplicationDocumentsDirectory()).path;
-  //  for (var pathIn in thumbnailPathsIn) {
-  //    thumbnailPathsOut.add(
-  //      p.join(
-  //        tmpPath,
-  //        DateTime.now().millisecondsSinceEpoch.toString() + p.basename(pathIn),
-  //      ),
-  //    );
-  //    File(
-  //      thumbnailPathsOut.last,
-  //    ).writeAsBytesSync(File(pathIn).readAsBytesSync());
-  //  }
-  //
-  //  WidgetsBinding.instance.addPostFrameCallback((_) async {
-  //    await Future.delayed(Duration(milliseconds: 100));
-  //    for (var pathOut in thumbnailPathsOut) {
-  //      if (File(pathOut).existsSync()) {
-  //        File(pathOut).delete();
-  //      } else {
-  //        dev.log("Warning, getCacheBustingImages: Unnecessary delete");
-  //      }
-  //    }
-  //  });
-  //  return thumbnailPathsOut;
-  //}
-
   Future<void> repairDirectoryStructure() async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
@@ -395,15 +365,23 @@ class FilesHelper {
       );
       return;
     }
-    List<String> processedNames = ["warped", "processed1", "processed2"];
-    for (var file in Directory(pagePath).listSync()) {
+    List<String> processedNames = [
+      "warped",
+      "processed1",
+      "processed2",
+      "thumbnail",
+    ];
+    for (var fse in Directory(pagePath).listSync()) {
       for (var name in processedNames) {
-        if (file.path.endsWith("$name.png")) {
-          file.delete();
+        if (fse.path.endsWith("$name.png")) {
+          imageCache.evict(FileImage(File(fse.path)), includeLive: true);
+          fse.delete();
           //dev.log("deleteProcessedVersionsOfPage: Deleting ${file.path}");
         }
       }
     }
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnailsAndInfo);
+    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
   }
 
   Future<(int, int)> createNewDocument(int pageCount) async {

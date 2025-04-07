@@ -1456,7 +1456,7 @@ class _PreviewPageState extends State<PreviewPage> {
   // Widget
   int _selectedThumbnail = 0;
   final List<bool> _imagesLoaded = List.filled(4, false);
-  List<String> _imagePaths = [];
+  List<String> _thumbnailPaths = [];
   late String _picturePath;
   // Reprocessing Parameters
   int? _ratioIndex;
@@ -1476,11 +1476,11 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _initAsync() async {
-    _imagePaths = await filesHelper.getImagePathsForPage(
+    _thumbnailPaths = await filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _picturePath = _imagePaths[0];
+    _picturePath = _thumbnailPaths[0];
     _showAllImages();
     _loadPageMeatadata(supressWarning: true);
   }
@@ -1531,8 +1531,8 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   _showAllImages() {
-    if (!mounted || _imagePaths.isEmpty) return;
-    for (var imagePath in _imagePaths) {
+    if (!mounted || _thumbnailPaths.isEmpty) return;
+    for (var imagePath in _thumbnailPaths) {
       if (!File(imagePath).existsSync()) return;
     }
 
@@ -1544,7 +1544,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   void _clearPageVersionsCache() {
-    for (var path in _imagePaths) {
+    for (var path in _thumbnailPaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
     imageCache.evict(FileImage(File(_picturePath)), includeLive: true);
@@ -1575,7 +1575,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _imagePaths[_selectedThumbnail];
+    final String imagePath = _thumbnailPaths[_selectedThumbnail];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1624,7 +1624,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _imagePaths[_selectedThumbnail];
+    final String imagePath = _thumbnailPaths[_selectedThumbnail];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1718,8 +1718,8 @@ class _PreviewPageState extends State<PreviewPage> {
 
   void _reprocessingCleanup() {
     if (mounted) {
-      if (_imagePaths.isNotEmpty && _imagePaths[0] != _picturePath) {
-        _imagePaths[0] = _picturePath;
+      if (_thumbnailPaths.isNotEmpty && _thumbnailPaths[0] != _picturePath) {
+        _thumbnailPaths[0] = _picturePath;
       }
     }
     FilesHelper.deleteCachedRoatedImages();
@@ -1790,7 +1790,7 @@ class _PreviewPageState extends State<PreviewPage> {
           PhotoViewGallery.builder(
             wantKeepAlive: false,
             scrollPhysics: const PageScrollPhysics(),
-            itemCount: _imagePaths.length,
+            itemCount: _thumbnailPaths.length,
             builder: (context, index) {
               if (!_imagesLoaded[index]) {
                 // Show loading indicator if image is not loaded
@@ -1801,7 +1801,7 @@ class _PreviewPageState extends State<PreviewPage> {
               }
               // Show actual image when loaded
               return PhotoViewGalleryPageOptions(
-                imageProvider: FileImage(File(_imagePaths[index])),
+                imageProvider: FileImage(File(_thumbnailPaths[index])),
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
@@ -1959,7 +1959,7 @@ class _PreviewPageState extends State<PreviewPage> {
                     child:
                         _imagesLoaded[index]
                             ? Image.file(
-                              File(_imagePaths[index]),
+                              File(_thumbnailPaths[index]),
                               width: _selectedThumbnail == index ? 70 : 50,
                               height: _selectedThumbnail == index ? 70 : 50,
                               fit: BoxFit.cover,
@@ -1998,43 +1998,34 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _refreshAfterBrokenImage(int index) async {
+    String tmpPath = "";
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _imagesLoaded[index] = false;
-      });
-      imageCache.evict(FileImage(File(_imagePaths[index])), includeLive: true);
+      if (mounted) {
+        setState(() {
+          _imagesLoaded[index] = false;
+          tmpPath = _thumbnailPaths[index];
+          _thumbnailPaths[index] = "";
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+      }
+      imageCache.evict(
+        FileImage(File(_thumbnailPaths[index])),
+        includeLive: true,
+      );
     });
-    //await Future.microtask(() {
-    //  if (mounted) {
-    //    setState(() {
-    //      _imagesLoaded[index] = false;
-    //    });
-    //  } else {
-    //    dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
-    //    setState(() {
-    //      _imagesLoaded[index] = false;
-    //    });
-    //  }
-    //});
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(Duration(milliseconds: 100));
-      setState(() {
-        _imagesLoaded[index] = true;
-      });
+      await Future.delayed(Duration(milliseconds: 200));
+      if (mounted) {
+        setState(() {
+          _thumbnailPaths[index] = tmpPath;
+          _imagesLoaded[index] = true;
+        });
+      } else {
+        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+      }
     });
-    //Future.microtask(() async {
-    //  await Future.delayed(Duration(milliseconds: 100));
-    //  if (mounted) {
-    //    setState(() {
-    //      _imagesLoaded[index] = true;
-    //    });
-    //  } else {
-    //    dev.log("Error, _refreshAfterBrokenImage 4: not mounted");
-    //    setState(() {
-    //      _imagesLoaded[index] = true;
-    //    });
-    //  }
-    //});
+    //Future.microtask(()
   }
 
   CustomIconButton _rotateButton(
@@ -2049,11 +2040,11 @@ class _PreviewPageState extends State<PreviewPage> {
         _totalRotation = (_totalRotation + rotation) % 360;
         if (_totalRotation == 0) {
           setState(() {
-            _imagePaths[0] = _picturePath;
+            _thumbnailPaths[0] = _picturePath;
             _rotationOngoing = false;
           });
         } else {
-          _imagePaths[0] = await FilesHelper.rotateImageInTmpDir(
+          _thumbnailPaths[0] = await FilesHelper.rotateImageInTmpDir(
             _picturePath,
             _totalRotation,
           );
@@ -2096,7 +2087,7 @@ class _PreviewPageState extends State<PreviewPage> {
         imageProcessingManager.processPage(
           widget.docIndex,
           widget.pageIndex,
-          _imagePaths[0], // potentially rotated image
+          _thumbnailPaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
           (_newOrientation ?? 0) == 0,
         );
