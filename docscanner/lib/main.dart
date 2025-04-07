@@ -1725,6 +1725,7 @@ class _PreviewPageState extends State<PreviewPage> {
     FilesHelper.deleteCachedRoatedImages();
   }
 
+  int _imageRetry = 0;
   // Preview Page
   @override
   Widget build(BuildContext context) {
@@ -1805,6 +1806,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
+                key: ValueKey(_imageRetry),
                 errorBuilder: (context, error, stackTrace) {
                   _refreshAfterBrokenImage(index);
                   return IndicatorProcessingImage();
@@ -1980,6 +1982,7 @@ class _PreviewPageState extends State<PreviewPage> {
                               width: _selectedThumbnail == index ? 70 : 50,
                               height: _selectedThumbnail == index ? 70 : 50,
                               fit: BoxFit.cover,
+                              key: ValueKey(_imageRetry),
                               errorBuilder: (context, error, stackTrace) {
                                 _refreshAfterBrokenImage(index);
                                 return const SizedBox(
@@ -2015,34 +2018,16 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _refreshAfterBrokenImage(int index) async {
-    String tmpPath = "";
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    dev.log("_refreshAfterBrokenImage");
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) {
         setState(() {
-          _imagesLoaded[index] = false;
-          tmpPath = _thumbnailPaths[index];
-          _thumbnailPaths[index] = "";
+          _imageRetry = (_imageRetry - 1) * (-1);
         });
       } else {
-        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
-      }
-      imageCache.evict(
-        FileImage(File(_thumbnailPaths[index])),
-        includeLive: true,
-      );
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(Duration(milliseconds: 200));
-      if (mounted) {
-        setState(() {
-          _thumbnailPaths[index] = tmpPath;
-          _imagesLoaded[index] = true;
-        });
-      } else {
-        dev.log("Error, _refreshAfterBrokenImage 2: not mounted");
+        dev.log("Error, _refreshAfterBrokenImage: not mounted");
       }
     });
-    //Future.microtask(()
   }
 
   CustomIconButton _rotateButton(
