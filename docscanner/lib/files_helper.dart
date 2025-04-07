@@ -743,7 +743,7 @@ class FilesHelper {
       }
       // Save PDF
       String pdfPath =
-          "$selectedDirectory/doc${docIndex + 1}_page${pageIndex + 1}${versionName != null ? "_$versionName" : ""}}.pdf";
+          "$selectedDirectory/doc${docIndex + 1}_page${pageIndex + 1}${versionName != null ? "_$versionName" : ""}.pdf";
       File file = File(pdfPath);
       if (file.existsSync()) {
         file.renameSync(
