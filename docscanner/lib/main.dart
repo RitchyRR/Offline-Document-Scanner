@@ -180,6 +180,7 @@ class _MyAppState extends State<MyApp> {
                         },
                       );
                       future.whenComplete(() async {
+                        // evict Preview cache
                         List<String> pageImages = await filesHelper
                             .getImagePathsForPage(
                               args['docIndex'],
@@ -191,6 +192,23 @@ class _MyAppState extends State<MyApp> {
                             includeLive: true,
                           );
                         }
+                        // load new selected thumbnail
+                        int? thumbnailIndex =
+                            await ImageProcessingManager.readPageThumbnailIndex(
+                              args['docIndex'],
+                              args['pageIndex'],
+                            );
+                        final versionsPaths = await filesHelper
+                            .getImagePathsForPage(
+                              args['docIndex'],
+                              args['pageIndex'],
+                            );
+                        await ImageProcessingManager.writeScaledThumbnail(
+                          null,
+                          versionsPaths[thumbnailIndex ?? 3],
+                          filesHelper.screenWidth,
+                          overwrite: true,
+                        );
                       });
                     });
 
@@ -1160,6 +1178,7 @@ class _PagesState extends State<Pages> {
       arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
     );
     future.whenComplete(() async {
+      // evict Preview cache
       List<String> pageImages = await filesHelper.getImagePathsForPage(
         docIndex,
         pageIndex,
@@ -1167,6 +1186,21 @@ class _PagesState extends State<Pages> {
       for (var path in pageImages) {
         imageCache.evict(FileImage(File(path)), includeLive: true);
       }
+      // load new selected thumbnail
+      int? thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
+        docIndex,
+        pageIndex,
+      );
+      final versionsPaths = await filesHelper.getImagePathsForPage(
+        docIndex,
+        pageIndex,
+      );
+      await ImageProcessingManager.writeScaledThumbnail(
+        null,
+        versionsPaths[thumbnailIndex ?? 3],
+        filesHelper.screenWidth,
+        overwrite: true,
+      );
     });
   }
 
@@ -1530,16 +1564,18 @@ class _PreviewPageState extends State<PreviewPage> {
     }
   }
 
-  _showAllImages() {
+  _showAllImages() async {
     if (!mounted || _thumbnailPaths.isEmpty) return;
     for (var imagePath in _thumbnailPaths) {
       if (!File(imagePath).existsSync()) return;
     }
 
     _imagesLoaded.setAll(0, [true, true, true, true]);
-    setState(() {
-      _selectedThumbnail = 3;
-    });
+    int? versionIndex = await ImageProcessingManager.readPageThumbnailIndex(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    setState(() => _selectedThumbnail = versionIndex ?? 3);
     _pageController.jumpToPage(_selectedThumbnail);
   }
 
@@ -1552,13 +1588,13 @@ class _PreviewPageState extends State<PreviewPage> {
 
   Future<void> _loadPageMeatadata({bool supressWarning = false}) async {
     _newRatioIndex =
-        _ratioIndex = await ImageProcessingManager.readPageRatio(
+        _ratioIndex = await ImageProcessingManager.readPageRatioIndex(
           widget.docIndex,
           widget.pageIndex,
           supressWarning: supressWarning,
         );
     _newOrientation =
-        _orientation = await ImageProcessingManager.readPageOrientation(
+        _orientation = await ImageProcessingManager.readPageOrientationIndex(
           widget.docIndex,
           widget.pageIndex,
           supressWarning: supressWarning,
@@ -1943,6 +1979,11 @@ class _PreviewPageState extends State<PreviewPage> {
                 onTap: () {
                   setState(() => _selectedThumbnail = index);
                   _pageController.jumpToPage(index);
+                  ImageProcessingManager.writePageThumbnailIndex(
+                    widget.docIndex,
+                    widget.pageIndex,
+                    index,
+                  );
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -2093,6 +2134,7 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
           _newRatioIndex ?? 0,
           _newOrientation ?? 0,
+          null,
         );
         _reprocessingSetup();
         imageProcessingManager.processPage(

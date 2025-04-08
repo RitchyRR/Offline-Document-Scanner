@@ -139,11 +139,15 @@ class FilesHelper {
       }
       final thumbnailName = "thumbnail";
       final thumbnailPath = ('$page0Path/$thumbnailName.png');
+      // read metadata: thumbnailIndex
+      int thumbnailIndex =
+          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0) ?? 3;
+      final backupName = versionNames[thumbnailIndex];
+      final backupPath = '$page0Path/$backupName.png';
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths[docIndex] = thumbnailPath;
+        imageCache.evict(FileImage(File(backupPath)), includeLive: false);
       } else {
-        final backupName = "processed2";
-        final backupPath = ('$page0Path/$backupName.png');
         if (File(backupPath).existsSync()) {
           thumbnailPaths[docIndex] = backupPath;
         }
@@ -173,7 +177,14 @@ class FilesHelper {
       final pagePath = page.path;
       final thumbnailName = "thumbnail";
       final thumbnailPath = '$pagePath/$thumbnailName.png';
-      final backupName = "processed2";
+      // read metadata: thumbnailIndex
+      int thumbnailIndex =
+          await ImageProcessingManager.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+          ) ??
+          3;
+      final backupName = versionNames[thumbnailIndex];
       final backupPath = '$pagePath/$backupName.png';
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths[pageIndex] = thumbnailPath;
@@ -410,11 +421,10 @@ class FilesHelper {
   }
 
   Future<List<String>> getImagePathsForPage(int docIndex, int pageIndex) async {
-    List<String> imageNames = ["picture", "warped", "processed1", "processed2"];
     String pagePath = await getPagePath(docIndex, pageIndex);
 
     List<String> imagePaths = [];
-    for (var imageName in imageNames) {
+    for (var imageName in versionNames) {
       imagePaths.add('$pagePath/$imageName.png');
     }
 
@@ -631,10 +641,14 @@ class FilesHelper {
       pageIndex++
     ) {
       ratioIndexes.add(
-        await ImageProcessingManager.readPageRatio(docIndex, pageIndex) ?? 0,
+        await ImageProcessingManager.readPageRatioIndex(docIndex, pageIndex) ??
+            0,
       );
       orientations.add(
-        await ImageProcessingManager.readPageOrientation(docIndex, pageIndex) ??
+        await ImageProcessingManager.readPageOrientationIndex(
+              docIndex,
+              pageIndex,
+            ) ??
             0,
       );
     }

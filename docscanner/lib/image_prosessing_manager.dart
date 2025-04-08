@@ -4,6 +4,7 @@ import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'package:docscanner/main.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'dart:io';
@@ -11,6 +12,8 @@ import 'dart:async';
 // my packages:
 import 'opencv_helper.dart';
 import 'package:docscanner/files_helper.dart';
+
+List<String> versionNames = ["picture", "warped", "processed1", "processed2"];
 
 class ImageProcessingManager {
   static Future<void> _processPage(
@@ -47,12 +50,13 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = ret.$2;
     // Metadata
     int ratioIndex = ret.$3;
-    int orientation = ret.$4;
+    int orientationIndex = ret.$4;
     await writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
-      orientation,
+      orientationIndex,
+      3,
       filesHelperIn: filesHelperIn,
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
@@ -293,7 +297,8 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     int ratioIndex,
-    int orientation, {
+    int orientationIndex,
+    int? thumbnailIndex, {
     FilesHelper? filesHelperIn,
   }) async {
     String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
@@ -312,18 +317,48 @@ class ImageProcessingManager {
 
       // Write
       metadata["apectRatio"] = ratioIndex.toString();
-      metadata["orientation"] = orientation == 0 ? "portrait" : "landscape";
+      metadata["orientation"] =
+          orientationIndex == 0 ? "portrait" : "landscape";
+      metadata["thumbnail"] = versionNames[thumbnailIndex ?? 3];
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
         // if started outside of isolate
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
       }
     } catch (e) {
-      dev.log("Error, savePageMetadata: $e");
+      dev.log("Error, writePageMetadata: $e");
     }
   }
 
-  static Future<int?> readPageRatio(
+  static Future<void> writePageThumbnailIndex(
+    int docIndex,
+    int pageIndex,
+    int thumbnailIndex,
+  ) async {
+    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    try {
+      // Read
+      if (await file.exists()) {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
+      } else {
+        dev.log(
+          "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
+        );
+      }
+
+      // Write
+      metadata["thumbnail"] = versionNames[thumbnailIndex];
+      await file.writeAsString(jsonEncode(metadata));
+    } catch (e) {
+      dev.log("Error, writePageThumbnailIndex: $e");
+    }
+  }
+
+  static Future<int?> readPageRatioIndex(
     int docIndex,
     int pageIndex, {
     bool supressWarning = false,
@@ -339,16 +374,18 @@ class ImageProcessingManager {
         metadata = jsonDecode(content).cast<String, String>();
         return int.parse(metadata["apectRatio"]);
       } catch (e) {
-        dev.log("Error, readPageRatio: $e");
+        dev.log("Error, readPageRatioIndex: $e");
       }
     }
     if (!supressWarning) {
-      dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+      dev.log(
+        "Warning, readPageRatioIndex: Metadata does not exist for $pagePath",
+      );
     }
     return null;
   }
 
-  static Future<int?> readPageOrientation(
+  static Future<int?> readPageOrientationIndex(
     int docIndex,
     int pageIndex, {
     bool supressWarning = false,
@@ -367,17 +404,49 @@ class ImageProcessingManager {
             ? 0
             : 1;
       } catch (e) {
-        dev.log("Error, readPageRatio: $e");
+        dev.log("Error, readPageOrientationIndex: $e");
       }
     }
     if (!supressWarning) {
-      dev.log("Warning, readPageRatio: Metadata does not exist for $pagePath");
+      dev.log(
+        "Warning, readPageOrientationIndex: Metadata does not exist for $pagePath",
+      );
+    }
+    return null;
+  }
+
+  static Future<int?> readPageThumbnailIndex(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarning = false,
+  }) async {
+    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
+        String? thumbnailString = metadata["thumbnail"];
+        return thumbnailString != null
+            ? versionNames.indexOf(thumbnailString)
+            : 3;
+      } catch (e) {
+        dev.log("Error, readPageThumbnailIndex: $e");
+      }
+    }
+    if (!supressWarning) {
+      dev.log(
+        "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
+      );
     }
     return null;
   }
 
   static Future<void> writeScaledThumbnail(
-    SendPort sendPort,
+    SendPort? sendPort,
     String pathIn,
     int screenWidth, {
     bool overwrite = false,
@@ -386,14 +455,14 @@ class ImageProcessingManager {
     File fileIn = File(pathIn);
     File fileOut = File(pathOut);
 
-    //bool fileOutExists = false;
     if (!fileIn.existsSync()) {
       dev.log("Error, writeScaledThumbnail: $pathIn does not exist");
       return;
     } else if (fileOut.existsSync()) {
-      //fileOutExists = true;
       if (overwrite) {
         dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+        fileOut.deleteSync();
+        imageCache.evict(FileImage(fileOut), includeLive: true);
       } else {
         return;
       }
@@ -411,22 +480,17 @@ class ImageProcessingManager {
       maintainAspect: true,
       interpolation: img.Interpolation.linear,
     );
-    // Check if aspect ratio is different
-    //bool newAspectRatio = false;
-    //if (fileOutExists &&
-    //    resized.height !=
-    //        (img.decodeImage(await fileOut.readAsBytes())?.width ?? 0)) {
-    //  newAspectRatio = true;
-    //}
+
     // Save
     fileOut.writeAsBytesSync(img.encodePng(resized));
 
     // Update thumbnails:
-    //if (newAspectRatio) {
-    //  sendPort.send(NotifierEvent.reloadPagesThumbnails);
-    //} else {
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
-    //}
-    sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+    if (sendPort == null) {
+      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
+    } else {
+      sendPort.send(NotifierEvent.loadPagesThumbnails);
+      sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+    }
   }
 }
