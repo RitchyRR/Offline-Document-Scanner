@@ -352,25 +352,32 @@ class OpenCVHelper {
   }
 
   cv.Mat _looseSafeShape(cv.Mat edges) {
-    // 1. close edges
-    cv.Mat kernelDilate = cv.Mat.ones(K * 6, K * 6, cv.MatType.CV_8UC1);
-    cv.Mat edgesClosed = cv.dilate(
+    // padding
+    int pad = K * 6;
+    cv.Mat paddedEdges = cv.copyMakeBorder(
       edges,
-      kernelDilate,
-      borderType: cv.BORDER_CONSTANT,
+      pad,
+      pad,
+      pad,
+      pad, // Add padding on all sides
+      cv.BORDER_CONSTANT,
+      value: cv.Scalar.all(0), // Extend the background as black
     );
-    cv.Mat kernelErode = cv.Mat.ones(K * 5, K * 5, cv.MatType.CV_8UC1);
-    edgesClosed = cv.erode(
-      edgesClosed,
-      kernelErode,
+    // 1. close edges
+    cv.Mat kernel = cv.getStructuringElement(cv.MORPH_RECT, (pad, pad));
+    cv.Mat edgesClosed = cv.morphologyEx(
+      paddedEdges,
+      cv.MORPH_CLOSE,
+      kernel,
       borderType: cv.BORDER_CONSTANT,
+      iterations: 1,
     );
     // 2. black rectangle in the center
-    int rectWidth = (cols ~/ 4);
-    int rectHeight = (rows ~/ 4);
+    int rectWidth = (paddedEdges.cols ~/ 5);
+    int rectHeight = (paddedEdges.rows ~/ 5);
     cv.Rect rect = cv.Rect(
-      (cols - rectWidth) ~/ 2,
-      (rows - rectHeight) ~/ 2,
+      (paddedEdges.cols - rectWidth) ~/ 2,
+      (paddedEdges.rows - rectHeight) ~/ 2,
       rectWidth,
       rectHeight,
     );
@@ -383,25 +390,33 @@ class OpenCVHelper {
     // 3. fill
     cv.Mat closedShape = edgesClosed.clone();
     cv.Mat mask = cv.Mat.zeros(
-      edges.rows + 2,
-      edges.cols + 2,
+      paddedEdges.rows + 2,
+      paddedEdges.cols + 2,
       cv.MatType.CV_8UC1,
     );
     cv.floodFill(
       closedShape,
-      cv.Point(cols ~/ 2, rows ~/ 2),
+      cv.Point(paddedEdges.cols ~/ 2, paddedEdges.rows ~/ 2),
       cv.Scalar.all(255),
       mask: mask,
     );
     // 4. only keep inside + dilate
     closedShape = cv.subtract(closedShape, edgesClosed);
-    cv.Mat kernelLimit = cv.Mat.ones((K * 2), (K * 2), cv.MatType.CV_8UC1);
+    cv.Mat kernelLimit = cv.Mat.ones(
+      (pad * 0.7).toInt(),
+      (pad * 0.7).toInt(),
+      cv.MatType.CV_8UC1,
+    ); // 0.7 ~= 1/sqrt(2) <- when closing with rect is diagonal
     closedShape = cv.dilate(
       closedShape,
       kernelLimit,
       borderType: cv.BORDER_CONSTANT,
     );
-    return closedShape;
+    // remove padding
+    cv.Mat newShape = closedShape
+        .rowRange(pad, pad + edges.rows)
+        .colRange(pad, pad + edges.cols);
+    return newShape;
   }
 
   cv.Mat _closeEdgesAndFill(cv.Mat edges) {
@@ -417,7 +432,7 @@ class OpenCVHelper {
       value: cv.Scalar.all(0), // Extend the background as black
     );
     // close inside
-    cv.Mat kernelDilate = cv.Mat.ones(pad, pad, cv.MatType.CV_8UC1);
+    cv.Mat kernelDilate = cv.getStructuringElement(cv.MORPH_RECT, (pad, pad));
     cv.Mat kernelErode = kernelDilate;
     //cv.Mat kernelErode1 = cv.Mat.ones(pad ~/ 2, pad ~/ 2, cv.MatType.CV_8UC1);
     cv.Mat paddedEdgesClosed = cv.dilate(
