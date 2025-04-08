@@ -403,10 +403,10 @@ class OpenCVHelper {
     // 4. only keep inside + dilate
     closedShape = cv.subtract(closedShape, edgesClosed);
     cv.Mat kernelLimit = cv.Mat.ones(
-      (pad * 0.7).toInt(),
-      (pad * 0.7).toInt(),
+      (pad * 0.4).toInt(),
+      (pad * 0.4).toInt(),
       cv.MatType.CV_8UC1,
-    ); // 0.7 ~= 1/sqrt(2) <- when closing with rect is diagonal
+    ); // 0.7 ~= 1/sqrt(2) <- when closing with rect is diagonal, but 0,7 is too much if border is unclear
     closedShape = cv.dilate(
       closedShape,
       kernelLimit,
