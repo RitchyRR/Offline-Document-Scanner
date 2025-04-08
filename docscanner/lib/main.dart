@@ -2092,7 +2092,7 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.docIndex,
           widget.pageIndex,
           _newRatioIndex ?? 0,
-          (_newOrientation ?? 0) == 0,
+          _newOrientation ?? 0,
         );
         _reprocessingSetup();
         imageProcessingManager.processPage(
@@ -2100,7 +2100,7 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
           _thumbnailPaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
-          (_newOrientation ?? 0) == 0,
+          _newOrientation ?? 0,
         );
       },
     );
@@ -2169,7 +2169,7 @@ class _PreviewPageState extends State<PreviewPage> {
           isExpanded: false,
           alignment: Alignment.center,
           icon:
-              SizedBox.shrink(), //Icon((_orientationPortrait ?? true)? Icons.crop_portrait: Icons.crop_landscape,),
+              SizedBox.shrink(), //Icon((_orientation ?? 0 == 0)? Icons.crop_portrait: Icons.crop_landscape,),
           value: _newOrientation,
           items: List.generate(
             orientationsList.length,

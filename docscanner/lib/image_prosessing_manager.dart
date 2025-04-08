@@ -21,7 +21,7 @@ class ImageProcessingManager {
     int pageIndex,
     String pathIn,
     int? ratioIndexIn,
-    bool? orientationIn,
+    int? orientationIn,
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
@@ -47,7 +47,7 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = ret.$2;
     // Metadata
     int ratioIndex = ret.$3;
-    bool orientation = ret.$4;
+    int orientation = ret.$4;
     await writePageMetadata(
       docIndex,
       pageIndex,
@@ -102,7 +102,7 @@ class ImageProcessingManager {
       int pageIndex,
       String pathIn,
       int? ratioIndexIn,
-      bool? orientationIn,
+      int? orientationIn,
     )
     data,
   ) async {
@@ -114,7 +114,7 @@ class ImageProcessingManager {
     String pathIn = data.$6;
 
     int? ratioIndexIn = data.$7;
-    bool? orientationIn = data.$8;
+    int? orientationIn = data.$8;
 
     await _processPage(
       sendPort,
@@ -260,7 +260,7 @@ class ImageProcessingManager {
     int pageIndex,
     String pathIn,
     int? ratioIndexIn,
-    bool? orientationIn,
+    int? orientationIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
@@ -293,7 +293,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     int ratioIndex,
-    bool orientationPortrait, {
+    int orientation, {
     FilesHelper? filesHelperIn,
   }) async {
     String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
@@ -312,7 +312,7 @@ class ImageProcessingManager {
 
       // Write
       metadata["apectRatio"] = ratioIndex.toString();
-      metadata["orientation"] = orientationPortrait ? "portrait" : "landscape";
+      metadata["orientation"] = orientation == 0 ? "portrait" : "landscape";
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
         // if started outside of isolate
