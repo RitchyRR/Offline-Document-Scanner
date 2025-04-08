@@ -172,12 +172,13 @@ class FilesHelper {
     for (var (pageIndex, page) in pages.indexed) {
       final pagePath = page.path;
       final thumbnailName = "thumbnail";
-      final thumbnailPath = ('$pagePath/$thumbnailName.png');
+      final thumbnailPath = '$pagePath/$thumbnailName.png';
+      final backupName = "processed2";
+      final backupPath = '$pagePath/$backupName.png';
       if (File(thumbnailPath).existsSync()) {
         thumbnailPaths[pageIndex] = thumbnailPath;
+        imageCache.evict(FileImage(File(backupPath)), includeLive: false);
       } else {
-        final backupName = "processed2";
-        final backupPath = ('$pagePath/$backupName.png');
         if (File(backupPath).existsSync()) {
           thumbnailPaths[pageIndex] = backupPath;
         }
