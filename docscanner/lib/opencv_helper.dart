@@ -213,6 +213,7 @@ class OpenCVHelper {
     //return (shape, 0);
     bg.dispose();
     bg = null;
+    //return (shape, 0, true);
 
     // 3. Corner detection
     List<List<int>> corners = _detectCorners(shape);
@@ -334,17 +335,19 @@ class OpenCVHelper {
   }
 
   cv.Mat _tightRiskyShape(cv.Mat edges) {
+    cv.Mat kernel1 = cv.Mat.ones(3, 3, cv.MatType.CV_8UC1);
     cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
-    cv.Mat shape1 = edges.clone();
+    cv.Mat dilEdges = cv.dilate(edges, kernel1, borderType: cv.BORDER_CONSTANT);
+    cv.Mat shape1 = dilEdges.clone();
     cv.floodFill(
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
       mask: mask, // useless
     );
-    shape1 = cv.subtract(shape1, edges);
-    cv.Mat kernel = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
-    shape1 = cv.dilate(shape1, kernel, borderType: cv.BORDER_CONSTANT);
+    shape1 = cv.subtract(shape1, dilEdges);
+    cv.Mat kernel2 = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
+    shape1 = cv.dilate(shape1, kernel2, borderType: cv.BORDER_CONSTANT);
     return shape1;
   }
 
@@ -906,7 +909,11 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. Median filter hue + saturation
-    bg = cv.medianBlur(bg, (K * 2) + 1);
+    try {
+      bg = cv.medianBlur(bg, (K * 2) + 1);
+    } catch (e) {
+      dev.log("Error, _warpedBg, medianBlur: $e");
+    }
     // 3. Remove dark structures (Closing)
     int k2 = K;
     cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_CROSS, (k2, k2));
