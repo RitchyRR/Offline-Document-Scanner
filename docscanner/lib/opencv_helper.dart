@@ -476,8 +476,22 @@ class OpenCVHelper {
 
   /// Step 3: Corner Detection (Hit-or-Miss Transformation)
   List<List<int>> _detectCorners(cv.Mat shape) {
-    // kernels to detect corners -> kernel1, -2, -3, -4
     int hitmissSize = (K * 1.5).round() * 2 + 1;
+    //// padding
+    //int pad = hitmissSize ~/ 2;
+    //cv.Mat paddedShape = cv.copyMakeBorder(
+    //  shape,
+    //  pad,
+    //  pad,
+    //  pad,
+    //  pad, // Add padding on all sides
+    //  cv.BORDER_CONSTANT,
+    //  value: cv.Scalar.all(0), // Extend the background as black
+    //);
+    //int rows = paddedShape.rows;
+    //int cols = paddedShape.cols;
+
+    // kernels to detect corners -> kernel1,2,3,4
     int hitmissTolerance = K ~/ 10;
     cv.Mat kernel1 = cv.Mat.zeros(hitmissSize, hitmissSize, cv.MatType.CV_8SC1);
     kernel1.set(hitmissSize ~/ 2, hitmissSize ~/ 2, 1);
@@ -567,10 +581,11 @@ class OpenCVHelper {
       outerPoints[3] = cv.Point(rows ~/ 2 + 1, cols ~/ 2 + 1);
     }
 
+    // to List
     List<List<int>> outerPointsList = [];
     for (var point in outerPoints) {
       outerPointsList.add([point.y, point.x]);
-    }
+    } // [point.y - pad, point.x - pad]
     //dev.log("outerPoints: $outerPoints");
     return outerPointsList;
   }
