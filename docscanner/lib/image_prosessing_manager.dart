@@ -351,7 +351,8 @@ class ImageProcessingManager {
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
       }
-      if ((metadata["thumbnail"] ?? "") != newThumbnailName) {
+      if ((metadata["thumbnail"] ?? versionNames[3]) != newThumbnailName &&
+          newThumbnailName != versionNames[0]) {
         isThumbnailNew = true;
       }
 

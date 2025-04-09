@@ -377,12 +377,8 @@ class FilesHelper {
       );
       return;
     }
-    List<String> processedNames = [
-      "warped",
-      "processed1",
-      "processed2",
-      "thumbnail",
-    ];
+    List<String> processedNames = ["thumbnail"];
+    processedNames.addAll(versionNames.getRange(1, 3));
     for (var fse in Directory(pagePath).listSync()) {
       for (var name in processedNames) {
         if (fse.path.endsWith("$name.png")) {
