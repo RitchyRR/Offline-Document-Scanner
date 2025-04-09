@@ -134,7 +134,7 @@ class ImageProcessingManager {
   }
 
   Map<(int, int), Isolate> primaryIsolates = {};
-  Map<(int, int), Isolate> secondaryIsolates = {};
+  Map<(int, int), Isolate> secundaryIsolates = {};
   List<Completer> comleters = [];
 
   Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
@@ -151,9 +151,9 @@ class ImageProcessingManager {
       (primaryIsolates[key]!).kill(priority: Isolate.immediate);
       primaryIsolates.remove(key);
     }
-    if (secondaryIsolates.containsKey(key)) {
-      (secondaryIsolates[key]!).kill(priority: Isolate.immediate);
-      secondaryIsolates.remove(key);
+    if (secundaryIsolates.containsKey(key)) {
+      (secundaryIsolates[key]!).kill(priority: Isolate.immediate);
+      secundaryIsolates.remove(key);
     }
   }
 
@@ -170,14 +170,14 @@ class ImageProcessingManager {
     }
 
     List<(int, int)> secundaryKeys = [];
-    for (var key in secondaryIsolates.keys) {
+    for (var key in secundaryIsolates.keys) {
       if (key.$1 == docIndex) {
         secundaryKeys.add(key);
       }
     }
     for (var key in secundaryKeys) {
-      (secondaryIsolates[key]!).kill(priority: Isolate.immediate);
-      secondaryIsolates.remove(key);
+      (secundaryIsolates[key]!).kill(priority: Isolate.immediate);
+      secundaryIsolates.remove(key);
     }
   }
 
@@ -192,7 +192,7 @@ class ImageProcessingManager {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
     comleters.add(primaryCompleter);
-    Isolate primaryIolate = await Isolate.spawn(_processPageIsolate, (
+    Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
       primaryPort.sendPort,
       filesHelper,
       true,
@@ -202,7 +202,7 @@ class ImageProcessingManager {
       null,
       null,
     ));
-    primaryIsolates[(docIndex, firstPageIndex)] = primaryIolate;
+    primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -210,8 +210,8 @@ class ImageProcessingManager {
         primaryPort.close();
         primaryCompleter.complete();
         comleters.remove(primaryCompleter);
-        //primaryIolate.kill();
-        primaryIsolates.removeWhere((key, value) => value == primaryIolate);
+        //primaryIsolate.kill();
+        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
       }
     });
 
@@ -230,11 +230,11 @@ class ImageProcessingManager {
           await Future.any(comleters.map((c) => c.future));
         }
 
-        ReceivePort secondaryPort = ReceivePort();
+        ReceivePort secundaryPort = ReceivePort();
         final completer = Completer<void>();
         comleters.add(completer);
         Isolate isolate = await Isolate.spawn(_processPageIsolate, (
-          secondaryPort.sendPort,
+          secundaryPort.sendPort,
           filesHelper,
           false,
           docIndex,
@@ -243,16 +243,16 @@ class ImageProcessingManager {
           null,
           null,
         ));
-        secondaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
-        secondaryPort.listen((message) {
+        secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
+        secundaryPort.listen((message) {
           if (message is NotifierEvent) {
             globalNotifier.triggerEvent(message);
           } else if (message == 'done') {
-            secondaryPort.close();
+            secundaryPort.close();
             completer.complete();
             comleters.remove(completer);
             //isolate.kill();
-            secondaryIsolates.removeWhere((key, value) => value == isolate);
+            secundaryIsolates.removeWhere((key, value) => value == isolate);
           }
         });
       }
@@ -269,7 +269,7 @@ class ImageProcessingManager {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
     comleters.add(primaryCompleter);
-    Isolate primaryIolate = await Isolate.spawn(_processPageIsolate, (
+    Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
       primaryPort.sendPort,
       filesHelper,
       true,
@@ -279,7 +279,7 @@ class ImageProcessingManager {
       ratioIndexIn,
       orientationIn,
     ));
-    primaryIsolates[(docIndex, pageIndex)] = primaryIolate;
+    primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -287,8 +287,8 @@ class ImageProcessingManager {
         primaryPort.close();
         primaryCompleter.complete();
         comleters.remove(primaryCompleter);
-        //primaryIolate.kill();
-        primaryIsolates.removeWhere((key, value) => value == primaryIolate);
+        //primaryIsolate.kill();
+        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
       }
     });
   }
@@ -418,9 +418,13 @@ class ImageProcessingManager {
   static Future<int?> readPageThumbnailIndex(
     int docIndex,
     int pageIndex, {
+    FilesHelper? filesHelperIn,
     bool supressWarning = false,
   }) async {
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
+      docIndex,
+      pageIndex,
+    );
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -462,7 +466,11 @@ class ImageProcessingManager {
       if (overwrite) {
         dev.log("Overwriting, writeScaledThumbnail: $pathIn");
         fileOut.deleteSync();
-        imageCache.evict(FileImage(fileOut), includeLive: true);
+        if (sendPort != null) {
+          sendPort.send('evictThumbnailCache');
+        } else {
+          imageCache.evict(FileImage(fileOut), includeLive: true);
+        }
       } else {
         return;
       }
@@ -492,5 +500,62 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
       sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
     }
+  }
+
+  static Future<void> _applySelectedThumbnailIsolate(
+    (SendPort sendPort, FilesHelper filesHelperIn, int docIndex, int pageIndex)
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    FilesHelper filesHelperIn = data.$2;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+
+    int? thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      filesHelperIn: filesHelperIn,
+    );
+    final versionsPaths = await filesHelperIn.getImagePathsForPage(
+      docIndex,
+      pageIndex,
+    );
+    await ImageProcessingManager.writeScaledThumbnail(
+      sendPort,
+      versionsPaths[thumbnailIndex ?? 3],
+      filesHelperIn.screenWidth,
+      overwrite: true,
+    );
+    sendPort.send('done');
+  }
+
+  Future<void> applySelectedThumbnail(int docIndex, int pageIndex) async {
+    ReceivePort secundaryPort = ReceivePort();
+    final secundaryCompleter = Completer<void>();
+    comleters.add(secundaryCompleter);
+    Isolate secundaryIsolate = await Isolate.spawn(
+      _applySelectedThumbnailIsolate,
+      (secundaryPort.sendPort, filesHelper, docIndex, pageIndex),
+    );
+    secundaryIsolates[(docIndex, pageIndex)] = secundaryIsolate;
+    secundaryPort.listen((message) async {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        secundaryPort.close();
+        secundaryCompleter.complete();
+        comleters.remove(secundaryCompleter);
+        //secundaryIsolate.kill();
+        secundaryIsolates.removeWhere(
+          (key, value) => value == secundaryIsolate,
+        );
+      } else if (message == 'evictThumbnailCache') {
+        String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+        String thumbnailPath = p.join(pagePath, 'thumbnail.png');
+        imageCache.evict(FileImage(File(thumbnailPath)), includeLive: true);
+        globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
+      }
+    });
   }
 }

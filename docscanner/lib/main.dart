@@ -193,21 +193,9 @@ class _MyAppState extends State<MyApp> {
                           );
                         }
                         // load new selected thumbnail
-                        int? thumbnailIndex =
-                            await ImageProcessingManager.readPageThumbnailIndex(
-                              args['docIndex'],
-                              args['pageIndex'],
-                            );
-                        final versionsPaths = await filesHelper
-                            .getImagePathsForPage(
-                              args['docIndex'],
-                              args['pageIndex'],
-                            );
-                        await ImageProcessingManager.writeScaledThumbnail(
-                          null,
-                          versionsPaths[thumbnailIndex ?? 3],
-                          filesHelper.screenWidth,
-                          overwrite: true,
+                        await imageProcessingManager.applySelectedThumbnail(
+                          args['docIndex'],
+                          args['pageIndex'],
                         );
                       });
                     });
@@ -1163,7 +1151,7 @@ class _PagesState extends State<Pages> {
     }
     setState(() {
       _pageThumbnails = [];
-      _thumbnailHeights.clear();
+      //_thumbnailHeights.clear();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1187,20 +1175,10 @@ class _PagesState extends State<Pages> {
         imageCache.evict(FileImage(File(path)), includeLive: true);
       }
       // load new selected thumbnail
-      int? thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
-        docIndex,
-        pageIndex,
-      );
-      final versionsPaths = await filesHelper.getImagePathsForPage(
-        docIndex,
-        pageIndex,
-      );
-      await ImageProcessingManager.writeScaledThumbnail(
-        null,
-        versionsPaths[thumbnailIndex ?? 3],
-        filesHelper.screenWidth,
-        overwrite: true,
-      );
+      setState(() {
+        _pageThumbnails[pageIndex] = "";
+      });
+      await imageProcessingManager.applySelectedThumbnail(docIndex, pageIndex);
     });
   }
 
@@ -1292,9 +1270,28 @@ class _PagesState extends State<Pages> {
                                     ),
                                   )
                                   // Pages Skeleton
+                                  : _thumbnailHeights[index] != null
+                                  ? SizedBox(
+                                    height: _thumbnailHeights[index],
+                                    child: Material(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      child: Center(
+                                        child: IndicatorProcessingImage(),
+                                      ),
+                                    ),
+                                  )
                                   : AspectRatio(
                                     aspectRatio: 1.0 / 1.414,
-                                    child: IndicatorProcessingImage(),
+                                    child: Material(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      child: IndicatorProcessingImage(),
+                                    ),
                                   ),
                               // Open PreviewPage
                               Positioned.fill(
