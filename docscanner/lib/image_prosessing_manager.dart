@@ -28,20 +28,20 @@ class ImageProcessingManager {
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
-    List<String> pathsOut = await filesHelperIn.getImagePathsForPage(
-      docIndex,
-      pageIndex,
-    );
-
     // Original
     Uint8List picture = File(pathIn).readAsBytesSync();
-    await filesHelperIn.saveImage(pathsOut[0], picture);
+    String picturePath = await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      0,
+      picture,
+    );
     if (isPrimary) sendPort.send(NotifierEvent.pictureSaved);
 
     // Warped
     var ret = cvHelper.warpImage(
       ParamsWarpImage(
-        pathsOut[0],
+        picturePath,
         inRatioIndex: ratioIndexIn,
         orientation: orientationIn,
       ),
@@ -61,23 +61,38 @@ class ImageProcessingManager {
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
 
-    await filesHelperIn.saveImage(pathsOut[1], warped);
+    String warpedPath = await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      1,
+      warped,
+    );
     if (isPrimary) sendPort.send(NotifierEvent.warpSaved);
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
-      ParamsProcessImage1(pathsOut[1]),
+      ParamsProcessImage1(warpedPath),
     );
-    await filesHelperIn.saveImage(pathsOut[2], processed1);
+    String processed1Path = await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      processed1,
+    );
     if (isPrimary) {
       sendPort.send(NotifierEvent.processed1Saved);
     }
 
     // Processed2 basierend auf dem Processed1-Bild
     Uint8List processed2 = cvHelper.processImage2(
-      ParamsProcessImage2(pathsOut[1], borderCorrectionDepth),
+      ParamsProcessImage2(processed1Path, borderCorrectionDepth),
     );
-    await filesHelperIn.saveImage(pathsOut[3], processed2);
+    String processed2Path = await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      processed2,
+    );
     if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
 
     // Update thumbnails:
@@ -91,7 +106,7 @@ class ImageProcessingManager {
 
     await writeScaledThumbnail(
       sendPort,
-      pathsOut[3],
+      processed2Path,
       filesHelperIn.screenWidth,
       overwrite: true,
     );

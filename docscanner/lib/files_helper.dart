@@ -107,14 +107,23 @@ class FilesHelper {
     return pagePath;
   }
 
-  Future<void> saveImage(String toImagePath, Uint8List imageBytes) async {
-    File(toImagePath).writeAsBytesSync(imageBytes);
-    if (!File(toImagePath).existsSync()) {
-      dev.log("Error, saveImage: Failed to save $toImagePath");
-      return;
-    } //else {
+  Future<String> savePageVersion(
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+    Uint8List imageBytes,
+  ) async {
+    await _initializeDocumentsPath();
+    String pagePath = await getPagePath(docIndex, pageIndex);
+    String versionPath = "$pagePath/${versionNames[versionIndex]}.png";
+    //todo: {DateTime.now().millisecondsSinceEpoch}
+    File(versionPath).writeAsBytesSync(imageBytes);
+    if (!File(versionPath).existsSync()) {
+      dev.log("Error, saveImage: Failed to save $versionPath");
+      return "";
+    }
     //dev.log("Image saved at: $toImagePath");
-    //}
+    return versionPath;
   }
 
   Future<(List<String>, int)> getDocThumbnails() async {
