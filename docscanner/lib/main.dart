@@ -1769,7 +1769,7 @@ class _PreviewPageState extends State<PreviewPage> {
             itemBuilder:
                 (context) => [
                   PopupMenuItem(
-                    enabled: _imagesLoaded.every((element) => element),
+                    //enabled: _imagesLoaded.every((element) => element),
                     value: "del",
                     child: Row(
                       children: [
