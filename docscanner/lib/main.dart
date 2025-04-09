@@ -1302,10 +1302,12 @@ class _PagesState extends State<Pages> {
                                   color: Colors.transparent,
                                   child: InkWell(
                                     onTap:
-                                        () => _openPreviewPage(
-                                          widget.docIndex,
-                                          index,
-                                        ),
+                                        (_pageThumbnails[index].isNotEmpty)
+                                            ? () => _openPreviewPage(
+                                              widget.docIndex,
+                                              index,
+                                            )
+                                            : null,
                                     splashColor: Colors.black26,
                                     highlightColor: Colors.black26,
                                   ),
