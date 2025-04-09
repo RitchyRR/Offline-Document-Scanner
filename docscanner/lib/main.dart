@@ -192,11 +192,6 @@ class _MyAppState extends State<MyApp> {
                             includeLive: true,
                           );
                         }
-                        // load new selected thumbnail
-                        await imageProcessingManager.applySelectedThumbnail(
-                          args['docIndex'],
-                          args['pageIndex'],
-                        );
                       });
                     });
 
@@ -1151,7 +1146,7 @@ class _PagesState extends State<Pages> {
     }
     setState(() {
       _pageThumbnails = [];
-      //_thumbnailHeights.clear();
+      _thumbnailHeights.clear();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1174,11 +1169,6 @@ class _PagesState extends State<Pages> {
       for (var path in pageImages) {
         imageCache.evict(FileImage(File(path)), includeLive: true);
       }
-      // load new selected thumbnail
-      setState(() {
-        _pageThumbnails[pageIndex] = "";
-      });
-      await imageProcessingManager.applySelectedThumbnail(docIndex, pageIndex);
     });
   }
 
@@ -1522,6 +1512,12 @@ class _PreviewPageState extends State<PreviewPage> {
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
+    // new thumbnail
+    ImageProcessingManager.writePageThumbnailIndex(
+      widget.docIndex,
+      widget.pageIndex,
+      _selectedThumbnail,
+    );
     super.dispose();
   }
 
@@ -1978,11 +1974,6 @@ class _PreviewPageState extends State<PreviewPage> {
                 onTap: () {
                   setState(() => _selectedThumbnail = index);
                   _pageController.jumpToPage(index);
-                  ImageProcessingManager.writePageThumbnailIndex(
-                    widget.docIndex,
-                    widget.pageIndex,
-                    index,
-                  );
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),

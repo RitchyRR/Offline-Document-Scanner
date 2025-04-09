@@ -335,6 +335,8 @@ class ImageProcessingManager {
     int pageIndex,
     int thumbnailIndex,
   ) async {
+    bool isThumbnailNew = false;
+    String newThumbnailName = versionNames[thumbnailIndex];
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
@@ -349,12 +351,18 @@ class ImageProcessingManager {
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
       }
+      if ((metadata["thumbnail"] ?? "") != newThumbnailName) {
+        isThumbnailNew = true;
+      }
 
       // Write
-      metadata["thumbnail"] = versionNames[thumbnailIndex];
+      metadata["thumbnail"] = newThumbnailName;
       await file.writeAsString(jsonEncode(metadata));
     } catch (e) {
       dev.log("Error, writePageThumbnailIndex: $e");
+    }
+    if (isThumbnailNew) {
+      imageProcessingManager.applySelectedThumbnail(docIndex, pageIndex);
     }
   }
 
