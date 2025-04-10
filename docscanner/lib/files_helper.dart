@@ -115,8 +115,14 @@ class FilesHelper {
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
-    String versionPath = "$pagePath/${versionNames[versionIndex]}.png";
-    //todo: {DateTime.now().millisecondsSinceEpoch}
+    String versionName = versionNames[versionIndex];
+    for (var fse in Directory(pagePath).listSync()) {
+      if (fse.path.endsWith("$versionName.png")) {
+        fse.delete();
+      }
+    }
+    String versionPath =
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
     File(versionPath).writeAsBytesSync(imageBytes);
     if (!File(versionPath).existsSync()) {
       dev.log("Error, saveImage: Failed to save $versionPath");
@@ -146,20 +152,29 @@ class FilesHelper {
       } else {
         continue;
       }
-      final thumbnailName = "thumbnail";
-      final thumbnailPath = ('$page0Path/$thumbnailName.png');
-      // read metadata: thumbnailIndex
       int thumbnailIndex =
           await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0) ?? 3;
+      final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
-      final backupPath = '$page0Path/$backupName.png';
-      if (File(thumbnailPath).existsSync()) {
-        thumbnailPaths[docIndex] = thumbnailPath;
-        imageCache.evict(FileImage(File(backupPath)), includeLive: false);
-      } else {
-        if (File(backupPath).existsSync()) {
-          thumbnailPaths[docIndex] = backupPath;
+      String? thumbnailPath;
+      String? backupPath;
+      List<FileSystemEntity> versions =
+          (Directory(page0Path).listSync()
+            ..sort((a, b) => a.path.compareTo(b.path)));
+      for (var version in versions) {
+        if (version.path.contains(thumbnailName)) {
+          thumbnailPath = version.path;
+        } else if (version.path.contains(backupName)) {
+          backupPath = version.path;
         }
+      }
+      if (thumbnailPath != null) {
+        thumbnailPaths[docIndex] = thumbnailPath;
+        if (backupPath != null) {
+          imageCache.evict(FileImage(File(backupPath)), includeLive: false);
+        }
+      } else if (backupPath != null) {
+        thumbnailPaths[docIndex] = backupPath;
       }
     }
 
@@ -184,24 +199,29 @@ class FilesHelper {
     if (pages.isEmpty) return (thumbnailPaths, pagesCount);
     for (var (pageIndex, page) in pages.indexed) {
       final pagePath = page.path;
+      final thumbnailIndex =
+          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0) ?? 3;
       final thumbnailName = "thumbnail";
-      final thumbnailPath = '$pagePath/$thumbnailName.png';
-      // read metadata: thumbnailIndex
-      int thumbnailIndex =
-          await ImageProcessingManager.readPageThumbnailIndex(
-            docIndex,
-            pageIndex,
-          ) ??
-          3;
       final backupName = versionNames[thumbnailIndex];
-      final backupPath = '$pagePath/$backupName.png';
-      if (File(thumbnailPath).existsSync()) {
-        thumbnailPaths[pageIndex] = thumbnailPath;
-        imageCache.evict(FileImage(File(backupPath)), includeLive: false);
-      } else {
-        if (File(backupPath).existsSync()) {
-          thumbnailPaths[pageIndex] = backupPath;
+      String? thumbnailPath;
+      String? backupPath;
+      List<FileSystemEntity> versions =
+          (Directory(pagePath).listSync()
+            ..sort((a, b) => a.path.compareTo(b.path)));
+      for (var version in versions) {
+        if (version.path.contains(thumbnailName)) {
+          thumbnailPath = version.path;
+        } else if (version.path.contains(backupName)) {
+          backupPath = version.path;
         }
+      }
+      if (thumbnailPath != null) {
+        thumbnailPaths[pageIndex] = thumbnailPath;
+        if (backupPath != null) {
+          imageCache.evict(FileImage(File(backupPath)), includeLive: false);
+        }
+      } else if (backupPath != null) {
+        thumbnailPaths[pageIndex] = backupPath;
       }
     }
 
@@ -314,7 +334,7 @@ class FilesHelper {
       toPath = await getDocumentPath(docIndex, supressWarning: true);
     }
     globalNotifier.triggerEvent(
-      NotifierEvent.reloadDocsThumbnails,
+      NotifierEvent.loadDocsThumbnails,
     ); // to not show deleted document
   }
 
@@ -363,14 +383,14 @@ class FilesHelper {
         NotifierEvent.loadPagesThumbnails,
       ); // to not show deleted page and to Navigator.pop
     } else {
+      //globalNotifier.triggerEvent(
+      //  NotifierEvent.loadPageVersions,
+      //); // otherwise they show the ones of other pages
       globalNotifier.triggerEvent(
-        NotifierEvent.loadPageVersions,
+        NotifierEvent.loadPagesThumbnails,
       ); // otherwise they show the ones of other pages
       globalNotifier.triggerEvent(
-        NotifierEvent.reloadPagesThumbnails,
-      ); // otherwise they show the ones of other pages
-      globalNotifier.triggerEvent(
-        NotifierEvent.loadDocsThumbnailsAndInfo,
+        NotifierEvent.loadDocsThumbnails,
       ); // for page count
     }
   }
@@ -387,17 +407,17 @@ class FilesHelper {
       return;
     }
     List<String> processedNames = ["thumbnail"];
-    processedNames.addAll(versionNames.getRange(1, 3));
+    processedNames.addAll(versionNames.getRange(1, 4));
     for (var fse in Directory(pagePath).listSync()) {
       for (var name in processedNames) {
         if (fse.path.endsWith("$name.png")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
           fse.delete();
-          //dev.log("deleteProcessedVersionsOfPage: Deleting ${file.path}");
+          dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
         }
       }
     }
-    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnailsAndInfo);
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
   }
 
@@ -428,12 +448,21 @@ class FilesHelper {
   Future<List<String>> getImagePathsForPage(int docIndex, int pageIndex) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
 
-    List<String> imagePaths = [];
-    for (var imageName in versionNames) {
-      imagePaths.add('$pagePath/$imageName.png');
+    List<String> versionPaths = ["", "", "", ""];
+    List<FileSystemEntity> versionsFSE =
+        (Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path)));
+    for (var (versionIndex, versionName) in versionNames.indexed) {
+      for (var fse in versionsFSE) {
+        if (fse.path.contains(versionName)) {
+          versionPaths[versionIndex] = fse.path;
+          versionsFSE.remove(fse);
+          break;
+        }
+      }
     }
 
-    return imagePaths;
+    return versionPaths;
   }
 
   changeDocumentIndex(int currentIndex, int newIndex) async {

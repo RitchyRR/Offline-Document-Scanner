@@ -24,9 +24,7 @@ final FilesHelper filesHelper = FilesHelper();
 
 enum NotifierEvent {
   loadPagesThumbnails,
-  reloadPagesThumbnails,
-  loadDocsThumbnailsAndInfo,
-  reloadDocsThumbnails,
+  loadDocsThumbnails,
   loadPageVersions,
   loadPageMetadata,
   pictureSaved,
@@ -89,20 +87,16 @@ class _MyAppState extends State<MyApp> {
 
     // Adjust specific elements for better contrast
     return (
-      lightScheme, //.copyWith(
-      //  surface: lightScheme.surface,
-      //  surfaceContainerLow: lightScheme.surfaceContainerLow.withOpacity(0.9),
-      //  primary: lightScheme.primary,
-      //  secondary: lightScheme.secondary,
-      //),
-      darkScheme.copyWith(
-        //surface: darkScheme.surfaceContainerLow,
-        //surfaceContainerLow: darkScheme.surfaceContainerHigh, // cards + elevated buttons
-        //surfaceContainer: darkScheme.surfaceContainerHighest,
-        //     primary: darkScheme.primary,
-        //     secondary: darkScheme.secondary,
-        //shadow: Color.fromARGB(255, 0, 0, 0),
-      ),
+      lightScheme,
+      darkScheme,
+      //.copyWith(
+      //surface: darkScheme.surfaceContainerLow,
+      //surfaceContainerLow: darkScheme.surfaceContainerHigh, // cards + elevated buttons
+      //surfaceContainer: darkScheme.surfaceContainerHighest,
+      //     primary: darkScheme.primary,
+      //     secondary: darkScheme.secondary,
+      //shadow: Color.fromARGB(255, 0, 0, 0),
+      //)
     );
   }
 
@@ -290,7 +284,7 @@ class _MyHomePageState extends State<MyHomePage> {
       arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
     );
     future.whenComplete(() async {
-      _refreshDocsDisplay();
+      _loadDocsDisplay();
     });
   }
 
@@ -307,7 +301,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> initAsync() async {
     await filesHelper.repairDirectoryStructure();
-    _refreshDocsDisplay();
+    _loadDocsDisplay();
   }
 
   @override
@@ -319,11 +313,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void _handleGlobalEvent() {
     if (!mounted) return;
     switch (globalNotifier.value) {
-      case NotifierEvent.loadDocsThumbnailsAndInfo:
-        _refreshDocsDisplay();
-        break;
-      case NotifierEvent.reloadDocsThumbnails:
-        _reloadDocsDisplay();
+      case NotifierEvent.loadDocsThumbnails:
+        _loadDocsDisplay();
         break;
       default:
     }
@@ -333,7 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<String> _docNames = [];
   final List<String> _docDates = [];
   int _docsCount = 0;
-  Future<void> _refreshDocsDisplay() async {
+  Future<void> _loadDocsDisplay() async {
     // Thumbnails
     var thumbs = await filesHelper.getDocThumbnails();
     List<String> thumbnailPaths = thumbs.$1;
@@ -439,23 +430,6 @@ class _MyHomePageState extends State<MyHomePage> {
     await file.writeAsString(jsonEncode(metadata));
   }
 
-  Future<void> _reloadDocsDisplay() async {
-    //dev.log("Reloading documents thumbnails.");
-    for (var path in _docThumbnails) {
-      /*final evictRes = */
-      imageCache.evict(FileImage(File(path)), includeLive: true);
-      //dev.log("reordering evictRes: $evictRes");
-    }
-    if (mounted) {
-      setState(() {
-        _docThumbnails = [];
-      });
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshDocsDisplay();
-    });
-  }
-
   Future<void> _openDocument(int docIndex) async {
     Future<void> future = Navigator.pushNamed(
       context,
@@ -463,7 +437,7 @@ class _MyHomePageState extends State<MyHomePage> {
       arguments: {'docIndex': docIndex},
     );
     future.whenComplete(() async {
-      _refreshDocsDisplay();
+      _loadDocsDisplay();
     });
   }
 
@@ -646,7 +620,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     if (confirmDelete == true) {
       await filesHelper.deleteDocument(docIndex);
-      _reloadDocsDisplay();
+      _loadDocsDisplay();
     }
   }
 
@@ -826,7 +800,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                             index,
                                             selectedIndex,
                                           );
-                                          _reloadDocsDisplay();
+                                          _loadDocsDisplay();
                                         }
                                       },
                                       child: Padding(
@@ -1110,9 +1084,6 @@ class _PagesState extends State<Pages> {
       case NotifierEvent.loadPagesThumbnails:
         _loadPagesThumbnails();
         break;
-      case NotifierEvent.reloadPagesThumbnails:
-        _reloadPageThumbnails();
-        break;
       default:
     }
   }
@@ -1127,6 +1098,9 @@ class _PagesState extends State<Pages> {
         Navigator.pop(context);
       }
     } else {
+      if (_pageThumbnails != thumbnailPaths) {
+        _thumbnailHeights.clear();
+      }
       int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
       for (var i = 0; i < tooShortBy; i++) {
         _thumbnailHeights.add(null);
@@ -1138,20 +1112,6 @@ class _PagesState extends State<Pages> {
         });
       }
     }
-  }
-
-  void _reloadPageThumbnails() {
-    for (var path in _pageThumbnails) {
-      imageCache.evict(FileImage(File(path)), includeLive: true);
-    }
-    setState(() {
-      _pageThumbnails = [];
-      _thumbnailHeights.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPagesThumbnails();
-    });
   }
 
   Future<void> _openPreviewPage(int docIndex, int pageIndex) async {
@@ -1365,7 +1325,7 @@ class _PagesState extends State<Pages> {
                                         index,
                                         selectedIndex,
                                       );
-                                      _reloadPageThumbnails();
+                                      _loadPagesThumbnails();
                                     }
                                   },
                                   child: Container(
@@ -1477,10 +1437,9 @@ class _PreviewPageState extends State<PreviewPage> {
     "PRO",
   ];
   // Widget
-  int _selectedThumbnail = 0;
-  final List<bool> _imagesLoaded = List.filled(4, false);
-  List<String> _thumbnailPaths = [];
-  late String _picturePath;
+  int _selectedVersion = 0;
+  List<String> _versionPaths = ["", "", "", ""];
+  String _picturePath = "";
   // Reprocessing Parameters
   int? _ratioIndex;
   int? _newRatioIndex;
@@ -1499,11 +1458,11 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _initAsync() async {
-    _thumbnailPaths = await filesHelper.getImagePathsForPage(
+    _versionPaths = await filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _picturePath = _thumbnailPaths[0];
+    _picturePath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarning: true);
   }
@@ -1516,12 +1475,12 @@ class _PreviewPageState extends State<PreviewPage> {
     ImageProcessingManager.writePageThumbnailIndex(
       widget.docIndex,
       widget.pageIndex,
-      _selectedThumbnail,
+      _selectedVersion,
     );
     super.dispose();
   }
 
-  void _handleGlobalEvent() {
+  Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
       case NotifierEvent.loadPageVersions:
@@ -1530,52 +1489,55 @@ class _PreviewPageState extends State<PreviewPage> {
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
         break;
-
       case NotifierEvent.pictureSaved:
-        setState(() => _imagesLoaded[0] = true);
-        _reprocessingCleanup();
+        _versionPaths = await filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        );
+        _picturePath = _versionPaths.first;
+        setState(() => _versionPaths);
+        FilesHelper.deleteCachedRoatedImages();
         break;
       case NotifierEvent.warpSaved:
-        setState(() {
-          _imagesLoaded[1] = true;
-          _imagesLoaded[0] = true;
-        });
+        _versionPaths = await filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        );
+        setState(() => _versionPaths);
         break;
       case NotifierEvent.processed1Saved:
-        setState(() {
-          _imagesLoaded[2] = true;
-          _imagesLoaded[1] = true;
-          _imagesLoaded[0] = true;
-        });
+        _versionPaths = await filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        );
+        setState(() => _versionPaths);
         break;
       case NotifierEvent.processed2Saved:
-        setState(() {
-          _imagesLoaded[3] = true;
-          _imagesLoaded[1] = true;
-          _imagesLoaded[0] = true;
-        });
+        _versionPaths = await filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        );
+        setState(() => _versionPaths);
         break;
       default:
     }
   }
 
   _showAllImages() async {
-    if (!mounted || _thumbnailPaths.isEmpty) return;
-    for (var imagePath in _thumbnailPaths) {
-      if (!File(imagePath).existsSync()) return;
+    if (!mounted || _versionPaths.isEmpty) return;
+    for (var versionPath in _versionPaths) {
+      if (versionPath.isEmpty) return;
     }
-
-    _imagesLoaded.setAll(0, [true, true, true, true]);
     int? versionIndex = await ImageProcessingManager.readPageThumbnailIndex(
       widget.docIndex,
       widget.pageIndex,
     );
-    setState(() => _selectedThumbnail = versionIndex ?? 3);
-    _pageController.jumpToPage(_selectedThumbnail);
+    setState(() => _selectedVersion = versionIndex ?? 3);
+    _pageController.jumpToPage(_selectedVersion);
   }
 
   void _clearPageVersionsCache() {
-    for (var path in _thumbnailPaths) {
+    for (var path in _versionPaths) {
       imageCache.evict(FileImage(File(path)), includeLive: true);
     }
     imageCache.evict(FileImage(File(_picturePath)), includeLive: true);
@@ -1606,7 +1568,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _thumbnailPaths[_selectedThumbnail];
+    final String imagePath = _versionPaths[_selectedVersion];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1655,7 +1617,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _thumbnailPaths[_selectedThumbnail];
+    final String imagePath = _versionPaths[_selectedVersion];
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1733,27 +1695,20 @@ class _PreviewPageState extends State<PreviewPage> {
     return false;
   }
 
-  void _reprocessingSetup() {
+  Future<void> _reprocessingSetup() async {
     _metadataBlocked = true;
     _ratioIndex = null; // don't reset _new values, for uninterrupted display
     _orientation = null;
     _totalRotation = 0;
-    _imagesLoaded.setAll(0, [false, false, false, false]);
-
     filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _clearPageVersionsCache();
   }
 
   void _reprocessingCleanup() {
-    if (mounted) {
-      if (_thumbnailPaths.isNotEmpty && _thumbnailPaths[0] != _picturePath) {
-        _thumbnailPaths[0] = _picturePath;
-      }
-    }
-    FilesHelper.deleteCachedRoatedImages();
+    _versionPaths = ["", "", "", ""];
+    _clearPageVersionsCache();
   }
 
   int _imageRetry = 0;
@@ -1822,9 +1777,9 @@ class _PreviewPageState extends State<PreviewPage> {
           PhotoViewGallery.builder(
             wantKeepAlive: false,
             scrollPhysics: const PageScrollPhysics(),
-            itemCount: _thumbnailPaths.length,
+            itemCount: _versionPaths.length,
             builder: (context, index) {
-              if (!_imagesLoaded[index]) {
+              if (_versionPaths[index].isEmpty) {
                 // Show loading indicator if image is not loaded
                 return PhotoViewGalleryPageOptions.customChild(
                   child: IndicatorProcessingImage(),
@@ -1833,7 +1788,7 @@ class _PreviewPageState extends State<PreviewPage> {
               }
               // Show actual image when loaded
               return PhotoViewGalleryPageOptions(
-                imageProvider: FileImage(File(_thumbnailPaths[index])),
+                imageProvider: FileImage(File(_versionPaths[index])),
                 filterQuality: FilterQuality.high,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: 1.0,
@@ -1847,7 +1802,7 @@ class _PreviewPageState extends State<PreviewPage> {
             backgroundDecoration: BoxDecoration(color: Colors.transparent),
             pageController: _pageController,
             onPageChanged: (index) {
-              setState(() => _selectedThumbnail = index);
+              setState(() => _selectedVersion = index);
             },
           ),
           // Reprocessing Bar
@@ -1855,7 +1810,7 @@ class _PreviewPageState extends State<PreviewPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Align(
               alignment:
-                  _selectedThumbnail == 0
+                  _selectedVersion == 0
                       ? Alignment.topCenter
                       : Alignment.topLeft,
 
@@ -1868,7 +1823,7 @@ class _PreviewPageState extends State<PreviewPage> {
                   boxShadow: [smallBoxShadow()],
                 ),
                 child:
-                    _selectedThumbnail == 0
+                    _selectedVersion == 0
                         ? Row(
                           spacing: 12,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1914,22 +1869,22 @@ class _PreviewPageState extends State<PreviewPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               onPressed:
-                  _imagesLoaded[_selectedThumbnail]
-                      ? () => _sharePagePopup(context, _selectedThumbnail)
+                  _selectedVersion < _versionPaths.length
+                      ? () => _sharePagePopup(context, _selectedVersion)
                       : null,
               tooltip:
-                  _imagesLoaded[_selectedThumbnail]
+                  _selectedVersion < _versionPaths.length
                       ? 'Share Image'
                       : 'Waiting for image to load...',
               backgroundColor:
-                  _imagesLoaded[_selectedThumbnail]
+                  _selectedVersion < _versionPaths.length
                       ? null
                       : Theme.of(context).disabledColor,
-              elevation: _imagesLoaded[_selectedThumbnail] ? null : 0.0,
+              elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
               child: Icon(
                 Icons.share,
                 color:
-                    _imagesLoaded[_selectedThumbnail]
+                    _selectedVersion < _versionPaths.length
                         ? null
                         : Theme.of(context).disabledColor,
               ),
@@ -1939,22 +1894,22 @@ class _PreviewPageState extends State<PreviewPage> {
           FloatingActionButton(
             heroTag: "savePageVersion",
             onPressed:
-                _imagesLoaded[_selectedThumbnail]
-                    ? () => _savePagePopup(context, _selectedThumbnail)
+                _selectedVersion < _versionPaths.length
+                    ? () => _savePagePopup(context, _selectedVersion)
                     : null,
             tooltip:
-                _imagesLoaded[_selectedThumbnail]
+                _selectedVersion < _versionPaths.length
                     ? 'Save Image'
                     : 'Waiting for image to load...',
             backgroundColor:
-                _imagesLoaded[_selectedThumbnail]
+                _selectedVersion < _versionPaths.length
                     ? null
                     : Theme.of(context).disabledColor,
-            elevation: _imagesLoaded[_selectedThumbnail] ? null : 0.0,
+            elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
             child: Icon(
               Icons.save,
               color:
-                  _imagesLoaded[_selectedThumbnail]
+                  _selectedVersion < _versionPaths.length
                       ? null
                       : Theme.of(context).disabledColor,
             ),
@@ -1972,7 +1927,7 @@ class _PreviewPageState extends State<PreviewPage> {
             children: List.generate(4, (index) {
               return GestureDetector(
                 onTap: () {
-                  setState(() => _selectedThumbnail = index);
+                  setState(() => _selectedVersion = index);
                   _pageController.jumpToPage(index);
                 },
                 child: AnimatedContainer(
@@ -1982,7 +1937,7 @@ class _PreviewPageState extends State<PreviewPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color:
-                          _selectedThumbnail == index
+                          _selectedVersion == index
                               ? Colors.white
                               : Colors.white54,
                       width: 3,
@@ -1992,11 +1947,11 @@ class _PreviewPageState extends State<PreviewPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8.5),
                     child:
-                        _imagesLoaded[index]
+                        _versionPaths[index].isNotEmpty
                             ? Image.file(
-                              File(_thumbnailPaths[index]),
-                              width: _selectedThumbnail == index ? 70 : 50,
-                              height: _selectedThumbnail == index ? 70 : 50,
+                              File(_versionPaths[index]),
+                              width: _selectedVersion == index ? 70 : 50,
+                              height: _selectedVersion == index ? 70 : 50,
                               fit: BoxFit.cover,
                               key: ValueKey(_imageRetry),
                               errorBuilder: (context, error, stackTrace) {
@@ -2010,11 +1965,11 @@ class _PreviewPageState extends State<PreviewPage> {
                             )
                             : Container(
                               width:
-                                  _selectedThumbnail == index && index != 0
+                                  _selectedVersion == index && index != 0
                                       ? 70
                                       : 50,
                               height:
-                                  _selectedThumbnail == index && index != 0
+                                  _selectedVersion == index && index != 0
                                       ? 70
                                       : 50,
                               color: Theme.of(context).disabledColor,
@@ -2038,7 +1993,7 @@ class _PreviewPageState extends State<PreviewPage> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: CustomIconButton(
         onTap: () {
-          setState(() => _selectedThumbnail = 0);
+          setState(() => _selectedVersion = 0);
           _pageController.jumpToPage(0);
         },
         isFlat: true,
@@ -2054,7 +2009,7 @@ class _PreviewPageState extends State<PreviewPage> {
     dev.log("_refreshAfterBrokenImage");
     Future.delayed(const Duration(milliseconds: 200), () {
       imageCache.evict(
-        FileImage(File(_thumbnailPaths[index])),
+        FileImage(File(_versionPaths[index])),
         includeLive: true,
       );
       if (mounted) {
@@ -2082,11 +2037,11 @@ class _PreviewPageState extends State<PreviewPage> {
         _totalRotation = (_totalRotation + rotation) % 360;
         if (_totalRotation == 0) {
           setState(() {
-            _thumbnailPaths[0] = _picturePath;
+            _versionPaths[0] = _picturePath;
             _rotationOngoing = false;
           });
         } else {
-          _thumbnailPaths[0] = await FilesHelper.rotateImageInTmpDir(
+          _versionPaths[0] = await FilesHelper.rotateImageInTmpDir(
             _picturePath,
             _totalRotation,
           );
@@ -2108,7 +2063,11 @@ class _PreviewPageState extends State<PreviewPage> {
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
-      isDisabled: !_imagesLoaded[0] || _metadataBlocked || _rotationOngoing,
+      isDisabled:
+          _versionPaths.isEmpty ||
+          _versionPaths.first.isEmpty ||
+          _metadataBlocked ||
+          _rotationOngoing,
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
               (_orientation == _newOrientation) &&
@@ -2130,10 +2089,11 @@ class _PreviewPageState extends State<PreviewPage> {
         imageProcessingManager.processPage(
           widget.docIndex,
           widget.pageIndex,
-          _thumbnailPaths[0], // potentially rotated image
+          _versionPaths[0], // potentially rotated image
           _newRatioIndex ?? 0,
           _newOrientation ?? 0,
         );
+        _reprocessingCleanup();
       },
     );
   }
@@ -2170,7 +2130,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              !_imagesLoaded[0] || _metadataBlocked
+              _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _newRatioIndex) {
@@ -2215,7 +2175,7 @@ class _PreviewPageState extends State<PreviewPage> {
             ),
           ),
           onChanged:
-              !_imagesLoaded[0] || _metadataBlocked
+              _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _newOrientation) {

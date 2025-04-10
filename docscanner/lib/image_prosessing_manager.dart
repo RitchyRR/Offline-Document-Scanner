@@ -13,7 +13,12 @@ import 'dart:async';
 import 'opencv_helper.dart';
 import 'package:docscanner/files_helper.dart';
 
-List<String> versionNames = ["picture", "warped", "processed1", "processed2"];
+const List<String> versionNames = [
+  "picture",
+  "warped",
+  "processed1",
+  "processed2",
+];
 
 class ImageProcessingManager {
   static Future<void> _processPage(
@@ -96,13 +101,8 @@ class ImageProcessingManager {
     if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
 
     // Update thumbnails:
-    if (ratioIndexIn != null && orientationIn != null) {
-      sendPort.send(NotifierEvent.reloadPagesThumbnails);
-      sendPort.send(NotifierEvent.reloadDocsThumbnails);
-    } else {
-      sendPort.send(NotifierEvent.loadPagesThumbnails);
-      sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
-    }
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     await writeScaledThumbnail(
       sendPort,
@@ -479,24 +479,38 @@ class ImageProcessingManager {
     int screenWidth, {
     bool overwrite = false,
   }) async {
-    String pathOut = p.join(p.dirname(pathIn), 'thumbnail.png');
+    String pagePath = p.dirname(pathIn);
+    String pathOut =
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
     File fileIn = File(pathIn);
     File fileOut = File(pathOut);
 
     if (!fileIn.existsSync()) {
       dev.log("Error, writeScaledThumbnail: $pathIn does not exist");
       return;
-    } else if (fileOut.existsSync()) {
-      if (overwrite) {
-        dev.log("Overwriting, writeScaledThumbnail: $pathIn");
-        fileOut.deleteSync();
-        if (sendPort != null) {
-          sendPort.send('evictThumbnailCache');
-        } else {
-          imageCache.evict(FileImage(fileOut), includeLive: true);
+    } else {
+      String? oldThumbnailPath;
+      for (FileSystemEntity fse in Directory(pagePath).listSync()) {
+        if (fse.path.contains("thumbnail")) {
+          oldThumbnailPath = fse.path;
+          break;
         }
-      } else {
-        return;
+      }
+      if (oldThumbnailPath != null) {
+        if (overwrite) {
+          dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+          File(oldThumbnailPath).deleteSync();
+          if (sendPort != null) {
+            sendPort.send(File(oldThumbnailPath));
+          } else {
+            imageCache.evict(
+              FileImage(File(oldThumbnailPath)),
+              includeLive: true,
+            );
+          }
+        } else {
+          return;
+        }
       }
     }
     // Read
@@ -518,11 +532,11 @@ class ImageProcessingManager {
 
     // Update thumbnails:
     if (sendPort == null) {
-      globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
-      globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
     } else {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
-      sendPort.send(NotifierEvent.loadDocsThumbnailsAndInfo);
+      sendPort.send(NotifierEvent.loadDocsThumbnails);
     }
   }
 
@@ -573,12 +587,10 @@ class ImageProcessingManager {
         secundaryIsolates.removeWhere(
           (key, value) => value == secundaryIsolate,
         );
-      } else if (message == 'evictThumbnailCache') {
-        String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-        String thumbnailPath = p.join(pagePath, 'thumbnail.png');
-        imageCache.evict(FileImage(File(thumbnailPath)), includeLive: true);
-        globalNotifier.triggerEvent(NotifierEvent.reloadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.reloadDocsThumbnails);
+      } else if (message is File) {
+        imageCache.evict(FileImage(message), includeLive: true);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
   }
