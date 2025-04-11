@@ -2340,7 +2340,10 @@ Widget buildCornerOverlay(
   int quarterTurns = rotation ~/ 90;
   double scale;
   double displayHeight;
-  if (imagePixelWidth == 0 || imagePixelHeight == 0) {
+  if (imagePixelWidth < 1 ||
+      !imagePixelWidth.isFinite ||
+      imagePixelHeight < 1 ||
+      !imagePixelHeight.isFinite) {
     imagePixelWidth = imagePixelHeight = 1;
   }
   if (quarterTurns.isEven) {
@@ -2619,8 +2622,8 @@ class Warp extends StatefulWidget {
 }
 
 class _WarpState extends State<Warp> {
-  int _imagePixelWidth = 1;
-  int _imagePixelHeight = 1;
+  int _imagePixelWidth = 0;
+  int _imagePixelHeight = 0;
 
   @override
   void initState() {
@@ -2642,6 +2645,7 @@ class _WarpState extends State<Warp> {
 
   @override
   Widget build(BuildContext context) {
+    bool originalOrientation = (widget.rotation ~/ 90).isEven;
     return Scaffold(
       appBar: AppBar(title: const Text("Adjust Corners")),
       body: Scaffold(
@@ -2653,8 +2657,8 @@ class _WarpState extends State<Warp> {
               context,
               widget.cornerPoints,
               widget.rotation,
-              _imagePixelWidth,
-              _imagePixelHeight,
+              originalOrientation ? _imagePixelWidth : _imagePixelHeight,
+              originalOrientation ? _imagePixelHeight : _imagePixelWidth,
             ),
           ],
         ),
