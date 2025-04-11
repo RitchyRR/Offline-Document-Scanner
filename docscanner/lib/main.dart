@@ -1764,42 +1764,40 @@ class _PreviewPageState extends State<PreviewPage> {
           return Offset(x, y);
         }).toList();
 
-    return Center(
-      child: Stack(
-        children: [
-          SizedBox(
-            width: screenWidth,
-            height: displayHeight,
-            child: RotatedBox(
-              quarterTurns: quarterTurns,
-              child: Stack(
-                children: [
-                  // Line painter
-                  CustomPaint(
-                    size: Size(screenWidth, displayHeight),
-                    painter: _CornerLinePainter(points: scaledPoints),
-                  ),
-                  //// Corner circles
-                  //...scaledPoints.map((offset) {
-                  //  return Positioned(
-                  //    left: offset.dx - circleSize / 2,
-                  //    top: offset.dy - circleSize / 2,
-                  //    child: Container(
-                  //      width: circleSize,
-                  //      height: circleSize,
-                  //      decoration: BoxDecoration(
-                  //        shape: BoxShape.circle,
-                  //        color: Colors.black38,
-                  //        border: Border.all(color: Colors.white, width: 2),
-                  //      ),
-                  //    ),
-                  //  );
-                  //}),
-                ],
-              ),
+    return IgnorePointer(
+      child: Center(
+        child: SizedBox(
+          width: screenWidth,
+          height: displayHeight,
+          child: RotatedBox(
+            quarterTurns: quarterTurns,
+            child: Stack(
+              children: [
+                // Line painter
+                CustomPaint(
+                  size: Size(screenWidth, displayHeight),
+                  painter: _CornerLinePainter(points: scaledPoints),
+                ),
+                //// Corner circles
+                //...scaledPoints.map((offset) {
+                //  return Positioned(
+                //    left: offset.dx - circleSize / 2,
+                //    top: offset.dy - circleSize / 2,
+                //    child: Container(
+                //      width: circleSize,
+                //      height: circleSize,
+                //      decoration: BoxDecoration(
+                //        shape: BoxShape.circle,
+                //        color: Colors.black38,
+                //        border: Border.all(color: Colors.white, width: 2),
+                //      ),
+                //    ),
+                //  );
+                //}),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2334,10 +2332,11 @@ class _CornerLinePainter extends CustomPainter {
           ..strokeWidth = 7.0
           ..style = PaintingStyle.stroke
           ..isAntiAlias = true;
+    final double strokeWidthCorners = 2.0;
     final paintCorners =
         Paint()
           ..color = Colors.white
-          ..strokeWidth = 1.0
+          ..strokeWidth = strokeWidthCorners
           ..style = PaintingStyle.stroke
           ..isAntiAlias = true;
 
@@ -2360,6 +2359,8 @@ class _CornerLinePainter extends CustomPainter {
       Offset p1 = orderedPoints[i];
       Offset p2 = orderedPoints[(i + 1) % orderedPoints.length];
       Offset delta = p2 - p1;
+      p1 -= delta / delta.distance * strokeWidthCorners / 2;
+      p2 += delta / delta.distance * strokeWidthCorners / 2;
       Offset startOffset = p1 + delta * 0.05;
       Offset endOffset = p2 - delta * 0.05;
       Offset middleOffset1 = p1 + delta * 0.45;
