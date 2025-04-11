@@ -1454,6 +1454,7 @@ class _PreviewPageState extends State<PreviewPage> {
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
+  bool _hideOverlay = false;
 
   @override
   void initState() {
@@ -1738,7 +1739,7 @@ class _PreviewPageState extends State<PreviewPage> {
   _warpManuallyScreen() {}
 
   Widget _buildCornerOverlay(BuildContext context) {
-    if (_cornerPoints.isEmpty || _selectedVersion != 0) {
+    if (_cornerPoints.isEmpty || _selectedVersion != 0 || _hideOverlay) {
       return SizedBox();
     }
 
@@ -1871,14 +1872,47 @@ class _PreviewPageState extends State<PreviewPage> {
             scrollPhysics: const PageScrollPhysics(),
             itemCount: _versionPaths.length,
             builder: (context, index) {
+              // Loading indicator
               if (_versionPaths[index].isEmpty) {
                 // Loading indicator
                 return PhotoViewGalleryPageOptions.customChild(
                   child: IndicatorProcessingImage(),
-                  disableGestures: true,
                 );
               }
-              // Images
+              // Picture
+              if (index == 0) {
+                bool isZoomed = false;
+                return PhotoViewGalleryPageOptions.customChild(
+                  child: Stack(
+                    children: [
+                      PhotoView(
+                        imageProvider: FileImage(File(_versionPaths[0])),
+                        filterQuality: FilterQuality.high,
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: 1.0,
+                        key: ValueKey(_imageRetry),
+                        errorBuilder: (context, error, stackTrace) {
+                          _refreshAfterBrokenImage(index);
+                          return IndicatorProcessingImage();
+                        },
+                        backgroundDecoration: BoxDecoration(
+                          color: Colors.transparent,
+                        ),
+                        scaleStateChangedCallback: (scaleState) async {
+                          isZoomed = scaleState != PhotoViewScaleState.initial;
+                          if (!isZoomed) {
+                            await Future.delayed(Duration(milliseconds: 300));
+                          } // delay becuase of zoom animation
+                          setState(() => _hideOverlay = isZoomed);
+                        },
+                      ),
+                      // Corner Points
+                      _buildCornerOverlay(context),
+                    ],
+                  ),
+                );
+              }
+              // Processed Images
               return PhotoViewGalleryPageOptions(
                 imageProvider: FileImage(File(_versionPaths[index])),
                 filterQuality: FilterQuality.high,
@@ -1897,8 +1931,6 @@ class _PreviewPageState extends State<PreviewPage> {
               setState(() => _selectedVersion = index);
             },
           ),
-          // Corner Points
-          _buildCornerOverlay(context),
           // Reprocessing Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
