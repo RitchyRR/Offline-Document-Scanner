@@ -1587,6 +1587,7 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _loadCornerPoints({bool supressWarning = false}) async {
+    if (_versionPaths[0].isEmpty) return;
     _cornerPoints = await ImageProcessingManager.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
@@ -1865,13 +1866,7 @@ class _PreviewPageState extends State<PreviewPage> {
                       ),
                       // Corner Points
                       (_cornerPoints.isNotEmpty && !_hideOverlay)
-                          ? buildCornerOverlay(
-                            context,
-                            _cornerPoints,
-                            _totalRotation,
-                            _imagePixelWidth,
-                            _imagePixelHeight,
-                          )
+                          ? _buildCornerOverlay(context)
                           : SizedBox(),
                     ],
                   ),
@@ -2325,79 +2320,52 @@ class _PreviewPageState extends State<PreviewPage> {
       ),
     );
   }
-}
 
-Widget buildCornerOverlay(
-  BuildContext context,
-  List<List<int>> cornerPoints,
-  int rotation,
-  int imagePixelWidth,
-  int imagePixelHeight,
-) {
-  double screenWidth = MediaQuery.of(context).size.width;
+  Widget _buildCornerOverlay(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
 
-  // Handle rotation
-  int quarterTurns = rotation ~/ 90;
-  double scale;
-  double displayHeight;
-  if (imagePixelWidth < 1 ||
-      !imagePixelWidth.isFinite ||
-      imagePixelHeight < 1 ||
-      !imagePixelHeight.isFinite) {
-    imagePixelWidth = imagePixelHeight = 1;
-  }
-  if (quarterTurns.isEven) {
-    scale = screenWidth / imagePixelWidth;
-    displayHeight = imagePixelHeight * scale;
-  } else {
-    scale = screenWidth / imagePixelHeight;
-    displayHeight = imagePixelWidth * scale;
-  }
+    // Handle rotation
+    int quarterTurns = _totalRotation ~/ 90;
+    double scale;
+    double displayHeight;
+    if (_imagePixelWidth < 1 ||
+        !_imagePixelWidth.isFinite ||
+        _imagePixelHeight < 1 ||
+        !_imagePixelHeight.isFinite) {
+      _imagePixelWidth = _imagePixelHeight = 1;
+    }
+    if (quarterTurns.isEven) {
+      scale = screenWidth / _imagePixelWidth;
+      displayHeight = _imagePixelHeight * scale;
+    } else {
+      scale = screenWidth / _imagePixelHeight;
+      displayHeight = _imagePixelWidth * scale;
+    }
 
-  // Apply rotation to corner points visually
-  List<Offset> scaledPoints =
-      cornerPoints.map((point) {
-        double x = point[1] * scale;
-        double y = point[0] * scale;
-        return Offset(x, y);
-      }).toList();
+    // Apply rotation to corner points visually
+    List<Offset> scaledPoints =
+        _cornerPoints.map((point) {
+          double x = point[1] * scale;
+          double y = point[0] * scale;
+          return Offset(x, y);
+        }).toList();
 
-  return IgnorePointer(
-    child: Center(
-      child: SizedBox(
-        width: screenWidth,
-        height: displayHeight,
-        child: RotatedBox(
-          quarterTurns: quarterTurns,
-          child: Stack(
-            children: [
-              // Line painter
-              CustomPaint(
-                size: Size(screenWidth, displayHeight),
-                painter: _CornerLinePainter(points: scaledPoints),
-              ),
-              //// Corner circles
-              //...scaledPoints.map((offset) {
-              //  return Positioned(
-              //    left: offset.dx - circleSize / 2,
-              //    top: offset.dy - circleSize / 2,
-              //    child: Container(
-              //      width: circleSize,
-              //      height: circleSize,
-              //      decoration: BoxDecoration(
-              //        shape: BoxShape.circle,
-              //        color: Colors.black38,
-              //        border: Border.all(color: Colors.white, width: 2),
-              //      ),
-              //    ),
-              //  );
-              //}),
-            ],
+    return IgnorePointer(
+      child: Center(
+        child: SizedBox(
+          width: screenWidth,
+          height: displayHeight,
+          child: RotatedBox(
+            quarterTurns: quarterTurns,
+            child: CustomPaint(
+              size: Size(screenWidth, displayHeight),
+              painter: _CornerLinePainter(points: scaledPoints),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _CornerLinePainter extends CustomPainter {
@@ -2622,57 +2590,122 @@ class Warp extends StatefulWidget {
 }
 
 class _WarpState extends State<Warp> {
-  int _imagePixelWidth = 0;
-  int _imagePixelHeight = 0;
+  List<Offset> _scaledPoints = [];
+  double _screenWidth = 0;
+  double _displayHeigth = 0;
+  double _scale = 1.0;
 
   @override
   void initState() {
     super.initState();
-    _loadImageDimensions();
+    _initImageDimensions();
   }
 
-  void _loadImageDimensions() async {
+  void _initImageDimensions() async {
     final image = await decodeImageFromList(
       (File(widget.imagePath).readAsBytesSync()),
     );
+    int imagePixelWidth = image.width;
+    int imagePixelHeight = image.height;
     if (mounted) {
-      setState(() {
-        _imagePixelWidth = image.width;
-        _imagePixelHeight = image.height;
-      });
+      _screenWidth = MediaQuery.of(context).size.width;
+    }
+    _scale = _screenWidth / imagePixelWidth;
+    _displayHeigth = imagePixelHeight * _scale;
+    _scaledPoints =
+        widget.cornerPoints.map((point) {
+          double x = point[1] * _scale;
+          double y = point[0] * _scale;
+          return Offset(x, y);
+        }).toList();
+
+    if (mounted) {
+      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    bool originalOrientation = (widget.rotation ~/ 90).isEven;
     return Scaffold(
       appBar: AppBar(title: const Text("Adjust Corners")),
       body: Scaffold(
         body: Stack(
           alignment: Alignment.center,
-          children: [
-            Image.file(File(widget.imagePath)),
-            buildCornerOverlay(
-              context,
-              widget.cornerPoints,
-              widget.rotation,
-              originalOrientation ? _imagePixelWidth : _imagePixelHeight,
-              originalOrientation ? _imagePixelHeight : _imagePixelWidth,
-            ),
-          ],
+          children: [Image.file(File(widget.imagePath)), _buildCornerOverlay()],
         ),
         floatingActionButton: Padding(
           padding: const EdgeInsets.all(8.0),
           child: FloatingActionButton(
             heroTag: "saveCorners",
             onPressed: () {
+              for (var (i, scaledPoint) in _scaledPoints.indexed) {
+                widget.cornerPoints[i] = [
+                  (scaledPoint.dy / _scale).toInt(),
+                  (scaledPoint.dx / _scale).toInt(),
+                ];
+              }
               Navigator.pop(context);
               //todo save new corners in metadata
             },
             tooltip: 'Save adjusted Corners',
 
             child: Icon(Icons.check),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCornerOverlay() {
+    if (_screenWidth == 0) {
+      return SizedBox();
+    }
+    double circleSize = 24;
+    int quarterTurns = widget.rotation ~/ 90;
+
+    return Center(
+      child: SizedBox(
+        width: _screenWidth,
+        height: _displayHeigth,
+        child: RotatedBox(
+          quarterTurns: quarterTurns,
+          child: Stack(
+            children: [
+              // Draw lines between points
+              CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _CornerLinePainter(points: _scaledPoints),
+              ),
+
+              // Draggable corner points
+              ..._scaledPoints.asMap().entries.map((entry) {
+                final index = entry.key;
+                final offset = entry.value;
+
+                return Positioned(
+                  left: offset.dx - circleSize / 2,
+                  top: offset.dy - circleSize / 2,
+                  child: GestureDetector(
+                    onPanUpdate: (details) {
+                      setState(() {
+                        double newX = (offset.dx + details.delta.dx);
+                        double newY = (offset.dy + details.delta.dy);
+                        _scaledPoints[index] = Offset(newX, newY);
+                      });
+                    },
+                    child: Container(
+                      width: circleSize,
+                      height: circleSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black38,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ),
         ),
       ),
