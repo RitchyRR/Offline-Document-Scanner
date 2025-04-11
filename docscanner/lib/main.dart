@@ -1429,7 +1429,6 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-  final PageController _pageController = PageController();
   static List<String> versionNames = [
     "unprocessed",
     "warped",
@@ -1453,6 +1452,8 @@ class _PreviewPageState extends State<PreviewPage> {
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
+  // PageView
+  final PageController _pageController = PageController();
 
   @override
   void initState() {
