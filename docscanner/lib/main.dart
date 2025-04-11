@@ -1872,13 +1872,13 @@ class _PreviewPageState extends State<PreviewPage> {
             itemCount: _versionPaths.length,
             builder: (context, index) {
               if (_versionPaths[index].isEmpty) {
-                // Show loading indicator if image is not loaded
+                // Loading indicator
                 return PhotoViewGalleryPageOptions.customChild(
                   child: IndicatorProcessingImage(),
                   disableGestures: true,
                 );
               }
-              // Show actual image when loaded
+              // Images
               return PhotoViewGalleryPageOptions(
                 imageProvider: FileImage(File(_versionPaths[index])),
                 filterQuality: FilterQuality.high,
