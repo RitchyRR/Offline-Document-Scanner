@@ -70,7 +70,9 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  (Uint8List, List<int>, int, int) warpImage(ParamsWarpImage params) {
+  (Uint8List, List<int>, int, int, List<List<int>>) warpImage(
+    ParamsWarpImage params,
+  ) {
     cv.Mat? imageMat = _loadImage(params.pathIn);
 
     final warpedRes = _warpImage(
@@ -81,11 +83,13 @@ class OpenCVHelper {
     cv.Mat? warped = warpedRes.$1;
     int ratioIndex = warpedRes.$2;
     int orientation = warpedRes.$3;
+    List<List<int>> cornerPoints = warpedRes.$4;
     return (
       _returnImage(warped),
       borderCorrectionDepth,
       ratioIndex,
       orientation,
+      cornerPoints,
     );
   }
 
@@ -191,12 +195,13 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, int, int) _warpImage(
+  (cv.Mat?, int, int, List<List<int>>) _warpImage(
     cv.Mat? imageMat,
     int? inRatioIndex,
     int? orientation,
   ) {
-    if (imageMat == null) return (null, 0, 0);
+    List<List<int>> corners = [];
+    if (imageMat == null) return (null, 0, 0, corners);
 
     // scale down
     //if (cols > 1080) {
@@ -216,7 +221,7 @@ class OpenCVHelper {
     //return (shape, 0, true);
 
     // 3. Corner detection
-    List<List<int>> corners = _detectCorners(shape);
+    corners = _detectCorners(shape);
 
     // 4. Perspective transformation
     final (ratioIndex, newOrientation) = _calculateTransformation(
@@ -229,11 +234,11 @@ class OpenCVHelper {
     shape = null;
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
-    if (warped == null) return (null, 0, 0);
+    if (warped == null) return (null, 0, 0, corners);
     imageMat.dispose();
     imageMat = null;
 
-    return (warped, ratioIndex, newOrientation);
+    return (warped, ratioIndex, newOrientation, corners);
   }
 
   /// Filter Image 1: subtract background quickly

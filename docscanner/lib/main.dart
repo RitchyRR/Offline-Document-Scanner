@@ -1,4 +1,6 @@
 // design:
+import 'dart:ui';
+
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -1446,6 +1448,10 @@ class _PreviewPageState extends State<PreviewPage> {
   int? _orientation;
   int? _newOrientation;
   int _totalRotation = 0;
+  // Corner Points
+  List<List<int>> _cornerPoints = [];
+  int _imagePixelWidth = 0;
+  int _imagePixelHeight = 0;
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
@@ -1532,7 +1538,7 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.docIndex,
       widget.pageIndex,
     );
-    setState(() => _selectedVersion = versionIndex ?? 3);
+    setState(() => _selectedVersion = versionIndex);
     _pageController.jumpToPage(_selectedVersion);
   }
 
@@ -1556,6 +1562,7 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
           supressWarning: supressWarning,
         );
+    _loadCornerPoints();
     if (mounted) {
       setState(() {
         _newRatioIndex;
@@ -1563,6 +1570,24 @@ class _PreviewPageState extends State<PreviewPage> {
         _newOrientation;
         //dev.log("Updated _newOrientation: $_newOrientation");
         _metadataBlocked = false;
+      });
+    }
+  }
+
+  Future<void> _loadCornerPoints({bool supressWarning = false}) async {
+    _cornerPoints = await ImageProcessingManager.readPageCornerPoints(
+      widget.docIndex,
+      widget.pageIndex,
+      supressWarning: supressWarning,
+    );
+    final image = await decodeImageFromList(
+      (File(_versionPaths[0]).readAsBytesSync()),
+    );
+    _imagePixelWidth = image.width;
+    _imagePixelHeight = image.height;
+    if (mounted) {
+      setState(() {
+        _cornerPoints;
       });
     }
   }
@@ -1711,6 +1736,51 @@ class _PreviewPageState extends State<PreviewPage> {
     _clearPageVersionsCache();
   }
 
+  _warpManuallyScreen() {}
+
+  Widget _buildCornerOverlay(BuildContext context) {
+    if (_cornerPoints.isEmpty || _selectedVersion != 0) {
+      return SizedBox();
+    }
+
+    double circleSize = 16;
+    double screenWidth = MediaQuery.of(context).size.width;
+    double scale = screenWidth / _imagePixelWidth;
+    double displayHeight = _imagePixelHeight * scale;
+
+    return Center(
+      child: Stack(
+        children: [
+          SizedBox(
+            width: screenWidth,
+            height: displayHeight,
+            child: Stack(
+              children:
+                  _cornerPoints.map((point) {
+                    double x = point[1] * scale;
+                    double y = point[0] * scale;
+
+                    return Positioned(
+                      left: x - circleSize / 2,
+                      top: y - circleSize / 2,
+                      child: Container(
+                        width: circleSize,
+                        height: circleSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black38,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   int _imageRetry = 0;
   // Preview Page
   @override
@@ -1805,6 +1875,8 @@ class _PreviewPageState extends State<PreviewPage> {
               setState(() => _selectedVersion = index);
             },
           ),
+          // Corner Points
+          _buildCornerOverlay(context),
           // Reprocessing Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1860,6 +1932,40 @@ class _PreviewPageState extends State<PreviewPage> {
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          _selectedVersion == 0
+              ? SizedBox(
+                width: 40,
+                height: 40,
+                child: FloatingActionButton(
+                  heroTag: "warpManually",
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onPressed:
+                      _versionPaths[_selectedVersion].isNotEmpty
+                          ? () => _warpManuallyScreen()
+                          : null,
+                  tooltip:
+                      _versionPaths[_selectedVersion].isNotEmpty
+                          ? 'Adjust Corner Points'
+                          : 'Waiting for image to load...',
+                  backgroundColor:
+                      _versionPaths[_selectedVersion].isNotEmpty
+                          ? null
+                          : Theme.of(context).disabledColor,
+                  elevation:
+                      _versionPaths[_selectedVersion].isNotEmpty ? null : 0.0,
+                  child: Icon(
+                    Icons.crop_free,
+                    color:
+                        _versionPaths[_selectedVersion].isNotEmpty
+                            ? null
+                            : Theme.of(context).disabledColor,
+                  ),
+                ),
+              )
+              : SizedBox(),
+          SizedBox(height: 18.0),
           SizedBox(
             width: 40,
             height: 40,
@@ -1869,18 +1975,19 @@ class _PreviewPageState extends State<PreviewPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               onPressed:
-                  _selectedVersion < _versionPaths.length
+                  _versionPaths[_selectedVersion].isNotEmpty
                       ? () => _sharePagePopup(context, _selectedVersion)
                       : null,
               tooltip:
-                  _selectedVersion < _versionPaths.length
+                  _versionPaths[_selectedVersion].isNotEmpty
                       ? 'Share Image'
                       : 'Waiting for image to load...',
               backgroundColor:
-                  _selectedVersion < _versionPaths.length
+                  _versionPaths[_selectedVersion].isNotEmpty
                       ? null
                       : Theme.of(context).disabledColor,
-              elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
+              elevation:
+                  _versionPaths[_selectedVersion].isNotEmpty ? null : 0.0,
               child: Icon(
                 Icons.share,
                 color:
@@ -1894,22 +2001,22 @@ class _PreviewPageState extends State<PreviewPage> {
           FloatingActionButton(
             heroTag: "savePageVersion",
             onPressed:
-                _selectedVersion < _versionPaths.length
+                _versionPaths[_selectedVersion].isNotEmpty
                     ? () => _savePagePopup(context, _selectedVersion)
                     : null,
             tooltip:
-                _selectedVersion < _versionPaths.length
+                _versionPaths[_selectedVersion].isNotEmpty
                     ? 'Save Image'
                     : 'Waiting for image to load...',
             backgroundColor:
-                _selectedVersion < _versionPaths.length
+                _versionPaths[_selectedVersion].isNotEmpty
                     ? null
                     : Theme.of(context).disabledColor,
             elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
             child: Icon(
               Icons.save,
               color:
-                  _selectedVersion < _versionPaths.length
+                  _versionPaths[_selectedVersion].isNotEmpty
                       ? null
                       : Theme.of(context).disabledColor,
             ),
@@ -2083,6 +2190,7 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
           _newRatioIndex ?? 0,
           _newOrientation ?? 0,
+          null,
           null,
         );
         _reprocessingSetup();

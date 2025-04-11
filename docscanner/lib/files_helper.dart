@@ -152,8 +152,10 @@ class FilesHelper {
       } else {
         continue;
       }
-      int thumbnailIndex =
-          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0) ?? 3;
+      int thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
+        docIndex,
+        0,
+      );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;
@@ -200,7 +202,7 @@ class FilesHelper {
     for (var (pageIndex, page) in pages.indexed) {
       final pagePath = page.path;
       final thumbnailIndex =
-          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0) ?? 3;
+          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0);
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;

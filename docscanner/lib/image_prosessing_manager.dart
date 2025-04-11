@@ -44,24 +44,26 @@ class ImageProcessingManager {
     if (isPrimary) sendPort.send(NotifierEvent.pictureSaved);
 
     // Warped
-    var ret = cvHelper.warpImage(
+    var warpedRet = cvHelper.warpImage(
       ParamsWarpImage(
         picturePath,
         inRatioIndex: ratioIndexIn,
         orientation: orientationIn,
       ),
     );
-    Uint8List warped = ret.$1;
-    List<int> borderCorrectionDepth = ret.$2;
+    Uint8List warped = warpedRet.$1;
+    List<int> borderCorrectionDepth = warpedRet.$2;
     // Metadata
-    int ratioIndex = ret.$3;
-    int orientationIndex = ret.$4;
+    int ratioIndex = warpedRet.$3;
+    int orientationIndex = warpedRet.$4;
+    List<List<int>> cornerPoints = warpedRet.$5;
     await writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
       orientationIndex,
       3,
+      cornerPoints,
       filesHelperIn: filesHelperIn,
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
@@ -104,7 +106,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
-    await writeScaledThumbnail(
+    await _saveScaledThumbnail(
       sendPort,
       processed2Path,
       filesHelperIn.screenWidth,
@@ -313,7 +315,8 @@ class ImageProcessingManager {
     int pageIndex,
     int ratioIndex,
     int orientationIndex,
-    int? thumbnailIndex, {
+    int? thumbnailIndex,
+    List<List<int>>? cornerPoints, {
     FilesHelper? filesHelperIn,
   }) async {
     String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
@@ -335,6 +338,7 @@ class ImageProcessingManager {
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
       metadata["thumbnail"] = versionNames[thumbnailIndex ?? 3];
+      metadata["corners"] = cornerPoints;
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
         // if started outside of isolate
@@ -439,7 +443,7 @@ class ImageProcessingManager {
     return null;
   }
 
-  static Future<int?> readPageThumbnailIndex(
+  static Future<int> readPageThumbnailIndex(
     int docIndex,
     int pageIndex, {
     FilesHelper? filesHelperIn,
@@ -470,10 +474,47 @@ class ImageProcessingManager {
         "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
       );
     }
-    return null;
+    return 3;
   }
 
-  static Future<void> writeScaledThumbnail(
+  static Future<List<List<int>>> readPageCornerPoints(
+    int docIndex,
+    int pageIndex, {
+    FilesHelper? filesHelperIn,
+    bool supressWarning = false,
+  }) async {
+    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
+      docIndex,
+      pageIndex,
+    );
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, dynamic>();
+        List<List<int>> cornerPoints =
+            (metadata["corners"] as List)
+                .map<List<int>>(
+                  (e) => (e as List).map((v) => v as int).toList(),
+                )
+                .toList();
+        return cornerPoints;
+      } catch (e) {
+        dev.log("Error, readPageThumbnailIndex: $e");
+      }
+    }
+    if (!supressWarning) {
+      dev.log(
+        "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
+      );
+    }
+    return [];
+  }
+
+  static Future<void> _saveScaledThumbnail(
     SendPort? sendPort,
     String pathIn,
     int screenWidth, {
@@ -558,9 +599,9 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
     );
-    await ImageProcessingManager.writeScaledThumbnail(
+    await _saveScaledThumbnail(
       sendPort,
-      versionsPaths[thumbnailIndex ?? 3],
+      versionsPaths[thumbnailIndex],
       filesHelperIn.screenWidth,
       overwrite: true,
     );
