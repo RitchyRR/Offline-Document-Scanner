@@ -364,7 +364,7 @@ class ImageProcessingManager {
       // Read
       if (await file.exists()) {
         String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
+        metadata = jsonDecode(content).cast<String, dynamic>();
       } else {
         dev.log(
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",

@@ -415,7 +415,7 @@ class FilesHelper {
         if (fse.path.endsWith("$name.png")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
           fse.delete();
-          dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
+          //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
         }
       }
     }

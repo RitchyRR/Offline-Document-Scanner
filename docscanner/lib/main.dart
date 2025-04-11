@@ -1,6 +1,4 @@
 // design:
-import 'dart:ui';
-
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -1745,8 +1743,18 @@ class _PreviewPageState extends State<PreviewPage> {
 
     double circleSize = 16;
     double screenWidth = MediaQuery.of(context).size.width;
-    double scale = screenWidth / _imagePixelWidth;
-    double displayHeight = _imagePixelHeight * scale;
+
+    // move corner points on rotation
+    int quarterTurns = _totalRotation ~/ 90;
+    double scale;
+    double displayHeight;
+    if (quarterTurns.isEven) {
+      scale = screenWidth / _imagePixelWidth;
+      displayHeight = _imagePixelHeight * scale;
+    } else {
+      scale = screenWidth / _imagePixelHeight;
+      displayHeight = _imagePixelWidth * scale;
+    }
 
     return Center(
       child: Stack(
@@ -1754,26 +1762,28 @@ class _PreviewPageState extends State<PreviewPage> {
           SizedBox(
             width: screenWidth,
             height: displayHeight,
-            child: Stack(
-              children:
-                  _cornerPoints.map((point) {
-                    double x = point[1] * scale;
-                    double y = point[0] * scale;
-
-                    return Positioned(
-                      left: x - circleSize / 2,
-                      top: y - circleSize / 2,
-                      child: Container(
-                        width: circleSize,
-                        height: circleSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black38,
-                          border: Border.all(color: Colors.white, width: 2),
+            child: RotatedBox(
+              quarterTurns: quarterTurns,
+              child: Stack(
+                children:
+                    _cornerPoints.map((point) {
+                      double x = point[1] * scale;
+                      double y = point[0] * scale;
+                      return Positioned(
+                        left: x - circleSize / 2,
+                        top: y - circleSize / 2,
+                        child: Container(
+                          width: circleSize,
+                          height: circleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black38,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+              ),
             ),
           ),
         ],
