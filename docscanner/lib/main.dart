@@ -1588,6 +1588,7 @@ class _PreviewPageState extends State<PreviewPage> {
     if (mounted) {
       setState(() {
         _cornerPoints;
+        _hideOverlay = false;
       });
     }
   }
@@ -1736,7 +1737,21 @@ class _PreviewPageState extends State<PreviewPage> {
     _clearPageVersionsCache();
   }
 
-  _warpManuallyScreen() {}
+  Future<void> _openWarpManuallyPage() async {
+    //Future<void> future =
+    Navigator.pushNamed(
+      context,
+      '/warp',
+      arguments: {
+        'imagePath': _versionPaths.first,
+        'cornerPoints': _cornerPoints,
+        'rotation': _totalRotation,
+      },
+    );
+    //future.whenComplete(() async {
+    //
+    //});
+  }
 
   Widget _buildCornerOverlay(BuildContext context) {
     if (_cornerPoints.isEmpty || _selectedVersion != 0 || _hideOverlay) {
@@ -1996,23 +2011,30 @@ class _PreviewPageState extends State<PreviewPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   onPressed:
-                      _versionPaths[_selectedVersion].isNotEmpty
-                          ? () => _warpManuallyScreen()
+                      _versionPaths.first.isNotEmpty &&
+                              (!_metadataBlocked && !_rotationOngoing)
+                          ? () => _openWarpManuallyPage()
                           : null,
                   tooltip:
-                      _versionPaths[_selectedVersion].isNotEmpty
+                      _versionPaths.first.isNotEmpty &&
+                              (!_metadataBlocked && !_rotationOngoing)
                           ? 'Adjust Corner Points'
                           : 'Waiting for image to load...',
                   backgroundColor:
-                      _versionPaths[_selectedVersion].isNotEmpty
+                      _versionPaths.first.isNotEmpty &&
+                              (!_metadataBlocked && !_rotationOngoing)
                           ? null
                           : Theme.of(context).disabledColor,
                   elevation:
-                      _versionPaths[_selectedVersion].isNotEmpty ? null : 0.0,
+                      _versionPaths.first.isNotEmpty &&
+                              (!_metadataBlocked && !_rotationOngoing)
+                          ? null
+                          : 0.0,
                   child: Icon(
                     Icons.crop_free,
                     color:
-                        _versionPaths[_selectedVersion].isNotEmpty
+                        _versionPaths.first.isNotEmpty &&
+                                (!_metadataBlocked && !_rotationOngoing)
                             ? null
                             : Theme.of(context).disabledColor,
                   ),
@@ -2235,6 +2257,11 @@ class _PreviewPageState extends State<PreviewPage> {
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
+        if (mounted) {
+          setState(() {
+            _hideOverlay = true;
+          });
+        }
         imageProcessingManager.killPrimaryIsolateOfPage(
           widget.docIndex,
           widget.pageIndex,
