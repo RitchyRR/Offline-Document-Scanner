@@ -192,6 +192,18 @@ class _MyAppState extends State<MyApp> {
                     return Pages(docIndex: args['docIndex']);
                   },
                 );
+
+              case '/warp':
+                final args = settings.arguments as Map<String, dynamic>;
+                return MaterialPageRoute(
+                  builder:
+                      (_) => Warp(
+                        imagePath: args['imagePath'],
+                        cornerPoints: args['cornerPoints'],
+                        rotation: args['rotation'],
+                      ),
+                );
+
               default:
                 return MaterialPageRoute(builder: (_) => MyHomePage());
             }
@@ -1738,7 +1750,6 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 
   Future<void> _openWarpManuallyPage() async {
-    //Future<void> future =
     Navigator.pushNamed(
       context,
       '/warp',
@@ -1747,75 +1758,6 @@ class _PreviewPageState extends State<PreviewPage> {
         'cornerPoints': _cornerPoints,
         'rotation': _totalRotation,
       },
-    );
-    //future.whenComplete(() async {
-    //
-    //});
-  }
-
-  Widget _buildCornerOverlay(BuildContext context) {
-    if (_cornerPoints.isEmpty || _selectedVersion != 0 || _hideOverlay) {
-      return SizedBox();
-    }
-
-    //double circleSize = 16;
-    double screenWidth = MediaQuery.of(context).size.width;
-
-    // Handle rotation
-    int quarterTurns = _totalRotation ~/ 90;
-    double scale;
-    double displayHeight;
-    if (quarterTurns.isEven) {
-      scale = screenWidth / _imagePixelWidth;
-      displayHeight = _imagePixelHeight * scale;
-    } else {
-      scale = screenWidth / _imagePixelHeight;
-      displayHeight = _imagePixelWidth * scale;
-    }
-
-    // Apply rotation to corner points visually
-    List<Offset> scaledPoints =
-        _cornerPoints.map((point) {
-          double x = point[1] * scale;
-          double y = point[0] * scale;
-          return Offset(x, y);
-        }).toList();
-
-    return IgnorePointer(
-      child: Center(
-        child: SizedBox(
-          width: screenWidth,
-          height: displayHeight,
-          child: RotatedBox(
-            quarterTurns: quarterTurns,
-            child: Stack(
-              children: [
-                // Line painter
-                CustomPaint(
-                  size: Size(screenWidth, displayHeight),
-                  painter: _CornerLinePainter(points: scaledPoints),
-                ),
-                //// Corner circles
-                //...scaledPoints.map((offset) {
-                //  return Positioned(
-                //    left: offset.dx - circleSize / 2,
-                //    top: offset.dy - circleSize / 2,
-                //    child: Container(
-                //      width: circleSize,
-                //      height: circleSize,
-                //      decoration: BoxDecoration(
-                //        shape: BoxShape.circle,
-                //        color: Colors.black38,
-                //        border: Border.all(color: Colors.white, width: 2),
-                //      ),
-                //    ),
-                //  );
-                //}),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1922,7 +1864,15 @@ class _PreviewPageState extends State<PreviewPage> {
                         },
                       ),
                       // Corner Points
-                      _buildCornerOverlay(context),
+                      (_cornerPoints.isNotEmpty && !_hideOverlay)
+                          ? buildCornerOverlay(
+                            context,
+                            _cornerPoints,
+                            _totalRotation,
+                            _imagePixelWidth,
+                            _imagePixelHeight,
+                          )
+                          : SizedBox(),
                     ],
                   ),
                 );
@@ -2377,6 +2327,76 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 }
 
+Widget buildCornerOverlay(
+  BuildContext context,
+  List<List<int>> cornerPoints,
+  int rotation,
+  int imagePixelWidth,
+  int imagePixelHeight,
+) {
+  double screenWidth = MediaQuery.of(context).size.width;
+
+  // Handle rotation
+  int quarterTurns = rotation ~/ 90;
+  double scale;
+  double displayHeight;
+  if (imagePixelWidth == 0 || imagePixelHeight == 0) {
+    imagePixelWidth = imagePixelHeight = 1;
+  }
+  if (quarterTurns.isEven) {
+    scale = screenWidth / imagePixelWidth;
+    displayHeight = imagePixelHeight * scale;
+  } else {
+    scale = screenWidth / imagePixelHeight;
+    displayHeight = imagePixelWidth * scale;
+  }
+
+  // Apply rotation to corner points visually
+  List<Offset> scaledPoints =
+      cornerPoints.map((point) {
+        double x = point[1] * scale;
+        double y = point[0] * scale;
+        return Offset(x, y);
+      }).toList();
+
+  return IgnorePointer(
+    child: Center(
+      child: SizedBox(
+        width: screenWidth,
+        height: displayHeight,
+        child: RotatedBox(
+          quarterTurns: quarterTurns,
+          child: Stack(
+            children: [
+              // Line painter
+              CustomPaint(
+                size: Size(screenWidth, displayHeight),
+                painter: _CornerLinePainter(points: scaledPoints),
+              ),
+              //// Corner circles
+              //...scaledPoints.map((offset) {
+              //  return Positioned(
+              //    left: offset.dx - circleSize / 2,
+              //    top: offset.dy - circleSize / 2,
+              //    child: Container(
+              //      width: circleSize,
+              //      height: circleSize,
+              //      decoration: BoxDecoration(
+              //        shape: BoxShape.circle,
+              //        color: Colors.black38,
+              //        border: Border.all(color: Colors.white, width: 2),
+              //      ),
+              //    ),
+              //  );
+              //}),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _CornerLinePainter extends CustomPainter {
   final List<Offset> points;
 
@@ -2579,5 +2599,79 @@ class CustomIconButton extends StatelessWidget {
             ),
           ],
         );
+  }
+}
+
+class Warp extends StatefulWidget {
+  final String imagePath;
+  final List<List<int>> cornerPoints;
+  final int rotation;
+
+  const Warp({
+    super.key,
+    required this.imagePath,
+    required this.cornerPoints,
+    required this.rotation,
+  });
+
+  @override
+  State<Warp> createState() => _WarpState();
+}
+
+class _WarpState extends State<Warp> {
+  int _imagePixelWidth = 1;
+  int _imagePixelHeight = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageDimensions();
+  }
+
+  void _loadImageDimensions() async {
+    final image = await decodeImageFromList(
+      (File(widget.imagePath).readAsBytesSync()),
+    );
+    if (mounted) {
+      setState(() {
+        _imagePixelWidth = image.width;
+        _imagePixelHeight = image.height;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Adjust Corners")),
+      body: Scaffold(
+        body: Stack(
+          alignment: Alignment.center,
+          children: [
+            Image.file(File(widget.imagePath)),
+            buildCornerOverlay(
+              context,
+              widget.cornerPoints,
+              widget.rotation,
+              _imagePixelWidth,
+              _imagePixelHeight,
+            ),
+          ],
+        ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FloatingActionButton(
+            heroTag: "saveCorners",
+            onPressed: () {
+              Navigator.pop(context);
+              //todo save new corners in metadata
+            },
+            tooltip: 'Save adjusted Corners',
+
+            child: Icon(Icons.check),
+          ),
+        ),
+      ),
+    );
   }
 }
