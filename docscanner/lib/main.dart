@@ -1741,10 +1741,10 @@ class _PreviewPageState extends State<PreviewPage> {
       return SizedBox();
     }
 
-    double circleSize = 16;
+    //double circleSize = 16;
     double screenWidth = MediaQuery.of(context).size.width;
 
-    // move corner points on rotation
+    // Handle rotation
     int quarterTurns = _totalRotation ~/ 90;
     double scale;
     double displayHeight;
@@ -1756,6 +1756,14 @@ class _PreviewPageState extends State<PreviewPage> {
       displayHeight = _imagePixelWidth * scale;
     }
 
+    // Apply rotation to corner points visually
+    List<Offset> scaledPoints =
+        _cornerPoints.map((point) {
+          double x = point[1] * scale;
+          double y = point[0] * scale;
+          return Offset(x, y);
+        }).toList();
+
     return Center(
       child: Stack(
         children: [
@@ -1765,24 +1773,29 @@ class _PreviewPageState extends State<PreviewPage> {
             child: RotatedBox(
               quarterTurns: quarterTurns,
               child: Stack(
-                children:
-                    _cornerPoints.map((point) {
-                      double x = point[1] * scale;
-                      double y = point[0] * scale;
-                      return Positioned(
-                        left: x - circleSize / 2,
-                        top: y - circleSize / 2,
-                        child: Container(
-                          width: circleSize,
-                          height: circleSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black38,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                children: [
+                  // Line painter
+                  CustomPaint(
+                    size: Size(screenWidth, displayHeight),
+                    painter: _CornerLinePainter(points: scaledPoints),
+                  ),
+                  //// Corner circles
+                  //...scaledPoints.map((offset) {
+                  //  return Positioned(
+                  //    left: offset.dx - circleSize / 2,
+                  //    top: offset.dy - circleSize / 2,
+                  //    child: Container(
+                  //      width: circleSize,
+                  //      height: circleSize,
+                  //      decoration: BoxDecoration(
+                  //        shape: BoxShape.circle,
+                  //        color: Colors.black38,
+                  //        border: Border.all(color: Colors.white, width: 2),
+                  //      ),
+                  //    ),
+                  //  );
+                  //}),
+                ],
               ),
             ),
           ),
@@ -2304,6 +2317,62 @@ class _PreviewPageState extends State<PreviewPage> {
       ),
     );
   }
+}
+
+class _CornerLinePainter extends CustomPainter {
+  final List<Offset> points;
+
+  _CornerLinePainter({required this.points});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+
+    final paintEdges =
+        Paint()
+          ..color = Colors.black45
+          ..strokeWidth = 7.0
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+    final paintCorners =
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 1.0
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+    var order = [0, 2, 3, 1];
+    List<Offset> orderedPoints = order.map((i) => points[i]).toList();
+
+    // Edges
+    final path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < orderedPoints.length; i++) {
+      path.lineTo(orderedPoints[i].dx, orderedPoints[i].dy);
+    }
+    path.close();
+    canvas.drawPath(path, paintEdges);
+
+    // Corners and middle of edges
+    for (int i = 0; i < orderedPoints.length; i++) {
+      path.lineTo(orderedPoints[i].dx, orderedPoints[i].dy);
+
+      Offset p1 = orderedPoints[i];
+      Offset p2 = orderedPoints[(i + 1) % orderedPoints.length];
+      Offset delta = p2 - p1;
+      Offset startOffset = p1 + delta * 0.05;
+      Offset endOffset = p2 - delta * 0.05;
+      Offset middleOffset1 = p1 + delta * 0.45;
+      Offset middleOffset2 = p2 - delta * 0.45;
+      canvas.drawLine(p1, startOffset, paintCorners);
+      canvas.drawLine(middleOffset1, middleOffset2, paintCorners);
+      canvas.drawLine(endOffset, p2, paintCorners);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CornerLinePainter oldDelegate) =>
+      oldDelegate.points != points;
 }
 
 class IndicatorProcessingImage extends StatelessWidget {
