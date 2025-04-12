@@ -2736,6 +2736,7 @@ class _WarpState extends State<Warp> {
   double _scale = 1.0;
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
+  int? _currentCorner;
 
   ui.Image? _zoomedImage;
   bool _zoomedImageLoading = true;
@@ -2789,11 +2790,11 @@ class _WarpState extends State<Warp> {
   @override
   Widget build(BuildContext context) {
     Rect cropRect =
-        _scaledPoints.isNotEmpty
+        _scaledPoints.isNotEmpty && _currentCorner != null
             ? Rect.fromCenter(
               center: Offset(
-                _scaledPoints[0].dx / _scale,
-                _scaledPoints[0].dy / _scale,
+                _scaledPoints[_currentCorner!].dx / _scale,
+                _scaledPoints[_currentCorner!].dy / _scale,
               ),
               width: _circleSize / _screenWidth * _imagePixelWidth,
               height: _circleSize / _screenWidth * _imagePixelWidth,
@@ -2818,14 +2819,14 @@ class _WarpState extends State<Warp> {
               width: 200,
               height: 200,
               child:
-                  _zoomedImageLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : CustomPaint(
+                  !_zoomedImageLoading && _currentCorner != null
+                      ? CustomPaint(
                         painter: CircularCropPainter(
                           image: _zoomedImage!,
                           cropRect: cropRect,
                         ),
-                      ),
+                      )
+                      : SizedBox(),
             ),
             SizedBox(height: 24),
             Stack(
@@ -2914,6 +2915,7 @@ class _WarpState extends State<Warp> {
                   child: GestureDetector(
                     onPanDown: (details) {
                       _allowPop = false;
+                      _currentCorner = index;
                     },
                     onPanUpdate: (details) {
                       final box =
@@ -2932,6 +2934,11 @@ class _WarpState extends State<Warp> {
                           _displayHeigth,
                         );
                         _scaledPoints[index] = Offset(newX, newY);
+                      });
+                    },
+                    onPanEnd: (details) {
+                      setState(() {
+                        _currentCorner = null;
                       });
                     },
                     child: Container(
