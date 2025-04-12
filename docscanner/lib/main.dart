@@ -2738,18 +2738,14 @@ class _WarpState extends State<Warp> {
   int _imagePixelHeight = 0;
   int? _currentCorner;
   Offset _touchOffset = Offset(0, 0);
+  bool _panning = false;
 
   ui.Image? _zoomedImage;
   bool _zoomedImageLoading = true;
   static const double _zoomSize = 200;
 
-  Offset? _delayedPosition;
-  Timer? _debounceTimer;
-  @override
-  void dispose() {
-    _debounceTimer?.cancel();
-    super.dispose();
-  }
+  final List<PositionTimestamp> _positionHistory = [];
+  static const int _historyDurationMs = 150;
 
   @override
   void initState() {
@@ -2910,7 +2906,6 @@ class _WarpState extends State<Warp> {
       return SizedBox();
     }
     int quarterTurns = widget.rotation ~/ 90;
-    bool panning = false;
 
     return Center(
       child: SizedBox(
@@ -2942,7 +2937,7 @@ class _WarpState extends State<Warp> {
                   top: offset.dy - _circleSize / 2,
                   child: GestureDetector(
                     onPanStart: (details) {
-                      if (panning) return;
+                      if (_panning) return;
                       _allowPop = false;
                       _currentCorner = index;
                       final box =
@@ -2953,7 +2948,14 @@ class _WarpState extends State<Warp> {
                         details.globalPosition,
                       );
                       _touchOffset = localPosition - _scaledPoints[index];
-                      panning = true;
+                      _positionHistory.clear();
+                      _positionHistory.add(
+                        PositionTimestamp(
+                          position: _scaledPoints[index],
+                          timestamp: DateTime.now(),
+                        ),
+                      );
+                      _panning = true;
                     },
                     onPanUpdate: (details) {
                       final box =
@@ -2969,25 +2971,34 @@ class _WarpState extends State<Warp> {
                       setState(() {
                         _scaledPoints[index] = Offset(newX, newY);
                       });
-
-                      _debounceTimer?.cancel();
-                      _debounceTimer = Timer(
-                        const Duration(milliseconds: 500),
-                        () {
-                          _delayedPosition = _scaledPoints[index];
-                        },
+                      // Add current position to history
+                      DateTime now = DateTime.now();
+                      _positionHistory.add(
+                        PositionTimestamp(
+                          position: _scaledPoints[index],
+                          timestamp: now,
+                        ),
                       );
+                      // Remove positions older than _historyDurationMs
+                      while (_positionHistory.isNotEmpty &&
+                          now
+                                  .difference(_positionHistory.first.timestamp)
+                                  .inMilliseconds >
+                              _historyDurationMs) {
+                        _positionHistory.removeAt(0);
+                      }
                     },
                     onPanEnd: (details) {
-                      if (!panning) return;
-                      if (_delayedPosition != null) {
+                      if (!_panning) return;
+                      // Use oldest position in history
+                      if (_positionHistory.isNotEmpty) {
                         setState(() {
-                          _scaledPoints[index] = _delayedPosition!;
+                          _scaledPoints[index] =
+                              _positionHistory.first.position;
                         });
                       }
-                      _delayedPosition = null;
-                      _debounceTimer?.cancel();
-                      panning = false;
+                      _positionHistory.clear();
+                      _panning = false;
                     },
                     child: Container(
                       width: _circleSize,
@@ -3146,4 +3157,11 @@ class _ZoomLinePainter extends CustomPainter {
   bool shouldRepaint(covariant _ZoomLinePainter oldDelegate) =>
       oldDelegate.cornerPoints != cornerPoints ||
       oldDelegate.currentCorner != currentCorner;
+}
+
+class PositionTimestamp {
+  final Offset position;
+  final DateTime timestamp;
+
+  PositionTimestamp({required this.position, required this.timestamp});
 }
