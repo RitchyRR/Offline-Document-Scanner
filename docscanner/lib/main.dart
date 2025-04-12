@@ -1,4 +1,6 @@
 // design:
+import 'dart:ui' as ui;
+
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -2732,24 +2734,30 @@ class _WarpState extends State<Warp> {
   double _screenWidth = 0;
   double _displayHeigth = 0;
   double _scale = 1.0;
+  int _imagePixelWidth = 0;
+  int _imagePixelHeight = 0;
+
+  ui.Image? _zoomedImage;
+  bool _zoomedImageLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initImageDimensions();
+    _initAsync();
+    _initZoom();
   }
 
-  void _initImageDimensions() async {
+  void _initAsync() async {
     final image = await decodeImageFromList(
       (File(widget.imagePath).readAsBytesSync()),
     );
-    int imagePixelWidth = image.width;
-    int imagePixelHeight = image.height;
+    _imagePixelWidth = image.width;
+    _imagePixelHeight = image.height;
     if (mounted) {
       _screenWidth = MediaQuery.of(context).size.width;
     }
-    _scale = _screenWidth / imagePixelWidth;
-    _displayHeigth = imagePixelHeight * _scale;
+    _scale = _screenWidth / _imagePixelWidth;
+    _displayHeigth = _imagePixelHeight * _scale;
     _scaledPoints =
         widget.cornerPoints.map((point) {
           double x = point[1] * _scale;
@@ -2762,65 +2770,117 @@ class _WarpState extends State<Warp> {
     }
   }
 
+  Future<void> _initZoom() async {
+    final file = File(widget.imagePath);
+    final bytes = await file.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frameInfo = await codec.getNextFrame();
+
+    setState(() {
+      _zoomedImage = frameInfo.image;
+      _zoomedImageLoading = false;
+    });
+  }
+
   final GlobalKey _imageAreaKey = GlobalKey();
   bool _allowPop = true;
+  final double _circleSize = 40;
 
   @override
   Widget build(BuildContext context) {
+    Rect cropRect =
+        _scaledPoints.isNotEmpty
+            ? Rect.fromCenter(
+              center: Offset(
+                _scaledPoints[0].dx / _scale,
+                _scaledPoints[0].dy / _scale,
+              ),
+              width: _circleSize / _screenWidth * _imagePixelWidth,
+              height: _circleSize / _screenWidth * _imagePixelWidth,
+            )
+            : Rect.zero;
     return PopScope(
       canPop: _allowPop,
-
       child: Scaffold(
-        body: Scaffold(
-          appBar: AppBar(
-            title: const Text("Adjust Corners"),
-            leading: BackButton(
-              onPressed: () {
-                _allowPop = true;
-                Navigator.pop(context);
-              },
-            ),
+        appBar: AppBar(
+          title: const Text("Adjust Corners"),
+          leading: BackButton(
+            onPressed: () {
+              _allowPop = true;
+              Navigator.pop(context);
+            },
           ),
-          body: Scaffold(
-            body: Stack(
+        ),
+        body: Column(
+          children: [
+            SizedBox(height: 24),
+            SizedBox(
+              width: 200,
+              height: 200,
+              child:
+                  _zoomedImageLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : CustomPaint(
+                        painter: CircularCropPainter(
+                          image: _zoomedImage!,
+                          cropRect: cropRect,
+                        ),
+                      ),
+            ),
+            SizedBox(height: 24),
+            Stack(
               alignment: Alignment.center,
               children: [
                 Center(child: Image.file(File(widget.imagePath))),
                 _draggableCornerOverlay(),
               ],
             ),
-            floatingActionButton: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: FloatingActionButton(
-                heroTag: "saveCorners",
-                onPressed: () {
-                  for (var (i, scaledPoint) in _scaledPoints.indexed) {
-                    widget.cornerPoints[i] = [
-                      (scaledPoint.dy / _scale).toInt(),
-                      (scaledPoint.dx / _scale).toInt(),
-                    ];
-                  }
-                  widget.pagePreviewState.reprocessPicture(
-                    newCornerPoints: widget.cornerPoints,
-                  );
-                  _allowPop = true;
-                  Navigator.pop(context);
-                },
-                tooltip: 'Save adjusted Corners',
-                child: Icon(Icons.check),
-              ),
-            ),
+          ],
+        ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FloatingActionButton(
+            heroTag: "saveCorners",
+            onPressed: () {
+              for (var (i, scaledPoint) in _scaledPoints.indexed) {
+                widget.cornerPoints[i] = [
+                  (scaledPoint.dy / _scale).toInt(),
+                  (scaledPoint.dx / _scale).toInt(),
+                ];
+              }
+              widget.pagePreviewState.reprocessPicture(
+                newCornerPoints: widget.cornerPoints,
+              );
+              _allowPop = true;
+              Navigator.pop(context);
+            },
+            tooltip: 'Save adjusted Corners',
+            child: Icon(Icons.check),
           ),
         ),
       ),
     );
   }
 
+  @override
+  void didUpdateWidget(Warp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Only reload the image if the imagePath changed
+    if (widget.imagePath != oldWidget.imagePath) {
+      setState(() {
+        _zoomedImageLoading = true;
+        _zoomedImage = null;
+      });
+      _initZoom();
+    }
+  }
+
   Widget _draggableCornerOverlay() {
     if (_screenWidth == 0) {
       return SizedBox();
     }
-    double circleSize = 30;
+
     int quarterTurns = widget.rotation ~/ 90;
 
     return Center(
@@ -2839,6 +2899,7 @@ class _WarpState extends State<Warp> {
                   points: _scaledPoints,
                   color: Colors.black38,
                   normalizedOffset: true,
+                  offset: _circleSize / 2 + 2,
                 ),
               ),
 
@@ -2848,8 +2909,8 @@ class _WarpState extends State<Warp> {
                 final offset = entry.value;
 
                 return Positioned(
-                  left: offset.dx - circleSize / 2,
-                  top: offset.dy - circleSize / 2,
+                  left: offset.dx - _circleSize / 2,
+                  top: offset.dy - _circleSize / 2,
                   child: GestureDetector(
                     onPanDown: (details) {
                       _allowPop = false;
@@ -2874,8 +2935,8 @@ class _WarpState extends State<Warp> {
                       });
                     },
                     child: Container(
-                      width: circleSize,
-                      height: circleSize,
+                      width: _circleSize,
+                      height: _circleSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.black12,
@@ -2915,5 +2976,37 @@ class _WarpState extends State<Warp> {
         ),
       ),
     );
+  }
+}
+
+class CircularCropPainter extends CustomPainter {
+  final ui.Image image;
+  final Rect cropRect;
+
+  CircularCropPainter({required this.image, required this.cropRect});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // circular clipping path
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final clipPath =
+        Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+    canvas.clipPath(clipPath);
+
+    canvas.drawImageRect(
+      image,
+      cropRect,
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint(),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    if (oldDelegate is CircularCropPainter) {
+      return image != oldDelegate.image || cropRect != oldDelegate.cropRect;
+    }
+    return true;
   }
 }
