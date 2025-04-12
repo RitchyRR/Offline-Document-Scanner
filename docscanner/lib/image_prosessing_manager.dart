@@ -386,6 +386,36 @@ class ImageProcessingManager {
     }
   }
 
+  static Future<void> writePageCornerPoints(
+    int docIndex,
+    int pageIndex,
+    List<List<int>> cornerPoints,
+  ) async {
+    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    try {
+      // Read
+      if (await file.exists()) {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, dynamic>();
+      } else {
+        dev.log(
+          "Error, writePageCornerPoints: metadata File does not exist (Page $pageIndex, Document $docIndex)",
+        );
+      }
+
+      // Write
+      metadata["corners"] = cornerPoints;
+      await file.writeAsString(jsonEncode(metadata));
+      //globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+      globalNotifier.triggerEvent(NotifierEvent.reprocessPicture);
+    } catch (e) {
+      dev.log("Error, writePageCornerPoints: $e");
+    }
+  }
+
   static Future<int?> readPageRatioIndex(
     int docIndex,
     int pageIndex, {

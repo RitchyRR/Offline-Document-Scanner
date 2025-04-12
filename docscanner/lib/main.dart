@@ -31,6 +31,7 @@ enum NotifierEvent {
   warpSaved,
   processed1Saved,
   processed2Saved,
+  reprocessPicture,
 }
 
 void main() async {
@@ -198,6 +199,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(
                   builder:
                       (_) => Warp(
+                        docIndex: args['docIndex'],
+                        pageIndex: args['pageIndex'],
                         imagePath: args['imagePath'],
                         cornerPoints: args['cornerPoints'],
                         rotation: args['rotation'],
@@ -1537,6 +1540,9 @@ class _PreviewPageState extends State<PreviewPage> {
         );
         setState(() => _versionPaths);
         break;
+      case NotifierEvent.reprocessPicture:
+        _reprocessPicture();
+        break;
       default:
     }
   }
@@ -1755,6 +1761,8 @@ class _PreviewPageState extends State<PreviewPage> {
       context,
       '/warp',
       arguments: {
+        'docIndex': widget.docIndex,
+        'pageIndex': widget.pageIndex,
         'imagePath': _versionPaths.first,
         'cornerPoints': _cornerPoints,
         'rotation': _totalRotation,
@@ -1866,7 +1874,7 @@ class _PreviewPageState extends State<PreviewPage> {
                       ),
                       // Corner Points
                       (_cornerPoints.isNotEmpty && !_hideOverlay)
-                          ? _buildCornerOverlay(context)
+                          ? _displayCornerOverlay(context)
                           : SizedBox(),
                     ],
                   ),
@@ -2202,34 +2210,38 @@ class _PreviewPageState extends State<PreviewPage> {
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
-        if (mounted) {
-          setState(() {
-            _hideOverlay = true;
-          });
-        }
-        imageProcessingManager.killPrimaryIsolateOfPage(
-          widget.docIndex,
-          widget.pageIndex,
-        );
-        await ImageProcessingManager.writePageMetadata(
-          widget.docIndex,
-          widget.pageIndex,
-          _newRatioIndex ?? 0,
-          _newOrientation ?? 0,
-          null,
-          null,
-        );
-        _reprocessingSetup();
-        imageProcessingManager.processPage(
-          widget.docIndex,
-          widget.pageIndex,
-          _versionPaths[0], // potentially rotated image
-          _newRatioIndex ?? 0,
-          _newOrientation ?? 0,
-        );
-        _reprocessingCleanup();
+        await _reprocessPicture();
       },
     );
+  }
+
+  Future<void> _reprocessPicture() async {
+    if (mounted) {
+      setState(() {
+        _hideOverlay = true;
+      });
+    }
+    imageProcessingManager.killPrimaryIsolateOfPage(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    await ImageProcessingManager.writePageMetadata(
+      widget.docIndex,
+      widget.pageIndex,
+      _newRatioIndex ?? 0,
+      _newOrientation ?? 0,
+      null,
+      null,
+    );
+    _reprocessingSetup();
+    imageProcessingManager.processPage(
+      widget.docIndex,
+      widget.pageIndex,
+      _versionPaths[0], // potentially rotated image
+      _newRatioIndex ?? 0,
+      _newOrientation ?? 0,
+    );
+    _reprocessingCleanup();
   }
 
   Container _aspectRatioDropDown(BuildContext context) {
@@ -2321,7 +2333,7 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 
-  Widget _buildCornerOverlay(BuildContext context) {
+  Widget _displayCornerOverlay(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
 
     // Handle rotation
@@ -2357,9 +2369,32 @@ class _PreviewPageState extends State<PreviewPage> {
           height: displayHeight,
           child: RotatedBox(
             quarterTurns: quarterTurns,
-            child: CustomPaint(
-              size: Size(screenWidth, displayHeight),
-              painter: _CornerLinePainter(points: scaledPoints),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  size: Size(screenWidth, displayHeight),
+                  painter: _FrameLinePainter(points: scaledPoints),
+                ),
+                CustomPaint(
+                  size: Size(screenWidth, displayHeight),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 2.0,
+                    offset: 0.1,
+                    normalizedOffset: false,
+                  ),
+                ),
+                CustomPaint(
+                  size: Size(screenWidth, displayHeight),
+                  painter: _MiddleLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 2.0,
+                    color: Colors.white,
+                    offset: 0.6,
+                    normalizedOffset: false,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -2368,10 +2403,20 @@ class _PreviewPageState extends State<PreviewPage> {
   }
 }
 
-class _CornerLinePainter extends CustomPainter {
+class _FrameLinePainter extends CustomPainter {
   final List<Offset> points;
+  // ignore: prefer_typing_uninitialized_variables
+  final color;
+  // ignore: prefer_typing_uninitialized_variables
+  final strokeWidth;
 
-  _CornerLinePainter({required this.points});
+  _FrameLinePainter({
+    required this.points,
+    // ignore: unused_element_parameter
+    this.color = Colors.black45,
+    // ignore: unused_element_parameter
+    this.strokeWidth = 7.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2379,15 +2424,8 @@ class _CornerLinePainter extends CustomPainter {
 
     final paintEdges =
         Paint()
-          ..color = Colors.black45
-          ..strokeWidth = 7.0
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
-    final double strokeWidthCorners = 2.0;
-    final paintCorners =
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = strokeWidthCorners
+          ..color = color
+          ..strokeWidth = strokeWidth
           ..style = PaintingStyle.stroke
           ..isAntiAlias = true;
 
@@ -2402,28 +2440,110 @@ class _CornerLinePainter extends CustomPainter {
     }
     path.close();
     canvas.drawPath(path, paintEdges);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FrameLinePainter oldDelegate) =>
+      oldDelegate.points != points;
+}
+
+class _CornerLinePainter extends CustomPainter {
+  final List<Offset> points;
+  // ignore: prefer_typing_uninitialized_variables
+  final color;
+  // ignore: prefer_typing_uninitialized_variables
+  final strokeWidth;
+  final double offset;
+  final bool normalizedOffset;
+
+  _CornerLinePainter({
+    required this.points,
+    // ignore: unused_element_parameter
+    this.color = Colors.white,
+    this.strokeWidth = 2.0,
+    this.offset = 17.0,
+    this.normalizedOffset = false,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+
+    final paintCorners =
+        Paint()
+          ..color = color
+          ..strokeWidth = strokeWidth
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+    var order = [0, 2, 3, 1];
+    List<Offset> orderedPoints = order.map((i) => points[i]).toList();
 
     // Corners and middle of edges
     for (int i = 0; i < orderedPoints.length; i++) {
-      path.lineTo(orderedPoints[i].dx, orderedPoints[i].dy);
-
       Offset p1 = orderedPoints[i];
       Offset p2 = orderedPoints[(i + 1) % orderedPoints.length];
       Offset delta = p2 - p1;
-      p1 -= delta / delta.distance * strokeWidthCorners / 2;
-      p2 += delta / delta.distance * strokeWidthCorners / 2;
-      Offset startOffset = p1 + delta * 0.05;
-      Offset endOffset = p2 - delta * 0.05;
-      Offset middleOffset1 = p1 + delta * 0.45;
-      Offset middleOffset2 = p2 - delta * 0.45;
+      Offset deltaN = delta / delta.distance;
+      p1 -= delta / delta.distance * strokeWidth / 2;
+      p2 += delta / delta.distance * strokeWidth / 2;
+      Offset startOffset = p1 + (normalizedOffset ? deltaN : delta) * offset;
+      Offset endOffset = p2 - (normalizedOffset ? deltaN : delta) * offset;
       canvas.drawLine(p1, startOffset, paintCorners);
-      canvas.drawLine(middleOffset1, middleOffset2, paintCorners);
       canvas.drawLine(endOffset, p2, paintCorners);
     }
   }
 
   @override
   bool shouldRepaint(covariant _CornerLinePainter oldDelegate) =>
+      oldDelegate.points != points;
+}
+
+class _MiddleLinePainter extends CustomPainter {
+  final List<Offset> points;
+  final Color color;
+  final double strokeWidth;
+  final double offset;
+  final bool normalizedOffset;
+
+  _MiddleLinePainter({
+    required this.points,
+    this.color = Colors.black45,
+    this.strokeWidth = 7.0,
+    this.offset = 17.0,
+    this.normalizedOffset = false,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.length < 2) return;
+
+    final paintCorners =
+        Paint()
+          ..color = color
+          ..strokeWidth = strokeWidth
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+    var order = [0, 2, 3, 1];
+    List<Offset> orderedPoints = order.map((i) => points[i]).toList();
+
+    // Corners and middle of edges
+    for (int i = 0; i < orderedPoints.length; i++) {
+      Offset p1 = orderedPoints[i];
+      Offset p2 = orderedPoints[(i + 1) % orderedPoints.length];
+      Offset delta = p2 - p1;
+      Offset deltaN = delta / delta.distance;
+      p1 -= deltaN * strokeWidth / 2;
+      p2 += deltaN * strokeWidth / 2;
+      Offset middleOffset1 = p1 + (normalizedOffset ? deltaN : delta) * offset;
+      Offset middleOffset2 = p2 - (normalizedOffset ? deltaN : delta) * offset;
+      canvas.drawLine(middleOffset1, middleOffset2, paintCorners);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiddleLinePainter oldDelegate) =>
       oldDelegate.points != points;
 }
 
@@ -2574,12 +2694,16 @@ class CustomIconButton extends StatelessWidget {
 }
 
 class Warp extends StatefulWidget {
+  final int docIndex;
+  final int pageIndex;
   final String imagePath;
   final List<List<int>> cornerPoints;
   final int rotation;
 
   const Warp({
     super.key,
+    required this.docIndex,
+    required this.pageIndex,
     required this.imagePath,
     required this.cornerPoints,
     required this.rotation,
@@ -2631,7 +2755,10 @@ class _WarpState extends State<Warp> {
       body: Scaffold(
         body: Stack(
           alignment: Alignment.center,
-          children: [Image.file(File(widget.imagePath)), _buildCornerOverlay()],
+          children: [
+            Center(child: Image.file(File(widget.imagePath))),
+            _draggableCornerOverlay(),
+          ],
         ),
         floatingActionButton: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -2644,11 +2771,15 @@ class _WarpState extends State<Warp> {
                   (scaledPoint.dx / _scale).toInt(),
                 ];
               }
+
+              ImageProcessingManager.writePageCornerPoints(
+                widget.docIndex,
+                widget.pageIndex,
+                widget.cornerPoints,
+              );
               Navigator.pop(context);
-              //todo save new corners in metadata
             },
             tooltip: 'Save adjusted Corners',
-
             child: Icon(Icons.check),
           ),
         ),
@@ -2656,11 +2787,11 @@ class _WarpState extends State<Warp> {
     );
   }
 
-  Widget _buildCornerOverlay() {
+  Widget _draggableCornerOverlay() {
     if (_screenWidth == 0) {
       return SizedBox();
     }
-    double circleSize = 24;
+    double circleSize = 30;
     int quarterTurns = widget.rotation ~/ 90;
 
     return Center(
@@ -2671,10 +2802,13 @@ class _WarpState extends State<Warp> {
           quarterTurns: quarterTurns,
           child: Stack(
             children: [
-              // Draw lines between points
+              // dark frame
               CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
-                painter: _CornerLinePainter(points: _scaledPoints),
+                painter: _MiddleLinePainter(
+                  points: _scaledPoints,
+                  normalizedOffset: true,
+                ),
               ),
 
               // Draggable corner points
@@ -2705,6 +2839,31 @@ class _WarpState extends State<Warp> {
                   ),
                 );
               }),
+              // sharp corners
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size(_screenWidth, _displayHeigth),
+                  painter: _CornerLinePainter(
+                    points: _scaledPoints,
+                    strokeWidth: 1.0,
+                    offset: 50,
+                    normalizedOffset: true,
+                  ),
+                ),
+              ),
+              // sharp middle section
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size(_screenWidth, _displayHeigth),
+                  painter: _MiddleLinePainter(
+                    points: _scaledPoints,
+                    color: Colors.white,
+                    strokeWidth: 1.0,
+                    offset: 0.55,
+                    normalizedOffset: false,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
