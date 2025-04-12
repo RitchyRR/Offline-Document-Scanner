@@ -2740,6 +2740,7 @@ class _WarpState extends State<Warp> {
 
   ui.Image? _zoomedImage;
   bool _zoomedImageLoading = true;
+  static const double _zoomSize = 200;
 
   @override
   void initState() {
@@ -2816,15 +2817,33 @@ class _WarpState extends State<Warp> {
           children: [
             SizedBox(height: 24),
             SizedBox(
-              width: 200,
-              height: 200,
+              width: _zoomSize,
+              height: _zoomSize,
               child:
                   !_zoomedImageLoading && _currentCorner != null
-                      ? CustomPaint(
-                        painter: CircularCropPainter(
-                          image: _zoomedImage!,
-                          cropRect: cropRect,
-                        ),
+                      ? Stack(
+                        children: [
+                          SizedBox(
+                            width: _zoomSize,
+                            height: _zoomSize,
+                            child: CustomPaint(
+                              painter: CircularCropPainter(
+                                image: _zoomedImage!,
+                                cropRect: cropRect,
+                              ),
+                            ),
+                          ),
+                          CustomPaint(
+                            size: Size(_screenWidth, _displayHeigth),
+                            painter: _ZoomLinePainter(
+                              cornerPoints: _scaledPoints,
+                              color: Colors.white,
+                              strokeWidth: 1.0,
+                              currentCorner: _currentCorner!,
+                              zoomSize: _zoomSize,
+                            ),
+                          ),
+                        ],
                       )
                       : SizedBox(),
             ),
@@ -2936,11 +2955,11 @@ class _WarpState extends State<Warp> {
                         _scaledPoints[index] = Offset(newX, newY);
                       });
                     },
-                    onPanEnd: (details) {
-                      setState(() {
-                        _currentCorner = null;
-                      });
-                    },
+                    //onPanEnd: (details) {
+                    //  setState(() {
+                    //    _currentCorner = null;
+                    //  });
+                    //},
                     child: Container(
                       width: _circleSize,
                       height: _circleSize,
@@ -3016,4 +3035,86 @@ class CircularCropPainter extends CustomPainter {
     }
     return true;
   }
+}
+
+class _ZoomLinePainter extends CustomPainter {
+  final List<Offset> cornerPoints;
+  final Color color;
+  final double strokeWidth;
+  final Color colorBg;
+  final double strokeWidthBg;
+  final int currentCorner;
+  final double zoomSize;
+
+  _ZoomLinePainter({
+    required this.cornerPoints,
+    this.color = Colors.white,
+    this.strokeWidth = 1.0,
+    this.colorBg = Colors.black45,
+    this.strokeWidthBg = 3.0,
+    required this.currentCorner,
+    required this.zoomSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (cornerPoints.length < 4) return;
+    final double radius = zoomSize / 2;
+
+    final paintBg =
+        Paint()
+          ..color = colorBg
+          ..strokeWidth = strokeWidthBg
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+    final paint =
+        Paint()
+          ..color = color
+          ..strokeWidth = strokeWidth
+          ..style = PaintingStyle.stroke
+          ..isAntiAlias = true;
+
+    var order = [0, 2, 3, 1];
+    List<Offset> orderedPoints = order.map((i) => cornerPoints[i]).toList();
+
+    int currentIndex = order.indexOf(currentCorner);
+    int nextIndex = (currentIndex + 1) % orderedPoints.length;
+    int prevIndex = (currentIndex - 1) % orderedPoints.length;
+
+    Offset currentPoint = orderedPoints[currentIndex];
+    Offset nextPoint = orderedPoints[nextIndex];
+    Offset prevPoint = orderedPoints[prevIndex];
+
+    Offset center = Offset(radius, radius);
+
+    // Calculate the vectors from currentPoint to its neighbors
+    Offset vectorToNext = nextPoint - currentPoint;
+    Offset vectorToPrev = prevPoint - currentPoint;
+
+    // Normalize these vectors to get direction only
+    Offset directionToNext = vectorToNext / vectorToNext.distance;
+    Offset directionToPrev = vectorToPrev / vectorToPrev.distance;
+
+    // Draw lines from center to the edge of the circle in both directions
+    final pathBg = Path();
+    pathBg.moveTo(
+      (center + directionToPrev * radius).dx,
+      (center + directionToPrev * radius).dy,
+    );
+    pathBg.lineTo(center.dx, center.dy);
+    pathBg.lineTo(
+      (center + directionToNext * radius).dx,
+      (center + directionToNext * radius).dy,
+    );
+
+    canvas.drawPath(pathBg, paintBg);
+    canvas.drawLine(center, center + directionToNext * radius, paint);
+    canvas.drawLine(center, center + directionToPrev * radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZoomLinePainter oldDelegate) =>
+      oldDelegate.cornerPoints != cornerPoints ||
+      oldDelegate.currentCorner != currentCorner;
 }
