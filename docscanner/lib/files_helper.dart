@@ -135,23 +135,9 @@ class FilesHelper {
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
     int docsCount = await filesHelper.getDocumentsCount();
-    List<String> thumbnailPaths = List.generate(docsCount, (_) {
-      return "";
-    });
-    List<FileSystemEntity> docs =
-        Directory(docsPath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path));
-    if (docs.isEmpty) return (thumbnailPaths, docsCount);
-    for (var (docIndex, doc) in docs.indexed) {
-      List<FileSystemEntity> pages =
-          (Directory(doc.path).listSync().whereType<Directory>().toList()
-            ..sort((a, b) => a.path.compareTo(b.path)));
-      String page0Path = "";
-      if (pages.isNotEmpty) {
-        page0Path = pages.first.path;
-      } else {
-        continue;
-      }
+    List<String> thumbnailPaths = List.generate(docsCount, (_) => "");
+    for (var docIndex = 0; docIndex < docsCount; docIndex++) {
+      final page0Path = await getPagePath(docIndex, 0);
       int thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
         docIndex,
         0,
@@ -186,30 +172,20 @@ class FilesHelper {
   Future<(List<String>, int)> getPagesThumbnails(int docIndex) async {
     await _initializeDocumentsPath();
     int pagesCount = await filesHelper.getPagesCount(docIndex);
-    List<String> thumbnailPaths = List.generate(pagesCount, (_) {
-      return "";
-    });
-    String docPath = await getDocumentPath(docIndex);
-    List<FileSystemEntity> pages = [];
-    try {
-      pages =
-          Directory(docPath).listSync().whereType<Directory>().toList()
-            ..sort((a, b) => a.path.compareTo(b.path));
-    } catch (e) {
-      dev.log('Error while listing pages: $e');
-    }
-    if (pages.isEmpty) return (thumbnailPaths, pagesCount);
-    for (var (pageIndex, page) in pages.indexed) {
-      final pagePath = page.path;
+    List<String> thumbnailPaths = List.generate(pagesCount, (_) => "");
+
+    for (var pageIndex = 0; pageIndex < pagesCount; pageIndex++) {
+      final pagePath = await getPagePath(docIndex, pageIndex);
       final thumbnailIndex =
-          await ImageProcessingManager.readPageThumbnailIndex(docIndex, 0);
+          await ImageProcessingManager.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+          );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;
       String? backupPath;
-      List<FileSystemEntity> versions =
-          (Directory(pagePath).listSync()
-            ..sort((a, b) => a.path.compareTo(b.path)));
+      List<FileSystemEntity> versions = Directory(pagePath).listSync();
       for (var version in versions) {
         if (version.path.contains(thumbnailName)) {
           thumbnailPath = version.path;
