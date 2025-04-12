@@ -213,17 +213,17 @@ class OpenCVHelper {
     int orientation = orientationIn ?? 0;
     if (imageMat == null) return (null, 0, 0, corners);
 
+    // 1. Isolate remove Text and Images to get Shape
+    cv.Mat? bg = _removeTextAndImages(imageMat);
+
+    // 2. create a binary image, white representing the shape of the document
+    cv.Mat? shape = _documentMask(bg);
+    //return (shape, 0);
+    bg.dispose();
+    bg = null;
+    //return (shape, 0, true);
+
     if (cornerPointsIn == null) {
-      // 1. Isolate remove Text and Images to get Shape
-      cv.Mat? bg = _removeTextAndImages(imageMat);
-
-      // 2. create a binary image, white representing the shape of the document
-      cv.Mat? shape = _documentMask(bg);
-      //return (shape, 0);
-      bg.dispose();
-      bg = null;
-      //return (shape, 0, true);
-
       // 3. Corner detection
       corners = _detectCorners(shape);
 
@@ -242,6 +242,7 @@ class OpenCVHelper {
       double ratio = commonAspectRatios[ratioIndex].value;
       ratio = orientation == 0 ? ratio : 1.0 / ratio;
       _setHeight(corners, ratio);
+      _calculateBorderSize(shape, corners);
     }
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
@@ -671,6 +672,14 @@ class OpenCVHelper {
 
     _setHeight(corners, ratio);
 
+    _calculateBorderSize(shape, corners);
+
+    //dev.log("borderCutIn: $borderCutIn");
+    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+    return (ratioIndex, orientationIndex);
+  }
+
+  void _calculateBorderSize(cv.Mat shape, List<List<int>> corners) {
     cv.Mat warpedShape = _transformImage(shape, corners);
 
     final int maxBorderSize = (K ~/ 2);
@@ -746,10 +755,6 @@ class OpenCVHelper {
       }
     }
     _setTransformation(3, calculatedBoderSize, depths);
-
-    //dev.log("borderCutIn: $borderCutIn");
-    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
-    return (ratioIndex, orientationIndex);
   }
 
   void _setHeight(List<List<int>> corners, double ratio) {
