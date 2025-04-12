@@ -2762,36 +2762,54 @@ class _WarpState extends State<Warp> {
     }
   }
 
+  final GlobalKey _imageAreaKey = GlobalKey();
+  bool _allowPop = false;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Adjust Corners")),
-      body: Scaffold(
-        body: Stack(
-          alignment: Alignment.center,
-          children: [
-            Center(child: Image.file(File(widget.imagePath))),
-            _draggableCornerOverlay(),
-          ],
-        ),
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: FloatingActionButton(
-            heroTag: "saveCorners",
-            onPressed: () {
-              for (var (i, scaledPoint) in _scaledPoints.indexed) {
-                widget.cornerPoints[i] = [
-                  (scaledPoint.dy / _scale).toInt(),
-                  (scaledPoint.dx / _scale).toInt(),
-                ];
-              }
-              widget.pagePreviewState.reprocessPicture(
-                newCornerPoints: widget.cornerPoints,
-              );
-              Navigator.pop(context);
-            },
-            tooltip: 'Save adjusted Corners',
-            child: Icon(Icons.check),
+    return PopScope(
+      canPop: _allowPop,
+
+      child: Scaffold(
+        body: Scaffold(
+          appBar: AppBar(
+            title: const Text("Adjust Corners"),
+            leading: BackButton(
+              onPressed: () {
+                _allowPop = true;
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          body: Scaffold(
+            body: Stack(
+              alignment: Alignment.center,
+              children: [
+                Center(child: Image.file(File(widget.imagePath))),
+                _draggableCornerOverlay(),
+              ],
+            ),
+            floatingActionButton: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FloatingActionButton(
+                heroTag: "saveCorners",
+                onPressed: () {
+                  for (var (i, scaledPoint) in _scaledPoints.indexed) {
+                    widget.cornerPoints[i] = [
+                      (scaledPoint.dy / _scale).toInt(),
+                      (scaledPoint.dx / _scale).toInt(),
+                    ];
+                  }
+                  widget.pagePreviewState.reprocessPicture(
+                    newCornerPoints: widget.cornerPoints,
+                  );
+                  _allowPop = true;
+                  Navigator.pop(context);
+                },
+                tooltip: 'Save adjusted Corners',
+                child: Icon(Icons.check),
+              ),
+            ),
           ),
         ),
       ),
@@ -2807,6 +2825,7 @@ class _WarpState extends State<Warp> {
 
     return Center(
       child: SizedBox(
+        key: _imageAreaKey,
         width: _screenWidth,
         height: _displayHeigth,
         child: RotatedBox(
@@ -2833,9 +2852,21 @@ class _WarpState extends State<Warp> {
                   top: offset.dy - circleSize / 2,
                   child: GestureDetector(
                     onPanUpdate: (details) {
+                      final box =
+                          _imageAreaKey.currentContext?.findRenderObject()
+                              as RenderBox?;
+                      if (box == null) return;
+
+                      Offset localPosition = box.globalToLocal(
+                        details.globalPosition,
+                      );
+
                       setState(() {
-                        double newX = (offset.dx + details.delta.dx);
-                        double newY = (offset.dy + details.delta.dy);
+                        double newX = localPosition.dx.clamp(0.0, _screenWidth);
+                        double newY = localPosition.dy.clamp(
+                          0.0,
+                          _displayHeigth,
+                        );
                         _scaledPoints[index] = Offset(newX, newY);
                       });
                     },
