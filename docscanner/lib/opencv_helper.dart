@@ -44,8 +44,14 @@ class ParamsWarpImage {
   String pathIn = "";
   int? inRatioIndex;
   int? orientation;
+  List<List<int>>? cornerPoints;
 
-  ParamsWarpImage(this.pathIn, {this.inRatioIndex, this.orientation});
+  ParamsWarpImage(
+    this.pathIn, {
+    this.inRatioIndex,
+    this.orientation,
+    this.cornerPoints,
+  });
 }
 
 class ParamsProcessImage1 {
@@ -79,6 +85,7 @@ class OpenCVHelper {
       imageMat,
       params.inRatioIndex,
       params.orientation,
+      params.cornerPoints,
     );
     cv.Mat? warped = warpedRes.$1;
     int ratioIndex = warpedRes.$2;
@@ -197,48 +204,52 @@ class OpenCVHelper {
   /// Warp Image: Edge detection, stretch to A4
   (cv.Mat?, int, int, List<List<int>>) _warpImage(
     cv.Mat? imageMat,
-    int? inRatioIndex,
-    int? orientation,
+    int? ratioIndexIn,
+    int? orientationIn,
+    List<List<int>>? cornerPointsIn,
   ) {
-    List<List<int>> corners = [];
+    List<List<int>> corners = cornerPointsIn ?? [];
+    int ratioIndex = ratioIndexIn ?? 0;
+    int orientation = orientationIn ?? 0;
     if (imageMat == null) return (null, 0, 0, corners);
 
-    // scale down
-    //if (cols > 1080) {
-    //  rows = 1080 ~/ cols * rows;
-    //  cols = 1080;
-    //  imageMat = cv.resize(imageMat,(rows,cols));
-    //}
+    if (cornerPointsIn == null) {
+      // 1. Isolate remove Text and Images to get Shape
+      cv.Mat? bg = _removeTextAndImages(imageMat);
 
-    // 1. Isolate remove Text and Images to get Shape
-    cv.Mat? bg = _removeTextAndImages(imageMat);
+      // 2. create a binary image, white representing the shape of the document
+      cv.Mat? shape = _documentMask(bg);
+      //return (shape, 0);
+      bg.dispose();
+      bg = null;
+      //return (shape, 0, true);
 
-    // 2. create a binary image, white representing the shape of the document
-    cv.Mat? shape = _documentMask(bg);
-    //return (shape, 0);
-    bg.dispose();
-    bg = null;
-    //return (shape, 0, true);
+      // 3. Corner detection
+      corners = _detectCorners(shape);
 
-    // 3. Corner detection
-    corners = _detectCorners(shape);
-
-    // 4. Perspective transformation
-    final (ratioIndex, newOrientation) = _calculateTransformation(
-      shape,
-      corners,
-      inRatioIndex,
-      orientation,
-    );
-    shape.dispose();
-    shape = null;
+      // 4. Perspective transformation
+      final traffo = _calculateTransformation(
+        shape,
+        corners,
+        ratioIndexIn,
+        orientationIn,
+      );
+      ratioIndex = traffo.$1;
+      orientation = traffo.$2;
+      shape.dispose();
+      shape = null;
+    } else {
+      double ratio = commonAspectRatios[ratioIndex].value;
+      ratio = orientation == 0 ? ratio : 1.0 / ratio;
+      _setHeight(corners, ratio);
+    }
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
     if (warped == null) return (null, 0, 0, corners);
     imageMat.dispose();
     imageMat = null;
 
-    return (warped, ratioIndex, newOrientation, corners);
+    return (warped, ratioIndex, orientation, corners);
   }
 
   /// Filter Image 1: subtract background quickly
@@ -641,17 +652,8 @@ class OpenCVHelper {
     cv.Mat shape,
     List<List<int>> corners,
     int? inRatioIndex,
-    int? orientation,
+    int? orientationIndex,
   ) {
-    // New pixel count without data loss
-    height = math.max(
-      (corners[1][0] - corners[0][0]).abs(),
-      (corners[3][0] - corners[2][0]).abs(),
-    );
-    width = math.max(
-      (corners[2][1] - corners[0][1]).abs(),
-      (corners[3][1] - corners[1][1]).abs(),
-    );
     // Estimate aspect ratio
     double ratio = 0.0;
     ratio =
@@ -661,17 +663,13 @@ class OpenCVHelper {
     final matchedRatio = _matchAspectRatioAndOrientation(
       ratio,
       inRatioIndex,
-      orientation,
+      orientationIndex,
     );
     ratio = matchedRatio.$1;
     final ratioIndex = matchedRatio.$2;
-    orientation = matchedRatio.$3;
+    orientationIndex = matchedRatio.$3;
 
-    if (width < (height / ratio).round()) {
-      width = (height / ratio).round();
-    } else {
-      height = (width * ratio).round();
-    }
+    _setHeight(corners, ratio);
 
     cv.Mat warpedShape = _transformImage(shape, corners);
 
@@ -751,7 +749,24 @@ class OpenCVHelper {
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
-    return (ratioIndex, orientation);
+    return (ratioIndex, orientationIndex);
+  }
+
+  void _setHeight(List<List<int>> corners, double ratio) {
+    // New pixel count without data loss
+    height = math.max(
+      (corners[1][0] - corners[0][0]).abs(),
+      (corners[3][0] - corners[2][0]).abs(),
+    );
+    width = math.max(
+      (corners[2][1] - corners[0][1]).abs(),
+      (corners[3][1] - corners[1][1]).abs(),
+    );
+    if (width < (height / ratio).round()) {
+      width = (height / ratio).round();
+    } else {
+      height = (width * ratio).round();
+    }
   }
 
   double _calculateAspectRatio(List<List<int>> corners) {

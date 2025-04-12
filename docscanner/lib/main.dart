@@ -31,7 +31,6 @@ enum NotifierEvent {
   warpSaved,
   processed1Saved,
   processed2Saved,
-  reprocessPicture,
 }
 
 void main() async {
@@ -154,7 +153,7 @@ class _MyAppState extends State<MyApp> {
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
                   builder:
-                      (_) => PreviewPage(
+                      (_) => PagePreview(
                         docIndex: args['docIndex'],
                         pageIndex: args['pageIndex'],
                       ),
@@ -199,6 +198,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(
                   builder:
                       (_) => Warp(
+                        pagePreviewState: args['pagePreviewState'],
                         docIndex: args['docIndex'],
                         pageIndex: args['pageIndex'],
                         imagePath: args['imagePath'],
@@ -1430,8 +1430,8 @@ class _PagesState extends State<Pages> {
   }
 }
 
-class PreviewPage extends StatefulWidget {
-  const PreviewPage({
+class PagePreview extends StatefulWidget {
+  const PagePreview({
     super.key,
     required this.docIndex,
     required this.pageIndex,
@@ -1440,10 +1440,10 @@ class PreviewPage extends StatefulWidget {
   final int pageIndex;
 
   @override
-  State<PreviewPage> createState() => _PreviewPageState();
+  State<PagePreview> createState() => PagePreviewState();
 }
 
-class _PreviewPageState extends State<PreviewPage> {
+class PagePreviewState extends State<PagePreview> {
   static List<String> versionNames = [
     "unprocessed",
     "warped",
@@ -1539,9 +1539,6 @@ class _PreviewPageState extends State<PreviewPage> {
           widget.pageIndex,
         );
         setState(() => _versionPaths);
-        break;
-      case NotifierEvent.reprocessPicture:
-        _reprocessPicture();
         break;
       default:
     }
@@ -1761,6 +1758,7 @@ class _PreviewPageState extends State<PreviewPage> {
       context,
       '/warp',
       arguments: {
+        'pagePreviewState': this,
         'docIndex': widget.docIndex,
         'pageIndex': widget.pageIndex,
         'imagePath': _versionPaths.first,
@@ -2185,12 +2183,12 @@ class _PreviewPageState extends State<PreviewPage> {
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
-        await _reprocessPicture();
+        await reprocessPicture();
       },
     );
   }
 
-  Future<void> _reprocessPicture() async {
+  Future<void> reprocessPicture({List<List<int>>? newCornerPoints}) async {
     if (mounted) {
       setState(() {
         _hideOverlay = true;
@@ -2200,13 +2198,20 @@ class _PreviewPageState extends State<PreviewPage> {
       widget.docIndex,
       widget.pageIndex,
     );
+    newCornerPoints ??= await ImageProcessingManager.readPageCornerPoints(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    // rotate newCornerPoints
+    newCornerPoints = rotateCornerPoints(newCornerPoints);
+
     await ImageProcessingManager.writePageMetadata(
       widget.docIndex,
       widget.pageIndex,
       _newRatioIndex ?? 0,
       _newOrientation ?? 0,
       null,
-      null,
+      newCornerPoints,
     );
     _reprocessingSetup();
     imageProcessingManager.processPage(
@@ -2215,8 +2220,40 @@ class _PreviewPageState extends State<PreviewPage> {
       _versionPaths[0], // potentially rotated image
       _newRatioIndex ?? 0,
       _newOrientation ?? 0,
+      newCornerPoints,
     );
     _reprocessingCleanup();
+  }
+
+  List<List<int>>? rotateCornerPoints(List<List<int>>? cornerPoints) {
+    if (cornerPoints == null) return null;
+
+    int quarterTurns = (_totalRotation ~/ 90) % 4;
+
+    // Apply rotation logic to each point
+    List<List<int>> rotated =
+        cornerPoints.map((p) {
+          int row = p[0];
+          int col = p[1];
+
+          switch (quarterTurns) {
+            case 1: // 90° CW
+              return [col, _imagePixelHeight - row];
+            case 2: // 180°
+              return [_imagePixelHeight - row, _imagePixelWidth - col];
+            case 3: // 270° CW
+              return [_imagePixelWidth - col, row];
+            default: // 0°
+              return [row, col];
+          }
+        }).toList();
+
+    // Rotate the list order to keep top-left point first
+    for (var i = 0; i < quarterTurns; i++) {
+      rotated = [rotated[1], rotated[3], rotated[0], rotated[2]];
+    }
+
+    return rotated;
   }
 
   Container _aspectRatioDropDown(BuildContext context) {
@@ -2669,6 +2706,7 @@ class CustomIconButton extends StatelessWidget {
 }
 
 class Warp extends StatefulWidget {
+  final PagePreviewState pagePreviewState;
   final int docIndex;
   final int pageIndex;
   final String imagePath;
@@ -2677,6 +2715,7 @@ class Warp extends StatefulWidget {
 
   const Warp({
     super.key,
+    required this.pagePreviewState,
     required this.docIndex,
     required this.pageIndex,
     required this.imagePath,
@@ -2746,11 +2785,8 @@ class _WarpState extends State<Warp> {
                   (scaledPoint.dx / _scale).toInt(),
                 ];
               }
-
-              ImageProcessingManager.writePageCornerPoints(
-                widget.docIndex,
-                widget.pageIndex,
-                widget.cornerPoints,
+              widget.pagePreviewState.reprocessPicture(
+                newCornerPoints: widget.cornerPoints,
               );
               Navigator.pop(context);
             },

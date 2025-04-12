@@ -30,6 +30,7 @@ class ImageProcessingManager {
     String pathIn,
     int? ratioIndexIn,
     int? orientationIn,
+    List<List<int>>? cornerPointsIn,
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
 
@@ -49,6 +50,7 @@ class ImageProcessingManager {
         picturePath,
         inRatioIndex: ratioIndexIn,
         orientation: orientationIn,
+        cornerPoints: cornerPointsIn,
       ),
     );
     Uint8List warped = warpedRet.$1;
@@ -124,6 +126,7 @@ class ImageProcessingManager {
       String pathIn,
       int? ratioIndexIn,
       int? orientationIn,
+      List<List<int>>? cornerPointsIn,
     )
     data,
   ) async {
@@ -136,6 +139,7 @@ class ImageProcessingManager {
 
     int? ratioIndexIn = data.$7;
     int? orientationIn = data.$8;
+    List<List<int>>? cornerPointsIn = data.$9;
 
     await _processPage(
       sendPort,
@@ -146,6 +150,7 @@ class ImageProcessingManager {
       pathIn,
       ratioIndexIn,
       orientationIn,
+      cornerPointsIn,
     );
     sendPort.send('done');
   }
@@ -218,6 +223,7 @@ class ImageProcessingManager {
       pathsIn[0],
       null,
       null,
+      null,
     ));
     primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -259,6 +265,7 @@ class ImageProcessingManager {
           path,
           null,
           null,
+          null,
         ));
         secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
         secundaryPort.listen((message) {
@@ -282,6 +289,7 @@ class ImageProcessingManager {
     String pathIn,
     int? ratioIndexIn,
     int? orientationIn,
+    List<List<int>>? cornerPointsIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
@@ -295,6 +303,7 @@ class ImageProcessingManager {
       pathIn,
       ratioIndexIn,
       orientationIn,
+      cornerPointsIn,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -409,8 +418,7 @@ class ImageProcessingManager {
       // Write
       metadata["corners"] = cornerPoints;
       await file.writeAsString(jsonEncode(metadata));
-      //globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-      globalNotifier.triggerEvent(NotifierEvent.reprocessPicture);
+      globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
     } catch (e) {
       dev.log("Error, writePageCornerPoints: $e");
     }
@@ -569,7 +577,7 @@ class ImageProcessingManager {
       }
       if (oldThumbnailPath != null) {
         if (overwrite) {
-          dev.log("Overwriting, writeScaledThumbnail: $oldThumbnailPath");
+          dev.log("Overwriting, writeScaledThumbnail: $pathIn");
           File(oldThumbnailPath).deleteSync();
           if (sendPort != null) {
             sendPort.send(File(oldThumbnailPath));
