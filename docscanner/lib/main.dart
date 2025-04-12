@@ -2508,7 +2508,7 @@ class _MiddleLinePainter extends CustomPainter {
 
   _MiddleLinePainter({
     required this.points,
-    this.color = Colors.black45,
+    this.color = Colors.black38,
     this.strokeWidth = 7.0,
     this.offset = 17.0,
     this.normalizedOffset = false,
@@ -2807,6 +2807,7 @@ class _WarpState extends State<Warp> {
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _MiddleLinePainter(
                   points: _scaledPoints,
+                  color: Colors.black38,
                   normalizedOffset: true,
                 ),
               ),
@@ -2832,7 +2833,7 @@ class _WarpState extends State<Warp> {
                       height: circleSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.black38,
+                        color: Colors.black12,
                         border: Border.all(color: Colors.white, width: 2),
                       ),
                     ),
