@@ -2743,6 +2743,7 @@ class _WarpState extends State<Warp> {
   bool _zoomedImageLoading = true;
   static const double _zoomSize = 200;
 
+  Offset? _delayedPosition;
   Timer? _debounceTimer;
   @override
   void dispose() {
@@ -2962,19 +2963,31 @@ class _WarpState extends State<Warp> {
                       Offset localPosition = box.globalToLocal(
                         details.globalPosition,
                       );
+                      Offset newPos = localPosition - _touchOffset;
+                      double newX = newPos.dx.clamp(0.0, _screenWidth);
+                      double newY = newPos.dy.clamp(0.0, _displayHeigth);
                       setState(() {
-                        Offset newPos = localPosition - _touchOffset;
-                        double newX = newPos.dx.clamp(0.0, _screenWidth);
-                        double newY = newPos.dy.clamp(0.0, _displayHeigth);
                         _scaledPoints[index] = Offset(newX, newY);
                       });
+
+                      _debounceTimer?.cancel();
+                      _debounceTimer = Timer(
+                        const Duration(milliseconds: 500),
+                        () {
+                          _delayedPosition = _scaledPoints[index];
+                        },
+                      );
                     },
                     onPanEnd: (details) {
                       if (!panning) return;
+                      if (_delayedPosition != null) {
+                        setState(() {
+                          _scaledPoints[index] = _delayedPosition!;
+                        });
+                      }
+                      _delayedPosition = null;
+                      _debounceTimer?.cancel();
                       panning = false;
-                      //  setState(() {
-                      //    _currentCorner = null;
-                      //  });
                     },
                     child: Container(
                       width: _circleSize,
