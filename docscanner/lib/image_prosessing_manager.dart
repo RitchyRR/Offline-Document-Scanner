@@ -569,7 +569,7 @@ class ImageProcessingManager {
       }
       if (oldThumbnailPath != null) {
         if (overwrite) {
-          dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+          dev.log("Overwriting, writeScaledThumbnail: $oldThumbnailPath");
           File(oldThumbnailPath).deleteSync();
           if (sendPort != null) {
             sendPort.send(File(oldThumbnailPath));
