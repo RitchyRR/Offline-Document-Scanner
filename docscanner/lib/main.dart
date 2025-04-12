@@ -2763,7 +2763,7 @@ class _WarpState extends State<Warp> {
   }
 
   final GlobalKey _imageAreaKey = GlobalKey();
-  bool _allowPop = false;
+  bool _allowPop = true;
 
   @override
   Widget build(BuildContext context) {
@@ -2851,6 +2851,9 @@ class _WarpState extends State<Warp> {
                   left: offset.dx - circleSize / 2,
                   top: offset.dy - circleSize / 2,
                   child: GestureDetector(
+                    onPanDown: (details) {
+                      _allowPop = false;
+                    },
                     onPanUpdate: (details) {
                       final box =
                           _imageAreaKey.currentContext?.findRenderObject()
