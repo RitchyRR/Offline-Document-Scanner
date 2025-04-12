@@ -2745,7 +2745,7 @@ class _WarpState extends State<Warp> {
   static const double _zoomSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 150;
+  static const int _historyDurationMs = 500;
 
   @override
   void initState() {
