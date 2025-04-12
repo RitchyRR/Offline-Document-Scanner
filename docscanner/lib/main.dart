@@ -2737,10 +2737,18 @@ class _WarpState extends State<Warp> {
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   int? _currentCorner;
+  Offset _touchOffset = Offset(0, 0);
 
   ui.Image? _zoomedImage;
   bool _zoomedImageLoading = true;
   static const double _zoomSize = 200;
+
+  Timer? _debounceTimer;
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -2900,8 +2908,8 @@ class _WarpState extends State<Warp> {
     if (_screenWidth == 0) {
       return SizedBox();
     }
-
     int quarterTurns = widget.rotation ~/ 90;
+    bool panning = false;
 
     return Center(
       child: SizedBox(
@@ -2932,34 +2940,42 @@ class _WarpState extends State<Warp> {
                   left: offset.dx - _circleSize / 2,
                   top: offset.dy - _circleSize / 2,
                   child: GestureDetector(
-                    onPanDown: (details) {
+                    onPanStart: (details) {
+                      if (panning) return;
                       _allowPop = false;
                       _currentCorner = index;
+                      final box =
+                          _imageAreaKey.currentContext?.findRenderObject()
+                              as RenderBox?;
+                      if (box == null) return;
+                      Offset localPosition = box.globalToLocal(
+                        details.globalPosition,
+                      );
+                      _touchOffset = localPosition - _scaledPoints[index];
+                      panning = true;
                     },
                     onPanUpdate: (details) {
                       final box =
                           _imageAreaKey.currentContext?.findRenderObject()
                               as RenderBox?;
                       if (box == null) return;
-
                       Offset localPosition = box.globalToLocal(
                         details.globalPosition,
                       );
-
                       setState(() {
-                        double newX = localPosition.dx.clamp(0.0, _screenWidth);
-                        double newY = localPosition.dy.clamp(
-                          0.0,
-                          _displayHeigth,
-                        );
+                        Offset newPos = localPosition - _touchOffset;
+                        double newX = newPos.dx.clamp(0.0, _screenWidth);
+                        double newY = newPos.dy.clamp(0.0, _displayHeigth);
                         _scaledPoints[index] = Offset(newX, newY);
                       });
                     },
-                    //onPanEnd: (details) {
-                    //  setState(() {
-                    //    _currentCorner = null;
-                    //  });
-                    //},
+                    onPanEnd: (details) {
+                      if (!panning) return;
+                      panning = false;
+                      //  setState(() {
+                      //    _currentCorner = null;
+                      //  });
+                    },
                     child: Container(
                       width: _circleSize,
                       height: _circleSize,
