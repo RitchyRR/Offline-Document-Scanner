@@ -1774,6 +1774,13 @@ class _PreviewPageState extends State<PreviewPage> {
   // Preview Page
   @override
   Widget build(BuildContext context) {
+    bool enableFAB0 =
+        _versionPaths.first.isNotEmpty &&
+        (!_metadataBlocked && !_rotationOngoing);
+    bool enableFABs =
+        _selectedVersion == 0
+            ? enableFAB0
+            : _versionPaths[_selectedVersion].isNotEmpty;
     return Scaffold(
       // Top Bar
       appBar: AppBar(
@@ -1963,33 +1970,17 @@ class _PreviewPageState extends State<PreviewPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed:
-                      _versionPaths.first.isNotEmpty &&
-                              (!_metadataBlocked && !_rotationOngoing)
-                          ? () => _openWarpManuallyPage()
-                          : null,
+                  onPressed: enableFAB0 ? () => _openWarpManuallyPage() : null,
                   tooltip:
-                      _versionPaths.first.isNotEmpty &&
-                              (!_metadataBlocked && !_rotationOngoing)
+                      enableFAB0
                           ? 'Adjust Corner Points'
                           : 'Waiting for image to load...',
                   backgroundColor:
-                      _versionPaths.first.isNotEmpty &&
-                              (!_metadataBlocked && !_rotationOngoing)
-                          ? null
-                          : Theme.of(context).disabledColor,
-                  elevation:
-                      _versionPaths.first.isNotEmpty &&
-                              (!_metadataBlocked && !_rotationOngoing)
-                          ? null
-                          : 0.0,
+                      enableFAB0 ? null : Theme.of(context).disabledColor,
+                  elevation: enableFAB0 ? null : 0.0,
                   child: Icon(
                     Icons.crop_free,
-                    color:
-                        _versionPaths.first.isNotEmpty &&
-                                (!_metadataBlocked && !_rotationOngoing)
-                            ? null
-                            : Theme.of(context).disabledColor,
+                    color: enableFAB0 ? null : Theme.of(context).disabledColor,
                   ),
                 ),
               )
@@ -2004,25 +1995,17 @@ class _PreviewPageState extends State<PreviewPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               onPressed:
-                  _versionPaths[_selectedVersion].isNotEmpty
+                  enableFABs
                       ? () => _sharePagePopup(context, _selectedVersion)
                       : null,
               tooltip:
-                  _versionPaths[_selectedVersion].isNotEmpty
-                      ? 'Share Image'
-                      : 'Waiting for image to load...',
+                  enableFABs ? 'Share Image' : 'Waiting for image to load...',
               backgroundColor:
-                  _versionPaths[_selectedVersion].isNotEmpty
-                      ? null
-                      : Theme.of(context).disabledColor,
-              elevation:
-                  _versionPaths[_selectedVersion].isNotEmpty ? null : 0.0,
+                  enableFABs ? null : Theme.of(context).disabledColor,
+              elevation: enableFABs ? null : 0.0,
               child: Icon(
                 Icons.share,
-                color:
-                    _selectedVersion < _versionPaths.length
-                        ? null
-                        : Theme.of(context).disabledColor,
+                color: enableFABs ? null : Theme.of(context).disabledColor,
               ),
             ),
           ),
@@ -2030,24 +2013,16 @@ class _PreviewPageState extends State<PreviewPage> {
           FloatingActionButton(
             heroTag: "savePageVersion",
             onPressed:
-                _versionPaths[_selectedVersion].isNotEmpty
+                enableFABs
                     ? () => _savePagePopup(context, _selectedVersion)
                     : null,
-            tooltip:
-                _versionPaths[_selectedVersion].isNotEmpty
-                    ? 'Save Image'
-                    : 'Waiting for image to load...',
+            tooltip: enableFABs ? 'Save Image' : 'Waiting for image to load...',
             backgroundColor:
-                _versionPaths[_selectedVersion].isNotEmpty
-                    ? null
-                    : Theme.of(context).disabledColor,
+                enableFABs ? null : Theme.of(context).disabledColor,
             elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
             child: Icon(
               Icons.save,
-              color:
-                  _versionPaths[_selectedVersion].isNotEmpty
-                      ? null
-                      : Theme.of(context).disabledColor,
+              color: enableFABs ? null : Theme.of(context).disabledColor,
             ),
           ),
           SizedBox(height: 20.0),
