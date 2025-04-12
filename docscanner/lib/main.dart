@@ -3090,7 +3090,9 @@ class _ZoomLinePainter extends CustomPainter {
     required this.cornerPoints,
     this.color = Colors.white,
     this.strokeWidth = 1.0,
+    // ignore: unused_element_parameter
     this.colorBg = Colors.black45,
+    // ignore: unused_element_parameter
     this.strokeWidthBg = 3.0,
     required this.currentCorner,
     required this.zoomSize,
