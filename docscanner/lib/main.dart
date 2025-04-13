@@ -2737,6 +2737,7 @@ class Warp extends StatefulWidget {
 }
 
 class _WarpState extends State<Warp> {
+  List<Offset> _initialScaledPoints = [];
   List<Offset> _scaledPoints = [];
   double _screenWidth = 0;
   double _displayHeigth = 0;
@@ -2777,12 +2778,14 @@ class _WarpState extends State<Warp> {
     var rotatedPoints = widget.pagePreviewState.rotateCornerPoints(
       widget.cornerPoints,
     );
+
     _scaledPoints =
         rotatedPoints.map((point) {
           double x = point[1] * _scale;
           double y = point[0] * _scale;
           return Offset(x, y);
         }).toList();
+    _initialScaledPoints = List.from(_scaledPoints);
 
     for (var point in _scaledPoints) {
       double maxHeight = 400.0;
@@ -2810,6 +2813,37 @@ class _WarpState extends State<Warp> {
     }
   }
 
+  Future<bool> _leaveConfirmationDialog() async {
+    if (_initialScaledPoints[0] == _scaledPoints[0] &&
+        _initialScaledPoints[1] == _scaledPoints[1] &&
+        _initialScaledPoints[2] == _scaledPoints[2] &&
+        _initialScaledPoints[3] == _scaledPoints[3]) {
+      return true;
+    }
+    bool? confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Discard Corner Adjustments"),
+          content: Text(
+            "Are you sure you want to discard your corner adjustments?",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text("Discard", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmDelete == true;
+  }
+
   final GlobalKey _imageAreaKey = GlobalKey();
   bool _allowPop = true;
   final double _circleSize = 40;
@@ -2833,10 +2867,13 @@ class _WarpState extends State<Warp> {
         appBar: AppBar(
           title: const Text("Adjust Corners"),
           leading: BackButton(
-            onPressed: () {
+            onPressed: () async {
               _allowPop = true;
-              //todo
-              Navigator.pop(context);
+              if (await _leaveConfirmationDialog()) {
+                if (mounted && context.mounted) {
+                  Navigator.pop(context);
+                }
+              }
             },
           ),
         ),
