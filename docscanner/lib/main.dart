@@ -1455,6 +1455,10 @@ class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
   List<String> _versionPaths = ["", "", "", ""];
+  final List<Future<String>> _rotatedPicturePaths = List.generate(
+    3,
+    (_) => Future<String>.value(""),
+  );
   String _picturePath = "";
   // Reprocessing Parameters
   int? _ratioIndex;
@@ -2154,19 +2158,27 @@ class PagePreviewState extends State<PagePreview> {
           _newOrientation = ((_newOrientation ?? 0) - 1) * (-1); // toggle
         });
         _totalRotation = (_totalRotation + rotation) % 360;
+        int quarterTurns = _totalRotation ~/ 90;
         if (_totalRotation == 0) {
           setState(() {
             _versionPaths[0] = _picturePath;
             _rotationOngoing = false;
           });
         } else {
-          _versionPaths[0] = await FilesHelper.rotateImageInTmpDir(
-            _picturePath,
-            _totalRotation,
-          );
-          if (mounted) {
-            setState(() => _rotationOngoing = false);
-          }
+          _rotatedPicturePaths[quarterTurns - 1] =
+              FilesHelper.rotateImageInTmpDir(_picturePath, _totalRotation);
+          _rotatedPicturePaths[quarterTurns - 1].whenComplete(() async {
+            // if image matches current rotation
+            if (_totalRotation ~/ 90 == quarterTurns) {
+              _versionPaths[0] = await _rotatedPicturePaths[quarterTurns - 1];
+              if (mounted) {
+                setState(() {
+                  _rotationOngoing = false;
+                  _versionPaths;
+                });
+              }
+            }
+          });
         }
       },
       isFlat: true,
