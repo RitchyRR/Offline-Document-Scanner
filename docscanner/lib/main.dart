@@ -652,14 +652,25 @@ class _MyHomePageState extends State<MyHomePage> {
             itemBuilder:
                 (context) => [
                   PopupMenuItem(
-                    //enabled: _imagesLoaded.every((element) => element),
                     value: "del",
                     child: Row(
                       children: [
                         SizedBox(width: 8),
-                        Icon(Icons.info),
+                        Icon(
+                          Icons.info,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
                         SizedBox(width: 10),
-                        Text("Licenses"),
+                        Text(
+                          "Licenses",
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1826,14 +1837,25 @@ class PagePreviewState extends State<PagePreview> {
             itemBuilder:
                 (context) => [
                   PopupMenuItem(
-                    //enabled: _imagesLoaded.every((element) => element),
                     value: "del",
                     child: Row(
                       children: [
                         SizedBox(width: 12),
-                        Icon(Icons.delete),
+                        Icon(
+                          Icons.delete,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
                         SizedBox(width: 10),
-                        Text("Delete Page"),
+                        Text(
+                          "Delete Page",
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                       ],
                     ),
                   ),
