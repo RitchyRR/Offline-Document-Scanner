@@ -2200,12 +2200,13 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
-    newCornerPoints ??= await ImageProcessingManager.readPageCornerPoints(
-      widget.docIndex,
-      widget.pageIndex,
-    );
-    // rotate newCornerPoints
-    newCornerPoints = rotateCornerPoints(newCornerPoints);
+    if (newCornerPoints == null) {
+      newCornerPoints = await ImageProcessingManager.readPageCornerPoints(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+      newCornerPoints = rotateCornerPoints(newCornerPoints);
+    }
 
     await ImageProcessingManager.writePageMetadata(
       widget.docIndex,
@@ -2227,9 +2228,7 @@ class PagePreviewState extends State<PagePreview> {
     _reprocessingCleanup();
   }
 
-  List<List<int>>? rotateCornerPoints(List<List<int>>? cornerPoints) {
-    if (cornerPoints == null) return null;
-
+  List<List<int>> rotateCornerPoints(List<List<int>> cornerPoints) {
     int quarterTurns = (_totalRotation ~/ 90) % 4;
 
     // Apply rotation logic to each point
@@ -2754,7 +2753,7 @@ class _WarpState extends State<Warp> {
     _initZoom();
   }
 
-  double moveUpBy = 0;
+  double _moveUpBy = 0;
   void _initAsync() async {
     final image = await decodeImageFromList(
       (File(widget.imagePath).readAsBytesSync()),
@@ -2766,16 +2765,21 @@ class _WarpState extends State<Warp> {
     }
     _scale = _screenWidth / _imagePixelWidth;
     _displayHeigth = _imagePixelHeight * _scale;
+
+    var rotatedPoints = widget.pagePreviewState.rotateCornerPoints(
+      widget.cornerPoints,
+    );
     _scaledPoints =
-        widget.cornerPoints.map((point) {
+        rotatedPoints.map((point) {
           double x = point[1] * _scale;
           double y = point[0] * _scale;
           return Offset(x, y);
         }).toList();
+
     for (var point in _scaledPoints) {
-      double maxHeight = 410.0;
+      double maxHeight = 400.0;
       if (point.dy > maxHeight) {
-        moveUpBy = point.dy - maxHeight;
+        _moveUpBy = point.dy - maxHeight;
       }
     }
 
@@ -2789,11 +2793,13 @@ class _WarpState extends State<Warp> {
     final bytes = await file.readAsBytes();
     final codec = await ui.instantiateImageCodec(bytes);
     final frameInfo = await codec.getNextFrame();
-
-    setState(() {
-      _zoomedImage = frameInfo.image;
-      _zoomedImageLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _zoomedImage = frameInfo.image;
+        _zoomedImageLoading = false;
+        _moveUpBy;
+      });
+    }
   }
 
   final GlobalKey _imageAreaKey = GlobalKey();
@@ -2803,7 +2809,7 @@ class _WarpState extends State<Warp> {
   @override
   Widget build(BuildContext context) {
     Rect cropRect =
-        _scaledPoints.isNotEmpty && _currentCorner != null
+        _scaledPoints.isNotEmpty && _currentCorner != null && _screenWidth != 0
             ? Rect.fromCenter(
               center: Offset(
                 _scaledPoints[_currentCorner!].dx / _scale,
@@ -2846,34 +2852,38 @@ class _WarpState extends State<Warp> {
                               ),
                             ),
                           ),
-                          CustomPaint(
-                            size: Size(_screenWidth, _displayHeigth),
-                            painter: _ZoomLinePainter(
-                              cornerPoints: _scaledPoints,
-                              color: Colors.white,
-                              strokeWidth: 1.0,
-                              currentCorner: _currentCorner!,
-                              zoomSize: _zoomSize,
-                            ),
-                          ),
+                          _screenWidth != 0
+                              ? CustomPaint(
+                                size: Size(_screenWidth, _displayHeigth),
+                                painter: _ZoomLinePainter(
+                                  cornerPoints: _scaledPoints,
+                                  color: Colors.white,
+                                  strokeWidth: 1.0,
+                                  currentCorner: _currentCorner!,
+                                  zoomSize: _zoomSize,
+                                ),
+                              )
+                              : SizedBox(),
                         ],
                       )
                       : SizedBox(),
             ),
             SizedBox(height: 24),
-            Transform.translate(
-              offset: Offset(0, -(moveUpBy / 2)),
-              child: Transform.scale(
-                scale: (_displayHeigth - moveUpBy) / _displayHeigth,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Center(child: Image.file(File(widget.imagePath))),
-                    _draggableCornerOverlay(),
-                  ],
-                ),
-              ),
-            ),
+            _displayHeigth != 0
+                ? Transform.translate(
+                  offset: Offset(0, -(_moveUpBy / 2)),
+                  child: Transform.scale(
+                    scale: (_displayHeigth - _moveUpBy) / _displayHeigth,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Center(child: Image.file(File(widget.imagePath))),
+                        _draggableCornerOverlay(),
+                      ],
+                    ),
+                  ),
+                )
+                : SizedBox(),
           ],
         ),
         floatingActionButton: Padding(
@@ -2919,140 +2929,135 @@ class _WarpState extends State<Warp> {
     if (_screenWidth == 0) {
       return SizedBox();
     }
-    int quarterTurns = widget.rotation ~/ 90;
 
     return Center(
       child: SizedBox(
         key: _imageAreaKey,
         width: _screenWidth,
         height: _displayHeigth,
-        child: RotatedBox(
-          quarterTurns: quarterTurns,
-          child: Stack(
-            children: [
-              // dark frame
-              CustomPaint(
+        child: Stack(
+          children: [
+            // dark frame
+            CustomPaint(
+              size: Size(_screenWidth, _displayHeigth),
+              painter: _MiddleLinePainter(
+                points: _scaledPoints,
+                color: Colors.black38,
+                normalizedOffset: true,
+                offset: _circleSize / 2 + 2,
+              ),
+            ),
+
+            // Draggable corner points
+            ..._scaledPoints.asMap().entries.map((entry) {
+              final index = entry.key;
+              final offset = entry.value;
+
+              return Positioned(
+                left: offset.dx - _circleSize / 2,
+                top: offset.dy - _circleSize / 2,
+                child: GestureDetector(
+                  onPanStart: (details) {
+                    if (_panning) return;
+                    _allowPop = false;
+                    _currentCorner = index;
+                    final box =
+                        _imageAreaKey.currentContext?.findRenderObject()
+                            as RenderBox?;
+                    if (box == null) return;
+                    Offset localPosition = box.globalToLocal(
+                      details.globalPosition,
+                    );
+                    _touchOffset = localPosition - _scaledPoints[index];
+                    _positionHistory.clear();
+                    _positionHistory.add(
+                      PositionTimestamp(
+                        position: _scaledPoints[index],
+                        timestamp: DateTime.now(),
+                      ),
+                    );
+                    _panning = true;
+                  },
+                  onPanUpdate: (details) {
+                    final box =
+                        _imageAreaKey.currentContext?.findRenderObject()
+                            as RenderBox?;
+                    if (box == null) return;
+                    Offset localPosition = box.globalToLocal(
+                      details.globalPosition,
+                    );
+                    Offset newPos = localPosition - _touchOffset;
+                    double newX = newPos.dx.clamp(0.0, _screenWidth);
+                    double newY = newPos.dy.clamp(0.0, _displayHeigth);
+                    setState(() {
+                      _scaledPoints[index] = Offset(newX, newY);
+                    });
+                    // Add current position to history
+                    DateTime now = DateTime.now();
+                    _positionHistory.add(
+                      PositionTimestamp(
+                        position: _scaledPoints[index],
+                        timestamp: now,
+                      ),
+                    );
+                    // Remove positions older than _historyDurationMs
+                    while (_positionHistory.isNotEmpty &&
+                        now
+                                .difference(_positionHistory.first.timestamp)
+                                .inMilliseconds >
+                            _historyDurationMs) {
+                      _positionHistory.removeAt(0);
+                    }
+                  },
+                  onPanEnd: (details) {
+                    if (!_panning) return;
+                    // Use oldest position in history
+                    if (_positionHistory.isNotEmpty) {
+                      setState(() {
+                        _scaledPoints[index] = _positionHistory.first.position;
+                      });
+                    }
+                    _positionHistory.clear();
+                    _panning = false;
+                  },
+                  child: Container(
+                    width: _circleSize,
+                    height: _circleSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black12,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              );
+            }),
+            // sharp corners
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _CornerLinePainter(
+                  points: _scaledPoints,
+                  strokeWidth: 1.0,
+                  offset: 50,
+                  normalizedOffset: true,
+                ),
+              ),
+            ),
+            // sharp middle section
+            IgnorePointer(
+              child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _MiddleLinePainter(
                   points: _scaledPoints,
-                  color: Colors.black38,
-                  normalizedOffset: true,
-                  offset: _circleSize / 2 + 2,
+                  color: Colors.white,
+                  strokeWidth: 1.0,
+                  offset: 0.55,
+                  normalizedOffset: false,
                 ),
               ),
-
-              // Draggable corner points
-              ..._scaledPoints.asMap().entries.map((entry) {
-                final index = entry.key;
-                final offset = entry.value;
-
-                return Positioned(
-                  left: offset.dx - _circleSize / 2,
-                  top: offset.dy - _circleSize / 2,
-                  child: GestureDetector(
-                    onPanStart: (details) {
-                      if (_panning) return;
-                      _allowPop = false;
-                      _currentCorner = index;
-                      final box =
-                          _imageAreaKey.currentContext?.findRenderObject()
-                              as RenderBox?;
-                      if (box == null) return;
-                      Offset localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
-                      _touchOffset = localPosition - _scaledPoints[index];
-                      _positionHistory.clear();
-                      _positionHistory.add(
-                        PositionTimestamp(
-                          position: _scaledPoints[index],
-                          timestamp: DateTime.now(),
-                        ),
-                      );
-                      _panning = true;
-                    },
-                    onPanUpdate: (details) {
-                      final box =
-                          _imageAreaKey.currentContext?.findRenderObject()
-                              as RenderBox?;
-                      if (box == null) return;
-                      Offset localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
-                      Offset newPos = localPosition - _touchOffset;
-                      double newX = newPos.dx.clamp(0.0, _screenWidth);
-                      double newY = newPos.dy.clamp(0.0, _displayHeigth);
-                      setState(() {
-                        _scaledPoints[index] = Offset(newX, newY);
-                      });
-                      // Add current position to history
-                      DateTime now = DateTime.now();
-                      _positionHistory.add(
-                        PositionTimestamp(
-                          position: _scaledPoints[index],
-                          timestamp: now,
-                        ),
-                      );
-                      // Remove positions older than _historyDurationMs
-                      while (_positionHistory.isNotEmpty &&
-                          now
-                                  .difference(_positionHistory.first.timestamp)
-                                  .inMilliseconds >
-                              _historyDurationMs) {
-                        _positionHistory.removeAt(0);
-                      }
-                    },
-                    onPanEnd: (details) {
-                      if (!_panning) return;
-                      // Use oldest position in history
-                      if (_positionHistory.isNotEmpty) {
-                        setState(() {
-                          _scaledPoints[index] =
-                              _positionHistory.first.position;
-                        });
-                      }
-                      _positionHistory.clear();
-                      _panning = false;
-                    },
-                    child: Container(
-                      width: _circleSize,
-                      height: _circleSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black12,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              // sharp corners
-              IgnorePointer(
-                child: CustomPaint(
-                  size: Size(_screenWidth, _displayHeigth),
-                  painter: _CornerLinePainter(
-                    points: _scaledPoints,
-                    strokeWidth: 1.0,
-                    offset: 50,
-                    normalizedOffset: true,
-                  ),
-                ),
-              ),
-              // sharp middle section
-              IgnorePointer(
-                child: CustomPaint(
-                  size: Size(_screenWidth, _displayHeigth),
-                  painter: _MiddleLinePainter(
-                    points: _scaledPoints,
-                    color: Colors.white,
-                    strokeWidth: 1.0,
-                    offset: 0.55,
-                    normalizedOffset: false,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
