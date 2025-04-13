@@ -378,6 +378,7 @@ class ImageProcessingManager {
         dev.log(
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
+        return;
       }
       if ((metadata["thumbnail"] ?? versionNames[3]) != newThumbnailName &&
           newThumbnailName != versionNames[0]) {
