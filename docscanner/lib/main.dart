@@ -1469,7 +1469,6 @@ class PagePreviewState extends State<PagePreview> {
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
-  bool _cornersBlocked = true;
   // PageView
   final PageController _pageController = PageController();
   bool _hideOverlay = false;
@@ -1586,10 +1585,18 @@ class PagePreviewState extends State<PagePreview> {
         //dev.log("Updated _newRatioIndex: $_newRatioIndex");
         _newOrientation;
         //dev.log("Updated _newOrientation: $_newOrientation");
-        _metadataBlocked = false;
       });
     }
-    _loadCornerPoints();
+    await _loadCornerPoints();
+    if (mounted) {
+      setState(() {
+        _cornerPoints;
+        if (_cornerPoints.isNotEmpty) {
+          _hideOverlay = false;
+          _metadataBlocked = false;
+        }
+      });
+    }
   }
 
   Future<void> _loadCornerPoints({bool supressWarning = false}) async {
@@ -1604,15 +1611,6 @@ class PagePreviewState extends State<PagePreview> {
     );
     _imagePixelWidth = image.width;
     _imagePixelHeight = image.height;
-    if (mounted) {
-      setState(() {
-        _cornerPoints;
-        if (_cornerPoints.isNotEmpty) {
-          _hideOverlay = false;
-          _cornersBlocked = false;
-        }
-      });
-    }
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -1778,9 +1776,7 @@ class PagePreviewState extends State<PagePreview> {
   // Preview Page
   @override
   Widget build(BuildContext context) {
-    bool enableFAB0 =
-        _versionPaths.first.isNotEmpty &&
-        (!_metadataBlocked && !_rotationOngoing);
+    bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
     bool enableFABs =
         _selectedVersion == 0
             ? enableFAB0
@@ -1975,22 +1971,22 @@ class PagePreviewState extends State<PagePreview> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   onPressed:
-                      enableFAB0 && !_cornersBlocked
+                      enableFAB0 && !_metadataBlocked
                           ? () => _openWarpManuallyPage()
                           : null,
                   tooltip:
-                      enableFAB0 && !_cornersBlocked
+                      enableFAB0 && !_metadataBlocked
                           ? 'Adjust Corner Points'
                           : 'Waiting for image to load...',
                   backgroundColor:
-                      enableFAB0 && !_cornersBlocked
+                      enableFAB0 && !_metadataBlocked
                           ? null
                           : Theme.of(context).disabledColor,
-                  elevation: enableFAB0 && !_cornersBlocked ? null : 0.0,
+                  elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
                   child: Icon(
                     Icons.crop_free,
                     color:
-                        enableFAB0 && !_cornersBlocked
+                        enableFAB0 && !_metadataBlocked
                             ? null
                             : Theme.of(context).disabledColor,
                   ),
