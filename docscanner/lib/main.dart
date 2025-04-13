@@ -1469,6 +1469,7 @@ class PagePreviewState extends State<PagePreview> {
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
+  bool _cornersBlocked = true;
   // PageView
   final PageController _pageController = PageController();
   bool _hideOverlay = false;
@@ -1579,7 +1580,6 @@ class PagePreviewState extends State<PagePreview> {
           widget.pageIndex,
           supressWarning: supressWarning,
         );
-    _loadCornerPoints();
     if (mounted) {
       setState(() {
         _newRatioIndex;
@@ -1589,6 +1589,7 @@ class PagePreviewState extends State<PagePreview> {
         _metadataBlocked = false;
       });
     }
+    _loadCornerPoints();
   }
 
   Future<void> _loadCornerPoints({bool supressWarning = false}) async {
@@ -1606,7 +1607,10 @@ class PagePreviewState extends State<PagePreview> {
     if (mounted) {
       setState(() {
         _cornerPoints;
-        _hideOverlay = false;
+        if (_cornerPoints.isNotEmpty) {
+          _hideOverlay = false;
+          _cornersBlocked = false;
+        }
       });
     }
   }
@@ -1966,21 +1970,29 @@ class PagePreviewState extends State<PagePreview> {
                 width: 40,
                 height: 40,
                 child: FloatingActionButton(
-                  heroTag: "warpManually",
+                  heroTag: "adjustCorners",
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  onPressed: enableFAB0 ? () => _openWarpManuallyPage() : null,
+                  onPressed:
+                      enableFAB0 && !_cornersBlocked
+                          ? () => _openWarpManuallyPage()
+                          : null,
                   tooltip:
-                      enableFAB0
+                      enableFAB0 && !_cornersBlocked
                           ? 'Adjust Corner Points'
                           : 'Waiting for image to load...',
                   backgroundColor:
-                      enableFAB0 ? null : Theme.of(context).disabledColor,
-                  elevation: enableFAB0 ? null : 0.0,
+                      enableFAB0 && !_cornersBlocked
+                          ? null
+                          : Theme.of(context).disabledColor,
+                  elevation: enableFAB0 && !_cornersBlocked ? null : 0.0,
                   child: Icon(
                     Icons.crop_free,
-                    color: enableFAB0 ? null : Theme.of(context).disabledColor,
+                    color:
+                        enableFAB0 && !_cornersBlocked
+                            ? null
+                            : Theme.of(context).disabledColor,
                   ),
                 ),
               )
