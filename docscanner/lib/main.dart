@@ -2745,7 +2745,7 @@ class _WarpState extends State<Warp> {
   static const double _zoomSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 500;
+  static const int _historyDurationMs = 250;
 
   @override
   void initState() {
@@ -2754,6 +2754,7 @@ class _WarpState extends State<Warp> {
     _initZoom();
   }
 
+  double moveUpBy = 0;
   void _initAsync() async {
     final image = await decodeImageFromList(
       (File(widget.imagePath).readAsBytesSync()),
@@ -2771,6 +2772,12 @@ class _WarpState extends State<Warp> {
           double y = point[0] * _scale;
           return Offset(x, y);
         }).toList();
+    for (var point in _scaledPoints) {
+      double maxHeight = 410.0;
+      if (point.dy > maxHeight) {
+        moveUpBy = point.dy - maxHeight;
+      }
+    }
 
     if (mounted) {
       setState(() {});
@@ -2814,6 +2821,7 @@ class _WarpState extends State<Warp> {
           leading: BackButton(
             onPressed: () {
               _allowPop = true;
+              //todo
               Navigator.pop(context);
             },
           ),
@@ -2853,12 +2861,18 @@ class _WarpState extends State<Warp> {
                       : SizedBox(),
             ),
             SizedBox(height: 24),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Center(child: Image.file(File(widget.imagePath))),
-                _draggableCornerOverlay(),
-              ],
+            Transform.translate(
+              offset: Offset(0, -(moveUpBy / 2)),
+              child: Transform.scale(
+                scale: (_displayHeigth - moveUpBy) / _displayHeigth,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Center(child: Image.file(File(widget.imagePath))),
+                    _draggableCornerOverlay(),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
