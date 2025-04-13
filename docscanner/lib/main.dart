@@ -645,7 +645,39 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Documents")),
+      appBar: AppBar(
+        title: Text("Documents"),
+        actions: [
+          PopupMenuButton(
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(
+                    //enabled: _imagesLoaded.every((element) => element),
+                    value: "del",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(Icons.info),
+                        SizedBox(width: 10),
+                        Text("Licenses"),
+                      ],
+                    ),
+                  ),
+                ],
+            onSelected: (String value) async {
+              switch (value) {
+                case "del":
+                  showLicensePage(
+                    context: context,
+                    applicationName: 'Offline Document Scanner',
+                    //applicationVersion: '1.0.0',
+                  );
+                  break;
+              }
+            },
+          ),
+        ],
+      ),
       body:
           _docThumbnails.isNotEmpty
               // Documents Cards
