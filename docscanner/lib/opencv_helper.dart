@@ -236,14 +236,14 @@ class OpenCVHelper {
       );
       ratioIndex = traffo.$1;
       orientation = traffo.$2;
-      shape.dispose();
-      shape = null;
     } else {
       double ratio = commonAspectRatios[ratioIndex].value;
-      ratio = orientation == 0 ? ratio : 1.0 / ratio;
+      ratio = (orientation == 0 ? ratio : 1.0 / ratio);
       _setHeight(corners, ratio);
       _calculateBorderSize(shape, corners);
     }
+    shape.dispose();
+    shape = null;
 
     cv.Mat? warped = _correctedTransformImage(imageMat, corners);
     if (warped == null) return (null, 0, 0, corners);
@@ -928,7 +928,7 @@ class OpenCVHelper {
 
   /// Step 7: Background Subtraction 2
   cv.Mat _isolateAndSubtractBG(cv.Mat warped) {
-    cv.Mat? bg = _warpedBg(warped);
+    cv.Mat bg = _warpedBg(warped);
     //return bg;
 
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
@@ -939,7 +939,7 @@ class OpenCVHelper {
   }
 
   cv.Mat _warpedBg(cv.Mat warped) {
-    // 1. Remove Glow (Opening)
+    // 1. Remove glow (Opening)
     int k1 = (K ~/ 18) + 1;
     cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
     cv.Mat bg = cv.morphologyEx(
@@ -948,7 +948,7 @@ class OpenCVHelper {
       kernel1,
       borderType: cv.BORDER_REPLICATE,
     );
-    // 2. Median filter hue + saturation
+    // 2. Remove colorful blobs like markers (Median)
     try {
       bg = cv.medianBlur(bg, (K * 2) + 1);
     } catch (e) {

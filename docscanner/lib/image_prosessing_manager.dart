@@ -92,9 +92,9 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.processed1Saved);
     }
 
-    // Processed2 basierend auf dem Processed1-Bild
+    // Processed2 basierend auf dem Warped-Bild
     Uint8List processed2 = cvHelper.processImage2(
-      ParamsProcessImage2(processed1Path, borderCorrectionDepth),
+      ParamsProcessImage2(warpedPath, borderCorrectionDepth),
     );
     String processed2Path = await filesHelperIn.savePageVersion(
       docIndex,
