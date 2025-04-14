@@ -2281,6 +2281,11 @@ class PagePreviewState extends State<PagePreview> {
       );
       newCornerPoints = rotateCornerPoints(newCornerPoints);
     }
+    int pageThumbnailIndex =
+        await ImageProcessingManager.readPageThumbnailIndex(
+          widget.docIndex,
+          widget.pageIndex,
+        );
 
     await ImageProcessingManager.writePageMetadata(
       widget.docIndex,
@@ -2297,6 +2302,7 @@ class PagePreviewState extends State<PagePreview> {
       _versionPaths[0], // potentially rotated image
       _newRatioIndex ?? 0,
       _newOrientation ?? 0,
+      pageThumbnailIndex,
       newCornerPoints,
     );
     _reprocessingCleanup();

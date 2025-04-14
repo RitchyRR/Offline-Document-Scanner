@@ -30,13 +30,15 @@ class ImageProcessingManager {
     String pathIn,
     int? ratioIndexIn,
     int? orientationIn,
+    int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
+    List<String> versionPaths = List.generate(4, (index) => "");
 
     // Original
     Uint8List picture = File(pathIn).readAsBytesSync();
-    String picturePath = await filesHelperIn.savePageVersion(
+    versionPaths[0] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       0,
@@ -47,7 +49,7 @@ class ImageProcessingManager {
     // Warped
     var warpedRet = cvHelper.warpImage(
       ParamsWarpImage(
-        picturePath,
+        versionPaths[0],
         inRatioIndex: ratioIndexIn,
         orientation: orientationIn,
         cornerPoints: cornerPointsIn,
@@ -70,7 +72,7 @@ class ImageProcessingManager {
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
 
-    String warpedPath = await filesHelperIn.savePageVersion(
+    versionPaths[1] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       1,
@@ -80,9 +82,9 @@ class ImageProcessingManager {
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
-      ParamsProcessImage1(warpedPath),
+      ParamsProcessImage1(versionPaths[1]),
     );
-    String processed1Path = await filesHelperIn.savePageVersion(
+    versionPaths[2] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       2,
@@ -94,9 +96,9 @@ class ImageProcessingManager {
 
     // Processed2 basierend auf dem Warped-Bild
     Uint8List processed2 = cvHelper.processImage2(
-      ParamsProcessImage2(warpedPath, borderCorrectionDepth),
+      ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
-    String processed2Path = await filesHelperIn.savePageVersion(
+    versionPaths[3] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       3,
@@ -110,7 +112,7 @@ class ImageProcessingManager {
 
     await _saveScaledThumbnail(
       sendPort,
-      processed2Path,
+      versionPaths[pageThumbnailIndex ?? 3],
       filesHelperIn.screenWidth,
       overwrite: true,
     );
@@ -126,6 +128,7 @@ class ImageProcessingManager {
       String pathIn,
       int? ratioIndexIn,
       int? orientationIn,
+      int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
     )
     data,
@@ -139,7 +142,8 @@ class ImageProcessingManager {
 
     int? ratioIndexIn = data.$7;
     int? orientationIn = data.$8;
-    List<List<int>>? cornerPointsIn = data.$9;
+    int? pageThumbnailIndex = data.$9;
+    List<List<int>>? cornerPointsIn = data.$10;
 
     await _processPage(
       sendPort,
@@ -150,6 +154,7 @@ class ImageProcessingManager {
       pathIn,
       ratioIndexIn,
       orientationIn,
+      pageThumbnailIndex,
       cornerPointsIn,
     );
     sendPort.send('done');
@@ -224,6 +229,7 @@ class ImageProcessingManager {
       null,
       null,
       null,
+      null,
     ));
     primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -266,6 +272,7 @@ class ImageProcessingManager {
           null,
           null,
           null,
+          null,
         ));
         secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
         secundaryPort.listen((message) {
@@ -289,6 +296,7 @@ class ImageProcessingManager {
     String pathIn,
     int? ratioIndexIn,
     int? orientationIn,
+    int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
@@ -303,6 +311,7 @@ class ImageProcessingManager {
       pathIn,
       ratioIndexIn,
       orientationIn,
+      pageThumbnailIndex,
       cornerPointsIn,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
