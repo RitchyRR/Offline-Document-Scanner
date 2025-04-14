@@ -2041,12 +2041,28 @@ class PagePreviewState extends State<PagePreview> {
                           ? null
                           : Theme.of(context).disabledColor,
                   elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
-                  child: Icon(
-                    Icons.crop_free,
-                    color:
-                        enableFAB0 && !_metadataBlocked
-                            ? null
-                            : Theme.of(context).disabledColor,
+                  child: Transform.scale(
+                    scaleY: 0.75,
+                    scaleX: 0.8,
+                    filterQuality: FilterQuality.high,
+                    child: Transform.translate(
+                      offset: Offset(0, -1.5),
+                      filterQuality: FilterQuality.high,
+                      child: Transform(
+                        alignment: Alignment.topCenter,
+                        transform:
+                            (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
+                            Matrix4.rotationX(-0.7),
+                        filterQuality: FilterQuality.high,
+                        child: Icon(
+                          Icons.crop_free_sharp,
+                          color:
+                              enableFAB0 && !_metadataBlocked
+                                  ? null
+                                  : Theme.of(context).disabledColor,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               )
