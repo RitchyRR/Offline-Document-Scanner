@@ -2042,11 +2042,11 @@ class PagePreviewState extends State<PagePreview> {
                           : Theme.of(context).disabledColor,
                   elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
                   child: Transform.scale(
-                    scaleY: 0.75,
-                    scaleX: 0.8,
+                    scaleY: 0.8,
+                    scaleX: 0.85,
                     filterQuality: FilterQuality.high,
                     child: Transform.translate(
-                      offset: Offset(0, -1.5),
+                      offset: Offset(0, -1.8),
                       filterQuality: FilterQuality.high,
                       child: Transform(
                         alignment: Alignment.topCenter,
@@ -2055,7 +2055,7 @@ class PagePreviewState extends State<PagePreview> {
                             Matrix4.rotationX(-0.7),
                         filterQuality: FilterQuality.high,
                         child: Icon(
-                          Icons.crop_free_sharp,
+                          Icons.crop_free,
                           color:
                               enableFAB0 && !_metadataBlocked
                                   ? null
