@@ -32,6 +32,7 @@ dependencies:
   image:
   # image processing:
   opencv_core: # image processing
+  in_app_purchase:
 
 
 dev_dependencies:
@@ -45,9 +46,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   #ios: true
-  image_path: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#363332"
-  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#00B8F9"
+  adaptive_icon_foreground: "assets/icon/icon.png"
   #dart run flutter_launcher_icons
 
 
