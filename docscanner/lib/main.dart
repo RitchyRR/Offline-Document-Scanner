@@ -2399,55 +2399,77 @@ class PagePreviewState extends State<PagePreview> {
                   setState(() => _selectedVersion = index);
                   _pageController.jumpToPage(index);
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color:
-                          _selectedVersion == index
-                              ? Colors.white
-                              : Colors.white54,
-                      width: 3,
+                child: Stack(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color:
+                              _selectedVersion == index
+                                  ? Colors.white
+                                  : Colors.white54,
+                          width: 3,
+                        ),
+                        boxShadow: [bigBoxShadow(context)],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.5),
+                        child:
+                            _versionPaths[index].isNotEmpty
+                                ? Image.file(
+                                  File(_versionPaths[index]),
+                                  width: _selectedVersion == index ? 70 : 50,
+                                  height: _selectedVersion == index ? 70 : 50,
+                                  fit: BoxFit.cover,
+                                  key: ValueKey(_imageRetry),
+                                  errorBuilder: (context, error, stackTrace) {
+                                    _refreshAfterBrokenImage(index);
+                                    return const SizedBox(
+                                      width: 50,
+                                      height: 50,
+                                      child: Icon(Icons.broken_image),
+                                    );
+                                  },
+                                )
+                                : Container(
+                                  width:
+                                      _selectedVersion == index && index != 0
+                                          ? 70
+                                          : 50,
+                                  height:
+                                      _selectedVersion == index && index != 0
+                                          ? 70
+                                          : 50,
+                                  color: Theme.of(context).disabledColor,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(12.0),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                      ),
                     ),
-                    boxShadow: [bigBoxShadow(context)],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.5),
-                    child:
-                        _versionPaths[index].isNotEmpty
-                            ? Image.file(
-                              File(_versionPaths[index]),
-                              width: _selectedVersion == index ? 70 : 50,
-                              height: _selectedVersion == index ? 70 : 50,
-                              fit: BoxFit.cover,
-                              key: ValueKey(_imageRetry),
-                              errorBuilder: (context, error, stackTrace) {
-                                _refreshAfterBrokenImage(index);
-                                return const SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: Icon(Icons.broken_image),
-                                );
-                              },
-                            )
-                            : Container(
-                              width:
-                                  _selectedVersion == index && index != 0
-                                      ? 70
-                                      : 50,
-                              height:
-                                  _selectedVersion == index && index != 0
-                                      ? 70
-                                      : 50,
-                              color: Theme.of(context).disabledColor,
-                              child: const Padding(
-                                padding: EdgeInsets.all(12.0),
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                  ),
+                    (true && index == 3)
+                        ? Positioned(
+                          top: 0,
+                          right: 0,
+                          child: CustomIconButton(
+                            onTap: () {
+                              proPopup(context);
+                            },
+                            icon: Icons.lock,
+                            iconColor:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                            color:
+                                Theme.of(context).colorScheme.primaryContainer,
+                          ),
+                        )
+                        : SizedBox(),
+                  ],
                 ),
               );
             }),
@@ -2540,6 +2562,7 @@ class PagePreviewState extends State<PagePreview> {
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       color: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
+      iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
       isDisabled:
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
@@ -3008,6 +3031,7 @@ class CustomIconButton extends StatelessWidget {
   final BoxConstraints constraints;
   final Color color;
   final IconData icon;
+  final Color iconColor;
   final double radius;
   final bool isFlat;
   final bool isHidden;
@@ -3019,8 +3043,9 @@ class CustomIconButton extends StatelessWidget {
     super.key,
     required this.onTap,
     this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
-    this.color = Colors.blue, // Default color if not provided
-    this.icon = Icons.check, // Default icon
+    this.color = Colors.blue,
+    this.icon = Icons.check,
+    this.iconColor = Colors.black,
     this.radius = 20,
     this.isFlat = false,
     this.isHidden = false,
@@ -3070,7 +3095,7 @@ class CustomIconButton extends StatelessWidget {
                           color:
                               isDisabled
                                   ? Theme.of(context).disabledColor
-                                  : null,
+                                  : iconColor,
                         ),
                         child,
                       ],
