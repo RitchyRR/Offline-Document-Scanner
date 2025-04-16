@@ -66,7 +66,7 @@ class ImageProcessingManager {
       pageIndex,
       ratioIndex,
       orientationIndex,
-      3,
+      (proUnlocked == true) ? 3 : 2,
       cornerPoints,
       filesHelperIn: filesHelperIn,
     );
@@ -112,7 +112,7 @@ class ImageProcessingManager {
 
     await _saveScaledThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndex ?? 3],
+      versionPaths[pageThumbnailIndex ?? ((proUnlocked == true) ? 3 : 2)],
       filesHelperIn.screenWidth,
       overwrite: true,
     );
@@ -355,7 +355,8 @@ class ImageProcessingManager {
       metadata["apectRatio"] = ratioIndex.toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
-      metadata["thumbnail"] = versionNames[thumbnailIndex ?? 3];
+      metadata["thumbnail"] =
+          versionNames[thumbnailIndex ?? ((proUnlocked == true) ? 3 : 2)];
       metadata["corners"] = cornerPoints;
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
@@ -389,7 +390,9 @@ class ImageProcessingManager {
         );
         return;
       }
-      if ((metadata["thumbnail"] ?? versionNames[3]) != newThumbnailName &&
+      if ((metadata["thumbnail"] ??
+                  versionNames[(proUnlocked == true) ? 3 : 2]) !=
+              newThumbnailName &&
           newThumbnailName != versionNames[0]) {
         isThumbnailNew = true;
       }
@@ -512,7 +515,9 @@ class ImageProcessingManager {
         String? thumbnailString = metadata["thumbnail"];
         return thumbnailString != null
             ? versionNames.indexOf(thumbnailString)
-            : 3;
+            : (proUnlocked == true)
+            ? 3
+            : 2;
       } catch (e) {
         dev.log("Error, readPageThumbnailIndex: $e");
       }
@@ -522,7 +527,7 @@ class ImageProcessingManager {
         "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
       );
     }
-    return 3;
+    return (proUnlocked == true) ? 3 : 2;
   }
 
   static Future<List<List<int>>> readPageCornerPoints(
