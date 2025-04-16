@@ -1,6 +1,5 @@
 // design:
 import 'dart:ui' as ui;
-
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
@@ -8,14 +7,15 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 // function:
-import 'package:flutter/services.dart';
 import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:provider/provider.dart';
 import 'dart:async'; // Timer
 import 'dart:convert'; // json
 import 'dart:developer' as dev;
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // my packages:
 import 'package:docscanner/files_helper.dart';
 
@@ -23,6 +23,7 @@ import 'package:docscanner/files_helper.dart';
 final GlobalNotifier globalNotifier = GlobalNotifier();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 final FilesHelper filesHelper = FilesHelper();
+bool? proUnlocked;
 
 enum NotifierEvent {
   loadPagesThumbnails,
@@ -115,7 +116,13 @@ class _MyAppState extends State<MyApp> {
     initAsync();
   }
 
-  Future<void> initAsync() async {}
+  Future<void> initAsync() async {
+    final sStorage = FlutterSecureStorage();
+    final proUnlockedString = await sStorage.read(key: 'proUnloacked');
+    setState(() {
+      proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -463,7 +470,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -513,10 +519,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
 
             // Share PDF
-            SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
+            SizedBox(height: (proUnlocked == true || pagesCount == 1) ? 0 : 4),
             Container(
               decoration:
-                  (proUnlocked || pagesCount == 1)
+                  (proUnlocked == true || pagesCount == 1)
                       ? null
                       : BoxDecoration(
                         color:
@@ -530,11 +536,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: (proUnlocked || pagesCount == 1) ? 0 : 4,
+                      horizontal:
+                          (proUnlocked == true || pagesCount == 1) ? 0 : 4,
                     ),
                     child: ElevatedButton.icon(
                       onPressed:
-                          allPagesLoaded && (proUnlocked || pagesCount == 1)
+                          allPagesLoaded &&
+                                  (proUnlocked == true || pagesCount == 1)
                               ? () async {
                                 Navigator.pop(context); // Close dialog
                                 await filesHelper.shareDocumentPdf(
@@ -553,7 +561,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                   ),
-                  (proUnlocked || pagesCount == 1)
+                  (proUnlocked == true || pagesCount == 1)
                       ? SizedBox()
                       : Padding(
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
@@ -590,7 +598,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -637,10 +644,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
 
             // Save as PDF
-            SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
+            SizedBox(height: (proUnlocked == true || pagesCount == 1) ? 0 : 4),
             Container(
               decoration:
-                  (proUnlocked || pagesCount == 1)
+                  (proUnlocked == true || pagesCount == 1)
                       ? null
                       : BoxDecoration(
                         color:
@@ -654,11 +661,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: (proUnlocked || pagesCount == 1) ? 0 : 4,
+                      horizontal:
+                          (proUnlocked == true || pagesCount == 1) ? 0 : 4,
                     ),
                     child: ElevatedButton.icon(
                       onPressed:
-                          allPagesLoaded && (proUnlocked || pagesCount == 1)
+                          allPagesLoaded &&
+                                  (proUnlocked == true || pagesCount == 1)
                               ? () async {
                                 Navigator.pop(context);
                                 await filesHelper.pickFolderForDocumentPdf(
@@ -676,7 +685,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                   ),
-                  (proUnlocked || pagesCount == 1)
+                  (proUnlocked == true || pagesCount == 1)
                       ? SizedBox()
                       : Padding(
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
@@ -803,7 +812,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   break;
                 case "pro":
-                  proPopup(context);
+                  await proPopup(context);
+                  setState(() {
+                    proUnlocked;
+                  });
                   break;
               }
             },
@@ -1212,8 +1224,10 @@ Future<bool> proPopup(BuildContext context) async {
     },
   );
   if (proUnlocked != null && proUnlocked == true) {
+    //todo actual payment
+    final sStorage = FlutterSecureStorage();
+    await sStorage.write(key: 'proUnlocked', value: 'true');
     Fluttertoast.showToast(msg: 'PRO features unlocked!');
-    //todo await write PRO metadata
     return true;
   }
   return false;
@@ -1656,6 +1670,7 @@ class PagePreviewState extends State<PagePreview> {
     (_) => Future<String>.value(""),
   );
   String _picturePath = "";
+  int _imageRetry = 0; // to refresh brokenImages
   // Reprocessing Parameters
   int? _ratioIndex;
   int? _newRatioIndex;
@@ -1809,7 +1824,6 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _versionPaths[_selectedVersion];
-    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -1826,7 +1840,7 @@ class PagePreviewState extends State<PagePreview> {
 
             Container(
               decoration:
-                  (proUnlocked || versionIndex != 3)
+                  (proUnlocked == true || versionIndex != 3)
                       ? null
                       : BoxDecoration(
                         color:
@@ -1845,11 +1859,13 @@ class PagePreviewState extends State<PagePreview> {
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
-                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                              (proUnlocked == true || versionIndex != 3)
+                                  ? 0
+                                  : 4,
                         ),
                         child: ElevatedButton.icon(
                           onPressed:
-                              (proUnlocked || versionIndex != 3)
+                              (proUnlocked == true || versionIndex != 3)
                                   ? () async {
                                     Navigator.pop(context);
                                     FilesHelper.saveImageToGallery(imagePath);
@@ -1864,11 +1880,13 @@ class PagePreviewState extends State<PagePreview> {
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
-                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                              (proUnlocked == true || versionIndex != 3)
+                                  ? 0
+                                  : 4,
                         ),
                         child: ElevatedButton.icon(
                           onPressed:
-                              (proUnlocked || versionIndex != 3)
+                              (proUnlocked == true || versionIndex != 3)
                                   ? () async {
                                     await FilesHelper.pickFolderForImagePdf(
                                       imagePath,
@@ -1889,7 +1907,7 @@ class PagePreviewState extends State<PagePreview> {
                     ],
                   ),
                   // Unlock PRO
-                  (proUnlocked || versionIndex != 3)
+                  (proUnlocked == true || versionIndex != 3)
                       ? SizedBox()
                       : Padding(
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
@@ -1923,7 +1941,6 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _versionPaths[versionIndex];
-    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -1939,7 +1956,7 @@ class PagePreviewState extends State<PagePreview> {
 
             Container(
               decoration:
-                  (proUnlocked || versionIndex != 3)
+                  (proUnlocked == true || versionIndex != 3)
                       ? null
                       : BoxDecoration(
                         color:
@@ -1958,11 +1975,13 @@ class PagePreviewState extends State<PagePreview> {
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
-                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                              (proUnlocked == true || versionIndex != 3)
+                                  ? 0
+                                  : 4,
                         ),
                         child: ElevatedButton.icon(
                           onPressed:
-                              (proUnlocked || versionIndex != 3)
+                              (proUnlocked == true || versionIndex != 3)
                                   ? () async {
                                     Navigator.pop(context);
                                     await FilesHelper.shareImages([imagePath]);
@@ -1976,11 +1995,13 @@ class PagePreviewState extends State<PagePreview> {
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal:
-                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                              (proUnlocked == true || versionIndex != 3)
+                                  ? 0
+                                  : 4,
                         ),
                         child: ElevatedButton.icon(
                           onPressed:
-                              (proUnlocked || versionIndex != 3)
+                              (proUnlocked == true || versionIndex != 3)
                                   ? () async {
                                     Navigator.pop(context);
                                     await filesHelper.shareImagesPdf(
@@ -1999,7 +2020,7 @@ class PagePreviewState extends State<PagePreview> {
                     ],
                   ),
                   // Unlock PRO
-                  (proUnlocked || versionIndex != 3)
+                  (proUnlocked == true || versionIndex != 3)
                       ? SizedBox()
                       : Padding(
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
@@ -2114,18 +2135,18 @@ class PagePreviewState extends State<PagePreview> {
       },
     );
     if (proUnlocked != null && proUnlocked == true) {
+      //todo actual payment
+      final sStorage = FlutterSecureStorage();
+      await sStorage.write(key: 'proUnlocked', value: 'true');
       Fluttertoast.showToast(msg: 'PRO features unlocked!');
-      //todo await write PRO metadata
       setState(() {
-        _proUnlocked = true;
+        proUnlocked;
       });
       return true;
     }
     return false;
   }
 
-  int _imageRetry = 0;
-  bool _proUnlocked = true;
   // Preview Page
   @override
   Widget build(BuildContext context) {
@@ -2134,7 +2155,7 @@ class PagePreviewState extends State<PagePreview> {
         _selectedVersion == 0
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
-    bool allowPop = _proUnlocked || _selectedVersion != 3;
+    bool allowPop = proUnlocked == true || _selectedVersion != 3;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2507,8 +2528,11 @@ class PagePreviewState extends State<PagePreview> {
                             top: 0,
                             right: 0,
                             child: CustomIconButton(
-                              onTap: () {
-                                proPopup(context);
+                              onTap: () async {
+                                await proPopup(context);
+                                setState(() {
+                                  proUnlocked;
+                                });
                               },
                               icon: Icons.lock,
                               iconColor:
