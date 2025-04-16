@@ -290,11 +290,11 @@ class _MyHomePageState extends State<MyHomePage> {
     final newIndexes = await _processDocument(picturePaths);
     int docIndex = newIndexes.$1;
     int firstPageIndex = newIndexes.$2;
-    // only open PreviewPage for first page
-    _openNewPreviewPage(docIndex, firstPageIndex);
+    // only open PagePreview for first page
+    _openNewPagePreview(docIndex, firstPageIndex);
   }
 
-  Future<void> _openNewPreviewPage(int docIndex, int pageIndex) async {
+  Future<void> _openNewPagePreview(int docIndex, int pageIndex) async {
     Future<void> future = Navigator.pushNamed(
       context,
       '/pages/preview',
@@ -1327,7 +1327,7 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  Future<void> _openPreviewPage(int docIndex, int pageIndex) async {
+  Future<void> _openPagePreview(int docIndex, int pageIndex) async {
     Future<void> future = Navigator.pushNamed(
       context,
       '/preview',
@@ -1357,8 +1357,8 @@ class _PagesState extends State<Pages> {
 
     int firstPageIndex = await _processNewPages(picturePaths);
 
-    // Only open PreviewPage for first page
-    _openPreviewPage(widget.docIndex, firstPageIndex);
+    // Only open PagePreview for first page
+    _openPagePreview(widget.docIndex, firstPageIndex);
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
@@ -1456,14 +1456,14 @@ class _PagesState extends State<Pages> {
                                       child: IndicatorProcessingImage(),
                                     ),
                                   ),
-                              // Open PreviewPage
+                              // Open PagePreview
                               Positioned.fill(
                                 child: Material(
                                   color: Colors.transparent,
                                   child: InkWell(
                                     onTap:
                                         (_pageThumbnails[index].isNotEmpty)
-                                            ? () => _openPreviewPage(
+                                            ? () => _openPagePreview(
                                               widget.docIndex,
                                               index,
                                             )
@@ -1694,12 +1694,6 @@ class PagePreviewState extends State<PagePreview> {
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
-    // new thumbnail
-    ImageProcessingManager.writePageThumbnailIndex(
-      widget.docIndex,
-      widget.pageIndex,
-      _selectedVersion,
-    );
     super.dispose();
   }
 
@@ -2095,7 +2089,41 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
+  Future<bool> _popOnProFilterPopup(BuildContext context) async {
+    bool? proUnlocked = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Unlock PRO filter"),
+          content: Text(
+            "You have selected the PRO filter, by selecting its thumbnail and then trying to leave this page.\n\nTo get access, first unlock PRO features.\n\nAlternatively select a different version before leaving.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text("Purchase", style: TextStyle(color: Colors.green)),
+            ),
+          ],
+        );
+      },
+    );
+    if (proUnlocked != null && proUnlocked == true) {
+      Fluttertoast.showToast(msg: 'PRO features unlocked!');
+      //todo await write PRO metadata
+      setState(() {
+        _proUnlocked = true;
+      });
+      return true;
+    }
+    return false;
+  }
+
   int _imageRetry = 0;
+  bool _proUnlocked = false;
   // Preview Page
   @override
   Widget build(BuildContext context) {
@@ -2104,375 +2132,399 @@ class PagePreviewState extends State<PagePreview> {
         _selectedVersion == 0
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
-    return Scaffold(
-      // Top Bar
-      appBar: AppBar(
-        title: Text('Page ${widget.pageIndex + 1}'),
-        actions: [
-          PopupMenuButton(
-            itemBuilder:
-                (context) => [
-                  PopupMenuItem(
-                    value: "del",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 12),
-                        Icon(
-                          Icons.delete,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          "Delete Page",
-                          style: TextStyle(
+    bool allowPop = _proUnlocked || _selectedVersion != 3;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (!allowPop) {
+          _popOnProFilterPopup(context);
+        } else {
+          // new thumbnail
+          ImageProcessingManager.writePageThumbnailIndex(
+            widget.docIndex,
+            widget.pageIndex,
+            _selectedVersion,
+          );
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        // Top Bar
+        appBar: AppBar(
+          title: Text('Page ${widget.pageIndex + 1}'),
+          actions: [
+            PopupMenuButton(
+              itemBuilder:
+                  (context) => [
+                    PopupMenuItem(
+                      value: "del",
+                      child: Row(
+                        children: [
+                          SizedBox(width: 12),
+                          Icon(
+                            Icons.delete,
                             color:
                                 Theme.of(
                                   context,
                                 ).colorScheme.onPrimaryContainer,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-            onSelected: (String value) async {
-              switch (value) {
-                case "del":
-                  bool deleted = await _deletePagePopup(context);
-                  if (deleted && mounted && context.mounted) {
-                    Navigator.pop(context);
-                  }
-                  break;
-              }
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Bg Shadow
-          Align(
-            alignment: Alignment.center,
-            child: AspectRatio(
-              aspectRatio:
-                  (((_orientation ?? 0) == 0)
-                      ? 1.0 / commonAspectRatios[_ratioIndex ?? 0].value
-                      : commonAspectRatios[_ratioIndex ?? 0].value),
-              child: Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).shadowColor.withAlpha(25),
-                      blurRadius: 50,
-                      spreadRadius: -20,
-                      offset: const Offset(0, 4),
+                          SizedBox(width: 10),
+                          Text(
+                            "Delete Page",
+                            style: TextStyle(
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+              onSelected: (String value) async {
+                switch (value) {
+                  case "del":
+                    bool deleted = await _deletePagePopup(context);
+                    if (deleted && mounted && context.mounted) {
+                      Navigator.pop(context);
+                    }
+                    break;
+                }
+              },
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // Bg Shadow
+            Align(
+              alignment: Alignment.center,
+              child: AspectRatio(
+                aspectRatio:
+                    (((_orientation ?? 0) == 0)
+                        ? 1.0 / commonAspectRatios[_ratioIndex ?? 0].value
+                        : commonAspectRatios[_ratioIndex ?? 0].value),
+                child: Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).shadowColor.withAlpha(25),
+                        blurRadius: 50,
+                        spreadRadius: -20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Images (Page Versions)
-          PhotoViewGallery.builder(
-            wantKeepAlive: false,
-            scrollPhysics: const PageScrollPhysics(),
-            itemCount: _versionPaths.length,
-            builder: (context, index) {
-              // Loading indicator
-              if (_versionPaths[index].isEmpty) {
+            // Images (Page Versions)
+            PhotoViewGallery.builder(
+              wantKeepAlive: false,
+              scrollPhysics: const PageScrollPhysics(),
+              itemCount: _versionPaths.length,
+              builder: (context, index) {
                 // Loading indicator
-                return PhotoViewGalleryPageOptions.customChild(
-                  child: IndicatorProcessingImage(),
+                if (_versionPaths[index].isEmpty) {
+                  // Loading indicator
+                  return PhotoViewGalleryPageOptions.customChild(
+                    child: IndicatorProcessingImage(),
+                  );
+                }
+                // Picture
+                if (index == 0) {
+                  bool isZoomed = false;
+                  return PhotoViewGalleryPageOptions.customChild(
+                    child: Stack(
+                      children: [
+                        PhotoView(
+                          imageProvider: FileImage(File(_versionPaths[0])),
+                          filterQuality: FilterQuality.high,
+                          minScale: PhotoViewComputedScale.contained,
+                          maxScale: 1.0,
+                          key: ValueKey(_imageRetry),
+                          errorBuilder: (context, error, stackTrace) {
+                            _refreshAfterBrokenImage(index);
+                            return IndicatorProcessingImage();
+                          },
+                          backgroundDecoration: BoxDecoration(
+                            color: Colors.transparent,
+                          ),
+                          scaleStateChangedCallback: (scaleState) async {
+                            isZoomed =
+                                scaleState != PhotoViewScaleState.initial;
+                            if (!isZoomed) {
+                              await Future.delayed(Duration(milliseconds: 300));
+                            } // delay becuase of zoom animation
+                            setState(() => _hideOverlay = isZoomed);
+                          },
+                        ),
+                        // Corner Points
+                        (_cornerPoints.isNotEmpty && !_hideOverlay)
+                            ? _displayCornerOverlay(context)
+                            : SizedBox(),
+                      ],
+                    ),
+                  );
+                }
+                // Processed Images
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: FileImage(File(_versionPaths[index])),
+                  filterQuality: FilterQuality.high,
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: 1.0,
+                  key: ValueKey(_imageRetry),
+                  errorBuilder: (context, error, stackTrace) {
+                    _refreshAfterBrokenImage(index);
+                    return IndicatorProcessingImage();
+                  },
                 );
-              }
-              // Picture
-              if (index == 0) {
-                bool isZoomed = false;
-                return PhotoViewGalleryPageOptions.customChild(
+              },
+              backgroundDecoration: BoxDecoration(color: Colors.transparent),
+              pageController: _pageController,
+              onPageChanged: (index) {
+                setState(() => _selectedVersion = index);
+              },
+            ),
+            // Reprocessing Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Align(
+                alignment:
+                    _selectedVersion == 0
+                        ? Alignment.topCenter
+                        : Alignment.topLeft,
+
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  constraints: BoxConstraints(minHeight: 48, maxHeight: 48),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [smallBoxShadow(context)],
+                  ),
+                  child:
+                      _selectedVersion == 0
+                          ? Row(
+                            spacing: 12,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                spacing: 12,
+                                children: [
+                                  _aspectRatioDropDown(context),
+                                  _orientationDropDown(context),
+                                  _rotateButton(
+                                    context,
+                                    -90,
+                                    Icons.rotate_left,
+                                    "Rotate 90° left",
+                                  ),
+                                  _rotateButton(
+                                    context,
+                                    90,
+                                    Icons.rotate_right,
+                                    "Rotate 90° right",
+                                  ),
+                                ],
+                              ),
+                              _confirmReProcessingButton(context),
+                            ],
+                          )
+                          : _toEditingButton(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Floating Buttons
+        floatingActionButton: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _selectedVersion == 0
+                ? SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: FloatingActionButton(
+                    heroTag: "adjustCorners",
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onPressed:
+                        enableFAB0 && !_metadataBlocked
+                            ? () => _openWarpManuallyPage()
+                            : null,
+                    tooltip:
+                        enableFAB0 && !_metadataBlocked
+                            ? 'Adjust Corner Points'
+                            : 'Waiting for image to load...',
+                    backgroundColor:
+                        enableFAB0 && !_metadataBlocked
+                            ? null
+                            : Theme.of(context).disabledColor,
+                    elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
+                    child: Transform.scale(
+                      scaleY: 0.8,
+                      scaleX: 0.85,
+                      filterQuality: FilterQuality.high,
+                      child: Transform.translate(
+                        offset: Offset(0, -1.8),
+                        filterQuality: FilterQuality.high,
+                        child: Transform(
+                          alignment: Alignment.topCenter,
+                          transform:
+                              (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
+                              Matrix4.rotationX(-0.7),
+                          filterQuality: FilterQuality.high,
+                          child: Icon(
+                            Icons.crop_free,
+                            color:
+                                enableFAB0 && !_metadataBlocked
+                                    ? null
+                                    : Theme.of(context).disabledColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                : SizedBox(),
+            SizedBox(height: 18.0),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                heroTag: "sharePageVersion",
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onPressed:
+                    enableFABs
+                        ? () => _sharePagePopup(context, _selectedVersion)
+                        : null,
+                tooltip:
+                    enableFABs ? 'Share Image' : 'Waiting for image to load...',
+                backgroundColor:
+                    enableFABs ? null : Theme.of(context).disabledColor,
+                elevation: enableFABs ? null : 0.0,
+                child: Icon(
+                  Icons.share,
+                  color: enableFABs ? null : Theme.of(context).disabledColor,
+                ),
+              ),
+            ),
+            SizedBox(height: 18.0),
+            FloatingActionButton(
+              heroTag: "savePageVersion",
+              onPressed:
+                  enableFABs
+                      ? () => _savePagePopup(context, _selectedVersion)
+                      : null,
+              tooltip:
+                  enableFABs ? 'Save Image' : 'Waiting for image to load...',
+              backgroundColor:
+                  enableFABs ? null : Theme.of(context).disabledColor,
+              elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
+              child: Icon(
+                Icons.save,
+                color: enableFABs ? null : Theme.of(context).disabledColor,
+              ),
+            ),
+            SizedBox(height: 20.0),
+          ],
+        ),
+        // Thumbnail Bar
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.only(bottom: 50),
+          child: SizedBox(
+            height: 80,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(4, (index) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedVersion = index);
+                    _pageController.jumpToPage(index);
+                  },
                   child: Stack(
                     children: [
-                      PhotoView(
-                        imageProvider: FileImage(File(_versionPaths[0])),
-                        filterQuality: FilterQuality.high,
-                        minScale: PhotoViewComputedScale.contained,
-                        maxScale: 1.0,
-                        key: ValueKey(_imageRetry),
-                        errorBuilder: (context, error, stackTrace) {
-                          _refreshAfterBrokenImage(index);
-                          return IndicatorProcessingImage();
-                        },
-                        backgroundDecoration: BoxDecoration(
-                          color: Colors.transparent,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                _selectedVersion == index
+                                    ? Colors.white
+                                    : Colors.white54,
+                            width: 3,
+                          ),
+                          boxShadow: [bigBoxShadow(context)],
                         ),
-                        scaleStateChangedCallback: (scaleState) async {
-                          isZoomed = scaleState != PhotoViewScaleState.initial;
-                          if (!isZoomed) {
-                            await Future.delayed(Duration(milliseconds: 300));
-                          } // delay becuase of zoom animation
-                          setState(() => _hideOverlay = isZoomed);
-                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.5),
+                          child:
+                              _versionPaths[index].isNotEmpty
+                                  ? Image.file(
+                                    File(_versionPaths[index]),
+                                    width: _selectedVersion == index ? 70 : 50,
+                                    height: _selectedVersion == index ? 70 : 50,
+                                    fit: BoxFit.cover,
+                                    key: ValueKey(_imageRetry),
+                                    errorBuilder: (context, error, stackTrace) {
+                                      _refreshAfterBrokenImage(index);
+                                      return const SizedBox(
+                                        width: 50,
+                                        height: 50,
+                                        child: Icon(Icons.broken_image),
+                                      );
+                                    },
+                                  )
+                                  : Container(
+                                    width:
+                                        _selectedVersion == index && index != 0
+                                            ? 70
+                                            : 50,
+                                    height:
+                                        _selectedVersion == index && index != 0
+                                            ? 70
+                                            : 50,
+                                    color: Theme.of(context).disabledColor,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(12.0),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
+                        ),
                       ),
-                      // Corner Points
-                      (_cornerPoints.isNotEmpty && !_hideOverlay)
-                          ? _displayCornerOverlay(context)
+                      (true && index == 3)
+                          ? Positioned(
+                            top: 0,
+                            right: 0,
+                            child: CustomIconButton(
+                              onTap: () {
+                                proPopup(context);
+                              },
+                              icon: Icons.lock,
+                              iconColor:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
+                            ),
+                          )
                           : SizedBox(),
                     ],
                   ),
                 );
-              }
-              // Processed Images
-              return PhotoViewGalleryPageOptions(
-                imageProvider: FileImage(File(_versionPaths[index])),
-                filterQuality: FilterQuality.high,
-                minScale: PhotoViewComputedScale.contained,
-                maxScale: 1.0,
-                key: ValueKey(_imageRetry),
-                errorBuilder: (context, error, stackTrace) {
-                  _refreshAfterBrokenImage(index);
-                  return IndicatorProcessingImage();
-                },
-              );
-            },
-            backgroundDecoration: BoxDecoration(color: Colors.transparent),
-            pageController: _pageController,
-            onPageChanged: (index) {
-              setState(() => _selectedVersion = index);
-            },
-          ),
-          // Reprocessing Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Align(
-              alignment:
-                  _selectedVersion == 0
-                      ? Alignment.topCenter
-                      : Alignment.topLeft,
-
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                constraints: BoxConstraints(minHeight: 48, maxHeight: 48),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [smallBoxShadow(context)],
-                ),
-                child:
-                    _selectedVersion == 0
-                        ? Row(
-                          spacing: 12,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              spacing: 12,
-                              children: [
-                                _aspectRatioDropDown(context),
-                                _orientationDropDown(context),
-                                _rotateButton(
-                                  context,
-                                  -90,
-                                  Icons.rotate_left,
-                                  "Rotate 90° left",
-                                ),
-                                _rotateButton(
-                                  context,
-                                  90,
-                                  Icons.rotate_right,
-                                  "Rotate 90° right",
-                                ),
-                              ],
-                            ),
-                            _confirmReProcessingButton(context),
-                          ],
-                        )
-                        : _toEditingButton(context),
-              ),
+              }),
             ),
-          ),
-        ],
-      ),
-      // Floating Buttons
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          _selectedVersion == 0
-              ? SizedBox(
-                width: 40,
-                height: 40,
-                child: FloatingActionButton(
-                  heroTag: "adjustCorners",
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onPressed:
-                      enableFAB0 && !_metadataBlocked
-                          ? () => _openWarpManuallyPage()
-                          : null,
-                  tooltip:
-                      enableFAB0 && !_metadataBlocked
-                          ? 'Adjust Corner Points'
-                          : 'Waiting for image to load...',
-                  backgroundColor:
-                      enableFAB0 && !_metadataBlocked
-                          ? null
-                          : Theme.of(context).disabledColor,
-                  elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
-                  child: Transform.scale(
-                    scaleY: 0.8,
-                    scaleX: 0.85,
-                    filterQuality: FilterQuality.high,
-                    child: Transform.translate(
-                      offset: Offset(0, -1.8),
-                      filterQuality: FilterQuality.high,
-                      child: Transform(
-                        alignment: Alignment.topCenter,
-                        transform:
-                            (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
-                            Matrix4.rotationX(-0.7),
-                        filterQuality: FilterQuality.high,
-                        child: Icon(
-                          Icons.crop_free,
-                          color:
-                              enableFAB0 && !_metadataBlocked
-                                  ? null
-                                  : Theme.of(context).disabledColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              : SizedBox(),
-          SizedBox(height: 18.0),
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: FloatingActionButton(
-              heroTag: "sharePageVersion",
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              onPressed:
-                  enableFABs
-                      ? () => _sharePagePopup(context, _selectedVersion)
-                      : null,
-              tooltip:
-                  enableFABs ? 'Share Image' : 'Waiting for image to load...',
-              backgroundColor:
-                  enableFABs ? null : Theme.of(context).disabledColor,
-              elevation: enableFABs ? null : 0.0,
-              child: Icon(
-                Icons.share,
-                color: enableFABs ? null : Theme.of(context).disabledColor,
-              ),
-            ),
-          ),
-          SizedBox(height: 18.0),
-          FloatingActionButton(
-            heroTag: "savePageVersion",
-            onPressed:
-                enableFABs
-                    ? () => _savePagePopup(context, _selectedVersion)
-                    : null,
-            tooltip: enableFABs ? 'Save Image' : 'Waiting for image to load...',
-            backgroundColor:
-                enableFABs ? null : Theme.of(context).disabledColor,
-            elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
-            child: Icon(
-              Icons.save,
-              color: enableFABs ? null : Theme.of(context).disabledColor,
-            ),
-          ),
-          SizedBox(height: 20.0),
-        ],
-      ),
-      // Thumbnail Bar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(bottom: 50),
-        child: SizedBox(
-          height: 80,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (index) {
-              return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedVersion = index);
-                  _pageController.jumpToPage(index);
-                },
-                child: Stack(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color:
-                              _selectedVersion == index
-                                  ? Colors.white
-                                  : Colors.white54,
-                          width: 3,
-                        ),
-                        boxShadow: [bigBoxShadow(context)],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.5),
-                        child:
-                            _versionPaths[index].isNotEmpty
-                                ? Image.file(
-                                  File(_versionPaths[index]),
-                                  width: _selectedVersion == index ? 70 : 50,
-                                  height: _selectedVersion == index ? 70 : 50,
-                                  fit: BoxFit.cover,
-                                  key: ValueKey(_imageRetry),
-                                  errorBuilder: (context, error, stackTrace) {
-                                    _refreshAfterBrokenImage(index);
-                                    return const SizedBox(
-                                      width: 50,
-                                      height: 50,
-                                      child: Icon(Icons.broken_image),
-                                    );
-                                  },
-                                )
-                                : Container(
-                                  width:
-                                      _selectedVersion == index && index != 0
-                                          ? 70
-                                          : 50,
-                                  height:
-                                      _selectedVersion == index && index != 0
-                                          ? 70
-                                          : 50,
-                                  color: Theme.of(context).disabledColor,
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(12.0),
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                ),
-                      ),
-                    ),
-                    (true && index == 3)
-                        ? Positioned(
-                          top: 0,
-                          right: 0,
-                          child: CustomIconButton(
-                            onTap: () {
-                              proPopup(context);
-                            },
-                            icon: Icons.lock,
-                            iconColor:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                          ),
-                        )
-                        : SizedBox(),
-                  ],
-                ),
-              );
-            }),
           ),
         ),
       ),

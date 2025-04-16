@@ -15,7 +15,7 @@ class AspectRatioInfo {
 
 final List<AspectRatioInfo> commonAspectRatios = [
   //// International Standard (ISO 216 - A, B, C series)
-  AspectRatioInfo("DIN A4", "DIN A/B/C (√2:1)", math.sqrt(2)), // ~1.414
+  AspectRatioInfo("DIN", "DIN A/B/C (√2:1)", math.sqrt(2)), // ~1.414
   //// North American Paper Sizes (Letter, Legal, etc.)
   AspectRatioInfo("Letter", "Letter (8.5x11″, US)", 11 / 8.5), // ~1.294
   AspectRatioInfo("Legal", "Legal (8.5x14″, US)", 14 / 8.5), // ~1.647
