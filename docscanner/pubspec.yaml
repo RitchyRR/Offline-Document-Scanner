@@ -28,10 +28,11 @@ dependencies:
   gal: # save to gallery
   share_plus: # share files
   pdf: 
-  file_picker: # select directory to save pdfs to
+  file_selector: # select directory to save pdfs to
   image:
   # image processing:
   opencv_core: # image processing
+  # google:
   in_app_purchase:
 
 

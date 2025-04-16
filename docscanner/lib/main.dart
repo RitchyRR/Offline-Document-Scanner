@@ -463,7 +463,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-    final bool proUnlocked = false;
+    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -590,7 +590,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-    final bool proUnlocked = false;
+    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -1809,7 +1809,7 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _versionPaths[_selectedVersion];
-    final bool proUnlocked = false;
+    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -1870,13 +1870,15 @@ class PagePreviewState extends State<PagePreview> {
                           onPressed:
                               (proUnlocked || versionIndex != 3)
                                   ? () async {
-                                    Navigator.pop(context);
                                     await FilesHelper.pickFolderForImagePdf(
                                       imagePath,
                                       widget.docIndex,
                                       widget.pageIndex,
                                       versionName: versionNames[versionIndex],
                                     );
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                    }
                                   }
                                   : null,
 
@@ -1921,7 +1923,7 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _versionPaths[versionIndex];
-    final bool proUnlocked = false;
+    final bool proUnlocked = true;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -2123,7 +2125,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   int _imageRetry = 0;
-  bool _proUnlocked = false;
+  bool _proUnlocked = true;
   // Preview Page
   @override
   Widget build(BuildContext context) {

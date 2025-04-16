@@ -13,7 +13,8 @@ import 'dart:developer' as dev;
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pdfw;
-import 'package:file_picker/file_picker.dart';
+//import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
 
 class FilesHelper {
@@ -640,7 +641,7 @@ class FilesHelper {
   }
 
   static Future<pdfw.Document?> _convertImagesToPdf(
-    List<String> imagePaths,
+    List<String> imagePathsIn,
     int docIndex,
     int firstPageIndex,
   ) async {
@@ -649,7 +650,7 @@ class FilesHelper {
     List<int> orientations = [];
     for (
       var pageIndex = firstPageIndex;
-      pageIndex < imagePaths.length;
+      pageIndex < (imagePathsIn.length + firstPageIndex);
       pageIndex++
     ) {
       ratioIndexes.add(
@@ -692,7 +693,7 @@ class FilesHelper {
 
       // Create PDF
       final pdf = pdfw.Document();
-      for (var (i, imagePath) in imagePaths.indexed) {
+      for (var (i, imagePath) in imagePathsIn.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
@@ -721,8 +722,8 @@ class FilesHelper {
   Future<void> pickFolderForDocumentPdf(int docIndex) async {
     try {
       // Ask user to pick a folder
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: "Select a Folder to Save PDF",
+      String? selectedDirectory = await getDirectoryPath(
+        confirmButtonText: "Select a Folder to Save PDF",
       );
       if (selectedDirectory == null) {
         dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
@@ -761,8 +762,8 @@ class FilesHelper {
   }) async {
     try {
       // Ask user to pick a folder
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: "Select a Folder to Save PDF",
+      String? selectedDirectory = await getDirectoryPath(
+        confirmButtonText: "Select a Folder to Save the PDF to.",
       );
       if (selectedDirectory == null) {
         dev.log("User-Action, pickFolderForImagePdf: cancelled");
