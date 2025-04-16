@@ -515,10 +515,6 @@ class _MyHomePageState extends State<MyHomePage> {
             // Share PDF
             SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
             Container(
-              padding:
-                  (proUnlocked || pagesCount == 1)
-                      ? null
-                      : EdgeInsets.fromLTRB(4, 0, 4, 6),
               decoration:
                   (proUnlocked || pagesCount == 1)
                       ? null
@@ -532,39 +528,47 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
               child: Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed:
-                        allPagesLoaded && (proUnlocked || pagesCount == 1)
-                            ? () async {
-                              Navigator.pop(context); // Close dialog
-                              await filesHelper.shareDocumentPdf(
-                                context,
-                                docIndex,
-                              );
-                            }
-                            : null,
-                    icon: Icon(
-                      allPagesLoaded
-                          ? Icons.picture_as_pdf
-                          : Icons.broken_image,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (proUnlocked || pagesCount == 1) ? 0 : 4,
                     ),
-                    label: Text(
-                      "Share ${pagesCount == 1 ? "single page " : "combined "}PDF",
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          allPagesLoaded && (proUnlocked || pagesCount == 1)
+                              ? () async {
+                                Navigator.pop(context); // Close dialog
+                                await filesHelper.shareDocumentPdf(
+                                  context,
+                                  docIndex,
+                                );
+                              }
+                              : null,
+                      icon: Icon(
+                        allPagesLoaded
+                            ? Icons.picture_as_pdf
+                            : Icons.broken_image,
+                      ),
+                      label: Text(
+                        "Share ${pagesCount == 1 ? "single page " : "combined "}PDF",
+                      ),
                     ),
                   ),
                   (proUnlocked || pagesCount == 1)
                       ? SizedBox()
-                      : ElevatedButton.icon(
-                        onPressed: () async {
-                          if (await proPopup(context)) {
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              _shareDocumentPopup(context, docIndex);
+                      : Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (await proPopup(context)) {
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                _shareDocumentPopup(context, docIndex);
+                              }
                             }
-                          }
-                        },
-                        icon: Icon(Icons.lock),
-                        label: Text("Unlock PRO"),
+                          },
+                          icon: Icon(Icons.lock),
+                          label: Text("Unlock PRO"),
+                        ),
                       ),
                 ],
               ),
@@ -635,10 +639,6 @@ class _MyHomePageState extends State<MyHomePage> {
             // Save as PDF
             SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
             Container(
-              padding:
-                  (proUnlocked || pagesCount == 1)
-                      ? null
-                      : EdgeInsets.fromLTRB(4, 0, 4, 6),
               decoration:
                   (proUnlocked || pagesCount == 1)
                       ? null
@@ -652,38 +652,46 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
               child: Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed:
-                        allPagesLoaded && (proUnlocked || pagesCount == 1)
-                            ? () async {
-                              Navigator.pop(context);
-                              await filesHelper.pickFolderForDocumentPdf(
-                                docIndex,
-                              );
-                            }
-                            : null,
-                    icon: Icon(
-                      allPagesLoaded
-                          ? Icons.picture_as_pdf
-                          : Icons.broken_image,
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (proUnlocked || pagesCount == 1) ? 0 : 4,
                     ),
-                    label: Text(
-                      "Save ${pagesCount == 1 ? "single page " : "combined "}PDF to Directory",
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          allPagesLoaded && (proUnlocked || pagesCount == 1)
+                              ? () async {
+                                Navigator.pop(context);
+                                await filesHelper.pickFolderForDocumentPdf(
+                                  docIndex,
+                                );
+                              }
+                              : null,
+                      icon: Icon(
+                        allPagesLoaded
+                            ? Icons.picture_as_pdf
+                            : Icons.broken_image,
+                      ),
+                      label: Text(
+                        "Save ${pagesCount == 1 ? "single page " : "combined "}PDF to Directory",
+                      ),
                     ),
                   ),
                   (proUnlocked || pagesCount == 1)
                       ? SizedBox()
-                      : ElevatedButton.icon(
-                        onPressed: () async {
-                          if (await proPopup(context)) {
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                              _saveDocumentPopup(context, docIndex);
+                      : Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (await proPopup(context)) {
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                _saveDocumentPopup(context, docIndex);
+                              }
                             }
-                          }
-                        },
-                        icon: Icon(Icons.lock),
-                        label: Text("Unlock PRO"),
+                          },
+                          icon: Icon(Icons.lock),
+                          label: Text("Unlock PRO"),
+                        ),
                       ),
                 ],
               ),
@@ -1807,6 +1815,8 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
     final String imagePath = _versionPaths[_selectedVersion];
+    final bool proUnlocked = false;
+
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1819,28 +1829,89 @@ class PagePreviewState extends State<PagePreview> {
           actions: [
             ImagesScrollPreview(pagePaths: [imagePath]),
             SizedBox(height: 36.0),
-            // Save Image
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                FilesHelper.saveImageToGallery(imagePath);
-              },
-              icon: Icon(Icons.image),
-              label: Text("Save Image to Gallery"),
-            ),
-            // Save as PDF
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                await FilesHelper.pickFolderForImagePdf(
-                  imagePath,
-                  widget.docIndex,
-                  widget.pageIndex,
-                  versionName: versionNames[versionIndex],
-                );
-              },
-              icon: Icon(Icons.picture_as_pdf),
-              label: Text("Save PDF to Directory"),
+
+            Container(
+              decoration:
+                  (proUnlocked || versionIndex != 3)
+                      ? null
+                      : BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [smallBoxShadow(context)],
+                      ),
+              child: Column(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Save Image
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (proUnlocked || versionIndex != 3)
+                                  ? () async {
+                                    Navigator.pop(context);
+                                    FilesHelper.saveImageToGallery(imagePath);
+                                  }
+                                  : null,
+
+                          icon: Icon(Icons.image),
+                          label: Text("Save Image to Gallery"),
+                        ),
+                      ),
+                      // Save as PDF
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (proUnlocked || versionIndex != 3)
+                                  ? () async {
+                                    Navigator.pop(context);
+                                    await FilesHelper.pickFolderForImagePdf(
+                                      imagePath,
+                                      widget.docIndex,
+                                      widget.pageIndex,
+                                      versionName: versionNames[versionIndex],
+                                    );
+                                  }
+                                  : null,
+
+                          icon: Icon(Icons.picture_as_pdf),
+                          label: Text("Save PDF to Directory"),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Unlock PRO
+                  (proUnlocked || versionIndex != 3)
+                      ? SizedBox()
+                      : Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (await proPopup(context)) {
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                _sharePagePopup(context, versionIndex);
+                              }
+                            }
+                          },
+                          icon: Icon(Icons.lock),
+                          label: Text("Unlock PRO"),
+                        ),
+                      ),
+                ],
+              ),
             ),
 
             // Cancel Button
@@ -1855,7 +1926,9 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _sharePagePopup(BuildContext context, int versionIndex) async {
-    final String imagePath = _versionPaths[_selectedVersion];
+    final String imagePath = _versionPaths[versionIndex];
+    final bool proUnlocked = false;
+
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
@@ -1867,30 +1940,88 @@ class PagePreviewState extends State<PagePreview> {
           actions: [
             ImagesScrollPreview(pagePaths: [imagePath]),
             SizedBox(height: 36.0),
-            // Share Image
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                await FilesHelper.shareImages([imagePath]);
-              },
-              icon: Icon(Icons.image),
-              label: Text("Share Image"),
-            ),
 
-            // Share PDF
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                await filesHelper.shareImagesPdf(
-                  context,
-                  [imagePath],
-                  widget.docIndex,
-                  widget.pageIndex,
-                  versionName: versionNames[versionIndex],
-                );
-              },
-              icon: Icon(Icons.picture_as_pdf),
-              label: Text("Share PDF"),
+            Container(
+              decoration:
+                  (proUnlocked || versionIndex != 3)
+                      ? null
+                      : BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [smallBoxShadow(context)],
+                      ),
+              child: Column(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Share Image
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (proUnlocked || versionIndex != 3)
+                                  ? () async {
+                                    Navigator.pop(context);
+                                    await FilesHelper.shareImages([imagePath]);
+                                  }
+                                  : null,
+                          icon: Icon(Icons.image),
+                          label: Text("Share Image"),
+                        ),
+                      ),
+                      // Share PDF
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal:
+                              (proUnlocked || versionIndex != 3) ? 0 : 4,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (proUnlocked || versionIndex != 3)
+                                  ? () async {
+                                    Navigator.pop(context);
+                                    await filesHelper.shareImagesPdf(
+                                      context,
+                                      [imagePath],
+                                      widget.docIndex,
+                                      widget.pageIndex,
+                                      versionName: versionNames[versionIndex],
+                                    );
+                                  }
+                                  : null,
+                          icon: Icon(Icons.picture_as_pdf),
+                          label: Text("Share PDF"),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Unlock PRO
+                  (proUnlocked || versionIndex != 3)
+                      ? SizedBox()
+                      : Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            if (await proPopup(context)) {
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                _sharePagePopup(context, versionIndex);
+                              }
+                            }
+                          },
+                          icon: Icon(Icons.lock),
+                          label: Text("Unlock PRO"),
+                        ),
+                      ),
+                ],
+              ),
             ),
 
             // Cancel Button
