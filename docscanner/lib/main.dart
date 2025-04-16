@@ -463,6 +463,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
+    final bool proUnlocked = false;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -507,23 +508,66 @@ class _MyHomePageState extends State<MyHomePage> {
                       : null,
               icon: Icon(allPagesLoaded ? Icons.image : Icons.broken_image),
               label: Text(
-                "Share ${pagesCount == 1 ? "one Image" : "$pagesCount Images"}",
+                "Share ${pagesCount == 1 ? "Image" : "$pagesCount Images"}",
               ),
             ),
 
             // Share PDF
-            ElevatedButton.icon(
-              onPressed:
-                  allPagesLoaded
-                      ? () async {
-                        Navigator.pop(context); // Close dialog
-                        await filesHelper.shareDocumentPdf(context, docIndex);
-                      }
-                      : null,
-              icon: Icon(
-                allPagesLoaded ? Icons.picture_as_pdf : Icons.broken_image,
+            SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
+            Container(
+              padding:
+                  (proUnlocked || pagesCount == 1)
+                      ? null
+                      : EdgeInsets.fromLTRB(4, 0, 4, 6),
+              decoration:
+                  (proUnlocked || pagesCount == 1)
+                      ? null
+                      : BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [smallBoxShadow(context)],
+                      ),
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed:
+                        allPagesLoaded && (proUnlocked || pagesCount == 1)
+                            ? () async {
+                              Navigator.pop(context); // Close dialog
+                              await filesHelper.shareDocumentPdf(
+                                context,
+                                docIndex,
+                              );
+                            }
+                            : null,
+                    icon: Icon(
+                      allPagesLoaded
+                          ? Icons.picture_as_pdf
+                          : Icons.broken_image,
+                    ),
+                    label: Text(
+                      "Share ${pagesCount == 1 ? "single page " : "combined "}PDF",
+                    ),
+                  ),
+                  (proUnlocked || pagesCount == 1)
+                      ? SizedBox()
+                      : ElevatedButton.icon(
+                        onPressed: () async {
+                          if (await proPopup(context)) {
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              _shareDocumentPopup(context, docIndex);
+                            }
+                          }
+                        },
+                        icon: Icon(Icons.lock),
+                        label: Text("Unlock PRO"),
+                      ),
+                ],
               ),
-              label: Text("Share combined PDF"),
             ),
 
             // Cancel Button
@@ -542,6 +586,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<String> pagePaths = pThumbs.$1;
     final int pagesCount = pThumbs.$2;
     final bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
+    final bool proUnlocked = false;
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -583,23 +628,65 @@ class _MyHomePageState extends State<MyHomePage> {
                       : null,
               icon: Icon(allPagesLoaded ? Icons.image : Icons.broken_image),
               label: Text(
-                "Save ${pagesCount == 1 ? "one Image" : "$pagesCount Images"} to Gallery",
+                "Save ${pagesCount == 1 ? "Image" : "$pagesCount Images"} to Gallery",
               ),
             ),
 
             // Save as PDF
-            ElevatedButton.icon(
-              onPressed:
-                  allPagesLoaded
-                      ? () async {
-                        Navigator.pop(context);
-                        await filesHelper.pickFolderForDocumentPdf(docIndex);
-                      }
-                      : null,
-              icon: Icon(
-                allPagesLoaded ? Icons.picture_as_pdf : Icons.broken_image,
+            SizedBox(height: (proUnlocked || pagesCount == 1) ? 0 : 4),
+            Container(
+              padding:
+                  (proUnlocked || pagesCount == 1)
+                      ? null
+                      : EdgeInsets.fromLTRB(4, 0, 4, 6),
+              decoration:
+                  (proUnlocked || pagesCount == 1)
+                      ? null
+                      : BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [smallBoxShadow(context)],
+                      ),
+              child: Column(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed:
+                        allPagesLoaded && (proUnlocked || pagesCount == 1)
+                            ? () async {
+                              Navigator.pop(context);
+                              await filesHelper.pickFolderForDocumentPdf(
+                                docIndex,
+                              );
+                            }
+                            : null,
+                    icon: Icon(
+                      allPagesLoaded
+                          ? Icons.picture_as_pdf
+                          : Icons.broken_image,
+                    ),
+                    label: Text(
+                      "Save ${pagesCount == 1 ? "single page " : "combined "}PDF to Directory",
+                    ),
+                  ),
+                  (proUnlocked || pagesCount == 1)
+                      ? SizedBox()
+                      : ElevatedButton.icon(
+                        onPressed: () async {
+                          if (await proPopup(context)) {
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              _saveDocumentPopup(context, docIndex);
+                            }
+                          }
+                        },
+                        icon: Icon(Icons.lock),
+                        label: Text("Unlock PRO"),
+                      ),
+                ],
               ),
-              label: Text("Save combined PDF to Directory"),
             ),
 
             // Cancel Button
@@ -652,7 +739,30 @@ class _MyHomePageState extends State<MyHomePage> {
             itemBuilder:
                 (context) => [
                   PopupMenuItem(
-                    value: "del",
+                    value: "pro",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.lock,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Unlock PRO",
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: "licenses",
                     child: Row(
                       children: [
                         SizedBox(width: 8),
@@ -677,12 +787,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
             onSelected: (String value) async {
               switch (value) {
-                case "del":
+                case "licenses":
                   showLicensePage(
                     context: context,
                     applicationName: 'Offline Document Scanner',
                     //applicationVersion: '1.0.0',
                   );
+                  break;
+                case "pro":
+                  proPopup(context);
                   break;
               }
             },
@@ -1068,6 +1181,36 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+Future<bool> proPopup(BuildContext context) async {
+  bool? proUnlocked = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text("Unlock PRO features"),
+        content: Text(
+          "Save and share multi page PDFs.\nGet access to the PRO filter.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Purchase", style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      );
+    },
+  );
+  if (proUnlocked != null && proUnlocked == true) {
+    Fluttertoast.showToast(msg: 'PRO features unlocked!');
+    //todo await write PRO metadata
+    return true;
+  }
+  return false;
+}
+
 class ImagesScrollPreview extends StatelessWidget {
   const ImagesScrollPreview({super.key, required this.pagePaths});
 
@@ -1090,7 +1233,9 @@ class ImagesScrollPreview extends StatelessWidget {
                     12.0,
                   ), // Spacing between images
                   child: Container(
-                    decoration: BoxDecoration(boxShadow: [smallBoxShadow()]),
+                    decoration: BoxDecoration(
+                      boxShadow: [smallBoxShadow(context)],
+                    ),
                     child: Image.file(
                       File(path),
                       height: 160.0 * 1.414,
@@ -1399,7 +1544,7 @@ class _PagesState extends State<Pages> {
                                             context,
                                           ).colorScheme.surfaceBright,
                                       borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [smallBoxShadow()],
+                                      boxShadow: [smallBoxShadow(context)],
                                     ),
                                     child: Text(
                                       "${index + 1}/$_pagesCount",
@@ -1979,7 +2124,7 @@ class PagePreviewState extends State<PagePreview> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [smallBoxShadow()],
+                  boxShadow: [smallBoxShadow(context)],
                 ),
                 child:
                     _selectedVersion == 0
@@ -2361,7 +2506,7 @@ class PagePreviewState extends State<PagePreview> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [smallBoxShadow()],
+        boxShadow: [smallBoxShadow(context)],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -2406,7 +2551,7 @@ class PagePreviewState extends State<PagePreview> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [smallBoxShadow()],
+        boxShadow: [smallBoxShadow(context)],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -2681,8 +2826,13 @@ BoxShadow bigBoxShadow(BuildContext context) {
   );
 }
 
-BoxShadow smallBoxShadow() {
-  return BoxShadow(blurRadius: 6, spreadRadius: -4, offset: const Offset(0, 2));
+BoxShadow smallBoxShadow(BuildContext context) {
+  return BoxShadow(
+    color: Theme.of(context).shadowColor.withAlpha(100),
+    blurRadius: 3,
+    spreadRadius: 0,
+    offset: const Offset(0, 2),
+  );
 }
 
 class MeasureSize extends StatefulWidget {
@@ -2765,7 +2915,8 @@ class CustomIconButton extends StatelessWidget {
                                 ? Theme.of(context).disabledColor
                                 : color,
                         borderRadius: BorderRadius.circular(radius),
-                        boxShadow: isDisabled ? null : [smallBoxShadow()],
+                        boxShadow:
+                            isDisabled ? null : [smallBoxShadow(context)],
                       ),
             ),
             SizedBox(
