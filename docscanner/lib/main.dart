@@ -567,11 +567,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            if (await proPopup(context)) {
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                _shareDocumentPopup(context, docIndex);
-                              }
+                            final bool setProPopup = await proPopup(context);
+                            if (mounted && context.mounted) {
+                              setState(() {
+                                proUnlocked = setProPopup;
+                              });
+                              Navigator.pop(context);
+                              _shareDocumentPopup(context, docIndex);
                             }
                           },
                           icon: Icon(Icons.lock),
@@ -691,11 +693,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            if (await proPopup(context)) {
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                _saveDocumentPopup(context, docIndex);
-                              }
+                            final bool setProPopup = await proPopup(context);
+                            if (mounted && context.mounted) {
+                              setState(() {
+                                proUnlocked = setProPopup;
+                              });
+                              Navigator.pop(context);
+                              _saveDocumentPopup(context, docIndex);
                             }
                           },
                           icon: Icon(Icons.lock),
@@ -812,9 +816,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   break;
                 case "pro":
-                  await proPopup(context);
+                  final bool setProPopup = await proPopup(context);
                   setState(() {
-                    proUnlocked;
+                    proUnlocked = setProPopup;
                   });
                   break;
               }
@@ -1202,11 +1206,11 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 Future<bool> proPopup(BuildContext context) async {
-  bool? proUnlocked = await showDialog<bool>(
+  bool? setProUnlocked = await showDialog<bool>(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text("Unlock PRO features"),
+        title: Text("Toggle PRO features"), //todo "Unlock PRO features"
         content: Text(
           "Save and share multi page PDFs.\nGet access to the PRO filter.",
         ),
@@ -1217,18 +1221,24 @@ Future<bool> proPopup(BuildContext context) async {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text("Purchase", style: TextStyle(color: Colors.green)),
+            child: Text(
+              "Toggle", //Purchase
+              style: TextStyle(color: Colors.green),
+            ),
           ),
         ],
       );
     },
   );
-  if (proUnlocked != null && proUnlocked == true) {
+  if (setProUnlocked != null && setProUnlocked == true) {
     //todo actual payment
+    //todo replace toggle with true
+    bool toggle = !(proUnlocked == true);
     final sStorage = FlutterSecureStorage();
-    await sStorage.write(key: 'proUnlocked', value: 'true');
+    await sStorage.write(key: 'proUnlocked', value: toggle ? 'true' : 'false');
+    proUnlocked = toggle;
     Fluttertoast.showToast(msg: 'PRO features unlocked!');
-    return true;
+    return toggle;
   }
   return false;
 }
@@ -1913,11 +1923,13 @@ class PagePreviewState extends State<PagePreview> {
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            if (await proPopup(context)) {
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                _sharePagePopup(context, versionIndex);
-                              }
+                            final bool setProPopup = await proPopup(context);
+                            if (mounted && context.mounted) {
+                              setState(() {
+                                proUnlocked = setProPopup;
+                              });
+                              Navigator.pop(context);
+                              _sharePagePopup(context, versionIndex);
                             }
                           },
                           icon: Icon(Icons.lock),
@@ -2026,11 +2038,13 @@ class PagePreviewState extends State<PagePreview> {
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            if (await proPopup(context)) {
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                _sharePagePopup(context, versionIndex);
-                              }
+                            final bool setProPopup = await proPopup(context);
+                            if (mounted && context.mounted) {
+                              setState(() {
+                                proUnlocked = setProPopup;
+                              });
+                              Navigator.pop(context);
+                              _sharePagePopup(context, versionIndex);
                             }
                           },
                           icon: Icon(Icons.lock),
@@ -2113,7 +2127,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<bool> _popOnProFilterPopup(BuildContext context) async {
-    bool? proUnlocked = await showDialog<bool>(
+    bool? setProUnlocked = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -2134,13 +2148,13 @@ class PagePreviewState extends State<PagePreview> {
         );
       },
     );
-    if (proUnlocked != null && proUnlocked == true) {
+    if (setProUnlocked != null && setProUnlocked == true) {
       //todo actual payment
       final sStorage = FlutterSecureStorage();
       await sStorage.write(key: 'proUnlocked', value: 'true');
       Fluttertoast.showToast(msg: 'PRO features unlocked!');
       setState(() {
-        proUnlocked;
+        proUnlocked = true;
       });
       return true;
     }
@@ -2523,15 +2537,17 @@ class PagePreviewState extends State<PagePreview> {
                                   ),
                         ),
                       ),
-                      (true && index == 3)
+                      (!(proUnlocked == true) && index == 3)
                           ? Positioned(
                             top: 0,
                             right: 0,
                             child: CustomIconButton(
                               onTap: () async {
-                                await proPopup(context);
+                                final bool setProPopup = await proPopup(
+                                  context,
+                                );
                                 setState(() {
-                                  proUnlocked;
+                                  proUnlocked = setProPopup;
                                 });
                               },
                               icon: Icons.lock,
