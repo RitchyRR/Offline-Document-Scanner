@@ -32,6 +32,7 @@ class ImageProcessingManager {
     int? orientationIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
+    bool? proUnlockedIn,
   ) async {
     OpenCVHelper cvHelper = OpenCVHelper();
     List<String> versionPaths = List.generate(4, (index) => "");
@@ -66,7 +67,7 @@ class ImageProcessingManager {
       pageIndex,
       ratioIndex,
       orientationIndex,
-      (proUnlocked == true) ? 3 : 2,
+      (proUnlockedIn == true) ? 3 : 2,
       cornerPoints,
       filesHelperIn: filesHelperIn,
     );
@@ -112,7 +113,7 @@ class ImageProcessingManager {
 
     await _saveScaledThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndex ?? ((proUnlocked == true) ? 3 : 2)],
+      versionPaths[pageThumbnailIndex ?? ((proUnlockedIn == true) ? 3 : 2)],
       filesHelperIn.screenWidth,
       overwrite: true,
     );
@@ -130,6 +131,7 @@ class ImageProcessingManager {
       int? orientationIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
+      bool? proUnlockedIn,
     )
     data,
   ) async {
@@ -144,6 +146,7 @@ class ImageProcessingManager {
     int? orientationIn = data.$8;
     int? pageThumbnailIndex = data.$9;
     List<List<int>>? cornerPointsIn = data.$10;
+    bool? proUnlockedIn = data.$11;
 
     await _processPage(
       sendPort,
@@ -156,6 +159,7 @@ class ImageProcessingManager {
       orientationIn,
       pageThumbnailIndex,
       cornerPointsIn,
+      proUnlockedIn,
     );
     sendPort.send('done');
   }
@@ -230,6 +234,7 @@ class ImageProcessingManager {
       null,
       null,
       null,
+      proUnlocked,
     ));
     primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -273,6 +278,7 @@ class ImageProcessingManager {
           null,
           null,
           null,
+          proUnlocked,
         ));
         secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
         secundaryPort.listen((message) {
@@ -313,6 +319,7 @@ class ImageProcessingManager {
       orientationIn,
       pageThumbnailIndex,
       cornerPointsIn,
+      proUnlocked,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {

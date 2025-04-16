@@ -118,7 +118,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> initAsync() async {
     final sStorage = FlutterSecureStorage();
-    final proUnlockedString = await sStorage.read(key: 'proUnloacked');
+    final proUnlockedString = await sStorage.read(key: 'proUnlocked');
     setState(() {
       proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
     });
