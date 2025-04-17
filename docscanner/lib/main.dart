@@ -1696,13 +1696,23 @@ class PagePreviewState extends State<PagePreview> {
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
+  final PhotoViewController _photoViewController = PhotoViewController();
   bool _hideOverlay = false;
+  double _pictureScale = 0.5;
 
   @override
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
     _initAsync();
+
+    _photoViewController.outputStateStream.listen((
+      PhotoViewControllerValue value,
+    ) {
+      setState(() {
+        _pictureScale = value.scale ?? 1.0;
+      });
+    });
   }
 
   Future<void> _initAsync() async {
@@ -1717,6 +1727,8 @@ class PagePreviewState extends State<PagePreview> {
 
   @override
   void dispose() {
+    _pageController.dispose();
+    _photoViewController.dispose();
     globalNotifier.removeListener(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
     super.dispose();
@@ -1830,6 +1842,7 @@ class PagePreviewState extends State<PagePreview> {
     );
     _imagePixelWidth = image.width;
     _imagePixelHeight = image.height;
+    setState(() {});
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -2170,6 +2183,10 @@ class PagePreviewState extends State<PagePreview> {
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
     bool allowPop = proUnlocked == true || _selectedVersion != 3;
+    //double overlayScale =
+    //    (_photoViewController.scale ??
+    //        0.1 * MediaQuery.of(context).size.width) /
+    //    _imagePixelWidth;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2259,7 +2276,6 @@ class PagePreviewState extends State<PagePreview> {
             ),
             // Images (Page Versions)
             PhotoViewGallery.builder(
-              wantKeepAlive: false,
               scrollPhysics: const PageScrollPhysics(),
               itemCount: _versionPaths.length,
               builder: (context, index) {
@@ -2277,6 +2293,7 @@ class PagePreviewState extends State<PagePreview> {
                     child: Stack(
                       children: [
                         PhotoView(
+                          controller: _photoViewController,
                           imageProvider: FileImage(File(_versionPaths[0])),
                           filterQuality: FilterQuality.high,
                           minScale: PhotoViewComputedScale.contained,
@@ -2295,7 +2312,9 @@ class PagePreviewState extends State<PagePreview> {
                             if (!isZoomed) {
                               await Future.delayed(Duration(milliseconds: 300));
                             } // delay becuase of zoom animation
-                            setState(() => _hideOverlay = isZoomed);
+                            setState(() {
+                              _hideOverlay = isZoomed;
+                            });
                           },
                         ),
                         // Corner Points
@@ -2836,49 +2855,41 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Widget _displayCornerOverlay(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-
-    // Handle rotation
     int quarterTurns = _totalRotation ~/ 90;
-    double scale;
+
     double displayHeight;
-    if (_imagePixelWidth < 1 ||
-        !_imagePixelWidth.isFinite ||
-        _imagePixelHeight < 1 ||
-        !_imagePixelHeight.isFinite) {
-      _imagePixelWidth = _imagePixelHeight = 1;
-    }
+    double displayWidth;
     if (quarterTurns.isEven) {
-      scale = screenWidth / _imagePixelWidth;
-      displayHeight = _imagePixelHeight * scale;
+      displayHeight = _imagePixelHeight * _pictureScale;
+      displayWidth = _imagePixelWidth * _pictureScale;
     } else {
-      scale = screenWidth / _imagePixelHeight;
-      displayHeight = _imagePixelWidth * scale;
+      displayHeight = _imagePixelWidth * _pictureScale;
+      displayWidth = _imagePixelHeight * _pictureScale;
     }
 
     // Apply rotation to corner points visually
     List<Offset> scaledPoints =
         _cornerPoints.map((point) {
-          double x = point[1] * scale;
-          double y = point[0] * scale;
+          double x = point[1] * _pictureScale;
+          double y = point[0] * _pictureScale;
           return Offset(x, y);
         }).toList();
 
     return IgnorePointer(
       child: Center(
         child: SizedBox(
-          width: screenWidth,
+          width: displayWidth,
           height: displayHeight,
           child: RotatedBox(
             quarterTurns: quarterTurns,
             child: Stack(
               children: [
                 CustomPaint(
-                  size: Size(screenWidth, displayHeight),
+                  size: Size(displayWidth, displayHeight),
                   painter: _FrameLinePainter(points: scaledPoints),
                 ),
                 CustomPaint(
-                  size: Size(screenWidth, displayHeight),
+                  size: Size(displayWidth, displayHeight),
                   painter: _CornerLinePainter(
                     points: scaledPoints,
                     strokeWidth: 2.0,
@@ -2887,7 +2898,7 @@ class PagePreviewState extends State<PagePreview> {
                   ),
                 ),
                 CustomPaint(
-                  size: Size(screenWidth, displayHeight),
+                  size: Size(displayWidth, displayHeight),
                   painter: _MiddleLinePainter(
                     points: scaledPoints,
                     strokeWidth: 2.0,
