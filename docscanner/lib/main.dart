@@ -3283,6 +3283,7 @@ class _WarpState extends State<Warp> {
         _moveUpBy = pointMoveUpBy;
       }
     }
+    setState(() {});
   }
 
   void _scaleImage() {
