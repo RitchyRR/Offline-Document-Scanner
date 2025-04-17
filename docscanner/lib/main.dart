@@ -3551,8 +3551,8 @@ class _WarpState extends State<Warp> {
                         timestamp: now,
                       ),
                     );
-                    // Remove positions older than _historyDurationMs
-                    while (_positionHistory.isNotEmpty &&
+                    // Remove oldest position if older than _historyDurationMs
+                    if (_positionHistory.isNotEmpty &&
                         now
                                 .difference(_positionHistory.first.timestamp)
                                 .inMilliseconds >
@@ -3562,11 +3562,26 @@ class _WarpState extends State<Warp> {
                   },
                   onPanEnd: (details) {
                     if (!_panning) return;
+                    // Remove positions older than _historyDurationMs
+                    DateTime now = DateTime.now();
+                    while (_positionHistory.isNotEmpty &&
+                        now
+                                .difference(_positionHistory.first.timestamp)
+                                .inMilliseconds >
+                            _historyDurationMs) {
+                      _positionHistory.removeAt(0);
+                    }
                     // Use oldest position in history
                     if (_positionHistory.isNotEmpty) {
-                      setState(() {
-                        _scaledPoints[index] = _positionHistory.first.position;
-                      });
+                      if ((_positionHistory.first.position -
+                                  _scaledPoints[index])
+                              .distance <
+                          50) {
+                        setState(() {
+                          _scaledPoints[index] =
+                              _positionHistory.first.position;
+                        });
+                      }
                     }
                     _positionHistory.clear();
                     _panning = false;
