@@ -21,19 +21,39 @@ const List<String> versionNames = [
 ];
 
 class ImageProcessingManager {
-  static Future<void> _processPage(
-    SendPort sendPort,
-    FilesHelper filesHelperIn,
-    bool isPrimary,
-    int docIndex,
-    int pageIndex,
-    String pathIn,
-    int? ratioIndexIn,
-    int? orientationIn,
-    int? pageThumbnailIndex,
-    List<List<int>>? cornerPointsIn,
-    bool? proUnlockedIn,
+  Map<(int, int), Isolate> primaryIsolates = {};
+  Map<(int, int), Isolate> secundaryIsolates = {};
+  List<Completer> comleters = [];
+
+  static Future<void> _processPageIsolate(
+    (
+      SendPort sendPort,
+      FilesHelper filesHelperIn,
+      bool isPrimary,
+      int docIndex,
+      int pageIndex,
+      String pathIn,
+      int? ratioIndexIn,
+      int? orientationIn,
+      int? pageThumbnailIndex,
+      List<List<int>>? cornerPointsIn,
+      bool? proUnlockedIn,
+    )
+    data,
   ) async {
+    SendPort sendPort = data.$1;
+    FilesHelper filesHelperIn = data.$2;
+    bool isPrimary = data.$3;
+    int docIndex = data.$4;
+    int pageIndex = data.$5;
+    String pathIn = data.$6;
+
+    int? ratioIndexIn = data.$7;
+    int? orientationIn = data.$8;
+    int? pageThumbnailIndex = data.$9;
+    List<List<int>>? cornerPointsIn = data.$10;
+    bool? proUnlockedIn = data.$11;
+
     OpenCVHelper cvHelper = OpenCVHelper();
     List<String> versionPaths = List.generate(4, (index) => "");
 
@@ -117,56 +137,9 @@ class ImageProcessingManager {
       filesHelperIn.screenWidth,
       overwrite: true,
     );
-  }
 
-  static Future<void> _processPageIsolate(
-    (
-      SendPort sendPort,
-      FilesHelper filesHelperIn,
-      bool isPrimary,
-      int docIndex,
-      int pageIndex,
-      String pathIn,
-      int? ratioIndexIn,
-      int? orientationIn,
-      int? pageThumbnailIndex,
-      List<List<int>>? cornerPointsIn,
-      bool? proUnlockedIn,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    bool isPrimary = data.$3;
-    int docIndex = data.$4;
-    int pageIndex = data.$5;
-    String pathIn = data.$6;
-
-    int? ratioIndexIn = data.$7;
-    int? orientationIn = data.$8;
-    int? pageThumbnailIndex = data.$9;
-    List<List<int>>? cornerPointsIn = data.$10;
-    bool? proUnlockedIn = data.$11;
-
-    await _processPage(
-      sendPort,
-      filesHelperIn,
-      isPrimary,
-      docIndex,
-      pageIndex,
-      pathIn,
-      ratioIndexIn,
-      orientationIn,
-      pageThumbnailIndex,
-      cornerPointsIn,
-      proUnlockedIn,
-    );
     sendPort.send('done');
   }
-
-  Map<(int, int), Isolate> primaryIsolates = {};
-  Map<(int, int), Isolate> secundaryIsolates = {};
-  List<Completer> comleters = [];
 
   Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
