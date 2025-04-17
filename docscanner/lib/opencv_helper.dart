@@ -240,7 +240,7 @@ class OpenCVHelper {
       double ratio = commonAspectRatios[ratioIndex].value;
       ratio = (orientation == 0 ? ratio : 1.0 / ratio);
       _setHeight(corners, ratio);
-      _calculateBorderSize(shape, corners);
+      _calculateBorderSize(shape, corners, noBoderCutin: true);
     }
     shape.dispose();
     shape = null;
@@ -679,7 +679,11 @@ class OpenCVHelper {
     return (ratioIndex, orientationIndex);
   }
 
-  void _calculateBorderSize(cv.Mat shape, List<List<int>> corners) {
+  void _calculateBorderSize(
+    cv.Mat shape,
+    List<List<int>> corners, {
+    bool noBoderCutin = false,
+  }) {
     cv.Mat warpedShape = _transformImage(shape, corners);
 
     final int maxBorderSize = (K ~/ 2);
@@ -700,7 +704,12 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(0, calculatedBoderSize, depths);
+    _setTransformation(
+      0,
+      calculatedBoderSize,
+      depths,
+      noBoderCutin: noBoderCutin,
+    );
 
     // Bottom border
     calculatedBoderSize = 0;
@@ -718,7 +727,12 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(1, calculatedBoderSize, depths);
+    _setTransformation(
+      1,
+      calculatedBoderSize,
+      depths,
+      noBoderCutin: noBoderCutin,
+    );
 
     // Left border
     calculatedBoderSize = 0;
@@ -736,7 +750,12 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(2, calculatedBoderSize, depths);
+    _setTransformation(
+      2,
+      calculatedBoderSize,
+      depths,
+      noBoderCutin: noBoderCutin,
+    );
 
     // Right border
     calculatedBoderSize = 0;
@@ -754,7 +773,12 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(3, calculatedBoderSize, depths);
+    _setTransformation(
+      3,
+      calculatedBoderSize,
+      depths,
+      noBoderCutin: noBoderCutin,
+    );
   }
 
   void _setHeight(List<List<int>> corners, double ratio) {
@@ -860,10 +884,12 @@ class OpenCVHelper {
   void _setTransformation(
     int borderIndex,
     int calculatedBoderSize,
-    List<int> depths,
-  ) {
+    List<int> depths, {
+    bool noBoderCutin = false,
+  }) {
     final int borderTolerance = 5 + (K ~/ 9);
-    borderCutIn[borderIndex] = _percentileValueInt(depths, 0.67);
+    borderCutIn[borderIndex] =
+        noBoderCutin ? 0 : _percentileValueInt(depths, 0.67);
     borderCorrectionDepth[borderIndex] =
         calculatedBoderSize - borderCutIn[borderIndex] + borderTolerance;
   }
