@@ -3236,10 +3236,11 @@ class _WarpState extends State<Warp> {
   int? _currentCorner;
   Offset _touchOffset = Offset(0, 0);
   bool _panning = false;
+  double _moveUpBy = 0;
 
-  ui.Image? _zoomedImage;
-  bool _zoomedImageLoading = true;
-  static const double _zoomSize = 200;
+  ui.Image? _magnifierImage;
+  bool _magnifierImageLoading = true;
+  static const double _magnifierSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
   static const int _historyDurationMs = 250;
@@ -3251,7 +3252,6 @@ class _WarpState extends State<Warp> {
     _initZoom();
   }
 
-  double _moveUpBy = 0;
   void _initAsync() async {
     final image = await decodeImageFromList(
       (File(widget.imagePath).readAsBytesSync()),
@@ -3278,13 +3278,28 @@ class _WarpState extends State<Warp> {
 
     for (var point in _scaledPoints) {
       double maxHeight = 400.0;
-      if (point.dy > maxHeight) {
-        _moveUpBy = point.dy - maxHeight;
+      double pointMoveUpBy = point.dy - maxHeight;
+      if (pointMoveUpBy > _moveUpBy) {
+        _moveUpBy = pointMoveUpBy;
+      }
+    }
+  }
+
+  void _scaleImage() {
+    double newMoveUpBy = 0.0;
+    for (var point in _scaledPoints) {
+      double maxHeight = 400.0;
+      double pointMoveUpBy = point.dy - maxHeight;
+      if (pointMoveUpBy > newMoveUpBy) {
+        newMoveUpBy = pointMoveUpBy;
       }
     }
 
-    if (mounted) {
-      setState(() {});
+    double change = newMoveUpBy - _moveUpBy;
+    if (mounted && change.abs() > 25) {
+      setState(() {
+        _moveUpBy += change / 60;
+      });
     }
   }
 
@@ -3295,8 +3310,8 @@ class _WarpState extends State<Warp> {
     final frameInfo = await codec.getNextFrame();
     if (mounted) {
       setState(() {
-        _zoomedImage = frameInfo.image;
-        _zoomedImageLoading = false;
+        _magnifierImage = frameInfo.image;
+        _magnifierImageLoading = false;
         _moveUpBy;
       });
     }
@@ -3370,18 +3385,18 @@ class _WarpState extends State<Warp> {
           children: [
             SizedBox(height: 24),
             SizedBox(
-              width: _zoomSize,
-              height: _zoomSize,
+              width: _magnifierSize,
+              height: _magnifierSize,
               child:
-                  !_zoomedImageLoading && _currentCorner != null
+                  !_magnifierImageLoading && _currentCorner != null
                       ? Stack(
                         children: [
                           SizedBox(
-                            width: _zoomSize,
-                            height: _zoomSize,
+                            width: _magnifierSize,
+                            height: _magnifierSize,
                             child: CustomPaint(
                               painter: CircularCropPainter(
-                                image: _zoomedImage!,
+                                image: _magnifierImage!,
                                 cropRect: cropRect,
                               ),
                             ),
@@ -3394,7 +3409,7 @@ class _WarpState extends State<Warp> {
                                   color: Colors.white,
                                   strokeWidth: 1.0,
                                   currentCorner: _currentCorner!,
-                                  zoomSize: _zoomSize,
+                                  zoomSize: _magnifierSize,
                                 ),
                               )
                               : SizedBox(),
@@ -3452,8 +3467,8 @@ class _WarpState extends State<Warp> {
     // Only reload the image if the imagePath changed
     if (widget.imagePath != oldWidget.imagePath) {
       setState(() {
-        _zoomedImageLoading = true;
-        _zoomedImage = null;
+        _magnifierImageLoading = true;
+        _magnifierImage = null;
       });
       _initZoom();
     }
@@ -3526,6 +3541,7 @@ class _WarpState extends State<Warp> {
                     setState(() {
                       _scaledPoints[index] = Offset(newX, newY);
                     });
+                    _scaleImage();
                     // Add current position to history
                     DateTime now = DateTime.now();
                     _positionHistory.add(
