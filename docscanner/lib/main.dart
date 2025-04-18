@@ -2122,8 +2122,10 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _reprocessingCleanup() {
-    _versionPaths = ["", "", "", ""];
     _clearPageVersionsCache();
+    setState(() {
+      _versionPaths = ["", "", "", ""];
+    });
   }
 
   Future<void> _openWarpManuallyPage() async {
@@ -2865,7 +2867,7 @@ class PagePreviewState extends State<PagePreview> {
     if (quarterTurns.isEven) {
       if (_evenPictureScale == 0.0 && _pictureScale != _oddPictureScale) {
         _evenPictureScale = _pictureScale;
-      } else {
+      } else if (_evenPictureScale != 0.0) {
         _pictureScale = _evenPictureScale;
       }
       displayHeight = _imagePixelHeight * _pictureScale;
@@ -2873,7 +2875,7 @@ class PagePreviewState extends State<PagePreview> {
     } else {
       if (_oddPictureScale == 0.0 && _pictureScale != _evenPictureScale) {
         _oddPictureScale = _pictureScale;
-      } else {
+      } else if (_oddPictureScale != 0.0) {
         _pictureScale = _oddPictureScale;
       }
       displayHeight = _imagePixelWidth * _pictureScale;
