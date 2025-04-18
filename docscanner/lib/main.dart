@@ -1666,10 +1666,10 @@ class PagePreview extends StatefulWidget {
 }
 
 class PagePreviewState extends State<PagePreview> {
-  static List<String> versionNames = [
-    "unprocessed",
-    "warped",
-    "filetred",
+  static const List<String> versionNames = [
+    "Photo",
+    "Transformed",
+    "Basic",
     "PRO",
   ];
   // Widget
@@ -2284,7 +2284,6 @@ class PagePreviewState extends State<PagePreview> {
               builder: (context, index) {
                 // Loading indicator
                 if (_versionPaths[index].isEmpty) {
-                  // Loading indicator
                   return PhotoViewGalleryPageOptions.customChild(
                     child: IndicatorProcessingImage(),
                   );
@@ -2494,100 +2493,115 @@ class PagePreviewState extends State<PagePreview> {
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.only(bottom: 50),
-          child: SizedBox(
-            height: 80,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedVersion = index);
-                    _pageController.jumpToPage(index);
-                  },
-                  child: Stack(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                _selectedVersion == index
-                                    ? Colors.white
-                                    : Colors.white54,
-                            width: 3,
-                          ),
-                          boxShadow: [bigBoxShadow(context)],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.5),
-                          child:
-                              _versionPaths[index].isNotEmpty
-                                  ? Image.file(
-                                    File(_versionPaths[index]),
-                                    width: _selectedVersion == index ? 70 : 50,
-                                    height: _selectedVersion == index ? 70 : 50,
-                                    fit: BoxFit.cover,
-                                    key: ValueKey(_imageRetryKey),
-                                    errorBuilder: (context, error, stackTrace) {
-                                      _refreshAfterBrokenImage(index);
-                                      return const SizedBox(
-                                        width: 50,
-                                        height: 50,
-                                        child: Icon(Icons.broken_image),
-                                      );
-                                    },
-                                  )
-                                  : Container(
-                                    width:
-                                        _selectedVersion == index && index != 0
-                                            ? 70
-                                            : 50,
-                                    height:
-                                        _selectedVersion == index && index != 0
-                                            ? 70
-                                            : 50,
-                                    color: Theme.of(context).disabledColor,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(12.0),
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  ),
-                        ),
-                      ),
-                      (!(proUnlocked == true) && index == 3)
-                          ? Positioned(
-                            top: 0,
-                            right: 0,
-                            child: CustomIconButton(
-                              onTap: () async {
-                                final bool setProPopup = await proPopup(
-                                  context,
-                                );
-                                setState(() {
-                                  proUnlocked = setProPopup;
-                                });
-                              },
-                              icon: Icons.lock,
-                              iconColor:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
+        bottomNavigationBar: SizedBox(
+          height: 130,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(4, (index) {
+              return GestureDetector(
+                onTap: () {
+                  setState(() => _selectedVersion = index);
+                  _pageController.jumpToPage(index);
+                },
+                child: Column(
+                  children: [
+                    Stack(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
                               color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.primaryContainer,
+                                  _selectedVersion == index
+                                      ? Colors.white
+                                      : Colors.white54,
+                              width: 3,
                             ),
-                          )
-                          : SizedBox(),
-                    ],
-                  ),
-                );
-              }),
-            ),
+                            boxShadow: [bigBoxShadow(context)],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.5),
+                            child:
+                                _versionPaths[index].isNotEmpty
+                                    ? Image.file(
+                                      File(_versionPaths[index]),
+                                      width:
+                                          _selectedVersion == index ? 70 : 50,
+                                      height:
+                                          _selectedVersion == index ? 70 : 50,
+                                      fit: BoxFit.cover,
+                                      key: ValueKey(_imageRetryKey),
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        _refreshAfterBrokenImage(index);
+                                        return const SizedBox(
+                                          width: 50,
+                                          height: 50,
+                                          child: Icon(Icons.broken_image),
+                                        );
+                                      },
+                                    )
+                                    : Container(
+                                      width:
+                                          _selectedVersion == index &&
+                                                  index != 0
+                                              ? 70
+                                              : 50,
+                                      height:
+                                          _selectedVersion == index &&
+                                                  index != 0
+                                              ? 70
+                                              : 50,
+                                      color: Theme.of(context).disabledColor,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(12.0),
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                          ),
+                        ),
+                        // Locked Badge
+                        (!(proUnlocked == true) && index == 3)
+                            ? Positioned(
+                              top: 0,
+                              right: 0,
+                              child: CustomIconButton(
+                                onTap: () async {
+                                  final bool setProPopup = await proPopup(
+                                    context,
+                                  );
+                                  setState(() {
+                                    proUnlocked = setProPopup;
+                                  });
+                                },
+                                icon: Icons.lock,
+                                iconColor:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
+                              ),
+                            )
+                            : SizedBox(),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      versionNames[index],
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
       ),
