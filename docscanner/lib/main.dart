@@ -2871,6 +2871,8 @@ class PagePreviewState extends State<PagePreview> {
         _evenPictureScale = _pictureScale;
       } else if (_evenPictureScale != 0.0) {
         _pictureScale = _evenPictureScale;
+      } else {
+        return SizedBox();
       }
       displayHeight = _imagePixelHeight * _pictureScale;
       displayWidth = _imagePixelWidth * _pictureScale;
@@ -2879,6 +2881,8 @@ class PagePreviewState extends State<PagePreview> {
         _oddPictureScale = _pictureScale;
       } else if (_oddPictureScale != 0.0) {
         _pictureScale = _oddPictureScale;
+      } else {
+        return SizedBox();
       }
       displayHeight = _imagePixelWidth * _pictureScale;
       displayWidth = _imagePixelHeight * _pictureScale;
