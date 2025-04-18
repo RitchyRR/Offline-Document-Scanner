@@ -314,8 +314,8 @@ class ImageProcessingManager {
   static Future<void> writePageMetadata(
     int docIndex,
     int pageIndex,
-    int ratioIndex,
-    int orientationIndex,
+    int? ratioIndex,
+    int? orientationIndex,
     int? thumbnailIndex,
     List<List<int>>? cornerPoints, {
     FilesHelper? filesHelperIn,
@@ -328,19 +328,15 @@ class ImageProcessingManager {
     Map<String, dynamic> metadata = {};
 
     try {
-      // Read
-      //if (await file.exists()) {
-      //  String content = await file.readAsString();
-      //  metadata = jsonDecode(content).cast<String, String>();
-      //}
-
       // Write
-      metadata["apectRatio"] = ratioIndex.toString();
+      if (ratioIndex != null) metadata["apectRatio"] = ratioIndex.toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
       metadata["thumbnail"] =
-          versionNames[thumbnailIndex ?? ((proUnlocked == true) ? 3 : 2)];
-      metadata["corners"] = cornerPoints;
+          versionNames[thumbnailIndex != null && thumbnailIndex != 0
+              ? thumbnailIndex
+              : ((proUnlocked == true) ? 3 : 2)];
+      if (cornerPoints != null) metadata["corners"] = cornerPoints;
       await file.writeAsString(jsonEncode(metadata));
       if (filesHelperIn != null) {
         // if started outside of isolate
@@ -356,7 +352,7 @@ class ImageProcessingManager {
     int pageIndex,
     int thumbnailIndex,
   ) async {
-    bool isThumbnailNew = false;
+    bool updateThumbnail = false; // is new and not picture
     String newThumbnailName = versionNames[thumbnailIndex];
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
@@ -377,16 +373,18 @@ class ImageProcessingManager {
                   versionNames[(proUnlocked == true) ? 3 : 2]) !=
               newThumbnailName &&
           newThumbnailName != versionNames[0]) {
-        isThumbnailNew = true;
+        updateThumbnail = true;
       }
 
       // Write
-      metadata["thumbnail"] = newThumbnailName;
-      await file.writeAsString(jsonEncode(metadata));
+      if (updateThumbnail) {
+        metadata["thumbnail"] = newThumbnailName;
+        await file.writeAsString(jsonEncode(metadata));
+      }
     } catch (e) {
       dev.log("Error, writePageThumbnailIndex: $e");
     }
-    if (isThumbnailNew) {
+    if (updateThumbnail) {
       imageProcessingManager.applySelectedThumbnail(docIndex, pageIndex);
     }
   }
@@ -496,6 +494,7 @@ class ImageProcessingManager {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, String>();
         String? thumbnailString = metadata["thumbnail"];
+
         return thumbnailString != null
             ? versionNames.indexOf(thumbnailString)
             : (proUnlocked == true)

@@ -1685,7 +1685,7 @@ class PagePreviewState extends State<PagePreview> {
   int? _ratioIndex;
   int? _newRatioIndex;
   int? _orientation;
-  int? _newOrientation;
+  int? _newOrientationIndex;
   int _totalRotation = 0;
   // Corner Points
   List<List<int>> _cornerPoints = [];
@@ -1806,7 +1806,7 @@ class PagePreviewState extends State<PagePreview> {
           widget.pageIndex,
           supressWarning: supressWarning,
         );
-    _newOrientation =
+    _newOrientationIndex =
         _orientation = await ImageProcessingManager.readPageOrientationIndex(
           widget.docIndex,
           widget.pageIndex,
@@ -1816,7 +1816,7 @@ class PagePreviewState extends State<PagePreview> {
       setState(() {
         _newRatioIndex;
         //dev.log("Updated _newRatioIndex: $_newRatioIndex");
-        _newOrientation;
+        _newOrientationIndex;
         //dev.log("Updated _newOrientation: $_newOrientation");
       });
     }
@@ -2635,7 +2635,8 @@ class PagePreviewState extends State<PagePreview> {
       onTap: () async {
         setState(() {
           _rotationOngoing = true;
-          _newOrientation = ((_newOrientation ?? 0) - 1) * (-1); // toggle
+          _newOrientationIndex =
+              ((_newOrientationIndex ?? 0) - 1) * (-1); // toggle
         });
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
@@ -2682,7 +2683,7 @@ class PagePreviewState extends State<PagePreview> {
           _rotationOngoing,
       isHidden:
           ((_ratioIndex == _newRatioIndex) &&
-              (_orientation == _newOrientation) &&
+              (_orientation == _newOrientationIndex) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
@@ -2717,8 +2718,8 @@ class PagePreviewState extends State<PagePreview> {
     await ImageProcessingManager.writePageMetadata(
       widget.docIndex,
       widget.pageIndex,
-      _newRatioIndex ?? 0,
-      _newOrientation ?? 0,
+      _newRatioIndex,
+      _newOrientationIndex,
       null,
       newCornerPoints,
     );
@@ -2727,8 +2728,8 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
       _versionPaths[0], // potentially rotated image
-      _newRatioIndex ?? 0,
-      _newOrientation ?? 0,
+      _newRatioIndex,
+      _newOrientationIndex,
       pageThumbnailIndex,
       newCornerPoints,
     );
@@ -2828,7 +2829,7 @@ class PagePreviewState extends State<PagePreview> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon((_orientation ?? 0 == 0)? Icons.crop_portrait: Icons.crop_landscape,),
-          value: _newOrientation,
+          value: _newOrientationIndex,
           items: List.generate(
             orientationsList.length,
             (i) => DropdownMenuItem(
@@ -2844,8 +2845,8 @@ class PagePreviewState extends State<PagePreview> {
               _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
-                    if (newValue != null && newValue != _newOrientation) {
-                      setState(() => _newOrientation = newValue);
+                    if (newValue != null && newValue != _newOrientationIndex) {
+                      setState(() => _newOrientationIndex = newValue);
                     }
                   },
         ),
