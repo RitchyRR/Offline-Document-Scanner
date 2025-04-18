@@ -3171,9 +3171,9 @@ class _MeasureSizeState extends State<MeasureSize> {
 class CustomIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final BoxConstraints constraints;
-  final Color color;
+  final Color? color;
   final IconData icon;
-  final Color iconColor;
+  final Color? iconColor;
   final double radius;
   final bool isFlat;
   final bool isHidden;
@@ -3185,9 +3185,9 @@ class CustomIconButton extends StatelessWidget {
     super.key,
     required this.onTap,
     this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
-    this.color = Colors.blue,
+    this.color,
     this.icon = Icons.check,
-    this.iconColor = Colors.black,
+    this.iconColor,
     this.radius = 20,
     this.isFlat = false,
     this.isHidden = false,
