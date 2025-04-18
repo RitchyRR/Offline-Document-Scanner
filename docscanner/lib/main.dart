@@ -1698,7 +1698,7 @@ class PagePreviewState extends State<PagePreview> {
   final PageController _pageController = PageController();
   final PhotoViewController _photoViewController = PhotoViewController();
   bool _hideOverlay = false;
-  double _pictureScale = 0.5;
+  double _pictureScale = 0.0;
 
   @override
   void initState() {
@@ -2183,10 +2183,6 @@ class PagePreviewState extends State<PagePreview> {
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
     bool allowPop = proUnlocked == true || _selectedVersion != 3;
-    //double overlayScale =
-    //    (_photoViewController.scale ??
-    //        0.1 * MediaQuery.of(context).size.width) /
-    //    _imagePixelWidth;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2855,6 +2851,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Widget _displayCornerOverlay(BuildContext context) {
+    if (_pictureScale == 0.0) return SizedBox();
     int quarterTurns = _totalRotation ~/ 90;
 
     double displayHeight;

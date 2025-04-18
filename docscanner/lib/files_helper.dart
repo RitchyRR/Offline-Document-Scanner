@@ -142,6 +142,7 @@ class FilesHelper {
       int thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
         docIndex,
         0,
+        supressWarning: true,
       );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
@@ -181,6 +182,7 @@ class FilesHelper {
           await ImageProcessingManager.readPageThumbnailIndex(
             docIndex,
             pageIndex,
+            supressWarning: true,
           );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
