@@ -2123,6 +2123,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _reprocessingCleanup() {
+    _evenPictureScale = 0.0;
+    _oddPictureScale = 0.0;
     _clearPageVersionsCache();
     setState(() {
       _versionPaths = ["", "", "", ""];

@@ -375,10 +375,11 @@ class ImageProcessingManager {
         );
         return;
       }
-      if ((metadata["thumbnail"] ??
-                  versionNames[(proUnlocked == true) ? 3 : 2]) !=
-              newThumbnailName &&
-          newThumbnailName != versionNames[0]) {
+      if ((metadata["thumbnail"] != null
+                  ? versionNames.indexOf(metadata["thumbnail"])
+                  : ((proUnlocked == true) ? 3 : 2)) !=
+              thumbnailIndex &&
+          thumbnailIndex != 0) {
         updateThumbnail = true;
       }
 
@@ -501,11 +502,14 @@ class ImageProcessingManager {
         metadata = jsonDecode(content).cast<String, String>();
         String? thumbnailString = metadata["thumbnail"];
 
-        return thumbnailString != null
-            ? versionNames.indexOf(thumbnailString)
-            : (proUnlocked == true)
-            ? 3
-            : 2;
+        if (thumbnailString != null) {
+          int? retInt = versionNames.indexOf(thumbnailString);
+          if (retInt == 0) {
+            throw StateError('metadata: thumbnail cant be the picture');
+          } else {
+            return retInt;
+          }
+        }
       } catch (e) {
         dev.log("Error, readPageThumbnailIndex: $e");
       }
@@ -640,7 +644,6 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
     );
-    if (thumbnailIndex == 0) throw StateError('thumbnail cant be the picture');
     await _saveScaledThumbnail(
       sendPort,
       versionsPaths[thumbnailIndex],
