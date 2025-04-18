@@ -1706,6 +1706,7 @@ class PagePreviewState extends State<PagePreview> {
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
+    FilesHelper.deleteCachedRoatedImages();
     _initAsync();
 
     _photoViewController.outputStateStream.listen((

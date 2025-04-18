@@ -34,7 +34,7 @@ class ImageProcessingManager {
       int pageIndex,
       String pathIn,
       int? ratioIndexIn,
-      int? orientationIn,
+      int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       bool? proUnlockedIn,
@@ -49,11 +49,11 @@ class ImageProcessingManager {
     String pathIn = data.$6;
 
     int? ratioIndexIn = data.$7;
-    int? orientationIn = data.$8;
-    int? pageThumbnailIndex = data.$9;
+    int? orientationIndexIn = data.$8;
+    int? pageThumbnailIndexIn = data.$9;
     List<List<int>>? cornerPointsIn = data.$10;
     bool? proUnlockedIn = data.$11;
-    if (pageThumbnailIndex == 0) {
+    if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
 
@@ -61,7 +61,13 @@ class ImageProcessingManager {
     List<String> versionPaths = List.generate(4, (index) => "");
 
     // Original
-    Uint8List picture = File(pathIn).readAsBytesSync();
+    File pictureFile = File(pathIn);
+    Uint8List picture;
+    if (pictureFile.existsSync()) {
+      picture = pictureFile.readAsBytesSync();
+    } else {
+      throw StateError('picture does not exist');
+    }
     versionPaths[0] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
@@ -75,7 +81,7 @@ class ImageProcessingManager {
       ParamsWarpImage(
         versionPaths[0],
         inRatioIndex: ratioIndexIn,
-        orientation: orientationIn,
+        orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
       ),
     );
@@ -136,7 +142,7 @@ class ImageProcessingManager {
 
     await _saveScaledThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndex ?? ((proUnlockedIn == true) ? 3 : 2)],
+      versionPaths[pageThumbnailIndexIn ?? ((proUnlockedIn == true) ? 3 : 2)],
       filesHelperIn.screenWidth,
       overwrite: true,
     );
