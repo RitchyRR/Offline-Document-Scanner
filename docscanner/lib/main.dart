@@ -1680,7 +1680,7 @@ class PagePreviewState extends State<PagePreview> {
     (_) => Future<String>.value(""),
   );
   String _picturePath = "";
-  int _imageRetry = 0; // to refresh brokenImages
+  int _imageRetryKey = 0; // to refresh brokenImages
   // Reprocessing Parameters
   int? _ratioIndex;
   int? _newRatioIndex;
@@ -1691,14 +1691,16 @@ class PagePreviewState extends State<PagePreview> {
   List<List<int>> _cornerPoints = [];
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
+  bool _hideOverlayReprocessing = false;
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
   final PhotoViewController _photoViewController = PhotoViewController();
-  bool _hideOverlay = false;
   double _pictureScale = 0.0;
+  double _evenPictureScale = 0.0;
+  double _oddPictureScale = 0.0;
 
   @override
   void initState() {
@@ -1710,7 +1712,7 @@ class PagePreviewState extends State<PagePreview> {
       PhotoViewControllerValue value,
     ) {
       setState(() {
-        _pictureScale = value.scale ?? 1.0;
+        _pictureScale = value.scale ?? _pictureScale;
       });
     });
   }
@@ -1823,7 +1825,7 @@ class PagePreviewState extends State<PagePreview> {
       setState(() {
         _cornerPoints;
         if (_cornerPoints.isNotEmpty) {
-          _hideOverlay = false;
+          _hideOverlayReprocessing = false;
           _metadataBlocked = false;
         }
       });
@@ -2294,7 +2296,7 @@ class PagePreviewState extends State<PagePreview> {
                           filterQuality: FilterQuality.high,
                           minScale: PhotoViewComputedScale.contained,
                           maxScale: 1.0,
-                          key: ValueKey(_imageRetry),
+                          key: ValueKey(_imageRetryKey),
                           errorBuilder: (context, error, stackTrace) {
                             _refreshAfterBrokenImage(index);
                             return IndicatorProcessingImage();
@@ -2309,14 +2311,13 @@ class PagePreviewState extends State<PagePreview> {
                               await Future.delayed(Duration(milliseconds: 300));
                             } // delay becuase of zoom animation
                             setState(() {
-                              _hideOverlay = isZoomed;
+                              _hideOverlayReprocessing = isZoomed;
                             });
                           },
                         ),
+
                         // Corner Points
-                        (_cornerPoints.isNotEmpty && !_hideOverlay)
-                            ? _displayCornerOverlay(context)
-                            : SizedBox(),
+                        _displayCornerOverlay(context),
                       ],
                     ),
                   );
@@ -2327,7 +2328,7 @@ class PagePreviewState extends State<PagePreview> {
                   filterQuality: FilterQuality.high,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: 1.0,
-                  key: ValueKey(_imageRetry),
+                  key: ValueKey(_imageRetryKey),
                   errorBuilder: (context, error, stackTrace) {
                     _refreshAfterBrokenImage(index);
                     return IndicatorProcessingImage();
@@ -2525,7 +2526,7 @@ class PagePreviewState extends State<PagePreview> {
                                     width: _selectedVersion == index ? 70 : 50,
                                     height: _selectedVersion == index ? 70 : 50,
                                     fit: BoxFit.cover,
-                                    key: ValueKey(_imageRetry),
+                                    key: ValueKey(_imageRetryKey),
                                     errorBuilder: (context, error, stackTrace) {
                                       _refreshAfterBrokenImage(index);
                                       return const SizedBox(
@@ -2614,7 +2615,7 @@ class PagePreviewState extends State<PagePreview> {
       );
       if (mounted) {
         setState(() {
-          _imageRetry = (_imageRetry - 1) * (-1);
+          _imageRetryKey = (_imageRetryKey - 1) * (-1);
         });
       } else {
         dev.log("Error, _refreshAfterBrokenImage: not mounted");
@@ -2691,7 +2692,7 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> reprocessPicture({List<List<int>>? newCornerPoints}) async {
     if (mounted) {
       setState(() {
-        _hideOverlay = true;
+        _hideOverlayReprocessing = true;
       });
     }
     imageProcessingManager.killPrimaryIsolateOfPage(
@@ -2851,15 +2852,30 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Widget _displayCornerOverlay(BuildContext context) {
-    if (_pictureScale == 0.0) return SizedBox();
+    if (_cornerPoints.isEmpty ||
+        _pictureScale == 0.0 ||
+        _rotationOngoing ||
+        _hideOverlayReprocessing) {
+      return SizedBox();
+    }
     int quarterTurns = _totalRotation ~/ 90;
 
     double displayHeight;
     double displayWidth;
     if (quarterTurns.isEven) {
+      if (_evenPictureScale == 0.0 && _pictureScale != _oddPictureScale) {
+        _evenPictureScale = _pictureScale;
+      } else {
+        _pictureScale = _evenPictureScale;
+      }
       displayHeight = _imagePixelHeight * _pictureScale;
       displayWidth = _imagePixelWidth * _pictureScale;
     } else {
+      if (_oddPictureScale == 0.0 && _pictureScale != _evenPictureScale) {
+        _oddPictureScale = _pictureScale;
+      } else {
+        _pictureScale = _oddPictureScale;
+      }
       displayHeight = _imagePixelWidth * _pictureScale;
       displayWidth = _imagePixelHeight * _pictureScale;
     }

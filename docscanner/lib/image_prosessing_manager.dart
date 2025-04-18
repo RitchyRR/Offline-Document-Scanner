@@ -53,6 +53,9 @@ class ImageProcessingManager {
     int? pageThumbnailIndex = data.$9;
     List<List<int>>? cornerPointsIn = data.$10;
     bool? proUnlockedIn = data.$11;
+    if (pageThumbnailIndex == 0) {
+      throw StateError('thumbnail cant be the picture');
+    }
 
     OpenCVHelper cvHelper = OpenCVHelper();
     List<String> versionPaths = List.generate(4, (index) => "");
@@ -632,6 +635,7 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
     );
+    if (thumbnailIndex == 0) throw StateError('thumbnail cant be the picture');
     await _saveScaledThumbnail(
       sendPort,
       versionsPaths[thumbnailIndex],
