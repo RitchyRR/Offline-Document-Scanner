@@ -744,8 +744,8 @@ class OpenCVHelper {
     }
     _setTransformation(3, depths, noBoderCutin: noBoderCutin);
 
-    dev.log("borderCutIn: $borderCutIn");
-    dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+    //dev.log("borderCutIn: $borderCutIn");
+    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
   }
 
   void _setHeight(List<List<int>> corners, double ratio) {
@@ -929,6 +929,18 @@ class OpenCVHelper {
     //return subtracted;
 
     subtracted = _stretchMat(subtracted, gamma: 0.8);
+
+    // Median blur color
+    try {
+      int k1 = 5; //(K ~/ 35) + 1;
+      cv.VecMat hsv = cv.split(cv.cvtColor(subtracted, cv.COLOR_BGR2HSV));
+      //hsv[0] = cv.medianBlur(hsv[0], k1 * 2 + 1);
+      hsv[1] = cv.min(cv.medianBlur(hsv[1], k1), hsv[1]);
+      subtracted = cv.cvtColor(cv.merge(hsv), cv.COLOR_HSV2BGR);
+    } catch (e) {
+      dev.log("Error, _warpedBg, medianBlur: $e");
+    }
+
     return subtracted;
   }
 
@@ -989,7 +1001,7 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. blur
-    bg = cv.blur(bg, ((K * 2) + 1, (K * 2) + 1));
+    bg = cv.gaussianBlur(bg, ((K * 2) + 1, (K * 2) + 1), 2);
     // 3. Remove dark structures (Closing)
     int k2 = K * 2;
     cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_RECT, (k2, k2));
