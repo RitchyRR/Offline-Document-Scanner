@@ -215,13 +215,13 @@ class OpenCVHelper {
 
     // 1. Isolate remove Text and Images to get Shape
     cv.Mat? bg = _removeTextAndImages(imageMat);
-
+    //return (bg, 0, 0, corners);
     // 2. create a binary image, white representing the shape of the document
     cv.Mat? shape = _documentMask(bg);
-    //return (shape, 0);
+    //return (shape, 0, 0, corners);
     bg.dispose();
     bg = null;
-    //return (shape, 0, true);
+    //return (shape, 0, 0, corners);
 
     if (cornerPointsIn == null) {
       // 3. Corner detection
@@ -240,6 +240,8 @@ class OpenCVHelper {
       double ratio = commonAspectRatios[ratioIndex].value;
       ratio = (orientation == 0 ? ratio : 1.0 / ratio);
       _setHeight(corners, ratio);
+      //cv.Mat warpedShape = _transformImage(shape, corners);
+      //return (warpedShape, 0, 0, corners);
       _calculateBorderSize(shape, corners, noBoderCutin: true);
     }
     shape.dispose();
@@ -674,8 +676,6 @@ class OpenCVHelper {
 
     _calculateBorderSize(shape, corners);
 
-    //dev.log("borderCutIn: $borderCutIn");
-    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
     return (ratioIndex, orientationIndex);
   }
 
@@ -689,96 +689,63 @@ class OpenCVHelper {
     final int maxBorderSize = (K ~/ 2);
 
     // Top border
-    int calculatedBoderSize = 0;
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = 0; i < maxBorderSize; i++) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
-          if (calculatedBoderSize < val) {
-            calculatedBoderSize = val;
-          }
         } else {
           break;
         }
       }
     }
-    _setTransformation(
-      0,
-      calculatedBoderSize,
-      depths,
-      noBoderCutin: noBoderCutin,
-    );
+    _setTransformation(0, depths, noBoderCutin: noBoderCutin);
 
     // Bottom border
-    calculatedBoderSize = 0;
     depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = height - 1; i > height - maxBorderSize; i--) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = height - i;
           depths[j] = val;
-          if (calculatedBoderSize < val) {
-            calculatedBoderSize = val;
-          }
         } else {
           break;
         }
       }
     }
-    _setTransformation(
-      1,
-      calculatedBoderSize,
-      depths,
-      noBoderCutin: noBoderCutin,
-    );
+    _setTransformation(1, depths, noBoderCutin: noBoderCutin);
 
     // Left border
-    calculatedBoderSize = 0;
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < maxBorderSize; j++) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = j;
           depths[i] = val;
-          if (calculatedBoderSize < val) {
-            calculatedBoderSize = val;
-          }
         } else {
           break;
         }
       }
     }
-    _setTransformation(
-      2,
-      calculatedBoderSize,
-      depths,
-      noBoderCutin: noBoderCutin,
-    );
+    _setTransformation(2, depths, noBoderCutin: noBoderCutin);
 
     // Right border
-    calculatedBoderSize = 0;
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = width - 1; j > width - maxBorderSize; j--) {
         if (warpedShape.at<int>(i, j) == 0) {
           int val = width - j;
           depths[i] = val;
-          if (calculatedBoderSize < val) {
-            calculatedBoderSize = val;
-          }
         } else {
           break;
         }
       }
     }
-    _setTransformation(
-      3,
-      calculatedBoderSize,
-      depths,
-      noBoderCutin: noBoderCutin,
-    );
+    _setTransformation(3, depths, noBoderCutin: noBoderCutin);
+
+    dev.log("borderCutIn: $borderCutIn");
+    dev.log("borderCorrectionDepth: $borderCorrectionDepth");
   }
 
   void _setHeight(List<List<int>> corners, double ratio) {
@@ -883,7 +850,6 @@ class OpenCVHelper {
   // Step 4.1.1: Set Border Corrections
   void _setTransformation(
     int borderIndex,
-    int calculatedBoderSize,
     List<int> depths, {
     bool noBoderCutin = false,
   }) {
@@ -891,7 +857,9 @@ class OpenCVHelper {
     borderCutIn[borderIndex] =
         noBoderCutin ? 0 : _percentileValueInt(depths, 0.67);
     borderCorrectionDepth[borderIndex] =
-        calculatedBoderSize - borderCutIn[borderIndex] + borderTolerance;
+        _percentileValueInt(depths, 0.9) -
+        borderCutIn[borderIndex] +
+        borderTolerance;
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
