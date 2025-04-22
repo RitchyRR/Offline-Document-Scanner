@@ -277,7 +277,7 @@ class OpenCVHelper {
     if (imageMat == null) return null;
 
     // 7. Sharpen
-    imageMat = _sharpenImage(imageMat);
+    imageMat = _sharpenImage(imageMat, sharpeningStrength: 0.5);
 
     return imageMat;
   }
@@ -960,8 +960,19 @@ class OpenCVHelper {
     );
     // 4. set bg value to warped value, if brighter
     cv.VecMat bgHsvChannels = cv.split(cv.cvtColor(bg, cv.COLOR_BGR2HSV));
-    cv.VecMat wpHsvChannels = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV));
-    bgHsvChannels[2] = cv.max(bgHsvChannels[2], wpHsvChannels[2]);
+    cv.Mat wpV = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV))[2];
+
+    int k3 = (K ~/ 18) + 1;
+    cv.Mat kernel3 = cv.getStructuringElement(cv.MORPH_CROSS, (k3, k3));
+    wpV = cv.morphologyEx(
+      wpV,
+      cv.MORPH_CLOSE,
+      kernel3,
+      borderType: cv.BORDER_REPLICATE,
+      iterations: 2,
+    );
+
+    bgHsvChannels[2] = cv.max(bgHsvChannels[2], wpV);
     bg = cv.cvtColor(cv.merge(bgHsvChannels), cv.COLOR_HSV2BGR);
 
     return bg;
