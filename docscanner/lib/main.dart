@@ -1268,13 +1268,18 @@ class ImagesScrollPreview extends StatelessWidget {
                     decoration: BoxDecoration(
                       boxShadow: [smallBoxShadow(context)],
                     ),
-                    child: Image.file(
-                      File(path),
-                      height: 160.0 * 1.414,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.broken_image);
-                      },
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: 160.0 * 1.414,
+                        maxWidth: 160.0,
+                      ),
+                      child: Image.file(
+                        File(path),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.broken_image);
+                        },
+                      ),
                     ),
                   ),
                 );
