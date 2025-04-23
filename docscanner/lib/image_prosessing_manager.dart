@@ -784,17 +784,20 @@ class ImageProcessingManager {
             );
           }
         } else {
+          dev.log("Thumbnail already exists, won't overwrite thumbnail.");
           return;
         }
       }
     }
     // Read
     Uint8List imageBytes = await fileIn.readAsBytes();
-    img.Image? original = img.decodeImage(imageBytes);
-    if (original == null) return;
+    img.Image? selectedVersion = img.decodeImage(imageBytes);
+    if (selectedVersion == null) {
+      throw StateError("selectedVersion used for thumbnail does not exist");
+    }
     // Resize
     img.Image resized = img.copyResize(
-      original,
+      selectedVersion,
       width:
           (screenWidth.toDouble() * 0.927083333)
               .toInt(), // thumbnail width in Pages Widget
