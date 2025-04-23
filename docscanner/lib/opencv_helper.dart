@@ -983,7 +983,7 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. blur
-    bg = cv.gaussianBlur(bg, ((K * 2) + 1, (K * 2) + 1), 2);
+    bg = cv.blur(bg, ((K * 2) + 1, (K * 2) + 1));
     // 3. Remove dark structures (Closing)
     int k2 = K * 2;
     cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_RECT, (k2, k2));

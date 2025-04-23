@@ -321,7 +321,7 @@ class ImageProcessingManager {
       FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
-      List<String> versionPaths, //[0] is rotated
+      List<String> versionPaths, //[0] is potentially rotated
       int angle,
     )
     data,
@@ -477,7 +477,7 @@ class ImageProcessingManager {
     if (await file.exists()) {
       try {
         String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
+        metadata = jsonDecode(content).cast<String, dynamic>();
         ratioIndex = int.parse(metadata["apectRatio"]);
         String orientationString = metadata["orientation"];
         orientationIndex =
@@ -497,6 +497,7 @@ class ImageProcessingManager {
                   )
                   .toList();
         }
+        return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
       } catch (e) {
         dev.log("Error, readPageMetadata: $e");
       }
