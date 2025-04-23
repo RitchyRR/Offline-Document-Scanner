@@ -226,6 +226,10 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+      } else if (message is File) {
+        imageCache.evict(FileImage(message), includeLive: true);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
 
@@ -270,6 +274,10 @@ class ImageProcessingManager {
             comleters.remove(completer);
             //isolate.kill();
             secundaryIsolates.removeWhere((key, value) => value == isolate);
+          } else if (message is File) {
+            imageCache.evict(FileImage(message), includeLive: true);
+            globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
           }
         });
       }
@@ -311,6 +319,10 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+      } else if (message is File) {
+        imageCache.evict(FileImage(message), includeLive: true);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
   }
@@ -323,6 +335,7 @@ class ImageProcessingManager {
       int pageIndex,
       List<String> versionPaths, //[0] is potentially rotated
       int angle,
+      int pageThumbnailIndexIn,
     )
     data,
   ) async {
@@ -332,6 +345,7 @@ class ImageProcessingManager {
     int pageIndex = data.$4;
     List<String> versionPaths = data.$5;
     int angle = data.$6;
+    int pageThumbnailIndexIn = data.$7;
 
     OpenCVHelper cvHelper = OpenCVHelper();
 
@@ -356,7 +370,7 @@ class ImageProcessingManager {
 
     // Warped
     Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], angle);
-    await filesHelperIn.savePageVersion(
+    versionPaths[1] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       1,
@@ -366,7 +380,7 @@ class ImageProcessingManager {
 
     // Processed1
     Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], angle);
-    await filesHelperIn.savePageVersion(
+    versionPaths[2] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       2,
@@ -376,12 +390,24 @@ class ImageProcessingManager {
 
     // Processed2
     Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], angle);
-    await filesHelperIn.savePageVersion(
+    versionPaths[3] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
       3,
       rotatedP2,
       sendPort,
+    );
+
+    // Updates
+    sendPort.send(NotifierEvent.loadPageMetadata);
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    sendPort.send(NotifierEvent.loadDocsThumbnails);
+
+    await _saveScaledThumbnail(
+      sendPort,
+      versionPaths[pageThumbnailIndexIn],
+      filesHelperIn.screenWidth,
+      overwrite: true,
     );
 
     sendPort.send('done');
@@ -392,6 +418,7 @@ class ImageProcessingManager {
     int pageIndex,
     List<String> versionPaths, //[0] is rotated
     int angle,
+    int pageThumbnailIndexIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
@@ -403,6 +430,7 @@ class ImageProcessingManager {
       pageIndex,
       versionPaths,
       angle,
+      pageThumbnailIndexIn,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -416,6 +444,10 @@ class ImageProcessingManager {
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
         // Update thumbnails:
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+      } else if (message is File) {
+        imageCache.evict(FileImage(message), includeLive: true);
         globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
         globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }

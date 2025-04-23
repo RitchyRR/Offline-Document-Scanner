@@ -1850,7 +1850,7 @@ class PagePreviewState extends State<PagePreview> {
     );
     _imagePixelWidth = image.width;
     _imagePixelHeight = image.height;
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   Future<void> _savePagePopup(BuildContext context, int versionIndex) async {
@@ -2729,7 +2729,7 @@ class PagePreviewState extends State<PagePreview> {
     );
     int? ratioIndex = metadata.$1;
     int? orientationIndex = metadata.$2;
-    //int? thumbnailIndex = metadata.$3;
+    int? thumbnailIndex = metadata.$3;
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
@@ -2772,6 +2772,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
+        thumbnailIndex ?? (proUnlocked == true ? 3 : 2),
       );
       rotatePageFuture.whenComplete(() {
         _totalRotation = 0;
@@ -2784,7 +2785,7 @@ class PagePreviewState extends State<PagePreview> {
         _versionPaths[0], // potentially rotated image
         _newRatioIndex,
         _newOrientationIndex,
-        null,
+        thumbnailIndex,
         newCornerPoints,
       );
     }
