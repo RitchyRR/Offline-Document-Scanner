@@ -898,7 +898,12 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(subtracted, highValue: 255, lowPercentile: 0.005);
+    subtracted = _stretchMat(
+      subtracted,
+      lowPercentile: 0.005,
+      highValue: 255,
+      gamma: null,
+    );
     return subtracted;
   }
 
@@ -910,7 +915,12 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(subtracted, gamma: 0.8);
+    subtracted = _stretchMat(
+      subtracted,
+      lowPercentile: 0.15,
+      highValue: 230,
+      gamma: 0.45,
+    );
 
     // Median blur color
     try {
