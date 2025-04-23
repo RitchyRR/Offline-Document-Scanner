@@ -728,30 +728,40 @@ class FilesHelper {
         confirmButtonText: "Select a Folder to Save PDF",
       );
       if (selectedDirectory == null) {
-        dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
-        return;
+        throw StateError('User-Action, pickFolderForDocumentPdf: cancelled');
       }
       // Save PDF
-      String pdfPath = "$selectedDirectory/doc${docIndex + 1}.pdf";
+      String docName = "doc${docIndex + 1}.pdf";
+      String pdfPath = "$selectedDirectory/$docName";
       File file = File(pdfPath);
       if (file.existsSync()) {
         file.renameSync(
           "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
         );
+        //Fluttertoast.showToast(
+        //  msg:
+        //      "Old $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
+        //);
       }
+      // Processing Toast
+      Fluttertoast.showToast(
+        msg: "Processing PDF...",
+        toastLength: Toast.LENGTH_LONG,
+      );
       pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
-      if (pdf == null) return;
+      if (pdf == null) throw StateError('PDF is null');
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
-      // Toast
+      // Saved Toast
       const String basePath = "/storage/emulated/0";
       final readablePath =
           pdfPath.startsWith(basePath)
               ? pdfPath.substring(basePath.length)
               : pdfPath;
       dev.log("PDF saved at: $readablePath");
-      Fluttertoast.showToast(msg: 'PDF saved at: "$readablePath"');
+      Fluttertoast.showToast(msg: "PDF saved at: $readablePath");
     } catch (e) {
+      Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
       dev.log("Error, pickFolderForDocumentPdf: $e");
     }
   }
@@ -841,7 +851,11 @@ class FilesHelper {
     // Save PDF
     final docsPath = await _getDocumentsPath();
     String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
-
+    // Processing Toast
+    Fluttertoast.showToast(
+      msg: "Processing PDF...",
+      toastLength: Toast.LENGTH_LONG,
+    );
     pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
