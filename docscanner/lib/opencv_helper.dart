@@ -1,6 +1,4 @@
 import 'dart:developer' as dev;
-import 'dart:io' show File;
-import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
@@ -118,36 +116,20 @@ class OpenCVHelper {
     return _returnImage(filtered2);
   }
 
-  Future<void> rotateImageInTmpDir(
-    (SendPort sendPort, String pathIn, String pathOut, int angle) data,
-  ) async {
-    SendPort sendPort = data.$1;
-    String pathIn = data.$2;
-    String pathOut = data.$3;
-    int angle = data.$4;
-    try {
-      cv.Mat? mat = _loadImage(pathIn);
+  Uint8List rotateImage(String pathIn, int angle) {
+    cv.Mat? mat = _loadImage(pathIn);
 
-      if (angle != 0) {
-        mat = mat?.rotate(
-          angle == 90
-              ? cv.ROTATE_90_CLOCKWISE
-              : (angle == 270)
-              ? cv.ROTATE_90_COUNTERCLOCKWISE
-              : cv.ROTATE_180,
-        );
-      }
-
-      Uint8List rotatedBytes = _returnImage(mat);
-
-      File(pathOut).writeAsBytes(rotatedBytes);
-
-      // Notify the main isolate that we're done
-      sendPort.send(true);
-    } catch (e) {
-      dev.log("Error, _rotateImageInTmpDir: $e");
-      sendPort.send(null);
+    if (angle != 0) {
+      mat = mat?.rotate(
+        angle == 90
+            ? cv.ROTATE_90_CLOCKWISE
+            : (angle == 270)
+            ? cv.ROTATE_90_COUNTERCLOCKWISE
+            : cv.ROTATE_180,
+      );
     }
+
+    return _returnImage(mat);
   }
 
   cv.Mat? _loadImage(String imagePath) {

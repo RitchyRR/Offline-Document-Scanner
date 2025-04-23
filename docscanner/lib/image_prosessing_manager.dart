@@ -73,8 +73,8 @@ class ImageProcessingManager {
       pageIndex,
       0,
       picture,
+      isPrimary ? sendPort : null,
     );
-    if (isPrimary) sendPort.send(NotifierEvent.pictureSaved);
 
     // Warped
     var warpedRet = cvHelper.warpImage(
@@ -107,8 +107,8 @@ class ImageProcessingManager {
       pageIndex,
       1,
       warped,
+      isPrimary ? sendPort : null,
     );
-    if (isPrimary) sendPort.send(NotifierEvent.warpSaved);
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
@@ -119,10 +119,8 @@ class ImageProcessingManager {
       pageIndex,
       2,
       processed1,
+      isPrimary ? sendPort : null,
     );
-    if (isPrimary) {
-      sendPort.send(NotifierEvent.processed1Saved);
-    }
 
     // Processed2 basierend auf dem Warped-Bild
     Uint8List processed2 = cvHelper.processImage2(
@@ -133,8 +131,8 @@ class ImageProcessingManager {
       pageIndex,
       3,
       processed2,
+      isPrimary ? sendPort : null,
     );
-    if (isPrimary) sendPort.send(NotifierEvent.processed2Saved);
 
     // Update thumbnails:
     sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -317,6 +315,114 @@ class ImageProcessingManager {
     });
   }
 
+  static Future<void> _rotatePageIsolate(
+    (
+      SendPort sendPort,
+      FilesHelper filesHelperIn,
+      int docIndex,
+      int pageIndex,
+      List<String> versionPaths, //[0] is rotated
+      int angle,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    FilesHelper filesHelperIn = data.$2;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    List<String> versionPaths = data.$5;
+    int angle = data.$6;
+
+    OpenCVHelper cvHelper = OpenCVHelper();
+
+    /// 1. save rotated picture
+
+    File rotatedPictureFile = File(versionPaths[0]);
+    Uint8List rotatedPicture;
+    if (rotatedPictureFile.existsSync()) {
+      rotatedPicture = rotatedPictureFile.readAsBytesSync();
+    } else {
+      throw StateError('rotated picture does not exist');
+    }
+    await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      0,
+      rotatedPicture,
+      sendPort,
+    );
+
+    /// 2. rotate processed -> save
+
+    // Warped
+    Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], angle);
+    await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      1,
+      rotatedWarped,
+      sendPort,
+    );
+
+    // Processed1
+    Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], angle);
+    await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      rotatedP1,
+      sendPort,
+    );
+
+    // Processed2
+    Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], angle);
+    await filesHelperIn.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      rotatedP2,
+      sendPort,
+    );
+
+    sendPort.send('done');
+  }
+
+  Future<void> rotatePage(
+    int docIndex,
+    int pageIndex,
+    List<String> versionPaths, //[0] is rotated
+    int angle,
+  ) async {
+    ReceivePort primaryPort = ReceivePort();
+    final primaryCompleter = Completer<void>();
+    comleters.add(primaryCompleter);
+    Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
+      primaryPort.sendPort,
+      filesHelper,
+      docIndex,
+      pageIndex,
+      versionPaths,
+      angle,
+    ));
+    primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
+    primaryPort.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        primaryPort.close();
+        primaryCompleter.complete();
+        comleters.remove(primaryCompleter);
+        //primaryIsolate.kill();
+        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+        // Update thumbnails:
+        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+      }
+    });
+    await primaryCompleter.future;
+  }
+
   static Future<void> writePageMetadata(
     int docIndex,
     int pageIndex,
@@ -351,6 +457,56 @@ class ImageProcessingManager {
     } catch (e) {
       dev.log("Error, writePageMetadata: $e");
     }
+  }
+
+  static Future<(int?, int?, int?, List<List<int>>?)> readPageMetadata(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarning = false,
+  }) async {
+    int? ratioIndex;
+    int? orientationIndex;
+    int? thumbnailIndex;
+    List<List<int>>? cornerPoints;
+
+    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final file = File('$pagePath/metadata.json');
+    Map<String, dynamic> metadata = {};
+
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, String>();
+        ratioIndex = int.parse(metadata["apectRatio"]);
+        String orientationString = metadata["orientation"];
+        orientationIndex =
+            (orientationString == "portrait" || orientationString == "")
+                ? 0
+                : 1;
+        String? thumbnailString = metadata["thumbnail"];
+        if (thumbnailString != null) {
+          thumbnailIndex = versionNames.indexOf(thumbnailString);
+          if (thumbnailIndex == 0) {
+            throw StateError('metadata: thumbnail cant be the picture');
+          }
+          cornerPoints =
+              (metadata["corners"] as List)
+                  .map<List<int>>(
+                    (e) => (e as List).map((v) => v as int).toList(),
+                  )
+                  .toList();
+        }
+      } catch (e) {
+        dev.log("Error, readPageMetadata: $e");
+      }
+    }
+    if (!supressWarning) {
+      dev.log(
+        "Warning, readPageMetadata: Metadata does not exist for $pagePath",
+      );
+    }
+    return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
   }
 
   static Future<void> writePageThumbnailIndex(

@@ -113,6 +113,7 @@ class FilesHelper {
     int pageIndex,
     int versionIndex,
     Uint8List imageBytes,
+    SendPort? sendPort,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -130,6 +131,23 @@ class FilesHelper {
       return "";
     }
     //dev.log("Image saved at: $toImagePath");
+    if (sendPort != null) {
+      switch (versionIndex) {
+        case 0:
+          sendPort.send(NotifierEvent.pictureSaved);
+          break;
+        case 1:
+          sendPort.send(NotifierEvent.warpSaved);
+          break;
+        case 2:
+          sendPort.send(NotifierEvent.processed1Saved);
+          break;
+        case 3:
+          sendPort.send(NotifierEvent.processed2Saved);
+          break;
+        default:
+      }
+    }
     return versionPath;
   }
 
@@ -902,21 +920,35 @@ class FilesHelper {
   }
 
   static Future<String> rotateImageInTmpDir(String imagePath, int angle) async {
+    final port = ReceivePort();
     final tmpDir = await getTemporaryDirectory();
     final rotatedFilePath = "${tmpDir.path}/rotated_$angle.png";
 
-    if (File(rotatedFilePath).existsSync()) return rotatedFilePath;
-    final port = ReceivePort();
-    OpenCVHelper cvHelper = OpenCVHelper();
-    Isolate.spawn(cvHelper.rotateImageInTmpDir, (
+    Isolate.spawn(_rotateImageInTmpDirIsolate, (
       port.sendPort,
       imagePath,
       rotatedFilePath,
       angle,
     ));
+
     await port.first;
     port.close();
     return rotatedFilePath;
+  }
+
+  static Future<void> _rotateImageInTmpDirIsolate(
+    (SendPort sendPort, String imagePath, String rotatedFilePath, int angle)
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    String imagePath = data.$2;
+    String rotatedFilePath = data.$3;
+    int angle = data.$4;
+    OpenCVHelper cvHelper = OpenCVHelper();
+
+    Uint8List rotatedBytes = cvHelper.rotateImage(imagePath, angle);
+    File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
+    sendPort.send(true);
   }
 
   static Future<void> deleteCachedRoatedImages() async {

@@ -2720,6 +2720,19 @@ class PagePreviewState extends State<PagePreview> {
         _hideOverlayReprocessing = true;
       });
     }
+    bool onlyRotation = true;
+
+    // Read Matadata
+    var metadata = await ImageProcessingManager.readPageMetadata(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    int? ratioIndex = metadata.$1;
+    int? orientationIndex = metadata.$2;
+    //int? thumbnailIndex = metadata.$3;
+    //List<List<int>>? cornerPoints = metadata.$4;
+
+    // use new / rotate old corner points
     imageProcessingManager.killPrimaryIsolateOfPage(
       widget.docIndex,
       widget.pageIndex,
@@ -2730,12 +2743,9 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
       );
       newCornerPoints = rotateCornerPoints(newCornerPoints);
+    } else {
+      onlyRotation = false;
     }
-    int pageThumbnailIndex =
-        await ImageProcessingManager.readPageThumbnailIndex(
-          widget.docIndex,
-          widget.pageIndex,
-        );
 
     await ImageProcessingManager.writePageMetadata(
       widget.docIndex,
@@ -2745,20 +2755,44 @@ class PagePreviewState extends State<PagePreview> {
       null,
       newCornerPoints,
     );
-    _reprocessingSetup();
-    imageProcessingManager.processPage(
-      widget.docIndex,
-      widget.pageIndex,
-      _versionPaths[0], // potentially rotated image
-      _newRatioIndex,
-      _newOrientationIndex,
-      pageThumbnailIndex,
-      newCornerPoints,
-    );
+
+    // Compare old and new metadata -> only rotation?
+
+    if (ratioIndex != _newRatioIndex) onlyRotation = false;
+    int quarterTurns = (_totalRotation ~/ 90) % 4;
+    if (quarterTurns.isEven && orientationIndex != _newOrientationIndex ||
+        quarterTurns.isOdd && orientationIndex == _newOrientationIndex) {
+      onlyRotation = false;
+    }
+
+    if (onlyRotation && _versionPaths.every((key) => File(key).existsSync())) {
+      _metadataBlocked = true;
+      Future rotatePageFuture = imageProcessingManager.rotatePage(
+        widget.docIndex,
+        widget.pageIndex,
+        _versionPaths,
+        _totalRotation,
+      );
+      rotatePageFuture.whenComplete(() {
+        _totalRotation = 0;
+      });
+    } else {
+      _reprocessingSetup();
+      imageProcessingManager.processPage(
+        widget.docIndex,
+        widget.pageIndex,
+        _versionPaths[0], // potentially rotated image
+        _newRatioIndex,
+        _newOrientationIndex,
+        null,
+        newCornerPoints,
+      );
+    }
     _reprocessingCleanup();
   }
 
   List<List<int>> rotateCornerPoints(List<List<int>> cornerPoints) {
+    if (_totalRotation == 0) return cornerPoints;
     int quarterTurns = (_totalRotation ~/ 90) % 4;
 
     // Apply rotation logic to each point
