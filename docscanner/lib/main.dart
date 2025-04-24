@@ -2799,6 +2799,7 @@ class PagePreviewState extends State<PagePreview> {
         _newOrientationIndex,
         thumbnailIndex,
         newCornerPoints,
+        _totalRotation,
       );
     }
     _reprocessingCleanup();

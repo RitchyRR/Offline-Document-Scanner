@@ -38,6 +38,7 @@ class ImageProcessingManager {
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       bool? proUnlockedIn,
+      int rotationIn,
     )
     data,
   ) async {
@@ -53,6 +54,7 @@ class ImageProcessingManager {
     int? pageThumbnailIndexIn = data.$9;
     List<List<int>>? cornerPointsIn = data.$10;
     bool? proUnlockedIn = data.$11;
+    int rotationIn = data.$12;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
@@ -76,21 +78,37 @@ class ImageProcessingManager {
       isPrimary ? sendPort : null,
     );
 
+    // Re-use Shape
+    String? shapePath = await filesHelperIn.getPageShape(docIndex, pageIndex);
+    if (shapePath != null && rotationIn != 0) {
+      Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
+      shapePath = await filesHelperIn.savePageShape(
+        docIndex,
+        pageIndex,
+        rotatedShape,
+      );
+    }
+
     // Warped
     var warpedRet = cvHelper.warpImage(
       ParamsWarpImage(
         versionPaths[0],
+        shapePath,
         inRatioIndex: ratioIndexIn,
         orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
       ),
     );
     Uint8List warped = warpedRet.$1;
-    List<int> borderCorrectionDepth = warpedRet.$2;
+    Uint8List shape = warpedRet.$2;
+    if (shapePath == null) {
+      filesHelperIn.savePageShape(docIndex, pageIndex, shape);
+    }
+    List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
-    int ratioIndex = warpedRet.$3;
-    int orientationIndex = warpedRet.$4;
-    List<List<int>> cornerPoints = warpedRet.$5;
+    int ratioIndex = warpedRet.$4;
+    int orientationIndex = warpedRet.$5;
+    List<List<int>> cornerPoints = warpedRet.$6;
     await writePageMetadata(
       docIndex,
       pageIndex,
@@ -215,6 +233,7 @@ class ImageProcessingManager {
       null,
       null,
       proUnlocked,
+      0,
     ));
     primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -263,6 +282,7 @@ class ImageProcessingManager {
           null,
           null,
           proUnlocked,
+          0,
         ));
         secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
         secundaryPort.listen((message) {
@@ -292,6 +312,7 @@ class ImageProcessingManager {
     int? orientationIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
+    int rotationIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
@@ -308,6 +329,7 @@ class ImageProcessingManager {
       pageThumbnailIndex,
       cornerPointsIn,
       proUnlocked,
+      rotationIn,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -334,7 +356,7 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       List<String> versionPaths, //[0] is potentially rotated
-      int angle,
+      int rotationIn,
       int pageThumbnailIndexIn,
     )
     data,
@@ -344,7 +366,7 @@ class ImageProcessingManager {
     int docIndex = data.$3;
     int pageIndex = data.$4;
     List<String> versionPaths = data.$5;
-    int angle = data.$6;
+    int rotationIn = data.$6;
     int pageThumbnailIndexIn = data.$7;
 
     OpenCVHelper cvHelper = OpenCVHelper();
@@ -368,8 +390,19 @@ class ImageProcessingManager {
 
     /// 2. rotate processed -> save
 
+    // Shape
+    String? shapePath = await filesHelperIn.getPageShape(docIndex, pageIndex);
+    if (shapePath != null && rotationIn != 0) {
+      Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
+      shapePath = await filesHelperIn.savePageShape(
+        docIndex,
+        pageIndex,
+        rotatedShape,
+      );
+    }
+
     // Warped
-    Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], angle);
+    Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], rotationIn);
     versionPaths[1] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
@@ -379,7 +412,7 @@ class ImageProcessingManager {
     );
 
     // Processed1
-    Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], angle);
+    Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], rotationIn);
     versionPaths[2] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,
@@ -389,7 +422,7 @@ class ImageProcessingManager {
     );
 
     // Processed2
-    Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], angle);
+    Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], rotationIn);
     versionPaths[3] = await filesHelperIn.savePageVersion(
       docIndex,
       pageIndex,

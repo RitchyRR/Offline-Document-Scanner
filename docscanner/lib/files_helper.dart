@@ -151,6 +151,48 @@ class FilesHelper {
     return versionPath;
   }
 
+  Future<String> savePageShape(
+    int docIndex,
+    int pageIndex,
+    Uint8List imageBytes,
+  ) async {
+    await _initializeDocumentsPath();
+    String pagePath = await getPagePath(docIndex, pageIndex);
+    String fileName = "shape";
+    for (var fse in Directory(pagePath).listSync()) {
+      if (fse.path.endsWith("$fileName.png")) {
+        fse.delete();
+      }
+    }
+    String filePath =
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.png";
+    File(filePath).writeAsBytesSync(imageBytes);
+    if (!File(filePath).existsSync()) {
+      throw StateError("Error, saveImage: Failed to save $filePath");
+    }
+    dev.log("Shape saved at: $filePath");
+    return filePath;
+  }
+
+  Future<String?> getPageShape(
+    int docIndex,
+    int pageIndex, {
+    bool supresswarning = false,
+  }) async {
+    await _initializeDocumentsPath();
+    String pagePath = await getPagePath(docIndex, pageIndex);
+    String fileName = "shape";
+    for (var fse in Directory(pagePath).listSync()) {
+      if (fse.path.endsWith("$fileName.png")) {
+        return fse.path;
+      }
+    }
+    if (!supresswarning) {
+      dev.log("Warning, getPageShape: No shape in page");
+    }
+    return null;
+  }
+
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
     int docsCount = await filesHelper.getDocumentsCount();
@@ -279,8 +321,10 @@ class FilesHelper {
           }
 
           // Delete empty pages
-          int versionCount = await getPageVersionsCount(docIndex, pageIndex);
-          if (versionCount < 5) {
+          int versionCount = await getPageImagesCount(docIndex, pageIndex);
+
+          if (versionCount < versionNames.length + 2) // + thumbnail + shape
+          {
             anyChange = true;
             if (versionCount == 0) {
               dev.log("Deleting empty Page $pageIndex");
@@ -548,7 +592,7 @@ class FilesHelper {
     await Directory(tmpPath).rename(newPath);
   }
 
-  Future<int> getPageVersionsCount(int docIndex, int pageIndex) async {
+  Future<int> getPageImagesCount(int docIndex, int pageIndex) async {
     final pageDir = Directory(await getPagePath(docIndex, pageIndex));
     int versionsCount = 0;
     if (pageDir.existsSync()) {

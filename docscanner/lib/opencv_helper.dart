@@ -40,12 +40,14 @@ final List<AspectRatioInfo> commonAspectRatios = [
 
 class ParamsWarpImage {
   String pathIn = "";
+  String? shape;
   int? inRatioIndex;
   int? orientation;
   List<List<int>>? cornerPoints;
 
   ParamsWarpImage(
-    this.pathIn, {
+    this.pathIn,
+    this.shape, {
     this.inRatioIndex,
     this.orientation,
     this.cornerPoints,
@@ -74,23 +76,27 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  (Uint8List, List<int>, int, int, List<List<int>>) warpImage(
+  (Uint8List, Uint8List, List<int>, int, int, List<List<int>>) warpImage(
     ParamsWarpImage params,
   ) {
-    cv.Mat? imageMat = _loadImage(params.pathIn);
+    cv.Mat imageMat = _loadImage(params.pathIn);
+    cv.Mat? shape = (params.shape != null) ? _loadImage(params.shape!) : null;
 
     final warpedRes = _warpImage(
       imageMat,
+      shape,
       params.inRatioIndex,
       params.orientation,
       params.cornerPoints,
     );
-    cv.Mat? warped = warpedRes.$1;
-    int ratioIndex = warpedRes.$2;
-    int orientation = warpedRes.$3;
-    List<List<int>> cornerPoints = warpedRes.$4;
+    cv.Mat warped = warpedRes.$1;
+    shape = warpedRes.$2;
+    int ratioIndex = warpedRes.$3;
+    int orientation = warpedRes.$4;
+    List<List<int>> cornerPoints = warpedRes.$5;
     return (
       _returnImage(warped),
+      _returnImage(shape),
       borderCorrectionDepth,
       ratioIndex,
       orientation,
@@ -117,10 +123,10 @@ class OpenCVHelper {
   }
 
   Uint8List rotateImage(String pathIn, int angle) {
-    cv.Mat? mat = _loadImage(pathIn);
+    cv.Mat mat = _loadImage(pathIn);
 
     if (angle != 0) {
-      mat = mat?.rotate(
+      mat = mat.rotate(
         angle == 90
             ? cv.ROTATE_90_CLOCKWISE
             : (angle == 270)
@@ -132,12 +138,11 @@ class OpenCVHelper {
     return _returnImage(mat);
   }
 
-  cv.Mat? _loadImage(String imagePath) {
+  cv.Mat _loadImage(String imagePath) {
     // Load image
-    cv.Mat? imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
+    cv.Mat imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
     if (imageMat.isEmpty) {
-      dev.log("Error: Failed to load picture.");
-      return null;
+      throw StateError("Error: Failed to load picture.");
     }
 
     // Compute K based on image dimensions
@@ -184,8 +189,9 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, int, int, List<List<int>>) _warpImage(
-    cv.Mat? imageMat,
+  (cv.Mat, cv.Mat, int, int, List<List<int>>) _warpImage(
+    cv.Mat imageMat,
+    cv.Mat? shape,
     int? ratioIndexIn,
     int? orientationIn,
     List<List<int>>? cornerPointsIn,
@@ -193,18 +199,19 @@ class OpenCVHelper {
     List<List<int>> corners = cornerPointsIn ?? [];
     int ratioIndex = ratioIndexIn ?? 0;
     int orientation = orientationIn ?? 0;
-    if (imageMat == null) return (null, 0, 0, corners);
 
-    // 1. Isolate remove Text and Images to get Shape
-    cv.Mat? bg = _removeTextAndImages(imageMat);
-    //return (bg, 0, 0, corners);
-    // 2. create a binary image, white representing the shape of the document
-    cv.Mat? shape = _documentMask(bg);
-    //return (shape, 0, 0, corners);
-    bg.dispose();
-    bg = null;
-    //return (shape, 0, 0, corners);
+    if (shape == null) {
+      // 1. Isolate remove Text and Images to get Shape
+      cv.Mat? bg = _removeTextAndImages(imageMat);
+      //return (bg, 0, 0, corners);
 
+      // 2. create a binary image, white representing the shape of the document
+      shape = _documentMask(bg);
+      //return (shape, 0, 0, corners);
+      bg.dispose();
+      bg = null;
+      //return (shape, 0, 0, corners);
+    }
     if (cornerPointsIn == null) {
       // 3. Corner detection
       corners = _detectCorners(shape);
@@ -221,20 +228,16 @@ class OpenCVHelper {
     } else {
       double ratio = commonAspectRatios[ratioIndex].value;
       ratio = (orientation == 0 ? ratio : 1.0 / ratio);
-      _setHeight(corners, ratio);
+      _setHeightFromCorners(corners, ratio);
       //cv.Mat warpedShape = _transformImage(shape, corners);
       //return (warpedShape, 0, 0, corners);
       _calculateBorderSize(shape, corners, noBoderCutin: true);
     }
-    shape.dispose();
-    shape = null;
 
-    cv.Mat? warped = _correctedTransformImage(imageMat, corners);
-    if (warped == null) return (null, 0, 0, corners);
+    cv.Mat warped = _correctedTransformImage(imageMat, corners);
     imageMat.dispose();
-    imageMat = null;
 
-    return (warped, ratioIndex, orientation, corners);
+    return (warped, shape, ratioIndex, orientation, corners);
   }
 
   /// Filter Image 1: subtract background quickly
@@ -654,7 +657,7 @@ class OpenCVHelper {
     final ratioIndex = matchedRatio.$2;
     orientationIndex = matchedRatio.$3;
 
-    _setHeight(corners, ratio);
+    _setHeightFromCorners(corners, ratio);
 
     _calculateBorderSize(shape, corners);
 
@@ -726,11 +729,11 @@ class OpenCVHelper {
     }
     _setTransformation(3, depths, noBoderCutin: noBoderCutin);
 
-    //dev.log("borderCutIn: $borderCutIn");
-    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+    dev.log("borderCutIn: $borderCutIn");
+    dev.log("borderCorrectionDepth: $borderCorrectionDepth");
   }
 
-  void _setHeight(List<List<int>> corners, double ratio) {
+  void _setHeightFromCorners(List<List<int>> corners, double ratio) {
     // New pixel count without data loss
     height = math.max(
       (corners[1][0] - corners[0][0]).abs(),
@@ -845,7 +848,7 @@ class OpenCVHelper {
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
-  cv.Mat? _correctedTransformImage(cv.Mat imageMat, List<List<int>> corners) {
+  cv.Mat _correctedTransformImage(cv.Mat imageMat, List<List<int>> corners) {
     //top
     corners[0][0] += borderCutIn[0];
     corners[2][0] += borderCutIn[0];
