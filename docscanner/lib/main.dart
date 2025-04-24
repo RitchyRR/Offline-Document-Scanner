@@ -1430,7 +1430,7 @@ class _PagesState extends State<Pages> {
                   thickness: 9.0,
                   radius: Radius.circular(4.0),
                   child: ListView.builder(
-                    //cacheExtent: 1000,
+                    cacheExtent: 1000,
                     itemCount: _pagesCount,
                     itemBuilder: (BuildContext context, int index) {
                       return Padding(
