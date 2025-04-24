@@ -1304,8 +1304,6 @@ class _PagesState extends State<Pages> {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   int _pagesCount = 0;
-  final List<double?> _thumbnailHeights = [];
-  final List<GlobalKey> _imageKeys = [];
 
   @override
   void initState() {
@@ -1352,11 +1350,6 @@ class _PagesState extends State<Pages> {
       }
       return;
     } else if (newThumbnails) {
-      int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
-      for (var i = 0; i < tooShortBy; i++) {
-        _thumbnailHeights.add(null);
-        _imageKeys.add(GlobalKey());
-      }
       if (mounted) {
         setState(() {
           _pageThumbnails = thumbnailPaths;
@@ -1445,45 +1438,16 @@ class _PagesState extends State<Pages> {
                           ),
                           child: Stack(
                             children: [
-                              // Sized Box for if image disappears from memory management
-                              if (_thumbnailHeights.length > index &&
-                                  _thumbnailHeights[index] != null)
-                                SizedBox(height: _thumbnailHeights[index]),
-                              // Load and measure the image
+                              // Load image
                               (_pageThumbnails[index].isNotEmpty)
-                                  ? MeasureSize(
-                                    key: _imageKeys[index],
-                                    onChange: (size) {
-                                      setState(() {
-                                        _thumbnailHeights[index] = size.height;
-                                      });
+                                  ? Image.file(
+                                    File(_pageThumbnails[index]),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(Icons.broken_image);
                                     },
-                                    child: Image.file(
-                                      File(_pageThumbnails[index]),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (
-                                        context,
-                                        error,
-                                        stackTrace,
-                                      ) {
-                                        return const Icon(Icons.broken_image);
-                                      },
-                                    ),
                                   )
                                   // Pages Skeleton
-                                  : _thumbnailHeights[index] != null
-                                  ? SizedBox(
-                                    height: _thumbnailHeights[index],
-                                    child: Material(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.surfaceBright,
-                                      child: Center(
-                                        child: IndicatorProcessingImage(),
-                                      ),
-                                    ),
-                                  )
                                   : AspectRatio(
                                     aspectRatio: 1.0 / 1.414,
                                     child: Material(
@@ -3191,43 +3155,6 @@ BoxShadow smallBoxShadow(BuildContext context) {
     spreadRadius: 0,
     offset: const Offset(0, 2),
   );
-}
-
-class MeasureSize extends StatefulWidget {
-  final Widget child;
-  final ValueChanged<Size> onChange;
-
-  const MeasureSize({super.key, required this.child, required this.onChange});
-
-  @override
-  State<MeasureSize> createState() => _MeasureSizeState();
-}
-
-class _MeasureSizeState extends State<MeasureSize> {
-  final GlobalKey _key = GlobalKey();
-  Size _oldSize = Size.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(_afterBuild);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(key: _key, child: widget.child);
-  }
-
-  void _afterBuild(_) {
-    final context = _key.currentContext;
-    if (context == null) return;
-
-    final newSize = context.size;
-    if (newSize != null && newSize != _oldSize) {
-      _oldSize = newSize;
-      widget.onChange(newSize);
-    }
-  }
 }
 
 class CustomIconButton extends StatelessWidget {
