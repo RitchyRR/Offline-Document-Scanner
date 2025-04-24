@@ -35,6 +35,8 @@ dependencies:
   # google:
   in_app_purchase:
   flutter_secure_storage: # proUnlocked
+  receive_sharing_intent:
+    path: lib_plugins/receive_sharing_intent
 
 
 dev_dependencies:

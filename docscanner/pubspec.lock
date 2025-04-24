@@ -664,6 +664,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  receive_sharing_intent:
+    dependency: "direct main"
+    description:
+      path: "lib_plugins/receive_sharing_intent"
+      relative: true
+    source: path
+    version: "1.8.1"
   share_plus:
     dependency: "direct main"
     description:

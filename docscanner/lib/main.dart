@@ -1,7 +1,5 @@
 // design:
 import 'dart:ui' as ui;
-import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
@@ -16,8 +14,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// local:
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
 import 'package:docscanner/files_helper.dart';
+import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/opencv_helper.dart';
 
 // global variables:
 final GlobalNotifier globalNotifier = GlobalNotifier();
@@ -106,6 +108,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    initAsync();
+  }
+
+  Future<void> initAsync() async {
     Future.microtask(() {
       if (mounted) {
         filesHelper.calculateScreenWidth(context);
@@ -113,10 +119,6 @@ class _MyAppState extends State<MyApp> {
         dev.log("Error, _MyAppState, initAsync(): not mounted");
       }
     });
-    initAsync();
-  }
-
-  Future<void> initAsync() async {
     final sStorage = FlutterSecureStorage();
     final proUnlockedString = await sStorage.read(key: 'proUnlocked');
     setState(() {
@@ -155,7 +157,11 @@ class _MyAppState extends State<MyApp> {
               case '/pages':
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
-                  builder: (_) => Pages(docIndex: args['docIndex']),
+                  builder:
+                      (_) => Pages(
+                        docIndex: args['docIndex'],
+                        initialPageIndex: args['initialPageIndex'],
+                      ),
                 );
 
               case '/preview':
@@ -166,40 +172,6 @@ class _MyAppState extends State<MyApp> {
                         docIndex: args['docIndex'],
                         pageIndex: args['pageIndex'],
                       ),
-                );
-
-              case '/pages/preview':
-                final args = settings.arguments as Map<String, dynamic>;
-                return MaterialPageRoute(
-                  builder: (context) {
-                    Future.microtask(() async {
-                      Future<void> future = Navigator.pushNamed(
-                        // ignore: use_build_context_synchronously
-                        context,
-                        '/preview',
-                        arguments: {
-                          'docIndex': args['docIndex'],
-                          'pageIndex': args['pageIndex'],
-                        },
-                      );
-                      future.whenComplete(() async {
-                        // evict Preview cache
-                        List<String> pageImages = await filesHelper
-                            .getImagePathsForPage(
-                              args['docIndex'],
-                              args['pageIndex'],
-                            );
-                        for (var path in pageImages) {
-                          imageCache.evict(
-                            FileImage(File(path)),
-                            includeLive: true,
-                          );
-                        }
-                      });
-                    });
-
-                    return Pages(docIndex: args['docIndex']);
-                  },
                 );
 
               case '/warp':
@@ -269,6 +241,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final ImagePicker _picker = ImagePicker();
+  List<String> _docThumbnails = [];
+
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
     var newDoc = await filesHelper.createNewDocument(picturePaths.length);
     int docIndex = newDoc.$1;
@@ -304,17 +279,47 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _openNewPagePreview(int docIndex, int pageIndex) async {
     Future<void> future = Navigator.pushNamed(
       context,
-      '/pages/preview',
-      arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
+      '/pages',
+      arguments: {'docIndex': docIndex, 'initialPageIndex': pageIndex},
     );
     future.whenComplete(() async {
       _loadDocsDisplay();
     });
   }
 
-  final ImagePicker _picker = ImagePicker();
+  void _receiveSharing() {
+    // While App is running
+    ReceiveSharingIntent.instance.getMediaStream().listen(
+      (List<SharedMediaFile> sharedFiles) {
+        processSharedFilesToDocument(sharedFiles);
+      },
+      onError: (err) {
+        dev.log("getMediaStream error: $err");
+      },
+    );
+    // App launched by Sharing images
+    ReceiveSharingIntent.instance.getInitialMedia().then((
+      List<SharedMediaFile> sharedFiles,
+    ) {
+      processSharedFilesToDocument(sharedFiles);
+    });
+  }
 
-  List<String> _docThumbnails = [];
+  Future<void> processSharedFilesToDocument(
+    List<SharedMediaFile> sharedFiles,
+  ) async {
+    if (sharedFiles.isEmpty) return;
+    List<String> picturePaths = [];
+    for (var file in sharedFiles) {
+      picturePaths.add(file.path);
+    }
+
+    final newIndexes = await _processDocument(picturePaths);
+    int docIndex = newIndexes.$1;
+    int firstPageIndex = newIndexes.$2;
+    // only open PagePreview for first page
+    _openNewPagePreview(docIndex, firstPageIndex);
+  }
 
   @override
   void initState() {
@@ -325,7 +330,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> initAsync() async {
     await filesHelper.repairDirectoryStructure();
-    _loadDocsDisplay();
+    await _loadDocsDisplay();
+    _receiveSharing();
   }
 
   @override
@@ -1316,6 +1322,7 @@ class _PagesState extends State<Pages> {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true);
+    _initPushPreview();
   }
 
   @override
@@ -1331,6 +1338,14 @@ class _PagesState extends State<Pages> {
         _loadPagesThumbnails();
         break;
       default:
+    }
+  }
+
+  void _initPushPreview() {
+    if (widget.initialPageIndex != null) {
+      Future.microtask(() {
+        _openPagePreview(widget.docIndex, widget.initialPageIndex!);
+      });
     }
   }
 
@@ -2175,7 +2190,7 @@ class PagePreviewState extends State<PagePreview> {
     return false;
   }
 
-  // Preview Page
+  // Page Preview
   @override
   Widget build(BuildContext context) {
     bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
