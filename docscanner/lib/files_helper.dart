@@ -963,20 +963,25 @@ class FilesHelper {
     }
   }
 
-  static Future<String> rotateImageInTmpDir(String imagePath, int angle) async {
+  static Future<String> rotateImageInTmpDir(
+    String imagePath,
+    int rotationIn,
+  ) async {
     final port = ReceivePort();
     final tmpDir = await getTemporaryDirectory();
-    final rotatedFilePath = "${tmpDir.path}/rotated_$angle.png";
+    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
 
-    Isolate.spawn(_rotateImageInTmpDirIsolate, (
-      port.sendPort,
-      imagePath,
-      rotatedFilePath,
-      angle,
-    ));
+    if (!File(rotatedFilePath).existsSync()) {
+      Isolate.spawn(_rotateImageInTmpDirIsolate, (
+        port.sendPort,
+        imagePath,
+        rotatedFilePath,
+        rotationIn,
+      ));
+      await port.first;
+      port.close();
+    }
 
-    await port.first;
-    port.close();
     return rotatedFilePath;
   }
 
