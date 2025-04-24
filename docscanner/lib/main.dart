@@ -2779,7 +2779,8 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      Future rotatePageFuture = imageProcessingManager.rotatePage(
+      //Future rotatePageFuture =
+      imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
@@ -3454,6 +3455,7 @@ class _WarpState extends State<Warp> {
 
   @override
   Widget build(BuildContext context) {
+    double scale = (_displayHeigth - _moveUpBy) / _displayHeigth;
     Rect cropRect =
         _scaledPoints.isNotEmpty && _currentCorner != null && _screenWidth != 0
             ? Rect.fromCenter(
@@ -3461,8 +3463,8 @@ class _WarpState extends State<Warp> {
                 _scaledPoints[_currentCorner!].dx / _scale,
                 _scaledPoints[_currentCorner!].dy / _scale,
               ),
-              width: _circleSize / _screenWidth * _imagePixelWidth,
-              height: _circleSize / _screenWidth * _imagePixelWidth,
+              width: _circleSize / scale / _screenWidth * _imagePixelWidth,
+              height: _circleSize / scale / _screenWidth * _imagePixelWidth,
             )
             : Rect.zero;
     return PopScope(
@@ -3522,12 +3524,12 @@ class _WarpState extends State<Warp> {
                 ? Transform.translate(
                   offset: Offset(0, -(_moveUpBy / 2)),
                   child: Transform.scale(
-                    scale: (_displayHeigth - _moveUpBy) / _displayHeigth,
+                    scale: scale,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
                         Center(child: Image.file(File(widget.imagePath))),
-                        _draggableCornerOverlay(),
+                        _draggableCornerOverlay(scale),
                       ],
                     ),
                   ),
@@ -3574,7 +3576,7 @@ class _WarpState extends State<Warp> {
     }
   }
 
-  Widget _draggableCornerOverlay() {
+  Widget _draggableCornerOverlay(double counterScale) {
     if (_screenWidth == 0) {
       return SizedBox();
     }
@@ -3592,8 +3594,9 @@ class _WarpState extends State<Warp> {
               painter: _MiddleLinePainter(
                 points: _scaledPoints,
                 color: Colors.black38,
+                strokeWidth: 7.0 / counterScale,
                 normalizedOffset: true,
-                offset: _circleSize / 2 + 2,
+                offset: _circleSize / counterScale / 2 + 2,
               ),
             ),
 
@@ -3603,8 +3606,8 @@ class _WarpState extends State<Warp> {
               final offset = entry.value;
 
               return Positioned(
-                left: offset.dx - _circleSize / 2,
-                top: offset.dy - _circleSize / 2,
+                left: offset.dx - _circleSize / counterScale / 2,
+                top: offset.dy - _circleSize / counterScale / 2,
                 child: GestureDetector(
                   onPanStart: (details) {
                     if (_panning) return;
@@ -3686,8 +3689,8 @@ class _WarpState extends State<Warp> {
                     _panning = false;
                   },
                   child: Container(
-                    width: _circleSize,
-                    height: _circleSize,
+                    width: _circleSize / counterScale,
+                    height: _circleSize / counterScale,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.black12,
@@ -3703,7 +3706,7 @@ class _WarpState extends State<Warp> {
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _CornerLinePainter(
                   points: _scaledPoints,
-                  strokeWidth: 1.0,
+                  strokeWidth: 1.0 / counterScale,
                   offset: 50,
                   normalizedOffset: true,
                 ),
