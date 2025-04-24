@@ -729,8 +729,8 @@ class OpenCVHelper {
     }
     _setTransformation(3, depths, noBoderCutin: noBoderCutin);
 
-    dev.log("borderCutIn: $borderCutIn");
-    dev.log("borderCorrectionDepth: $borderCorrectionDepth");
+    //dev.log("borderCutIn: $borderCutIn");
+    //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
   }
 
   void _setHeightFromCorners(List<List<int>> corners, double ratio) {

@@ -170,7 +170,7 @@ class FilesHelper {
     if (!File(filePath).existsSync()) {
       throw StateError("Error, saveImage: Failed to save $filePath");
     }
-    dev.log("Shape saved at: $filePath");
+    //dev.log("Shape saved at: $filePath");
     return filePath;
   }
 
