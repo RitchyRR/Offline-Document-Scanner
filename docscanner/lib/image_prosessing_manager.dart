@@ -399,7 +399,6 @@ class ImageProcessingManager {
     );
 
     // Updates
-    sendPort.send(NotifierEvent.loadPageMetadata);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
@@ -442,10 +441,6 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
-        // Update thumbnails:
-        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       } else if (message is File) {
         imageCache.evict(FileImage(message), includeLive: true);
         globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);

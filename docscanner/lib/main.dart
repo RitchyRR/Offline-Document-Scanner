@@ -1759,6 +1759,7 @@ class PagePreviewState extends State<PagePreview> {
         _picturePath = _versionPaths.first;
         setState(() => _versionPaths);
         FilesHelper.deleteCachedRoatedImages();
+        _refreshCornersOverlay();
         break;
       case NotifierEvent.warpSaved:
         _versionPaths = await filesHelper.getImagePathsForPage(
@@ -1826,7 +1827,7 @@ class PagePreviewState extends State<PagePreview> {
         //dev.log("Updated _newOrientation: $_newOrientation");
       });
     }
-    await _loadCornerPoints();
+    await _refreshCornersOverlay();
     if (mounted) {
       setState(() {
         _cornerPoints;
@@ -1838,13 +1839,15 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  Future<void> _loadCornerPoints({bool supressWarning = false}) async {
-    if (_versionPaths[0].isEmpty) return;
+  Future<void> _refreshCornersOverlay({bool supressWarning = false}) async {
+    // Corners
     _cornerPoints = await ImageProcessingManager.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
       supressWarning: supressWarning,
     );
+    // Image pixel size
+    if (_versionPaths[0].isEmpty) return;
     final image = await decodeImageFromList(
       (File(_versionPaths[0]).readAsBytesSync()),
     );
@@ -2766,7 +2769,16 @@ class PagePreviewState extends State<PagePreview> {
     }
 
     if (onlyRotation && _versionPaths.every((key) => File(key).existsSync())) {
-      _metadataBlocked = true;
+      if (mounted) {
+        setState(() {
+          _metadataBlocked = true;
+        });
+        ImageProcessingManager.writePageCornerPoints(
+          widget.docIndex,
+          widget.pageIndex,
+          newCornerPoints,
+        );
+      }
       Future rotatePageFuture = imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
@@ -2774,9 +2786,8 @@ class PagePreviewState extends State<PagePreview> {
         _totalRotation,
         thumbnailIndex ?? (proUnlocked == true ? 3 : 2),
       );
-      rotatePageFuture.whenComplete(() {
-        _totalRotation = 0;
-      });
+      _totalRotation = 0;
+      //rotatePageFuture.whenComplete(() {});
     } else {
       _reprocessingSetup();
       imageProcessingManager.processPage(
