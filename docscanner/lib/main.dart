@@ -1332,17 +1332,26 @@ class _PagesState extends State<Pages> {
 
   Future<void> _loadPagesThumbnails({bool onInit = false}) async {
     var thumbs = await filesHelper.getPagesThumbnails(widget.docIndex);
-    List<String> thumbnailPaths = thumbs.$1;
     _pagesCount = thumbs.$2;
+    List<String> thumbnailPaths = thumbs.$1;
 
+    bool newThumbnails = false;
+    if (_pagesCount != _pageThumbnails.length) {
+      newThumbnails = true;
+    }
+    if (!newThumbnails) {
+      for (var i = 0; i < _pagesCount; i++) {
+        if (thumbnailPaths[i] != _pageThumbnails[i]) {
+          newThumbnails = true;
+        }
+      }
+    }
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
         Navigator.pop(context);
       }
-    } else {
-      if (_pageThumbnails != thumbnailPaths) {
-        _thumbnailHeights.clear();
-      }
+      return;
+    } else if (newThumbnails) {
       int tooShortBy = thumbnailPaths.length - _thumbnailHeights.length;
       for (var i = 0; i < tooShortBy; i++) {
         _thumbnailHeights.add(null);

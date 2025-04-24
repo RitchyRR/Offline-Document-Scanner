@@ -247,8 +247,6 @@ class ImageProcessingManager {
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
       } else if (message is File) {
         imageCache.evict(FileImage(message), includeLive: true);
-        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
 
@@ -296,8 +294,6 @@ class ImageProcessingManager {
             secundaryIsolates.removeWhere((key, value) => value == isolate);
           } else if (message is File) {
             imageCache.evict(FileImage(message), includeLive: true);
-            globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
           }
         });
       }
@@ -343,8 +339,6 @@ class ImageProcessingManager {
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
       } else if (message is File) {
         imageCache.evict(FileImage(message), includeLive: true);
-        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
   }
@@ -476,8 +470,6 @@ class ImageProcessingManager {
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
       } else if (message is File) {
         imageCache.evict(FileImage(message), includeLive: true);
-        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
     await primaryCompleter.future;
@@ -895,8 +887,6 @@ class ImageProcessingManager {
         );
       } else if (message is File) {
         imageCache.evict(FileImage(message), includeLive: true);
-        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
       }
     });
   }
