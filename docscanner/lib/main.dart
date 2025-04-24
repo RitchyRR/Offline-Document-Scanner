@@ -1096,18 +1096,24 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: Stack(
                                   children: [
                                     (_docThumbnails[index].isNotEmpty)
-                                        ? Image.file(
-                                          File(_docThumbnails[index]),
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) {
-                                            return const Icon(
-                                              Icons.broken_image,
-                                            );
-                                          },
+                                        ? AnimatedSwitcher(
+                                          duration: Duration(milliseconds: 300),
+                                          child: Image.file(
+                                            File(_docThumbnails[index]),
+                                            key: ValueKey(
+                                              _docThumbnails[index],
+                                            ),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (
+                                              context,
+                                              error,
+                                              stackTrace,
+                                            ) {
+                                              return const Icon(
+                                                Icons.broken_image,
+                                              );
+                                            },
+                                          ),
                                         )
                                         : AspectRatio(
                                           aspectRatio: 1.0 / 1.414,
@@ -1440,12 +1446,19 @@ class _PagesState extends State<Pages> {
                             children: [
                               // Load image
                               (_pageThumbnails[index].isNotEmpty)
-                                  ? Image.file(
-                                    File(_pageThumbnails[index]),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(Icons.broken_image);
-                                    },
+                                  ? AnimatedSwitcher(
+                                    duration: Duration(milliseconds: 300),
+                                    child: Image.file(
+                                      File(_pageThumbnails[index]),
+                                      key: ValueKey(_pageThumbnails[index]),
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return const Icon(Icons.broken_image);
+                                      },
+                                    ),
                                   )
                                   // Pages Skeleton
                                   : AspectRatio(
