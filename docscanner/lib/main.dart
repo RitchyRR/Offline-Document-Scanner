@@ -1130,7 +1130,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                             ) {
                                               return AspectRatio(
                                                 aspectRatio:
-                                                    _thumbnailRatios[index],
+                                                    (_thumbnailRatios.length >
+                                                            index)
+                                                        ? _thumbnailRatios[index]
+                                                        : 1.0 / 1.414,
                                                 child: Builder(
                                                   builder: (context) {
                                                     return Material(
@@ -1149,7 +1152,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         )
                                         : AspectRatio(
-                                          aspectRatio: _thumbnailRatios[index],
+                                          aspectRatio:
+                                              (_thumbnailRatios.length > index)
+                                                  ? _thumbnailRatios[index]
+                                                  : 1.0 / 1.414,
                                           child: Builder(
                                             builder: (context) {
                                               return Material(
@@ -1502,7 +1508,7 @@ class _PagesState extends State<Pages> {
     return Scaffold(
       appBar: AppBar(title: Text("Document ${widget.docIndex + 1}")),
       body:
-          _pageThumbnails.isNotEmpty
+          _pageThumbnails.isNotEmpty && isTopOfNavigationStack
               // Pages
               ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3.0),
@@ -1512,207 +1518,185 @@ class _PagesState extends State<Pages> {
                   trackVisibility: false,
                   thickness: 9.0,
                   radius: Radius.circular(4.0),
-                  child:
-                      (isTopOfNavigationStack)
-                          ? ListView.builder(
-                            cacheExtent: 1000,
-                            itemCount: _pagesCount,
-                            itemBuilder: (BuildContext context, int index) {
-                              String thumbnailPath = _pageThumbnails[index];
-                              File pageThumbnail = File(thumbnailPath);
-                              return Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    boxShadow: [bigBoxShadow(context)],
+                  child: ListView.builder(
+                    cacheExtent: 1000,
+                    itemCount: _pagesCount,
+                    itemBuilder: (BuildContext context, int index) {
+                      String thumbnailPath = _pageThumbnails[index];
+                      File pageThumbnail = File(thumbnailPath);
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [bigBoxShadow(context)],
+                          ),
+                          child: Stack(
+                            children: [
+                              // Load image
+                              (thumbnailPath.isNotEmpty)
+                                  ? AnimatedSwitcher(
+                                    duration: Duration(milliseconds: 200),
+                                    child: Image.file(
+                                      pageThumbnail,
+                                      key: ValueKey(thumbnailPath),
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return AspectRatio(
+                                          aspectRatio:
+                                              (_thumbnailRatios.length > index)
+                                                  ? _thumbnailRatios[index]
+                                                  : 1.0 / 1.414,
+                                          child: Material(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.surfaceBright,
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                  // Pages Skeleton
+                                  : AspectRatio(
+                                    aspectRatio:
+                                        (_thumbnailRatios.length > index)
+                                            ? _thumbnailRatios[index]
+                                            : 1.0 / 1.414,
+                                    child: Material(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      child: IndicatorProcessingImage(),
+                                    ),
                                   ),
-                                  child: Stack(
-                                    children: [
-                                      // Load image
-                                      (thumbnailPath.isNotEmpty)
-                                          ? AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            child: Image.file(
-                                              pageThumbnail,
-                                              key: ValueKey(thumbnailPath),
-                                              errorBuilder: (
-                                                context,
-                                                error,
-                                                stackTrace,
-                                              ) {
-                                                return AspectRatio(
-                                                  aspectRatio:
-                                                      _thumbnailRatios[index],
-                                                  child: Material(
-                                                    color:
-                                                        Theme.of(context)
-                                                            .colorScheme
-                                                            .surfaceBright,
-                                                    child: const Icon(
-                                                      Icons.broken_image,
+                              // Open PagePreview
+                              Positioned.fill(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap:
+                                        (thumbnailPath.isNotEmpty)
+                                            ? () => _openPagePreview(
+                                              widget.docIndex,
+                                              index,
+                                            )
+                                            : null,
+                                    splashColor: Colors.black26,
+                                    highlightColor: Colors.black26,
+                                  ),
+                                ),
+                              ),
+                              // Page Index Indicator
+                              Positioned(
+                                top: 18,
+                                left: 12,
+                                child: GestureDetector(
+                                  // Change Page Index Dialog
+                                  onTap: () async {
+                                    int? selectedIndex = await showDialog<int>(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        int currentIndex = index;
+                                        return AlertDialog(
+                                          title: Text("Change Page Index"),
+                                          content: StatefulBuilder(
+                                            builder: (context, setState) {
+                                              return DropdownButton<int>(
+                                                value: currentIndex,
+                                                items: List.generate(
+                                                  _pageThumbnails.length,
+                                                  (i) => DropdownMenuItem(
+                                                    value: i,
+                                                    child: Text(
+                                                      "Page ${i + 1}",
                                                     ),
                                                   ),
-                                                );
-                                              },
-                                            ),
-                                          )
-                                          // Pages Skeleton
-                                          : AspectRatio(
-                                            aspectRatio:
-                                                _thumbnailRatios[index],
-                                            child: Material(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                              child: IndicatorProcessingImage(),
-                                            ),
-                                          ),
-                                      // Open PagePreview
-                                      Positioned.fill(
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            onTap:
-                                                (thumbnailPath.isNotEmpty)
-                                                    ? () => _openPagePreview(
-                                                      widget.docIndex,
-                                                      index,
-                                                    )
-                                                    : null,
-                                            splashColor: Colors.black26,
-                                            highlightColor: Colors.black26,
-                                          ),
-                                        ),
-                                      ),
-                                      // Page Index Indicator
-                                      Positioned(
-                                        top: 18,
-                                        left: 12,
-                                        child: GestureDetector(
-                                          // Change Page Index Dialog
-                                          onTap: () async {
-                                            int?
-                                            selectedIndex = await showDialog<
-                                              int
-                                            >(
-                                              context: context,
-                                              builder: (BuildContext context) {
-                                                int currentIndex = index;
-                                                return AlertDialog(
-                                                  title: Text(
-                                                    "Change Page Index",
-                                                  ),
-                                                  content: StatefulBuilder(
-                                                    builder: (
-                                                      context,
-                                                      setState,
-                                                    ) {
-                                                      return DropdownButton<
-                                                        int
-                                                      >(
-                                                        value: currentIndex,
-                                                        items: List.generate(
-                                                          _pageThumbnails
-                                                              .length,
-                                                          (
-                                                            i,
-                                                          ) => DropdownMenuItem(
-                                                            value: i,
-                                                            child: Text(
-                                                              "Page ${i + 1}",
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        onChanged: (
-                                                          int? newValue,
-                                                        ) {
-                                                          if (newValue !=
-                                                              null) {
-                                                            setState(
-                                                              () =>
-                                                                  currentIndex =
-                                                                      newValue,
-                                                            );
-                                                          }
-                                                        },
-                                                      );
-                                                    },
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed:
-                                                          () => Navigator.pop(
-                                                            context,
-                                                          ),
-                                                      child: Text("Cancel"),
-                                                    ),
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(
-                                                          context,
-                                                          currentIndex,
-                                                        );
-                                                      },
-                                                      child: Text("OK"),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-
-                                            if (selectedIndex != null &&
-                                                selectedIndex != index) {
-                                              await filesHelper.changePageIndex(
-                                                widget.docIndex,
-                                                index,
-                                                selectedIndex,
+                                                ),
+                                                onChanged: (int? newValue) {
+                                                  if (newValue != null) {
+                                                    setState(
+                                                      () =>
+                                                          currentIndex =
+                                                              newValue,
+                                                    );
+                                                  }
+                                                },
                                               );
-                                              _loadPagesThumbnails();
-                                            }
-                                          },
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              boxShadow: [
-                                                smallBoxShadow(context),
-                                              ],
-                                            ),
-                                            child: Text(
-                                              "${index + 1}/$_pagesCount",
-                                              style: TextStyle(
-                                                //color: Colors.black,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
+                                            },
                                           ),
-                                        ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(context),
+                                              child: Text("Cancel"),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.pop(
+                                                  context,
+                                                  currentIndex,
+                                                );
+                                              },
+                                              child: Text("OK"),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    if (selectedIndex != null &&
+                                        selectedIndex != index) {
+                                      await filesHelper.changePageIndex(
+                                        widget.docIndex,
+                                        index,
+                                        selectedIndex,
+                                      );
+                                      _loadPagesThumbnails();
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [smallBoxShadow(context)],
+                                    ),
+                                    child: Text(
+                                      "${index + 1}/$_pagesCount",
+                                      style: TextStyle(
+                                        //color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
-                          )
-                          : SizedBox(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               )
-              : const Center(child: Text('No images to display.')),
+              : const SizedBox(),
       // Floating Action Buttons
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(20.0),
