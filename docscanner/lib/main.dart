@@ -1157,11 +1157,32 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                 },
               )
-              : const Center(
-                child: Text(
-                  textAlign: TextAlign.center,
-                  'To add a new document,\nuse the floating buttons\nin the bottom right corner.',
-                ),
+              : Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Center(
+                    child: Text(
+                      textAlign: TextAlign.center,
+                      'Add a new document',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
+                        color: Theme.of(context).hintColor,
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 32, 0, 95),
+                      child: Image.asset(
+                        'assets/arrow.png',
+                        height: 360,
+                        color: Theme.of(context).splashColor, // optional tint
+                        fit: BoxFit.contain, // or BoxFit.cover, etc.
+                      ),
+                    ),
+                  ),
+                ],
               ),
       // Floating Action Buttons
       floatingActionButton: Padding(
