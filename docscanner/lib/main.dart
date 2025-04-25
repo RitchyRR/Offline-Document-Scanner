@@ -1128,8 +1128,22 @@ class _MyHomePageState extends State<MyHomePage> {
                                               error,
                                               stackTrace,
                                             ) {
-                                              return const Icon(
-                                                Icons.broken_image,
+                                              return AspectRatio(
+                                                aspectRatio:
+                                                    _thumbnailRatios[index],
+                                                child: Builder(
+                                                  builder: (context) {
+                                                    return Material(
+                                                      color:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .surfaceBright,
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
                                               );
                                             },
                                           ),
@@ -1535,7 +1549,10 @@ class _PagesState extends State<Pages> {
                                                   aspectRatio:
                                                       _thumbnailRatios[index],
                                                   child: Material(
-                                                    color: Colors.transparent,
+                                                    color:
+                                                        Theme.of(context)
+                                                            .colorScheme
+                                                            .surfaceBright,
                                                     child: const Icon(
                                                       Icons.broken_image,
                                                     ),
