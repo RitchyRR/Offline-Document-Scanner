@@ -3329,7 +3329,7 @@ class _WarpState extends State<Warp> {
   static const double _magnifierSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 250;
+  static const int _historyDurationMs = 400;
 
   @override
   void initState() {
