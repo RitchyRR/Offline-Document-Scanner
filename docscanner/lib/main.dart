@@ -354,6 +354,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<String> _docNames = [];
   final List<String> _docDates = [];
   int _docsCount = 0;
+  List<double> _thumbnailRatios = [];
   Future<void> _loadDocsDisplay() async {
     // Thumbnails
     var thumbs = await filesHelper.getDocThumbnails();
@@ -361,12 +362,13 @@ class _MyHomePageState extends State<MyHomePage> {
     _docsCount = thumbs.$2;
     // Page Counts
     _docPageCounts = [];
-    for (var docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
+    for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
     }
     // Document Metadata (Names + Dates)
-    fixMetadataLengths(thumbnailPaths.length);
-    for (int docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
+    _thumbnailRatios = [];
+    fixMetadataLengths(_docsCount);
+    for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
       final docPath = await filesHelper.getDocumentPath(docIndex);
       final metaDataPath = File('$docPath/metadata.json');
 
@@ -385,7 +387,18 @@ class _MyHomePageState extends State<MyHomePage> {
       } else {
         _saveDocName(docIndex);
       }
+
+      int ratioIndex =
+          await ImageProcessingManager.readPageRatioIndex(docIndex, 0) ?? 0;
+      int orientationIndex =
+          await ImageProcessingManager.readPageOrientationIndex(docIndex, 0) ??
+          0;
+      double ratioValue = commonAspectRatios[ratioIndex].value;
+      _thumbnailRatios.add(
+        orientationIndex == 0 ? 1.0 / ratioValue : ratioValue,
+      );
     }
+
     // Refresh Display
     if (mounted) {
       setState(() {
@@ -1103,7 +1116,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   children: [
                                     (_docThumbnails[index].isNotEmpty)
                                         ? AnimatedSwitcher(
-                                          duration: Duration(milliseconds: 300),
+                                          duration: Duration(milliseconds: 200),
                                           child: Image.file(
                                             File(_docThumbnails[index]),
                                             key: ValueKey(
@@ -1122,7 +1135,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         )
                                         : AspectRatio(
-                                          aspectRatio: 1.0 / 1.414,
+                                          aspectRatio: _thumbnailRatios[index],
                                           child: Builder(
                                             builder: (context) {
                                               return Material(
@@ -1336,6 +1349,7 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
+  List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
 
   @override
@@ -1379,12 +1393,29 @@ class _PagesState extends State<Pages> {
     if (_pagesCount != _pageThumbnails.length) {
       newThumbnails = true;
     }
-    if (!newThumbnails) {
-      for (var i = 0; i < _pagesCount; i++) {
-        if (thumbnailPaths[i] != _pageThumbnails[i]) {
-          newThumbnails = true;
-        }
+    _thumbnailRatios = [];
+    for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
+      if (!newThumbnails &&
+          (_pageThumbnails.length <= pageIndex ||
+              thumbnailPaths[pageIndex] != _pageThumbnails[pageIndex])) {
+        newThumbnails = true;
       }
+      int ratioIndex =
+          await ImageProcessingManager.readPageRatioIndex(
+            widget.docIndex,
+            pageIndex,
+          ) ??
+          0;
+      int orientationIndex =
+          await ImageProcessingManager.readPageOrientationIndex(
+            widget.docIndex,
+            pageIndex,
+          ) ??
+          0;
+      double ratioValue = commonAspectRatios[ratioIndex].value;
+      _thumbnailRatios.add(
+        orientationIndex == 0 ? 1.0 / ratioValue : ratioValue,
+      );
     }
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
@@ -1413,7 +1444,7 @@ class _PagesState extends State<Pages> {
         pageIndex,
       );
       for (var path in pageImages) {
-        imageCache.evict(FileImage(File(path)), includeLive: true);
+        imageCache.evict(FileImage(File(path)), includeLive: false);
       }
     });
   }
@@ -1452,6 +1483,8 @@ class _PagesState extends State<Pages> {
   // Pages
   @override
   Widget build(BuildContext context) {
+    final bool isTopOfNavigationStack =
+        ModalRoute.of(context)?.isCurrent ?? false;
     return Scaffold(
       appBar: AppBar(title: Text("Document ${widget.docIndex + 1}")),
       body:
@@ -1465,163 +1498,201 @@ class _PagesState extends State<Pages> {
                   trackVisibility: false,
                   thickness: 9.0,
                   radius: Radius.circular(4.0),
-                  child: ListView.builder(
-                    cacheExtent: 1000,
-                    itemCount: _pagesCount,
-                    itemBuilder: (BuildContext context, int index) {
-                      return Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            boxShadow: [bigBoxShadow(context)],
-                          ),
-                          child: Stack(
-                            children: [
-                              // Load image
-                              (_pageThumbnails[index].isNotEmpty)
-                                  ? AnimatedSwitcher(
-                                    duration: Duration(milliseconds: 300),
-                                    child: Image.file(
-                                      File(_pageThumbnails[index]),
-                                      key: ValueKey(_pageThumbnails[index]),
-                                      errorBuilder: (
-                                        context,
-                                        error,
-                                        stackTrace,
-                                      ) {
-                                        return const Icon(Icons.broken_image);
-                                      },
-                                    ),
-                                  )
-                                  // Pages Skeleton
-                                  : AspectRatio(
-                                    aspectRatio: 1.0 / 1.414,
-                                    child: Material(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.surfaceBright,
-                                      child: IndicatorProcessingImage(),
-                                    ),
-                                  ),
-                              // Open PagePreview
-                              Positioned.fill(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap:
-                                        (_pageThumbnails[index].isNotEmpty)
-                                            ? () => _openPagePreview(
-                                              widget.docIndex,
-                                              index,
-                                            )
-                                            : null,
-                                    splashColor: Colors.black26,
-                                    highlightColor: Colors.black26,
-                                  ),
+                  child:
+                      (isTopOfNavigationStack)
+                          ? ListView.builder(
+                            cacheExtent: 1000,
+                            itemCount: _pagesCount,
+                            itemBuilder: (BuildContext context, int index) {
+                              String thumbnailPath = _pageThumbnails[index];
+                              File pageThumbnail = File(thumbnailPath);
+                              return Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
                                 ),
-                              ),
-                              // Page Index Indicator
-                              Positioned(
-                                top: 18,
-                                left: 12,
-                                child: GestureDetector(
-                                  // Change Page Index Dialog
-                                  onTap: () async {
-                                    int? selectedIndex = await showDialog<int>(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        int currentIndex = index;
-                                        return AlertDialog(
-                                          title: Text("Change Page Index"),
-                                          content: StatefulBuilder(
-                                            builder: (context, setState) {
-                                              return DropdownButton<int>(
-                                                value: currentIndex,
-                                                items: List.generate(
-                                                  _pageThumbnails.length,
-                                                  (i) => DropdownMenuItem(
-                                                    value: i,
-                                                    child: Text(
-                                                      "Page ${i + 1}",
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    boxShadow: [bigBoxShadow(context)],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      // Load image
+                                      (thumbnailPath.isNotEmpty)
+                                          ? AnimatedSwitcher(
+                                            duration: Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            child: Image.file(
+                                              pageThumbnail,
+                                              key: ValueKey(thumbnailPath),
+                                              errorBuilder: (
+                                                context,
+                                                error,
+                                                stackTrace,
+                                              ) {
+                                                return AspectRatio(
+                                                  aspectRatio:
+                                                      _thumbnailRatios[index],
+                                                  child: Material(
+                                                    color: Colors.transparent,
+                                                    child: const Icon(
+                                                      Icons.broken_image,
                                                     ),
                                                   ),
-                                                ),
-                                                onChanged: (int? newValue) {
-                                                  if (newValue != null) {
-                                                    setState(
-                                                      () =>
-                                                          currentIndex =
-                                                              newValue,
-                                                    );
-                                                  }
-                                                },
-                                              );
-                                            },
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(context),
-                                              child: Text("Cancel"),
-                                            ),
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.pop(
-                                                  context,
-                                                  currentIndex,
                                                 );
                                               },
-                                              child: Text("OK"),
                                             ),
-                                          ],
-                                        );
-                                      },
-                                    );
-
-                                    if (selectedIndex != null &&
-                                        selectedIndex != index) {
-                                      await filesHelper.changePageIndex(
-                                        widget.docIndex,
-                                        index,
-                                        selectedIndex,
-                                      );
-                                      _loadPagesThumbnails();
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.surfaceBright,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [smallBoxShadow(context)],
-                                    ),
-                                    child: Text(
-                                      "${index + 1}/$_pagesCount",
-                                      style: TextStyle(
-                                        //color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                                          )
+                                          // Pages Skeleton
+                                          : AspectRatio(
+                                            aspectRatio:
+                                                _thumbnailRatios[index],
+                                            child: Material(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.surfaceBright,
+                                              child: IndicatorProcessingImage(),
+                                            ),
+                                          ),
+                                      // Open PagePreview
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap:
+                                                (thumbnailPath.isNotEmpty)
+                                                    ? () => _openPagePreview(
+                                                      widget.docIndex,
+                                                      index,
+                                                    )
+                                                    : null,
+                                            splashColor: Colors.black26,
+                                            highlightColor: Colors.black26,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      // Page Index Indicator
+                                      Positioned(
+                                        top: 18,
+                                        left: 12,
+                                        child: GestureDetector(
+                                          // Change Page Index Dialog
+                                          onTap: () async {
+                                            int?
+                                            selectedIndex = await showDialog<
+                                              int
+                                            >(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                int currentIndex = index;
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    "Change Page Index",
+                                                  ),
+                                                  content: StatefulBuilder(
+                                                    builder: (
+                                                      context,
+                                                      setState,
+                                                    ) {
+                                                      return DropdownButton<
+                                                        int
+                                                      >(
+                                                        value: currentIndex,
+                                                        items: List.generate(
+                                                          _pageThumbnails
+                                                              .length,
+                                                          (
+                                                            i,
+                                                          ) => DropdownMenuItem(
+                                                            value: i,
+                                                            child: Text(
+                                                              "Page ${i + 1}",
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        onChanged: (
+                                                          int? newValue,
+                                                        ) {
+                                                          if (newValue !=
+                                                              null) {
+                                                            setState(
+                                                              () =>
+                                                                  currentIndex =
+                                                                      newValue,
+                                                            );
+                                                          }
+                                                        },
+                                                      );
+                                                    },
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            context,
+                                                          ),
+                                                      child: Text("Cancel"),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(
+                                                          context,
+                                                          currentIndex,
+                                                        );
+                                                      },
+                                                      child: Text("OK"),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+
+                                            if (selectedIndex != null &&
+                                                selectedIndex != index) {
+                                              await filesHelper.changePageIndex(
+                                                widget.docIndex,
+                                                index,
+                                                selectedIndex,
+                                              );
+                                              _loadPagesThumbnails();
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.surfaceBright,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              boxShadow: [
+                                                smallBoxShadow(context),
+                                              ],
+                                            ),
+                                            child: Text(
+                                              "${index + 1}/$_pagesCount",
+                                              style: TextStyle(
+                                                //color: Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                              );
+                            },
+                          )
+                          : SizedBox(),
                 ),
               )
               : const Center(child: Text('No images to display.')),
@@ -2801,7 +2872,6 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      //Future rotatePageFuture =
       imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
@@ -2810,7 +2880,6 @@ class PagePreviewState extends State<PagePreview> {
         thumbnailIndex ?? (proUnlocked == true ? 3 : 2),
       );
       _totalRotation = 0;
-      //rotatePageFuture.whenComplete(() {});
     } else {
       _reprocessingSetup();
       imageProcessingManager.processPage(
