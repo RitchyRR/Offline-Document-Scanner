@@ -594,14 +594,16 @@ class ImageProcessingManager {
 
       // Write
       if (updateThumbnail) {
+        imageProcessingManager.applyThumbnail(
+          docIndex,
+          pageIndex,
+          thumbnailIndex,
+        );
         metadata["thumbnail"] = newThumbnailName;
         await file.writeAsString(jsonEncode(metadata));
       }
     } catch (e) {
       dev.log("Error, writePageThumbnailIndex: $e");
-    }
-    if (updateThumbnail) {
-      imageProcessingManager.applySelectedThumbnail(docIndex, pageIndex);
     }
   }
 
@@ -784,28 +786,24 @@ class ImageProcessingManager {
       dev.log("Error, writeScaledThumbnail: $pathIn does not exist");
       return;
     } else {
-      String? oldThumbnailPath;
       for (FileSystemEntity fse in Directory(pagePath).listSync()) {
         if (fse.path.contains("thumbnail")) {
-          oldThumbnailPath = fse.path;
-          break;
-        }
-      }
-      if (oldThumbnailPath != null) {
-        if (overwrite) {
-          //dev.log("Overwriting, writeScaledThumbnail: $pathIn");
-          File(oldThumbnailPath).deleteSync();
-          if (sendPort != null) {
-            sendPort.send(File(oldThumbnailPath));
+          String oldThumbnailPath = fse.path;
+          if (overwrite) {
+            //dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+            File(oldThumbnailPath).deleteSync();
+            if (sendPort != null) {
+              sendPort.send(File(oldThumbnailPath));
+            } else {
+              imageCache.evict(
+                FileImage(File(oldThumbnailPath)),
+                includeLive: true,
+              );
+            }
           } else {
-            imageCache.evict(
-              FileImage(File(oldThumbnailPath)),
-              includeLive: true,
-            );
+            dev.log("Thumbnail already exists, won't overwrite thumbnail.");
+            return;
           }
-        } else {
-          dev.log("Thumbnail already exists, won't overwrite thumbnail.");
-          return;
         }
       }
     }
@@ -838,20 +836,22 @@ class ImageProcessingManager {
     }
   }
 
-  static Future<void> _applySelectedThumbnailIsolate(
-    (SendPort sendPort, FilesHelper filesHelperIn, int docIndex, int pageIndex)
+  static Future<void> _applyThumbnailIsolate(
+    (
+      SendPort sendPort,
+      FilesHelper filesHelperIn,
+      int docIndex,
+      int pageIndex,
+      int thumbnailIndex,
+    )
     data,
   ) async {
     SendPort sendPort = data.$1;
     FilesHelper filesHelperIn = data.$2;
     int docIndex = data.$3;
     int pageIndex = data.$4;
+    int thumbnailIndex = data.$5;
 
-    int? thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      filesHelperIn: filesHelperIn,
-    );
     final versionsPaths = await filesHelperIn.getImagePathsForPage(
       docIndex,
       pageIndex,
@@ -865,14 +865,21 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  Future<void> applySelectedThumbnail(int docIndex, int pageIndex) async {
+  Future<void> applyThumbnail(
+    int docIndex,
+    int pageIndex,
+    int thumbnailIndex,
+  ) async {
     ReceivePort secundaryPort = ReceivePort();
     final secundaryCompleter = Completer<void>();
     comleters.add(secundaryCompleter);
-    Isolate secundaryIsolate = await Isolate.spawn(
-      _applySelectedThumbnailIsolate,
-      (secundaryPort.sendPort, filesHelper, docIndex, pageIndex),
-    );
+    Isolate secundaryIsolate = await Isolate.spawn(_applyThumbnailIsolate, (
+      secundaryPort.sendPort,
+      filesHelper,
+      docIndex,
+      pageIndex,
+      thumbnailIndex,
+    ));
     secundaryIsolates[(docIndex, pageIndex)] = secundaryIsolate;
     secundaryPort.listen((message) async {
       if (message is NotifierEvent) {
