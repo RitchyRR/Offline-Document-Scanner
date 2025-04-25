@@ -351,10 +351,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   List<int> _docPageCounts = [];
-  final List<String> _docNames = [];
-  final List<String> _docDates = [];
-  int _docsCount = 0;
+  List<String> _docNames = [];
+  List<String> _docDates = [];
   List<double> _thumbnailRatios = [];
+  int _docsCount = 0;
   Future<void> _loadDocsDisplay() async {
     // Thumbnails
     var thumbs = await filesHelper.getDocThumbnails();
@@ -365,9 +365,10 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
     }
-    // Document Metadata (Names + Dates)
-    _thumbnailRatios = [];
-    fixMetadataLengths(_docsCount);
+    // Document Metadata (Names, Dates, AspectRatios)
+    _docNames = List.generate(_docsCount, (_) => "");
+    _docDates = List.generate(_docsCount, (_) => "");
+    _thumbnailRatios = List.generate(_docsCount, (_) => 1.0 / 1.414);
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
       final docPath = await filesHelper.getDocumentPath(docIndex);
       final metaDataPath = File('$docPath/metadata.json');
@@ -394,9 +395,8 @@ class _MyHomePageState extends State<MyHomePage> {
           await ImageProcessingManager.readPageOrientationIndex(docIndex, 0) ??
           0;
       double ratioValue = commonAspectRatios[ratioIndex].value;
-      _thumbnailRatios.add(
-        orientationIndex == 0 ? 1.0 / ratioValue : ratioValue,
-      );
+      _thumbnailRatios[docIndex] =
+          orientationIndex == 0 ? 1.0 / ratioValue : ratioValue;
     }
 
     // Refresh Display
@@ -415,6 +415,10 @@ class _MyHomePageState extends State<MyHomePage> {
     int datesShortBy = length - _docDates.length;
     for (var i = 0; i < datesShortBy; i++) {
       _docDates.add("");
+    }
+    int ratiosShortBy = length - _thumbnailRatios.length;
+    for (var i = 0; i < ratiosShortBy; i++) {
+      _thumbnailRatios.add(1.0 / 1.414);
     }
   }
 
@@ -1152,10 +1156,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         )
                                         : AspectRatio(
-                                          aspectRatio:
-                                              (_thumbnailRatios.length > index)
-                                                  ? _thumbnailRatios[index]
-                                                  : 1.0 / 1.414,
+                                          aspectRatio: _thumbnailRatios[index],
                                           child: Builder(
                                             builder: (context) {
                                               return Material(
@@ -1413,7 +1414,7 @@ class _PagesState extends State<Pages> {
     if (_pagesCount != _pageThumbnails.length) {
       newThumbnails = true;
     }
-    _thumbnailRatios = [];
+    _thumbnailRatios = List.generate(_pagesCount, (_) => 1.0 / 1.414);
     for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
       if (!newThumbnails &&
           (_pageThumbnails.length <= pageIndex ||
@@ -1433,9 +1434,8 @@ class _PagesState extends State<Pages> {
           ) ??
           0;
       double ratioValue = commonAspectRatios[ratioIndex].value;
-      _thumbnailRatios.add(
-        orientationIndex == 0 ? 1.0 / ratioValue : ratioValue,
-      );
+      _thumbnailRatios[pageIndex] =
+          orientationIndex == 0 ? 1.0 / ratioValue : ratioValue;
     }
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
@@ -1548,10 +1548,7 @@ class _PagesState extends State<Pages> {
                                         stackTrace,
                                       ) {
                                         return AspectRatio(
-                                          aspectRatio:
-                                              (_thumbnailRatios.length > index)
-                                                  ? _thumbnailRatios[index]
-                                                  : 1.0 / 1.414,
+                                          aspectRatio: _thumbnailRatios[index],
                                           child: Material(
                                             color:
                                                 Theme.of(
@@ -1567,10 +1564,7 @@ class _PagesState extends State<Pages> {
                                   )
                                   // Pages Skeleton
                                   : AspectRatio(
-                                    aspectRatio:
-                                        (_thumbnailRatios.length > index)
-                                            ? _thumbnailRatios[index]
-                                            : 1.0 / 1.414,
+                                    aspectRatio: _thumbnailRatios[index],
                                     child: Material(
                                       color:
                                           Theme.of(
