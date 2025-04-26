@@ -584,11 +584,11 @@ class ImageProcessingManager {
         );
         return;
       }
-      if ((metadata["thumbnail"] != null
+      if (thumbnailIndex != 0 &&
+          (metadata["thumbnail"] != null
                   ? versionNames.indexOf(metadata["thumbnail"])
                   : ((proUnlocked == true) ? 3 : 2)) !=
-              thumbnailIndex &&
-          thumbnailIndex != 0) {
+              thumbnailIndex) {
         updateThumbnail = true;
       }
 
