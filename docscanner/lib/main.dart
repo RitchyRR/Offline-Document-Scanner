@@ -2675,14 +2675,15 @@ class PagePreviewState extends State<PagePreview> {
                               top: 0,
                               right: 0,
                               child: CustomIconButton(
-                                onTap: () async {
-                                  final bool setProPopup = await proPopup(
-                                    context,
-                                  );
-                                  setState(() {
-                                    proUnlocked = setProPopup;
-                                  });
-                                },
+                                onTap: null,
+                                //() async {
+                                //  final bool setProPopup = await proPopup(
+                                //    context,
+                                //  );
+                                //  setState(() {
+                                //    proUnlocked = setProPopup;
+                                //  });
+                                //},
                                 icon: Icons.lock,
                                 iconColor:
                                     Theme.of(
