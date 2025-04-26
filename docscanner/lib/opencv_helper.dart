@@ -199,6 +199,7 @@ class OpenCVHelper {
     List<List<int>> corners = cornerPointsIn ?? [];
     int ratioIndex = ratioIndexIn ?? 0;
     int orientation = orientationIn ?? 0;
+    bool customCorners = cornerPointsIn != null;
 
     if (shape == null) {
       // 1. Isolate remove Text and Images to get Shape
@@ -212,16 +213,18 @@ class OpenCVHelper {
       bg = null;
       //return (shape, 0, 0, corners);
     }
-    if (cornerPointsIn == null) {
+    if (!customCorners) {
       // 3. Corner detection
       corners = _detectCorners(shape);
-
+    }
+    if (ratioIndexIn == null || orientationIn == null) {
       // 4. Perspective transformation
       final traffo = _calculateTransformation(
         shape,
         corners,
         ratioIndexIn,
         orientationIn,
+        noBoderCutin: customCorners,
       );
       ratioIndex = traffo.$1;
       orientation = traffo.$2;
@@ -231,7 +234,7 @@ class OpenCVHelper {
       _setHeightFromCorners(corners, ratio);
       //cv.Mat warpedShape = _transformImage(shape, corners);
       //return (warpedShape, 0, 0, corners);
-      _calculateBorderSize(shape, corners, noBoderCutin: true);
+      _calculateBorderSize(shape, corners, noBoderCutin: customCorners);
     }
 
     cv.Mat warped = _correctedTransformImage(imageMat, corners);
@@ -640,8 +643,9 @@ class OpenCVHelper {
     cv.Mat shape,
     List<List<int>> corners,
     int? inRatioIndex,
-    int? orientationIndex,
-  ) {
+    int? orientationIndex, {
+    bool noBoderCutin = false,
+  }) {
     // Estimate aspect ratio
     double ratio = 0.0;
     ratio =
@@ -659,7 +663,7 @@ class OpenCVHelper {
 
     _setHeightFromCorners(corners, ratio);
 
-    _calculateBorderSize(shape, corners);
+    _calculateBorderSize(shape, corners, noBoderCutin: noBoderCutin);
 
     return (ratioIndex, orientationIndex);
   }

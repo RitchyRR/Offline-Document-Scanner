@@ -3006,7 +3006,9 @@ class PagePreviewState extends State<PagePreview> {
         _hideOverlayReprocessing = true;
       });
     }
+
     bool onlyRotation = true;
+    bool customCorners = false;
 
     // Read Matadata
     var metadata = await ImageProcessingManager.readPageMetadata(
@@ -3031,6 +3033,7 @@ class PagePreviewState extends State<PagePreview> {
       newCornerPoints = rotateCornerPoints(newCornerPoints);
     } else {
       onlyRotation = false;
+      customCorners = true;
     }
 
     await ImageProcessingManager.writePageMetadata(
@@ -3076,8 +3079,8 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
-        _newRatioIndex,
-        _newOrientationIndex,
+        customCorners ? null : _newRatioIndex,
+        customCorners ? null : _newOrientationIndex,
         thumbnailIndex,
         newCornerPoints,
         _totalRotation,
