@@ -942,7 +942,7 @@ class FilesHelper {
     // Save PDF
     final docsDir = await _getDocumentsPath();
     String pdfPath =
-        "$docsDir/doc${docIndex + 1}${imagePaths.length == 1 ? "_page${firstPageIndex + 1}" : ""}${versionName != null ? "_$versionName" : ""}}.pdf";
+        "$docsDir/doc${docIndex + 1}${imagePaths.length == 1 ? "_page${firstPageIndex + 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
     pdfw.Document? pdf = await _convertImagesToPdf(
       imagePaths,
       docIndex,

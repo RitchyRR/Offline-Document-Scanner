@@ -1094,6 +1094,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                             ),
                                         icon: Icon(Icons.save),
                                       ),
+                                      // Share Button
                                       IconButton(
                                         onPressed:
                                             () => _shareDocumentPopup(
@@ -1518,6 +1519,142 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
+  Future<void> _savePagePopup(BuildContext context, int pageIndex) async {
+    final String imagePath = _pageThumbnails[pageIndex];
+
+    showDialog(
+      // ignore: use_build_context_synchronously
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Save Page ${pageIndex + 1}"),
+
+          actions: [
+            ImagesScrollPreview(pagePaths: [imagePath]),
+            SizedBox(height: 36.0),
+
+            // Save Image
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                FilesHelper.saveImageToGallery(imagePath);
+              },
+
+              icon: Icon(Icons.image),
+              label: Text("Save Image to Gallery"),
+            ),
+
+            // Save as PDF
+            ElevatedButton.icon(
+              onPressed: () async {
+                await FilesHelper.pickFolderForImagePdf(
+                  imagePath,
+                  widget.docIndex,
+                  pageIndex,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
+
+              icon: Icon(Icons.picture_as_pdf),
+              label: Text("Save PDF to Directory"),
+            ),
+
+            // Cancel Button
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _sharePagePopup(BuildContext context, int pageIndex) async {
+    final String imagePath = _pageThumbnails[pageIndex];
+
+    showDialog(
+      // ignore: use_build_context_synchronously
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Share Page ${pageIndex + 1}"),
+          actions: [
+            ImagesScrollPreview(pagePaths: [imagePath]),
+            SizedBox(height: 36.0),
+
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Share Image
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await FilesHelper.shareImages([imagePath]);
+                  },
+                  icon: Icon(Icons.image),
+                  label: Text("Share Image"),
+                ),
+
+                // Share PDF
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await filesHelper.shareImagesPdf(
+                      context,
+                      [imagePath],
+                      widget.docIndex,
+                      pageIndex,
+                    );
+                  },
+                  icon: Icon(Icons.picture_as_pdf),
+                  label: Text("Share PDF"),
+                ),
+
+                // Cancel Button
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel"),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _deletePagePopup(BuildContext context, int pageIndex) async {
+    bool? confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Delete Page ${pageIndex + 1}"),
+          content: Text(
+            "Are you sure you want to permanently delete this page?",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text("Delete", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmDelete != null && confirmDelete == true) {
+      await filesHelper.deletePage(widget.docIndex, pageIndex);
+      return true;
+    }
+    return false;
+  }
+
   // Pages
   @override
   Widget build(BuildContext context) {
@@ -1604,6 +1741,13 @@ class _PagesState extends State<Pages> {
                                               index,
                                             )
                                             : null,
+                                    onLongPress:
+                                        (thumbnailPath.isNotEmpty)
+                                            ? () => _openPagePreview(
+                                              widget.docIndex,
+                                              index,
+                                            )
+                                            : null,
                                     splashColor: Colors.black26,
                                     highlightColor: Colors.black26,
                                   ),
@@ -1621,16 +1765,26 @@ class _PagesState extends State<Pages> {
                                       builder: (BuildContext context) {
                                         int currentIndex = index;
                                         return AlertDialog(
-                                          title: Text("Change Page Index"),
-                                          content: StatefulBuilder(
-                                            builder: (context, setState) {
-                                              return DropdownButton<int>(
+                                          title: Text(
+                                            "Page ${currentIndex + 1}",
+                                          ),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              DropdownButtonFormField<int>(
+                                                decoration: InputDecoration(
+                                                  labelText:
+                                                      "Change Page Index",
+                                                ),
                                                 value: currentIndex,
+                                                isExpanded: true,
                                                 items: List.generate(
                                                   _pageThumbnails.length,
                                                   (i) => DropdownMenuItem(
                                                     value: i,
                                                     child: Text(
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                       "Page ${i + 1}",
                                                     ),
                                                   ),
@@ -1644,8 +1798,43 @@ class _PagesState extends State<Pages> {
                                                     );
                                                   }
                                                 },
-                                              );
-                                            },
+                                              ),
+                                              SizedBox(height: 16),
+                                              // Save, Share, Delete
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  // Save
+                                                  IconButton(
+                                                    onPressed:
+                                                        () => _savePagePopup(
+                                                          context,
+                                                          index,
+                                                        ),
+                                                    icon: Icon(Icons.save),
+                                                  ),
+                                                  // Share
+                                                  IconButton(
+                                                    onPressed:
+                                                        () => _sharePagePopup(
+                                                          context,
+                                                          index,
+                                                        ),
+                                                    icon: Icon(Icons.share),
+                                                  ),
+                                                  // Delete
+                                                  IconButton(
+                                                    onPressed:
+                                                        () => _deletePagePopup(
+                                                          context,
+                                                          index,
+                                                        ),
+                                                    icon: Icon(Icons.delete),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                           actions: [
                                             TextButton(
@@ -1653,7 +1842,8 @@ class _PagesState extends State<Pages> {
                                                   () => Navigator.pop(context),
                                               child: Text("Cancel"),
                                             ),
-                                            TextButton(
+                                            SizedBox(width: 8),
+                                            ElevatedButton(
                                               onPressed: () {
                                                 Navigator.pop(
                                                   context,
