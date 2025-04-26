@@ -4,7 +4,6 @@ import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'package:docscanner/main.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'dart:io';
@@ -39,6 +38,7 @@ class ImageProcessingManager {
       List<List<int>>? cornerPointsIn,
       bool? proUnlockedIn,
       int rotationIn,
+      bool initial,
     )
     data,
   ) async {
@@ -55,6 +55,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn = data.$10;
     bool? proUnlockedIn = data.$11;
     int rotationIn = data.$12;
+    bool initial = data.$13;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
@@ -79,7 +80,11 @@ class ImageProcessingManager {
     );
 
     // Re-use Shape
-    String? shapePath = await filesHelperIn.getPageShape(docIndex, pageIndex);
+    String? shapePath = await filesHelperIn.getPageShape(
+      docIndex,
+      pageIndex,
+      supresswarning: initial,
+    );
     if (shapePath != null && rotationIn != 0) {
       Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
       shapePath = await filesHelperIn.savePageShape(
@@ -234,6 +239,7 @@ class ImageProcessingManager {
       null,
       proUnlocked,
       0,
+      true,
     ));
     primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -245,8 +251,6 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
-      } else if (message is File) {
-        imageCache.evict(FileImage(message), includeLive: true);
       }
     });
 
@@ -281,6 +285,7 @@ class ImageProcessingManager {
           null,
           proUnlocked,
           0,
+          true,
         ));
         secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
         secundaryPort.listen((message) {
@@ -292,8 +297,6 @@ class ImageProcessingManager {
             comleters.remove(completer);
             //isolate.kill();
             secundaryIsolates.removeWhere((key, value) => value == isolate);
-          } else if (message is File) {
-            imageCache.evict(FileImage(message), includeLive: true);
           }
         });
       }
@@ -326,6 +329,7 @@ class ImageProcessingManager {
       cornerPointsIn,
       proUnlocked,
       rotationIn,
+      false,
     ));
     primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
     primaryPort.listen((message) {
@@ -337,8 +341,6 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
-      } else if (message is File) {
-        imageCache.evict(FileImage(message), includeLive: true);
       }
     });
   }
@@ -468,8 +470,6 @@ class ImageProcessingManager {
         comleters.remove(primaryCompleter);
         //primaryIsolate.kill();
         primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
-      } else if (message is File) {
-        imageCache.evict(FileImage(message), includeLive: true);
       }
     });
     await primaryCompleter.future;
@@ -639,7 +639,7 @@ class ImageProcessingManager {
   static Future<int?> readPageRatioIndex(
     int docIndex,
     int pageIndex, {
-    bool supressWarning = false,
+    bool supressWarnings = false,
   }) async {
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
@@ -655,7 +655,7 @@ class ImageProcessingManager {
         dev.log("Error, readPageRatioIndex: $e");
       }
     }
-    if (!supressWarning) {
+    if (!supressWarnings) {
       dev.log(
         "Warning, readPageRatioIndex: Metadata does not exist for $pagePath",
       );
@@ -666,7 +666,7 @@ class ImageProcessingManager {
   static Future<int?> readPageOrientationIndex(
     int docIndex,
     int pageIndex, {
-    bool supressWarning = false,
+    bool supressWarnings = false,
   }) async {
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
@@ -685,7 +685,7 @@ class ImageProcessingManager {
         dev.log("Error, readPageOrientationIndex: $e");
       }
     }
-    if (!supressWarning) {
+    if (!supressWarnings) {
       dev.log(
         "Warning, readPageOrientationIndex: Metadata does not exist for $pagePath",
       );
@@ -737,7 +737,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex, {
     FilesHelper? filesHelperIn,
-    bool supressWarning = false,
+    bool supressWarnings = false,
   }) async {
     String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
       docIndex,
@@ -762,9 +762,9 @@ class ImageProcessingManager {
         dev.log("Error, readPageThumbnailIndex: $e");
       }
     }
-    if (!supressWarning) {
+    if (!supressWarnings) {
       dev.log(
-        "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
+        "Warning, readPageCornerPoints: Metadata does not exist for $pagePath",
       );
     }
     return [];
@@ -792,14 +792,6 @@ class ImageProcessingManager {
           if (overwrite) {
             //dev.log("Overwriting, writeScaledThumbnail: $pathIn");
             File(oldThumbnailPath).deleteSync();
-            if (sendPort != null) {
-              sendPort.send(File(oldThumbnailPath));
-            } else {
-              imageCache.evict(
-                FileImage(File(oldThumbnailPath)),
-                includeLive: true,
-              );
-            }
           } else {
             dev.log("Thumbnail already exists, won't overwrite thumbnail.");
             return;
@@ -892,8 +884,6 @@ class ImageProcessingManager {
         secundaryIsolates.removeWhere(
           (key, value) => value == secundaryIsolate,
         );
-      } else if (message is File) {
-        imageCache.evict(FileImage(message), includeLive: true);
       }
     });
   }

@@ -30,7 +30,6 @@ bool? proUnlocked;
 enum NotifierEvent {
   loadPagesThumbnails,
   loadDocsThumbnails,
-  loadPageVersions,
   loadPageMetadata,
   pictureSaved,
   warpSaved,
@@ -330,7 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> initAsync() async {
     await filesHelper.repairDirectoryStructure();
-    await _loadDocsDisplay();
+    await _loadDocsDisplay(supressWarnings: true);
     _receiveSharing();
   }
 
@@ -355,7 +354,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> _docDates = [];
   List<double> _thumbnailRatios = [];
   int _docsCount = 0;
-  Future<void> _loadDocsDisplay() async {
+  Future<void> _loadDocsDisplay({bool supressWarnings = false}) async {
     // Thumbnails
     var thumbs = await filesHelper.getDocThumbnails();
     List<String> thumbnailPaths = thumbs.$1;
@@ -388,11 +387,21 @@ class _MyHomePageState extends State<MyHomePage> {
       } else {
         _saveDocName(docIndex);
       }
-
+      bool supressWarnings_ = supressWarnings;
+      if (thumbnailPaths[docIndex].isEmpty) supressWarnings_ = true;
       int ratioIndex =
-          await ImageProcessingManager.readPageRatioIndex(docIndex, 0) ?? 0;
+          await ImageProcessingManager.readPageRatioIndex(
+            docIndex,
+            0,
+            supressWarnings: supressWarnings_,
+          ) ??
+          0;
       int orientationIndex =
-          await ImageProcessingManager.readPageOrientationIndex(docIndex, 0) ??
+          await ImageProcessingManager.readPageOrientationIndex(
+            docIndex,
+            0,
+            supressWarnings: supressWarnings_,
+          ) ??
           0;
       double ratioValue = commonAspectRatios[ratioIndex].value;
       _thumbnailRatios[docIndex] =
@@ -1377,7 +1386,7 @@ class _PagesState extends State<Pages> {
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
-    _loadPagesThumbnails(onInit: true);
+    _loadPagesThumbnails(onInit: true, supressWarnings: true);
     _initPushPreview();
   }
 
@@ -1405,7 +1414,10 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  Future<void> _loadPagesThumbnails({bool onInit = false}) async {
+  Future<void> _loadPagesThumbnails({
+    bool onInit = false,
+    bool supressWarnings = false,
+  }) async {
     var thumbs = await filesHelper.getPagesThumbnails(widget.docIndex);
     _pagesCount = thumbs.$2;
     List<String> thumbnailPaths = thumbs.$1;
@@ -1421,16 +1433,20 @@ class _PagesState extends State<Pages> {
               thumbnailPaths[pageIndex] != _pageThumbnails[pageIndex])) {
         newThumbnails = true;
       }
+      bool supressWarnings_ = supressWarnings;
+      if (thumbnailPaths[pageIndex].isEmpty) supressWarnings_ = true;
       int ratioIndex =
           await ImageProcessingManager.readPageRatioIndex(
             widget.docIndex,
             pageIndex,
+            supressWarnings: supressWarnings_,
           ) ??
           0;
       int orientationIndex =
           await ImageProcessingManager.readPageOrientationIndex(
             widget.docIndex,
             pageIndex,
+            supressWarnings: supressWarnings_,
           ) ??
           0;
       double ratioValue = commonAspectRatios[ratioIndex].value;
@@ -1452,21 +1468,23 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _openPagePreview(int docIndex, int pageIndex) async {
-    Future<void> future = Navigator.pushNamed(
+    //Future<void> future =
+    Navigator.pushNamed(
       context,
       '/preview',
       arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
     );
-    future.whenComplete(() async {
-      // evict Preview cache
-      List<String> pageImages = await filesHelper.getImagePathsForPage(
-        docIndex,
-        pageIndex,
-      );
-      for (var path in pageImages) {
-        imageCache.evict(FileImage(File(path)), includeLive: false);
-      }
-    });
+    //future.whenComplete(() {
+    //  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //    List<String> pageImages = await filesHelper.getImagePathsForPage(
+    //      docIndex,
+    //      pageIndex,
+    //    );
+    //    for (var path in pageImages) {
+    //      imageCache.evict(FileImage(File(path)), includeLive: false);
+    //    }
+    //  });
+    //});
   }
 
   Future<void> _openImagePicker(
@@ -1503,12 +1521,13 @@ class _PagesState extends State<Pages> {
   // Pages
   @override
   Widget build(BuildContext context) {
-    final bool isTopOfNavigationStack =
-        ModalRoute.of(context)?.isCurrent ?? false;
+    //final bool isTopOfNavigationStack =
+    //    ModalRoute.of(context)?.isCurrent ?? false;
     return Scaffold(
       appBar: AppBar(title: Text("Document ${widget.docIndex + 1}")),
       body:
-          _pageThumbnails.isNotEmpty && isTopOfNavigationStack
+          _pageThumbnails
+                  .isNotEmpty // && isTopOfNavigationStack
               // Pages
               ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3.0),
@@ -1818,7 +1837,7 @@ class PagePreviewState extends State<PagePreview> {
     );
     _picturePath = _versionPaths.first;
     _showAllImages();
-    _loadPageMeatadata(supressWarning: true);
+    _loadPageMeatadata(supressWarnings: true);
   }
 
   @override
@@ -1833,9 +1852,6 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
-      case NotifierEvent.loadPageVersions:
-        _clearPageVersionsCache();
-        break;
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
         break;
@@ -1847,7 +1863,7 @@ class PagePreviewState extends State<PagePreview> {
         _picturePath = _versionPaths.first;
         setState(() => _versionPaths);
         FilesHelper.deleteCachedRoatedImages();
-        _refreshCornersOverlay();
+        _refreshCornersOverlay(supressWarnings: true);
         break;
       case NotifierEvent.warpSaved:
         _versionPaths = await filesHelper.getImagePathsForPage(
@@ -1887,25 +1903,18 @@ class PagePreviewState extends State<PagePreview> {
     _pageController.jumpToPage(_selectedVersion);
   }
 
-  void _clearPageVersionsCache() {
-    for (var path in _versionPaths) {
-      imageCache.evict(FileImage(File(path)), includeLive: true);
-    }
-    imageCache.evict(FileImage(File(_picturePath)), includeLive: true);
-  }
-
-  Future<void> _loadPageMeatadata({bool supressWarning = false}) async {
+  Future<void> _loadPageMeatadata({bool supressWarnings = false}) async {
     _newRatioIndex =
         _ratioIndex = await ImageProcessingManager.readPageRatioIndex(
           widget.docIndex,
           widget.pageIndex,
-          supressWarning: supressWarning,
+          supressWarnings: supressWarnings,
         );
     _newOrientationIndex =
         _orientation = await ImageProcessingManager.readPageOrientationIndex(
           widget.docIndex,
           widget.pageIndex,
-          supressWarning: supressWarning,
+          supressWarnings: supressWarnings,
         );
     if (mounted) {
       setState(() {
@@ -1915,7 +1924,7 @@ class PagePreviewState extends State<PagePreview> {
         //dev.log("Updated _newOrientation: $_newOrientation");
       });
     }
-    await _refreshCornersOverlay();
+    await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
       setState(() {
         _cornerPoints;
@@ -1927,12 +1936,12 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  Future<void> _refreshCornersOverlay({bool supressWarning = false}) async {
+  Future<void> _refreshCornersOverlay({bool supressWarnings = false}) async {
     // Corners
     _cornerPoints = await ImageProcessingManager.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
-      supressWarning: supressWarning,
+      supressWarnings: supressWarnings,
     );
     // Image pixel size
     if (_versionPaths[0].isEmpty) return;
@@ -2221,7 +2230,6 @@ class PagePreviewState extends State<PagePreview> {
   void _reprocessingCleanup() {
     _evenPictureScale = 0.0;
     _oddPictureScale = 0.0;
-    _clearPageVersionsCache();
     setState(() {
       _versionPaths = ["", "", "", ""];
     });
@@ -2724,10 +2732,6 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _refreshAfterBrokenImage(int index) async {
     dev.log("_refreshAfterBrokenImage");
     Future.delayed(const Duration(milliseconds: 200), () {
-      imageCache.evict(
-        FileImage(File(_versionPaths[index])),
-        includeLive: true,
-      );
       if (mounted) {
         setState(() {
           _imageRetryKey = (_imageRetryKey - 1) * (-1);
