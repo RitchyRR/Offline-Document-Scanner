@@ -1410,7 +1410,7 @@ class _PagesState extends State<Pages> {
   void _initPushPreview() {
     if (widget.initialPageIndex != null) {
       Future.microtask(() {
-        _openPagePreview(widget.docIndex, widget.initialPageIndex!);
+        _openPagePreview(widget.initialPageIndex!);
       });
     }
   }
@@ -1468,12 +1468,12 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  Future<void> _openPagePreview(int docIndex, int pageIndex) async {
+  Future<void> _openPagePreview(int pageIndex) async {
     //Future<void> future =
     Navigator.pushNamed(
       context,
       '/preview',
-      arguments: {'docIndex': docIndex, 'pageIndex': pageIndex},
+      arguments: {'docIndex': widget.docIndex, 'pageIndex': pageIndex},
     );
     //future.whenComplete(() {
     //  WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1501,7 +1501,7 @@ class _PagesState extends State<Pages> {
     int firstPageIndex = await _processNewPages(picturePaths);
 
     // Only open PagePreview for first page
-    _openPagePreview(widget.docIndex, firstPageIndex);
+    _openPagePreview(firstPageIndex);
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
@@ -1745,17 +1745,12 @@ class _PagesState extends State<Pages> {
                                   child: InkWell(
                                     onTap:
                                         (thumbnailPath.isNotEmpty)
-                                            ? () => _openPagePreview(
-                                              widget.docIndex,
-                                              index,
-                                            )
+                                            ? () => _openPagePreview(index)
                                             : null,
                                     onLongPress:
                                         (thumbnailPath.isNotEmpty)
-                                            ? () => _openPagePreview(
-                                              widget.docIndex,
-                                              index,
-                                            )
+                                            ? () =>
+                                                _pageIndexDialog(context, index)
                                             : null,
                                     splashColor: Colors.black26,
                                     highlightColor: Colors.black26,
