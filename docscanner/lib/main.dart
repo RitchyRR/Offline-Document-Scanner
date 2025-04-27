@@ -1520,7 +1520,16 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _savePagePopup(BuildContext context, int pageIndex) async {
-    final String imagePath = _pageThumbnails[pageIndex];
+    final int thumbnailIndex =
+        await ImageProcessingManager.readPageThumbnailIndex(
+          widget.docIndex,
+          pageIndex,
+        );
+    final String imagePath = await filesHelper.getVersionPath(
+      widget.docIndex,
+      pageIndex,
+      thumbnailIndex,
+    );
 
     showDialog(
       // ignore: use_build_context_synchronously
@@ -1799,11 +1808,24 @@ class _PagesState extends State<Pages> {
                                                   }
                                                 },
                                               ),
-                                              SizedBox(height: 16),
+                                              SizedBox(height: 24),
+
                                               // Save, Share, Delete
+                                              //Align(
+                                              //  alignment: Alignment.centerLeft,
+                                              //  child: Text(
+                                              //    "Change Page Index",
+                                              //    style: TextStyle(
+                                              //      color: Colors.white70,
+                                              //      fontSize: 12,
+                                              //      fontWeight: FontWeight.w400,
+                                              //    ),
+                                              //  ),
+                                              //),
                                               Row(
                                                 mainAxisAlignment:
-                                                    MainAxisAlignment.center,
+                                                    MainAxisAlignment
+                                                        .spaceAround,
                                                 children: [
                                                   // Save
                                                   IconButton(
@@ -1842,7 +1864,6 @@ class _PagesState extends State<Pages> {
                                                   () => Navigator.pop(context),
                                               child: Text("Cancel"),
                                             ),
-                                            SizedBox(width: 8),
                                             ElevatedButton(
                                               onPressed: () {
                                                 Navigator.pop(

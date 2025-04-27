@@ -508,6 +508,26 @@ class FilesHelper {
     return versionPaths;
   }
 
+  Future<String> getVersionPath(
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+  ) async {
+    String pagePath = await getPagePath(docIndex, pageIndex);
+
+    List<FileSystemEntity> versionsFSE =
+        (Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path)));
+    for (var fse in versionsFSE) {
+      if (fse.path.contains(versionNames[versionIndex])) {
+        return fse.path;
+      }
+    }
+    throw StateError(
+      "getVersionPath: Version does not exist: Doc $docIndex, Page $pageIndex, Version $versionIndex",
+    );
+  }
+
   changeDocumentIndex(int currentIndex, int newIndex) async {
     //int pagesCount = await getDocumentsCount();
     String currentPath = await getDocumentPath(currentIndex);
