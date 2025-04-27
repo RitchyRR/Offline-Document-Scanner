@@ -1768,126 +1768,7 @@ class _PagesState extends State<Pages> {
                                 left: 12,
                                 child: GestureDetector(
                                   // Change Page Index Dialog
-                                  onTap: () async {
-                                    int? selectedIndex = await showDialog<int>(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        int currentIndex = index;
-                                        return AlertDialog(
-                                          title: Text(
-                                            "Page ${currentIndex + 1}",
-                                          ),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              DropdownButtonFormField<int>(
-                                                decoration: InputDecoration(
-                                                  labelText:
-                                                      "Change Page Index",
-                                                ),
-                                                value: currentIndex,
-                                                isExpanded: true,
-                                                items: List.generate(
-                                                  _pageThumbnails.length,
-                                                  (i) => DropdownMenuItem(
-                                                    value: i,
-                                                    child: Text(
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      "Page ${i + 1}",
-                                                    ),
-                                                  ),
-                                                ),
-                                                onChanged: (int? newValue) {
-                                                  if (newValue != null) {
-                                                    setState(
-                                                      () =>
-                                                          currentIndex =
-                                                              newValue,
-                                                    );
-                                                  }
-                                                },
-                                              ),
-                                              SizedBox(height: 24),
-
-                                              // Save, Share, Delete
-                                              //Align(
-                                              //  alignment: Alignment.centerLeft,
-                                              //  child: Text(
-                                              //    "Change Page Index",
-                                              //    style: TextStyle(
-                                              //      color: Colors.white70,
-                                              //      fontSize: 12,
-                                              //      fontWeight: FontWeight.w400,
-                                              //    ),
-                                              //  ),
-                                              //),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceAround,
-                                                children: [
-                                                  // Save
-                                                  IconButton(
-                                                    onPressed:
-                                                        () => _savePagePopup(
-                                                          context,
-                                                          index,
-                                                        ),
-                                                    icon: Icon(Icons.save),
-                                                  ),
-                                                  // Share
-                                                  IconButton(
-                                                    onPressed:
-                                                        () => _sharePagePopup(
-                                                          context,
-                                                          index,
-                                                        ),
-                                                    icon: Icon(Icons.share),
-                                                  ),
-                                                  // Delete
-                                                  IconButton(
-                                                    onPressed:
-                                                        () => _deletePagePopup(
-                                                          context,
-                                                          index,
-                                                        ),
-                                                    icon: Icon(Icons.delete),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(context),
-                                              child: Text("Cancel"),
-                                            ),
-                                            ElevatedButton(
-                                              onPressed: () {
-                                                Navigator.pop(
-                                                  context,
-                                                  currentIndex,
-                                                );
-                                              },
-                                              child: Text("OK"),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-
-                                    if (selectedIndex != null &&
-                                        selectedIndex != index) {
-                                      await filesHelper.changePageIndex(
-                                        widget.docIndex,
-                                        index,
-                                        selectedIndex,
-                                      );
-                                      _loadPagesThumbnails();
-                                    }
-                                  },
+                                  onTap: () => _pageIndexDialog(context, index),
                                   child: Container(
                                     padding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -1972,6 +1853,94 @@ class _PagesState extends State<Pages> {
         ),
       ),
     );
+  }
+
+  Future<AlertDialog> _pageIndexDialog(BuildContext context, int index) async {
+    int? selectedIndex = await showDialog<int>(
+      context: context,
+      builder: (BuildContext context) {
+        int currentIndex = index;
+        return AlertDialog(
+          title: Text("Page ${currentIndex + 1}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                decoration: InputDecoration(labelText: "Change Page Index"),
+                value: currentIndex,
+                isExpanded: true,
+                items: List.generate(
+                  _pageThumbnails.length,
+                  (i) => DropdownMenuItem(
+                    value: i,
+                    child: Text(
+                      overflow: TextOverflow.ellipsis,
+                      "Page ${i + 1}",
+                    ),
+                  ),
+                ),
+                onChanged: (int? newValue) {
+                  if (newValue != null) {
+                    setState(() => currentIndex = newValue);
+                  }
+                },
+              ),
+              SizedBox(height: 24),
+
+              // Save, Share, Delete
+              //Align(
+              //  alignment: Alignment.centerLeft,
+              //  child: Text(
+              //    "Change Page Index",
+              //    style: TextStyle(
+              //      color: Colors.white70,
+              //      fontSize: 12,
+              //      fontWeight: FontWeight.w400,
+              //    ),
+              //  ),
+              //),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  // Save
+                  IconButton(
+                    onPressed: () => _savePagePopup(context, index),
+                    icon: Icon(Icons.save),
+                  ),
+                  // Share
+                  IconButton(
+                    onPressed: () => _sharePagePopup(context, index),
+                    icon: Icon(Icons.share),
+                  ),
+                  // Delete
+                  IconButton(
+                    onPressed: () => _deletePagePopup(context, index),
+                    icon: Icon(Icons.delete),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, currentIndex);
+              },
+              child: Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+    if (selectedIndex != null && selectedIndex != index) {
+      await filesHelper.changePageIndex(widget.docIndex, index, selectedIndex);
+      _loadPagesThumbnails();
+    }
+    return AlertDialog();
   }
 }
 
