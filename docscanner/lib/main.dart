@@ -3077,7 +3077,7 @@ class PagePreviewState extends State<PagePreview> {
       _totalRotation = 0;
     } else {
       _reprocessingSetup();
-      imageProcessingManager.processPage(
+      imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image

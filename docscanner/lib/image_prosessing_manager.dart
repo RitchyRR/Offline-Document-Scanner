@@ -31,14 +31,14 @@ class ImageProcessingManager {
       bool isPrimary,
       int docIndex,
       int pageIndex,
-      String pathIn,
+      String newPicturePath,
       int? ratioIndexIn,
       int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       bool? proUnlockedIn,
       int rotationIn,
-      bool initial,
+      bool isInitial,
     )
     data,
   ) async {
@@ -47,7 +47,7 @@ class ImageProcessingManager {
     bool isPrimary = data.$3;
     int docIndex = data.$4;
     int pageIndex = data.$5;
-    String pathIn = data.$6;
+    String newPicturePath = data.$6;
 
     int? ratioIndexIn = data.$7;
     int? orientationIndexIn = data.$8;
@@ -55,7 +55,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn = data.$10;
     bool? proUnlockedIn = data.$11;
     int rotationIn = data.$12;
-    bool initial = data.$13;
+    bool isInitial = data.$13;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
@@ -64,26 +64,12 @@ class ImageProcessingManager {
     List<String> versionPaths = List.generate(4, (index) => "");
 
     // Original
-    File pictureFile = File(pathIn);
-    Uint8List picture;
-    if (pictureFile.existsSync()) {
-      picture = pictureFile.readAsBytesSync();
-    } else {
-      throw StateError('picture does not exist');
-    }
-    versionPaths[0] = await filesHelperIn.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      picture,
-      isPrimary ? sendPort : null,
-    );
-
+    versionPaths[0] = newPicturePath;
     // Re-use Shape
     String shapePath = await filesHelperIn.getPageShape(
       docIndex,
       pageIndex,
-      supresswarning: initial,
+      supresswarning: isInitial,
     );
     if (shapePath.isNotEmpty && rotationIn != 0) {
       Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
@@ -169,6 +155,87 @@ class ImageProcessingManager {
     );
 
     sendPort.send('done');
+  }
+
+  Future<void> processPageWrapper(
+    bool isPrimary,
+    int docIndex,
+    int pageIndex,
+    String pathIn,
+    int? ratioIndexIn,
+    int? orientationIndexIn,
+    int? pageThumbnailIndex,
+    List<List<int>>? cornerPointsIn,
+    int rotationIn,
+    bool isInitial,
+  ) async {
+    if (pathIn.isEmpty) return;
+    final warpperCompleter = Completer<void>();
+
+    // Save Photo
+    File pictureFile = File(pathIn);
+    Uint8List picture;
+    if (pictureFile.existsSync()) {
+      picture = pictureFile.readAsBytesSync();
+    } else {
+      throw StateError('picture does not exist');
+    }
+    String newPhotoPath = await filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      0,
+      picture,
+      null,
+    );
+
+    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+    ReceivePort port = ReceivePort();
+    Isolate isolate = await Isolate.spawn(_processPageIsolate, (
+      port.sendPort,
+      filesHelper,
+      isPrimary,
+      docIndex,
+      pageIndex,
+      newPhotoPath,
+      ratioIndexIn,
+      orientationIndexIn,
+      pageThumbnailIndex,
+      cornerPointsIn,
+      proUnlocked,
+      rotationIn,
+      isInitial,
+    ));
+
+    Capability? cap;
+    if (isolates.length + 1 >= maxIsolates) {
+      cap = Capability();
+      isolate.pause(cap);
+    }
+    isolates[(docIndex, pageIndex)] = isolate;
+    capabilities.add(cap);
+
+    port.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message == 'done') {
+        port.close();
+        warpperCompleter.complete();
+
+        int index = isolates.values.toList().indexOf(isolate);
+        isolates.removeWhere((key, value) => value == isolate);
+        capabilities.removeAt(index);
+
+        // Resume next paused isolate
+        for (int i = 0; i < isolates.length; i++) {
+          if (capabilities[i] != null) {
+            isolates.values.elementAt(i).resume(capabilities[i]!);
+            capabilities[i] = null;
+            break;
+          }
+        }
+      }
+    });
+    await warpperCompleter.future;
   }
 
   static Future<void> _repairPageIsolate(
@@ -324,15 +391,8 @@ class ImageProcessingManager {
   ) async {
     if (pathsIn.isEmpty) return;
 
-    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
-
     // First page is opened in PagePreview -> more NotifierEvents
-    ReceivePort primaryPort = ReceivePort();
-    final primaryCompleter = Completer<void>();
-    //comleters.add(primaryCompleter);
-    Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
-      primaryPort.sendPort,
-      filesHelper,
+    Future<void> primaryFuture = processPageWrapper(
       true,
       docIndex,
       firstPageIndex,
@@ -341,50 +401,22 @@ class ImageProcessingManager {
       null,
       null,
       null,
-      proUnlocked,
       0,
       true,
-    ));
-    isolates[(docIndex, firstPageIndex)] = primaryIsolate;
-    capabilities.add(null);
-
-    primaryPort.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
-        primaryPort.close();
-        primaryCompleter.complete();
-
-        int index = isolates.values.toList().indexOf(primaryIsolate);
-        isolates.removeWhere((key, value) => value == primaryIsolate);
-        capabilities.removeAt(index);
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
-      }
-    });
+    );
 
     List<Future<dynamic>> beforeSecundary = [];
     beforeSecundary.add(Future.delayed(Duration(milliseconds: 4000)));
-    beforeSecundary.add(primaryCompleter.future);
+    beforeSecundary.add(primaryFuture);
 
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
       await Future.any(beforeSecundary);
+      final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
 
       for (var (index, path) in pathsIn.indexed) {
-        ReceivePort port = ReceivePort();
-        //comleters.add(completer);
-        Isolate isolate = await Isolate.spawn(_processPageIsolate, (
-          port.sendPort,
-          filesHelper,
+        processPageWrapper(
           false,
           docIndex,
           firstPageIndex + 1 + index,
@@ -393,39 +425,9 @@ class ImageProcessingManager {
           null,
           null,
           null,
-          proUnlocked,
           0,
           true,
-        ));
-
-        Capability? cap;
-        if (isolates.length + 1 >= maxIsolates) {
-          cap = Capability();
-          isolate.pause(cap);
-        }
-        isolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
-        capabilities.add(cap);
-
-        port.listen((message) {
-          if (message is NotifierEvent) {
-            globalNotifier.triggerEvent(message);
-          } else if (message == 'done') {
-            port.close();
-
-            int index = isolates.values.toList().indexOf(isolate);
-            isolates.removeWhere((key, value) => value == isolate);
-            capabilities.removeAt(index);
-
-            // Resume next paused isolate
-            for (int i = 0; i < isolates.length; i++) {
-              if (capabilities[i] != null) {
-                isolates.values.elementAt(i).resume(capabilities[i]!);
-                capabilities[i] = null;
-                break;
-              }
-            }
-          }
-        });
+        );
 
         // just a small delay
         if (isolates.length >= maxIsolates) {
@@ -437,7 +439,7 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> processPage(
+  Future<void> reprocessPage(
     int docIndex,
     int pageIndex,
     String pathIn,
@@ -447,10 +449,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
   ) async {
-    ReceivePort primaryPort = ReceivePort();
-    Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
-      primaryPort.sendPort,
-      filesHelper,
+    processPageWrapper(
       true,
       docIndex,
       pageIndex,
@@ -459,36 +458,13 @@ class ImageProcessingManager {
       orientationIn,
       pageThumbnailIndex,
       cornerPointsIn,
-      proUnlocked,
       rotationIn,
       false,
-    ));
-    isolates[(docIndex, pageIndex)] = primaryIsolate;
-    capabilities.add(null);
-
-    primaryPort.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
-        primaryPort.close();
-
-        int index = isolates.values.toList().indexOf(primaryIsolate);
-        isolates.removeWhere((key, value) => value == primaryIsolate);
-        capabilities.removeAt(index);
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
-      }
-    });
+    );
   }
 
   Future<void> repairPage(int docIndex, int pageIndex) async {
+    final repairCompleter = Completer<void>();
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
 
@@ -527,6 +503,7 @@ class ImageProcessingManager {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
+        repairCompleter.complete();
 
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
@@ -542,6 +519,7 @@ class ImageProcessingManager {
         }
       }
     });
+    await repairCompleter.future;
   }
 
   static Future<void> _rotatePageIsolate(

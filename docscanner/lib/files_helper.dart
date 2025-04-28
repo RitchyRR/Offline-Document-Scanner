@@ -147,6 +147,8 @@ class FilesHelper {
           break;
         default:
       }
+    } else if (versionIndex == 0) {
+      globalNotifier.triggerEvent(NotifierEvent.pictureSaved);
     }
     return versionPath;
   }
@@ -294,6 +296,7 @@ class FilesHelper {
 
   Future<bool> _repairDirectoryStructure() async {
     bool anyChange = false;
+    List<Future<void>> repairFutures = [];
 
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync().whereType<Directory>().toList();
@@ -343,7 +346,7 @@ class FilesHelper {
                 }
               }
               if (photoExists) {
-                dev.log("Reparing Doc $docIndex Page $pageIndex");
+                dev.log("Repairing Doc $docIndex Page $pageIndex");
               } else {
                 dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
               }
@@ -353,7 +356,9 @@ class FilesHelper {
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
-              imageProcessingManager.repairPage(docIndex, pageIndex);
+              repairFutures.add(
+                imageProcessingManager.repairPage(docIndex, pageIndex),
+              );
             }
           }
         }
@@ -362,6 +367,7 @@ class FilesHelper {
         deleteDocument(docIndex);
       }
     }
+    await Future.wait(repairFutures);
     return anyChange;
   }
 
