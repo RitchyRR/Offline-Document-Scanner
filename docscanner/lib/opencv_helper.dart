@@ -40,7 +40,7 @@ final List<AspectRatioInfo> commonAspectRatios = [
 
 class ParamsWarpImage {
   String pathIn = "";
-  String? shape;
+  String shape;
   int? inRatioIndex;
   int? orientation;
   List<List<int>>? cornerPoints;
@@ -80,7 +80,7 @@ class OpenCVHelper {
     ParamsWarpImage params,
   ) {
     cv.Mat imageMat = _loadImage(params.pathIn);
-    cv.Mat? shape = (params.shape != null) ? _loadImage(params.shape!) : null;
+    cv.Mat? shape = (params.shape.isNotEmpty) ? _loadImage(params.shape) : null;
 
     final warpedRes = _warpImage(
       imageMat,

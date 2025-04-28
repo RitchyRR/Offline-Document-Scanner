@@ -2018,10 +2018,11 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _initAsync() async {
-    _versionPaths = await filesHelper.getImagePathsForPage(
+    var imagePaths = await filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
+    _versionPaths = imagePaths.$1;
     _picturePath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarnings: true);
@@ -2043,34 +2044,38 @@ class PagePreviewState extends State<PagePreview> {
         _loadPageMeatadata();
         break;
       case NotifierEvent.pictureSaved:
-        _versionPaths = await filesHelper.getImagePathsForPage(
+        var imagePaths = await filesHelper.getImagePathsForPage(
           widget.docIndex,
           widget.pageIndex,
         );
+        _versionPaths = imagePaths.$1;
         _picturePath = _versionPaths.first;
         setState(() => _versionPaths);
         FilesHelper.deleteCachedRoatedImages();
         _refreshCornersOverlay(supressWarnings: true);
         break;
       case NotifierEvent.warpSaved:
-        _versionPaths = await filesHelper.getImagePathsForPage(
+        var imagePaths = await filesHelper.getImagePathsForPage(
           widget.docIndex,
           widget.pageIndex,
         );
+        _versionPaths = imagePaths.$1;
         setState(() => _versionPaths);
         break;
       case NotifierEvent.processed1Saved:
-        _versionPaths = await filesHelper.getImagePathsForPage(
+        var imagePaths = await filesHelper.getImagePathsForPage(
           widget.docIndex,
           widget.pageIndex,
         );
+        _versionPaths = imagePaths.$1;
         setState(() => _versionPaths);
         break;
       case NotifierEvent.processed2Saved:
-        _versionPaths = await filesHelper.getImagePathsForPage(
+        var imagePaths = await filesHelper.getImagePathsForPage(
           widget.docIndex,
           widget.pageIndex,
         );
+        _versionPaths = imagePaths.$1;
         setState(() => _versionPaths);
         break;
       default:

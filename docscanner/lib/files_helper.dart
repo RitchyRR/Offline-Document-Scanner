@@ -174,7 +174,7 @@ class FilesHelper {
     return filePath;
   }
 
-  Future<String?> getPageShape(
+  Future<String> getPageShape(
     int docIndex,
     int pageIndex, {
     bool supresswarning = false,
@@ -190,7 +190,7 @@ class FilesHelper {
     if (!supresswarning) {
       dev.log("Warning, getPageShape: No shape in page");
     }
-    return null;
+    return "";
   }
 
   Future<(List<String>, int)> getDocThumbnails() async {
@@ -208,9 +208,14 @@ class FilesHelper {
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;
       String? backupPath;
-      List<FileSystemEntity> versions =
-          (Directory(page0Path).listSync()
-            ..sort((a, b) => a.path.compareTo(b.path)));
+      List<FileSystemEntity> versions = [];
+      try {
+        versions =
+            (Directory(page0Path).listSync()
+              ..sort((a, b) => a.path.compareTo(b.path)));
+      } catch (e) {
+        dev.log("Error: getDocThumbnails: $e");
+      }
       for (var version in versions) {
         if (version.path.contains(thumbnailName)) {
           thumbnailPath = version.path;
@@ -348,7 +353,7 @@ class FilesHelper {
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
-              //imageProcessingManager.repairPage(docIndex, pageIndex);
+              imageProcessingManager.repairPage(docIndex, pageIndex);
             }
           }
         }
@@ -504,24 +509,33 @@ class FilesHelper {
     return firstPageIndex!;
   }
 
-  Future<List<String>> getImagePathsForPage(int docIndex, int pageIndex) async {
+  Future<(List<String>, String, String)> getImagePathsForPage(
+    int docIndex,
+    int pageIndex,
+  ) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
-
     List<String> versionPaths = ["", "", "", ""];
+    String shapePath = "";
+    String thumbnailPath = "";
     List<FileSystemEntity> versionsFSE =
         (Directory(pagePath).listSync()
           ..sort((a, b) => a.path.compareTo(b.path)));
-    for (var (versionIndex, versionName) in versionNames.indexed) {
-      for (var fse in versionsFSE) {
+    for (var fse in versionsFSE) {
+      for (var (versionIndex, versionName) in versionNames.indexed) {
         if (fse.path.contains(versionName)) {
           versionPaths[versionIndex] = fse.path;
-          versionsFSE.remove(fse);
           break;
         }
       }
+      if (fse.path.contains("shape")) {
+        shapePath = fse.path;
+      }
+      if (fse.path.contains("thumbnail")) {
+        thumbnailPath = fse.path;
+      }
     }
 
-    return versionPaths;
+    return (versionPaths, shapePath, thumbnailPath);
   }
 
   Future<String> getVersionPath(
