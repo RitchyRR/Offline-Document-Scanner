@@ -193,6 +193,12 @@ class _MyAppState extends State<MyApp> {
           },
           builder: FToastBuilder(),
           theme: ThemeData(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: <TargetPlatform, PageTransitionsBuilder>{
+                // Set the predictive back transitions for Android.
+                TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+              },
+            ),
             colorScheme: lightTheme,
             useMaterial3: true,
             appBarTheme: AppBarTheme(
@@ -208,6 +214,12 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           darkTheme: ThemeData(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: <TargetPlatform, PageTransitionsBuilder>{
+                // Set the predictive back transitions for Android.
+                TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+              },
+            ),
             colorScheme: darkTheme,
             useMaterial3: true,
             appBarTheme: AppBarTheme(
@@ -3006,7 +3018,7 @@ class PagePreviewState extends State<PagePreview> {
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
-    imageProcessingManager.killPrimaryIsolateOfPage(
+    imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
       widget.pageIndex,
     );

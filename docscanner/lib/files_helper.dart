@@ -307,33 +307,49 @@ class FilesHelper {
       List<FileSystemEntity> pages =
           Directory(expectedDocPath).listSync().whereType<Directory>().toList();
       if (pages.isNotEmpty) {
-        for (var (pageIndex, page) in pages.indexed) {
+        for (var (pageIndex, pageFse) in pages.indexed) {
           // Reanme pages to match their index
           String expectedPagePath = await getPagePath(
             docIndex,
             pageIndex,
             supressWarning: true,
           );
-          if (page.path != expectedPagePath) {
-            dev.log("Renaming ${page.path} -> $expectedPagePath");
-            page.renameSync(expectedPagePath);
+          if (pageFse.path != expectedPagePath) {
+            dev.log("Renaming ${pageFse.path} -> $expectedPagePath");
+            pageFse.renameSync(expectedPagePath);
             anyChange = true;
           }
 
           // Delete empty pages
           int versionCount = await getPageImagesCount(docIndex, pageIndex);
 
-          if (versionCount < versionNames.length + 2) // + thumbnail + shape
-          {
+          // versions + thumbnail + shape
+          if (versionCount < versionNames.length + 2) {
             anyChange = true;
+            bool photoExists = false;
             if (versionCount == 0) {
-              dev.log("Deleting empty Page $pageIndex");
+              dev.log("Deleting empty Doc $docIndex Page $pageIndex");
             } else {
-              dev.log("Deleting half-empty Page $pageIndex");
+              String photoName = versionNames[0];
+              for (var pageFse in Directory(expectedPagePath).listSync()) {
+                if (pageFse.path.contains(photoName)) {
+                  photoExists = true;
+                  break;
+                }
+              }
+              if (photoExists) {
+                dev.log("Reparing Doc $docIndex Page $pageIndex");
+              } else {
+                dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
+              }
             }
-            await deletePage(docIndex, pageIndex);
-            // Info: If deletePage() results in empty Documents,
-            //       deletePage() will delete these Documents
+            if (!photoExists) {
+              await deletePage(docIndex, pageIndex);
+              // Info: If deletePage() results in empty Documents,
+              //       deletePage() will delete these Documents
+            } else {
+              //imageProcessingManager.repairPage(docIndex, pageIndex);
+            }
           }
         }
       } else {

@@ -20,9 +20,9 @@ const List<String> versionNames = [
 ];
 
 class ImageProcessingManager {
-  Map<(int, int), Isolate> primaryIsolates = {};
-  Map<(int, int), Isolate> secundaryIsolates = {};
-  List<Completer> comleters = [];
+  Map<(int, int), Isolate> isolates = {};
+  //List<Completer> comleters = [];
+  List<Capability?> capabilities = [];
 
   static Future<void> _processPageIsolate(
     (
@@ -171,47 +171,24 @@ class ImageProcessingManager {
     sendPort.send('done');
   }
 
-  Future<void> killPrimaryIsolateOfPage(int docIndex, int pageIndex) async {
-    var key = (docIndex, pageIndex);
-    if (primaryIsolates.containsKey(key)) {
-      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
-      primaryIsolates.remove(key);
-    }
-  }
-
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
-    if (primaryIsolates.containsKey(key)) {
-      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
-      primaryIsolates.remove(key);
-    }
-    if (secundaryIsolates.containsKey(key)) {
-      (secundaryIsolates[key]!).kill(priority: Isolate.immediate);
-      secundaryIsolates.remove(key);
+    if (isolates.containsKey(key)) {
+      (isolates[key]!).kill(priority: Isolate.immediate);
+      isolates.remove(key);
     }
   }
 
   Future<void> killIsolatesOfDocument(int docIndex) async {
-    List<(int, int)> primaryKeys = [];
-    for (var key in primaryIsolates.keys) {
-      if (key.$1 == docIndex) {
-        primaryKeys.add(key);
-      }
-    }
-    for (var key in primaryKeys) {
-      (primaryIsolates[key]!).kill(priority: Isolate.immediate);
-      primaryIsolates.remove(key);
-    }
-
     List<(int, int)> secundaryKeys = [];
-    for (var key in secundaryIsolates.keys) {
+    for (var key in isolates.keys) {
       if (key.$1 == docIndex) {
         secundaryKeys.add(key);
       }
     }
     for (var key in secundaryKeys) {
-      (secundaryIsolates[key]!).kill(priority: Isolate.immediate);
-      secundaryIsolates.remove(key);
+      (isolates[key]!).kill(priority: Isolate.immediate);
+      isolates.remove(key);
     }
   }
 
@@ -222,10 +199,12 @@ class ImageProcessingManager {
   ) async {
     if (pathsIn.isEmpty) return;
 
-    // First page is prioritized
+    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+
+    // First page is opened in PagePreview -> more NotifierEvents
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
-    comleters.add(primaryCompleter);
+    //comleters.add(primaryCompleter);
     Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
       primaryPort.sendPort,
       filesHelper,
@@ -241,21 +220,33 @@ class ImageProcessingManager {
       0,
       true,
     ));
-    primaryIsolates[(docIndex, firstPageIndex)] = primaryIsolate;
+    isolates[(docIndex, firstPageIndex)] = primaryIsolate;
+    capabilities.add(null);
+
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         primaryPort.close();
         primaryCompleter.complete();
-        comleters.remove(primaryCompleter);
-        //primaryIsolate.kill();
-        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+
+        int index = isolates.values.toList().indexOf(primaryIsolate);
+        isolates.removeWhere((key, value) => value == primaryIsolate);
+        capabilities.removeAt(index);
+
+        // Resume next paused isolate
+        for (int i = 0; i < isolates.length; i++) {
+          if (capabilities[i] != null) {
+            isolates.values.elementAt(i).resume(capabilities[i]!);
+            capabilities[i] = null;
+            break;
+          }
+        }
       }
     });
 
     List<Future<dynamic>> beforeSecundary = [];
-    beforeSecundary.add(Future.delayed(Duration(milliseconds: 1000)));
+    beforeSecundary.add(Future.delayed(Duration(milliseconds: 4000)));
     beforeSecundary.add(primaryCompleter.future);
 
     // Remaining pages
@@ -263,17 +254,11 @@ class ImageProcessingManager {
     if (pathsIn.isNotEmpty) {
       await Future.any(beforeSecundary);
 
-      final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
       for (var (index, path) in pathsIn.indexed) {
-        if (comleters.length >= maxIsolates) {
-          await Future.any(comleters.map((c) => c.future));
-        }
-
-        ReceivePort secundaryPort = ReceivePort();
-        final completer = Completer<void>();
-        comleters.add(completer);
+        ReceivePort port = ReceivePort();
+        //comleters.add(completer);
         Isolate isolate = await Isolate.spawn(_processPageIsolate, (
-          secundaryPort.sendPort,
+          port.sendPort,
           filesHelper,
           false,
           docIndex,
@@ -287,18 +272,42 @@ class ImageProcessingManager {
           0,
           true,
         ));
-        secundaryIsolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
-        secundaryPort.listen((message) {
+
+        Capability? cap;
+        if (isolates.length + 1 >= maxIsolates) {
+          cap = Capability();
+          isolate.pause(cap);
+        }
+        isolates[(docIndex, firstPageIndex + 1 + index)] = isolate;
+        capabilities.add(cap);
+
+        port.listen((message) {
           if (message is NotifierEvent) {
             globalNotifier.triggerEvent(message);
           } else if (message == 'done') {
-            secundaryPort.close();
-            completer.complete();
-            comleters.remove(completer);
-            //isolate.kill();
-            secundaryIsolates.removeWhere((key, value) => value == isolate);
+            port.close();
+
+            int index = isolates.values.toList().indexOf(isolate);
+            isolates.removeWhere((key, value) => value == isolate);
+            capabilities.removeAt(index);
+
+            // Resume next paused isolate
+            for (int i = 0; i < isolates.length; i++) {
+              if (capabilities[i] != null) {
+                isolates.values.elementAt(i).resume(capabilities[i]!);
+                capabilities[i] = null;
+                break;
+              }
+            }
           }
         });
+
+        // just a small delay
+        if (isolates.length >= maxIsolates) {
+          await Future.delayed(Duration(milliseconds: 500));
+        } else {
+          await Future.delayed(Duration(milliseconds: 50));
+        }
       }
     }
   }
@@ -314,8 +323,6 @@ class ImageProcessingManager {
     int rotationIn,
   ) async {
     ReceivePort primaryPort = ReceivePort();
-    final primaryCompleter = Completer<void>();
-    comleters.add(primaryCompleter);
     Isolate primaryIsolate = await Isolate.spawn(_processPageIsolate, (
       primaryPort.sendPort,
       filesHelper,
@@ -331,19 +338,65 @@ class ImageProcessingManager {
       rotationIn,
       false,
     ));
-    primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
+    isolates[(docIndex, pageIndex)] = primaryIsolate;
+    capabilities.add(null);
+
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         primaryPort.close();
-        primaryCompleter.complete();
-        comleters.remove(primaryCompleter);
-        //primaryIsolate.kill();
-        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+
+        int index = isolates.values.toList().indexOf(primaryIsolate);
+        isolates.removeWhere((key, value) => value == primaryIsolate);
+        capabilities.removeAt(index);
+
+        // Resume next paused isolate
+        for (int i = 0; i < isolates.length; i++) {
+          if (capabilities[i] != null) {
+            isolates.values.elementAt(i).resume(capabilities[i]!);
+            capabilities[i] = null;
+            break;
+          }
+        }
       }
     });
   }
+
+  //Future<void> repairPage(int docIndex, int pageIndex) async {
+  //  ReceivePort secundaryPort = ReceivePort();
+  //  final secundaryCompleter = Completer<void>();
+  //  comleters.add(secundaryCompleter);
+  //  Isolate secundaryIsolate = await Isolate.spawn(_processPageIsolate, (
+  //    secundaryPort.sendPort,
+  //    filesHelper,
+  //    true,
+  //    docIndex,
+  //    pageIndex,
+  //    pathIn,
+  //    ratioIndexIn,
+  //    orientationIn,
+  //    pageThumbnailIndex,
+  //    cornerPointsIn,
+  //    proUnlocked,
+  //    rotationIn,
+  //    false,
+  //  ));
+  //  secundaryIsolates[(docIndex, pageIndex)] = secundaryIsolate;
+  //  secundaryPort.listen((message) {
+  //    if (message is NotifierEvent) {
+  //      globalNotifier.triggerEvent(message);
+  //    } else if (message == 'done') {
+  //      secundaryPort.close();
+  //      secundaryCompleter.complete();
+  //      comleters.remove(secundaryCompleter);
+  //      //secundaryIsolate.kill();
+  //      secundaryIsolates.removeWhere(
+  //        (key, value) => value == secundaryIsolate,
+  //      );
+  //    }
+  //  });
+  //}
 
   static Future<void> _rotatePageIsolate(
     (
@@ -450,7 +503,6 @@ class ImageProcessingManager {
   ) async {
     ReceivePort primaryPort = ReceivePort();
     final primaryCompleter = Completer<void>();
-    comleters.add(primaryCompleter);
     Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
       primaryPort.sendPort,
       filesHelper,
@@ -460,16 +512,27 @@ class ImageProcessingManager {
       angle,
       pageThumbnailIndexIn,
     ));
-    primaryIsolates[(docIndex, pageIndex)] = primaryIsolate;
+    isolates[(docIndex, pageIndex)] = primaryIsolate;
+    capabilities.add(null);
+
     primaryPort.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         primaryPort.close();
-        primaryCompleter.complete();
-        comleters.remove(primaryCompleter);
-        //primaryIsolate.kill();
-        primaryIsolates.removeWhere((key, value) => value == primaryIsolate);
+
+        int index = isolates.values.toList().indexOf(primaryIsolate);
+        isolates.removeWhere((key, value) => value == primaryIsolate);
+        capabilities.removeAt(index);
+
+        // Resume next paused isolate
+        for (int i = 0; i < isolates.length; i++) {
+          if (capabilities[i] != null) {
+            isolates.values.elementAt(i).resume(capabilities[i]!);
+            capabilities[i] = null;
+            break;
+          }
+        }
       }
     });
     await primaryCompleter.future;
@@ -862,28 +925,42 @@ class ImageProcessingManager {
     int pageIndex,
     int thumbnailIndex,
   ) async {
-    ReceivePort secundaryPort = ReceivePort();
-    final secundaryCompleter = Completer<void>();
-    comleters.add(secundaryCompleter);
-    Isolate secundaryIsolate = await Isolate.spawn(_applyThumbnailIsolate, (
-      secundaryPort.sendPort,
+    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+    ReceivePort port = ReceivePort();
+    Isolate isolate = await Isolate.spawn(_applyThumbnailIsolate, (
+      port.sendPort,
       filesHelper,
       docIndex,
       pageIndex,
       thumbnailIndex,
     ));
-    secundaryIsolates[(docIndex, pageIndex)] = secundaryIsolate;
-    secundaryPort.listen((message) async {
+
+    Capability? cap;
+    if (isolates.length + 1 >= maxIsolates) {
+      cap = Capability();
+      isolate.pause(cap);
+    }
+    isolates[(docIndex, pageIndex)] = isolate;
+    capabilities.add(cap);
+
+    port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
-        secundaryPort.close();
-        secundaryCompleter.complete();
-        comleters.remove(secundaryCompleter);
-        //secundaryIsolate.kill();
-        secundaryIsolates.removeWhere(
-          (key, value) => value == secundaryIsolate,
-        );
+        port.close();
+
+        int index = isolates.values.toList().indexOf(isolate);
+        isolates.removeWhere((key, value) => value == isolate);
+        capabilities.removeAt(index);
+
+        // Resume next paused isolate
+        for (int i = 0; i < isolates.length; i++) {
+          if (capabilities[i] != null) {
+            isolates.values.elementAt(i).resume(capabilities[i]!);
+            capabilities[i] = null;
+            break;
+          }
+        }
       }
     });
   }
