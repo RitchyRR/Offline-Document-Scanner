@@ -219,6 +219,7 @@ class ImageProcessingManager {
         inRatioIndex: ratioIndexIn,
         orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
+        onlyCalculateBorder: versionPaths[1].isNotEmpty,
       ),
     );
     Uint8List warped = warpedRet.$1;
@@ -241,13 +242,15 @@ class ImageProcessingManager {
       filesHelperIn: filesHelperIn,
     );
 
-    versionPaths[1] = await filesHelperIn.savePageVersion(
-      docIndex,
-      pageIndex,
-      1,
-      warped,
-      null,
-    );
+    if (versionPaths[1].isEmpty) {
+      versionPaths[1] = await filesHelperIn.savePageVersion(
+        docIndex,
+        pageIndex,
+        1,
+        warped,
+        null,
+      );
+    }
 
     // Processed1 basierend auf dem Warped-Bild
     if (versionPaths[2].isEmpty) {

@@ -44,6 +44,7 @@ class ParamsWarpImage {
   int? inRatioIndex;
   int? orientation;
   List<List<int>>? cornerPoints;
+  bool onlyCalculateBorder;
 
   ParamsWarpImage(
     this.pathIn,
@@ -51,6 +52,7 @@ class ParamsWarpImage {
     this.inRatioIndex,
     this.orientation,
     this.cornerPoints,
+    this.onlyCalculateBorder = false,
   });
 }
 
@@ -88,8 +90,9 @@ class OpenCVHelper {
       params.inRatioIndex,
       params.orientation,
       params.cornerPoints,
+      params.onlyCalculateBorder,
     );
-    cv.Mat warped = warpedRes.$1;
+    cv.Mat? warped = warpedRes.$1;
     shape = warpedRes.$2;
     int ratioIndex = warpedRes.$3;
     int orientation = warpedRes.$4;
@@ -178,9 +181,10 @@ class OpenCVHelper {
   Uint8List _returnImage(cv.Mat? imageMat) {
     if (imageMat == null || imageMat.isEmpty) {
       dev.log("Error: Mat empty, can't convert to Image.");
+      return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
-    var (resultSuccess, resultImage) = cv.imencode('.png', imageMat!);
+    var (resultSuccess, resultImage) = cv.imencode('.png', imageMat);
     if (!resultSuccess) {
       dev.log("Error: Failed to encode image.");
     }
@@ -189,12 +193,13 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat, cv.Mat, int, int, List<List<int>>) _warpImage(
+  (cv.Mat?, cv.Mat, int, int, List<List<int>>) _warpImage(
     cv.Mat imageMat,
     cv.Mat? shape,
     int? ratioIndexIn,
     int? orientationIn,
     List<List<int>>? cornerPointsIn,
+    bool onlyCalculateBorder,
   ) {
     List<List<int>> corners = cornerPointsIn ?? [];
     int ratioIndex = ratioIndexIn ?? 0;
@@ -237,7 +242,10 @@ class OpenCVHelper {
       _calculateBorderSize(shape, corners, noBoderCutin: customCorners);
     }
 
-    cv.Mat warped = _correctedTransformImage(imageMat, corners);
+    cv.Mat? warped;
+    if (!onlyCalculateBorder) {
+      warped = _correctedTransformImage(imageMat, corners);
+    }
     imageMat.dispose();
 
     return (warped, shape, ratioIndex, orientation, corners);
