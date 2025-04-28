@@ -3719,20 +3719,23 @@ class _WarpState extends State<Warp> {
             : Rect.zero;
     return PopScope(
       canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (!_allowPop) {
+          if (await _leaveConfirmationDialog()) {
+            if (mounted && context.mounted) {
+              Navigator.pop(context);
+            }
+          }
+        } else {
+          // new thumbnail
+          if (mounted && context.mounted) {
+            Navigator.pop(context);
+          }
+        }
+      },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Adjust Corners"),
-          leading: BackButton(
-            onPressed: () async {
-              _allowPop = true;
-              if (await _leaveConfirmationDialog()) {
-                if (mounted && context.mounted) {
-                  Navigator.pop(context);
-                }
-              }
-            },
-          ),
-        ),
+        appBar: AppBar(title: const Text("Adjust Corners")),
         body: Column(
           children: [
             SizedBox(height: 24),
