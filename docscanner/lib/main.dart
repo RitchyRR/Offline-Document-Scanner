@@ -2487,7 +2487,7 @@ class PagePreviewState extends State<PagePreview> {
             : _versionPaths[_selectedVersion].isNotEmpty;
     bool allowPop = proUnlocked == true || _selectedVersion != 3;
     return PopScope(
-      canPop: false,
+      canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (!allowPop) {
