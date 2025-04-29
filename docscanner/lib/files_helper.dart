@@ -241,7 +241,10 @@ class FilesHelper {
     return (thumbnailPaths, docsCount);
   }
 
-  Future<(List<String>, int)> getPagesThumbnails(int docIndex) async {
+  Future<(List<String>, int)> getPagesThumbnails(
+    int docIndex, {
+    bool fullSized = false,
+  }) async {
     await _initializeDocumentsPath();
     int pagesCount = await filesHelper.getPagesCount(docIndex);
     List<String> thumbnailPaths = List.generate(pagesCount, (_) => "");
@@ -260,7 +263,7 @@ class FilesHelper {
       String? backupPath;
       List<FileSystemEntity> versions = Directory(pagePath).listSync();
       for (var version in versions) {
-        if (version.path.contains(thumbnailName)) {
+        if (!fullSized && version.path.contains(thumbnailName)) {
           thumbnailPath = version.path;
         } else if (version.path.contains(backupName)) {
           backupPath = version.path;
@@ -688,7 +691,8 @@ class FilesHelper {
   }
 
   Future<void> saveDocumentImagesToGallery(int docIndex) async {
-    List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
+    List<String> imagePaths =
+        (await getPagesThumbnails(docIndex, fullSized: true)).$1;
     final albumName = "Scanned Documents";
 
     int i = 0;
@@ -761,9 +765,9 @@ class FilesHelper {
     RootIsolateToken token = data.$2;
     ImageSource source = data.$3;
     bool isMultiImage = data.$4;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     List<String> imagePaths = [];
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     final ImagePicker picker = ImagePicker();
     final double maxWidth = 4048;
@@ -794,7 +798,8 @@ class FilesHelper {
 
   Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
     try {
-      List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
+      List<String> imagePaths =
+          (await getPagesThumbnails(docIndex, fullSized: true)).$1;
       if (imagePaths.isEmpty) {
         dev.log(
           "Error, _convertDocumentToPdf: No images in Document $docIndex",
@@ -997,7 +1002,8 @@ class FilesHelper {
     if (context.mounted) {
       messenger = ScaffoldMessenger.of(context);
     }
-    List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
+    List<String> imagePaths =
+        (await getPagesThumbnails(docIndex, fullSized: true)).$1;
     if (imagePaths.isNotEmpty) {
       shareImages(imagePaths, docIndex: docIndex);
     } else {
@@ -1032,36 +1038,75 @@ class FilesHelper {
   }
 
   Future<void> shareDocumentPdf(BuildContext context, int docIndex) async {
-    // Save PDF
+    ReceivePort port = ReceivePort();
+    RootIsolateToken token = RootIsolateToken.instance!;
+
     final docsPath = await _getDocumentsPath();
-    String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
-    // Processing Toast
+    final String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
+    final pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
+
+    Isolate.spawn(_shareDocumentPdfIsolate, (
+      port.sendPort,
+      token,
+      pdfPath,
+      pdf,
+    ));
+
+    ScaffoldMessengerState? messenger;
+    if (context.mounted) {
+      messenger = ScaffoldMessenger.of(context);
+    }
     const snackBar = SnackBar(
       content: Text('Processing PDF...'),
       duration: Duration(days: 1),
     );
-    ScaffoldMessengerState? messenger;
-    if (context.mounted) {
-      messenger = ScaffoldMessenger.of(context);
-      messenger.showSnackBar(snackBar);
-    } else {
-      Fluttertoast.showToast(
-        msg: "Processing PDF...",
-        toastLength: Toast.LENGTH_LONG,
-      );
-    }
-    pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 1000));
+      messenger?.showSnackBar(snackBar);
+    });
+
+    final completer = Completer();
+    port.listen((message) {
+      if (message is bool) {
+        if (message) {
+          completer.complete(message);
+          messenger?.hideCurrentSnackBar();
+          port.close();
+        } else {
+          messenger?.hideCurrentSnackBar();
+          messenger?.showSnackBar(
+            SnackBar(content: Text("No PDF available to share.")),
+          );
+        }
+      }
+    });
+    return await completer.future;
+  }
+
+  Future<void> _shareDocumentPdfIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      String pdfPath,
+      pdfw.Document? pdf,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    String pdfPath = data.$3;
+    pdfw.Document? pdf = data.$4;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    bool success = false;
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
       await Share.shareXFiles([XFile(pdfPath)]);
+      success = true;
       pdfFile.delete();
-      messenger?.hideCurrentSnackBar();
-    } else {
-      messenger?.showSnackBar(
-        SnackBar(content: Text("No PDF available to share.")),
-      );
     }
+    sendPort.send(success);
   }
 
   Future<void> shareImagesPdf(
