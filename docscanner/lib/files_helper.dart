@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -5,6 +6,8 @@ import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/main.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'
+    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
@@ -713,7 +716,41 @@ class FilesHelper {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
+    ReceivePort port = ReceivePort();
+    RootIsolateToken token = RootIsolateToken.instance!;
+    Isolate.spawn(_pickImageIsolate, (
+      port.sendPort,
+      token,
+      source,
+      isMultiImage,
+    ));
+
+    final completer = Completer<List<String>>();
+    port.listen((message) {
+      if (message is List<String>) {
+        completer.complete(message);
+        port.close();
+      }
+    });
+    return await completer.future;
+  }
+
+  static Future<void> _pickImageIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      ImageSource source,
+      bool isMultiImage,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    ImageSource source = data.$3;
+    bool isMultiImage = data.$4;
+
     List<String> imagePaths = [];
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     final ImagePicker picker = ImagePicker();
     final double maxWidth = 4048;
@@ -735,14 +772,11 @@ class FilesHelper {
         maxHeight: maxHeight,
         requestFullMetadata: false,
       );
-      if (pickedFile == null) {
-        return [];
-      } else {
+      if (pickedFile != null) {
         imagePaths = [pickedFile.path];
       }
     }
-
-    return imagePaths;
+    sendPort.send(imagePaths);
   }
 
   Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {

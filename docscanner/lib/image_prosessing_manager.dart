@@ -171,7 +171,7 @@ class ImageProcessingManager {
     Future<dynamic>? awaitBeforeIsolate,
   }) async {
     if (pathIn.isEmpty) return;
-    final warpperCompleter = Completer<void>();
+    final wrapperCompleter = Completer<void>();
 
     // Save Photo
     File pictureFile = File(pathIn);
@@ -221,7 +221,7 @@ class ImageProcessingManager {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
-        warpperCompleter.complete();
+        wrapperCompleter.complete();
 
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
@@ -237,7 +237,7 @@ class ImageProcessingManager {
         }
       }
     });
-    await warpperCompleter.future;
+    await wrapperCompleter.future;
   }
 
   static Future<void> _repairPageIsolate(
