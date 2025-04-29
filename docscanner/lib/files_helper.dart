@@ -730,9 +730,21 @@ class FilesHelper {
       isMultiImage,
     ));
 
-    const snackBar = SnackBar(
-      content: Text('Fetching images...'),
-      duration: Duration(days: 1),
+    SnackBar snackBar = SnackBar(
+      content: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Fetching Images...'),
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+        ],
+      ),
+      duration: const Duration(days: 1),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1000));
@@ -896,6 +908,28 @@ class FilesHelper {
     BuildContext context,
   ) async {
     try {
+      ScaffoldMessengerState? messenger;
+      SnackBar? snackBar;
+      if (context.mounted) {
+        messenger = ScaffoldMessenger.of(context);
+        snackBar = SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Processing PDF...'),
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(days: 1),
+        );
+      }
+
       // Ask user to pick a folder
       String? selectedDirectory = await getDirectoryPath(
         confirmButtonText: "Select a Folder to Save PDF",
@@ -903,6 +937,10 @@ class FilesHelper {
       if (selectedDirectory == null) {
         throw StateError('User-Action, pickFolderForDocumentPdf: cancelled');
       }
+
+      // Processing Indicator (SnackBar / Toast)
+      messenger?.showSnackBar(snackBar!);
+
       // Save PDF
       String docName = "doc${docIndex + 1}.pdf";
       String pdfPath = "$selectedDirectory/$docName";
@@ -911,25 +949,9 @@ class FilesHelper {
         file.renameSync(
           "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
         );
-        //Fluttertoast.showToast(
-        //  msg:
-        //      "Old $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
-        //);
-      }
-
-      // Processing Indicator (SnackBar / Toast)
-      const snackBar = SnackBar(
-        content: Text('Processing PDF...'),
-        duration: Duration(days: 1),
-      );
-      ScaffoldMessengerState? messenger;
-      if (context.mounted) {
-        messenger = ScaffoldMessenger.of(context);
-        messenger.showSnackBar(snackBar);
-      } else {
         Fluttertoast.showToast(
-          msg: "Processing PDF...",
-          toastLength: Toast.LENGTH_LONG,
+          msg:
+              "Existing $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
         );
       }
 
@@ -944,10 +966,13 @@ class FilesHelper {
               ? pdfPath.substring(basePath.length)
               : pdfPath;
       dev.log("PDF saved at: $readablePath");
-      Fluttertoast.showToast(msg: "PDF saved at: $readablePath");
+      Fluttertoast.showToast(
+        msg: "PDF saved at: $readablePath",
+        toastLength: Toast.LENGTH_LONG,
+      );
       messenger?.hideCurrentSnackBar();
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
+      //Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
       dev.log("Error, pickFolderForDocumentPdf: $e");
     }
   }
@@ -1040,6 +1065,30 @@ class FilesHelper {
   Future<void> shareDocumentPdf(BuildContext context, int docIndex) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
+    ScaffoldMessengerState? messenger;
+
+    if (context.mounted) {
+      // has to happen before first await
+      messenger = ScaffoldMessenger.of(context);
+    }
+
+    SnackBar snackBar = SnackBar(
+      content: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Processing PDF...'),
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+        ],
+      ),
+      duration: const Duration(days: 1),
+    );
+    messenger?.showSnackBar(snackBar);
 
     final docsPath = await _getDocumentsPath();
     final String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
@@ -1051,19 +1100,6 @@ class FilesHelper {
       pdfPath,
       pdf,
     ));
-
-    ScaffoldMessengerState? messenger;
-    if (context.mounted) {
-      messenger = ScaffoldMessenger.of(context);
-    }
-    const snackBar = SnackBar(
-      content: Text('Processing PDF...'),
-      duration: Duration(days: 1),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(Duration(milliseconds: 1000));
-      messenger?.showSnackBar(snackBar);
-    });
 
     final completer = Completer();
     port.listen((message) {
@@ -1098,15 +1134,14 @@ class FilesHelper {
     pdfw.Document? pdf = data.$4;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
-    bool success = false;
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
+      sendPort.send(true);
       await Share.shareXFiles([XFile(pdfPath)]);
-      success = true;
       pdfFile.delete();
     }
-    sendPort.send(success);
+    sendPort.send(false);
   }
 
   Future<void> shareImagesPdf(
