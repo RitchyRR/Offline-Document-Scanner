@@ -275,6 +275,7 @@ class _MyHomePageState extends State<MyHomePage> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths = await FilesHelper.pickImage(
+      context,
       source,
       isMultiImage: isMultiImage,
     );
@@ -718,6 +719,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 Navigator.pop(context);
                                 await filesHelper.pickFolderForDocumentPdf(
                                   docIndex,
+                                  context,
                                 );
                               }
                               : null,
@@ -1505,6 +1507,7 @@ class _PagesState extends State<Pages> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths = await FilesHelper.pickImage(
+      context,
       source,
       isMultiImage: isMultiImage,
     );

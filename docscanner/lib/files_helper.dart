@@ -713,6 +713,7 @@ class FilesHelper {
   }
 
   static Future<List<String>> pickImage(
+    BuildContext context,
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
@@ -725,10 +726,22 @@ class FilesHelper {
       isMultiImage,
     ));
 
+    const snackBar = SnackBar(
+      content: Text('Fetching images...'),
+      duration: Duration(days: 1),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 1000));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      }
+    });
+
     final completer = Completer<List<String>>();
     port.listen((message) {
       if (message is List<String>) {
         completer.complete(message);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         port.close();
       }
     });
@@ -873,7 +886,10 @@ class FilesHelper {
     return null;
   }
 
-  Future<void> pickFolderForDocumentPdf(int docIndex) async {
+  Future<void> pickFolderForDocumentPdf(
+    int docIndex,
+    BuildContext context,
+  ) async {
     try {
       // Ask user to pick a folder
       String? selectedDirectory = await getDirectoryPath(
@@ -895,11 +911,21 @@ class FilesHelper {
         //      "Old $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
         //);
       }
-      // Processing Toast
-      Fluttertoast.showToast(
-        msg: "Processing PDF...",
-        toastLength: Toast.LENGTH_LONG,
+
+      // Processing Indicator (SnackBar / Toast)
+      const snackBar = SnackBar(
+        content: Text('Processing PDF...'),
+        duration: Duration(days: 1),
       );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      } else {
+        Fluttertoast.showToast(
+          msg: "Processing PDF...",
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
+
       pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
       if (pdf == null) throw StateError('PDF is null');
       final pdfFile = File(pdfPath);
@@ -911,6 +937,7 @@ class FilesHelper {
               ? pdfPath.substring(basePath.length)
               : pdfPath;
       dev.log("PDF saved at: $readablePath");
+      if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
       Fluttertoast.showToast(msg: "PDF saved at: $readablePath");
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
@@ -1004,14 +1031,25 @@ class FilesHelper {
     final docsPath = await _getDocumentsPath();
     String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
     // Processing Toast
-    Fluttertoast.showToast(
-      msg: "Processing PDF...",
-      toastLength: Toast.LENGTH_LONG,
+    const snackBar = SnackBar(
+      content: Text('Processing PDF...'),
+      duration: Duration(days: 1),
     );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    } else {
+      Fluttertoast.showToast(
+        msg: "Processing PDF...",
+        toastLength: Toast.LENGTH_LONG,
+      );
+    }
     pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
       await Share.shareXFiles([XFile(pdfPath)]);
       pdfFile.delete();
     } else {
