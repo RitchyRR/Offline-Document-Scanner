@@ -798,6 +798,117 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _openDocEditDialog(
+    BuildContext context,
+    int docIndex, {
+    bool allowChangeDocIndex = false,
+  }) async {
+    if (!allowChangeDocIndex) {
+      Future<void> future = imageProcessingManager.awaitAllIsolates();
+      future.whenComplete(() {
+        if (context.mounted) {
+          Navigator.pop(context);
+          allowChangeDocIndex = true;
+          _openDocEditDialog(context, docIndex, allowChangeDocIndex: true);
+        }
+      });
+    }
+    {
+      int? selectedIndex = await showDialog<int>(
+        context: context,
+        builder: (BuildContext context) {
+          int currentIndex = docIndex;
+          TextEditingController nameController = TextEditingController(
+            text: _docNames[docIndex],
+          );
+
+          return AlertDialog(
+            title: Text("Edit Document"),
+            content: StatefulBuilder(
+              builder: (context, setState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // TextField for custom document name
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: "Document Name",
+                        hintText: "Document ${docIndex + 1}",
+                      ),
+                      clipBehavior: Clip.hardEdge,
+                      onChanged:
+                          (value) => setState(() {
+                            nameController.text = value;
+                          }),
+                    ),
+                    SizedBox(height: 16),
+                    // Dropdown for changing the index
+                    DropdownButtonFormField<int>(
+                      decoration: InputDecoration(
+                        labelText: "Change Document Index",
+                      ),
+                      value: currentIndex,
+                      isExpanded: true,
+                      items: List.generate(
+                        _docThumbnails.length,
+                        (i) => DropdownMenuItem(
+                          value: i,
+                          child: Text(
+                            overflow: TextOverflow.ellipsis,
+                            (i == docIndex)
+                                ? (nameController.text.trim().isNotEmpty)
+                                    ? nameController.text.trim()
+                                    : "Document ${i + 1}"
+                                : _docNames[i].isNotEmpty
+                                ? _docNames[i]
+                                : "Document ${i + 1}",
+                          ),
+                        ),
+                      ),
+                      onChanged:
+                          allowChangeDocIndex
+                              ? (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() => currentIndex = newValue);
+                                }
+                              }
+                              : null,
+                    ),
+                  ],
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context), // Close popup
+                child: Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Save changes and close
+                  setState(() {
+                    _docNames[docIndex] = nameController.text.trim();
+                  });
+                  _saveDocName(docIndex);
+                  Navigator.pop(context, currentIndex);
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+
+      // Handle the result after the popup closes
+      if (selectedIndex != null && selectedIndex != docIndex) {
+        await filesHelper.changeDocumentIndex(docIndex, selectedIndex);
+        _loadDocsDisplay();
+      }
+    }
+  }
+
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -912,143 +1023,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                       borderRadius: BorderRadius.all(
                                         Radius.circular(12.0),
                                       ),
-                                      onTap: () async {
-                                        int?
-                                        selectedIndex = await showDialog<int>(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            int currentIndex = index;
-                                            TextEditingController
-                                            nameController =
-                                                TextEditingController(
-                                                  text: _docNames[index],
-                                                );
-
-                                            return AlertDialog(
-                                              title: Text("Edit Document"),
-                                              content: StatefulBuilder(
-                                                builder: (context, setState) {
-                                                  return Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      // TextField for custom document name
-                                                      TextField(
-                                                        controller:
-                                                            nameController,
-                                                        decoration: InputDecoration(
-                                                          labelText:
-                                                              "Document Name",
-                                                          hintText:
-                                                              "Document ${index + 1}",
-                                                        ),
-                                                        clipBehavior:
-                                                            Clip.hardEdge,
-                                                        onChanged:
-                                                            (value) => setState(
-                                                              () {
-                                                                nameController
-                                                                        .text =
-                                                                    value;
-                                                              },
-                                                            ),
-                                                      ),
-                                                      SizedBox(height: 16),
-                                                      // Dropdown for changing the index
-                                                      DropdownButtonFormField<
-                                                        int
-                                                      >(
-                                                        decoration: InputDecoration(
-                                                          labelText:
-                                                              "Change Document Index",
-                                                        ),
-                                                        value: currentIndex,
-                                                        isExpanded: true,
-                                                        items: List.generate(
-                                                          _docThumbnails.length,
-                                                          (
-                                                            i,
-                                                          ) => DropdownMenuItem(
-                                                            value: i,
-                                                            child: Text(
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              (i == index)
-                                                                  ? (nameController
-                                                                          .text
-                                                                          .trim()
-                                                                          .isNotEmpty)
-                                                                      ? nameController
-                                                                          .text
-                                                                          .trim()
-                                                                      : "Document ${i + 1}"
-                                                                  : _docNames[i]
-                                                                      .isNotEmpty
-                                                                  ? _docNames[i]
-                                                                  : "Document ${i + 1}",
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        onChanged: (
-                                                          int? newValue,
-                                                        ) {
-                                                          if (newValue !=
-                                                              null) {
-                                                            setState(
-                                                              () =>
-                                                                  currentIndex =
-                                                                      newValue,
-                                                            );
-                                                          }
-                                                        },
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                      ), // Close popup
-                                                  child: Text("Cancel"),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    // Save changes and close
-                                                    setState(() {
-                                                      _docNames[index] =
-                                                          nameController.text
-                                                              .trim();
-                                                    });
-                                                    _saveDocName(index);
-                                                    Navigator.pop(
-                                                      context,
-                                                      currentIndex,
-                                                    );
-                                                  },
-                                                  child: Text("OK"),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-
-                                        // Handle the result after the popup closes
-                                        if (selectedIndex != null &&
-                                            selectedIndex != index) {
-                                          await filesHelper.changeDocumentIndex(
+                                      onTap:
+                                          () => _openDocEditDialog(
+                                            context,
                                             index,
-                                            selectedIndex,
-                                          );
-                                          _loadDocsDisplay();
-                                        }
-                                      },
+                                          ),
                                       child: Padding(
                                         padding: EdgeInsets.all(12),
                                         child: Builder(
@@ -1768,8 +1747,10 @@ class _PagesState extends State<Pages> {
                                             : null,
                                     onLongPress:
                                         (thumbnailPath.isNotEmpty)
-                                            ? () =>
-                                                _pageIndexDialog(context, index)
+                                            ? () => _openPageEditDialog(
+                                              context,
+                                              index,
+                                            )
                                             : null,
                                     splashColor: Colors.black26,
                                     highlightColor: Colors.black26,
@@ -1782,7 +1763,8 @@ class _PagesState extends State<Pages> {
                                 left: 12,
                                 child: GestureDetector(
                                   // Change Page Index Dialog
-                                  onTap: () => _pageIndexDialog(context, index),
+                                  onTap:
+                                      () => _openPageEditDialog(context, index),
                                   child: Container(
                                     padding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -1869,11 +1851,27 @@ class _PagesState extends State<Pages> {
     );
   }
 
-  Future<AlertDialog> _pageIndexDialog(BuildContext context, int index) async {
+  void _openPageEditDialog(
+    BuildContext context,
+    int pageIndex, {
+    bool allowChangePageIndex = false,
+  }) async {
+    if (!allowChangePageIndex) {
+      Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
+        widget.docIndex,
+      );
+      future.whenComplete(() {
+        if (context.mounted) {
+          Navigator.pop(context);
+          allowChangePageIndex = true;
+          _openPageEditDialog(context, pageIndex, allowChangePageIndex: true);
+        }
+      });
+    }
     int? selectedIndex = await showDialog<int>(
       context: context,
       builder: (BuildContext context) {
-        int currentIndex = index;
+        int currentIndex = pageIndex;
         return AlertDialog(
           title: Text("Page ${currentIndex + 1}"),
           content: Column(
@@ -1893,19 +1891,22 @@ class _PagesState extends State<Pages> {
                     ),
                   ),
                 ),
-                onChanged: (int? newValue) {
-                  if (newValue != null) {
-                    setState(() => currentIndex = newValue);
-                  }
-                },
+                onChanged:
+                    allowChangePageIndex
+                        ? (int? newValue) {
+                          if (newValue != null) {
+                            setState(() => currentIndex = newValue);
+                          }
+                        }
+                        : null,
               ),
               SizedBox(height: 24),
 
-              // Save, Share, Delete
+              //// Save, Share, Delete
               //Align(
               //  alignment: Alignment.centerLeft,
               //  child: Text(
-              //    "Change Page Index",
+              //    "Save, Share, Delete",
               //    style: TextStyle(
               //      color: Colors.white70,
               //      fontSize: 12,
@@ -1918,18 +1919,18 @@ class _PagesState extends State<Pages> {
                 children: [
                   // Save
                   IconButton(
-                    onPressed: () => _savePagePopup(context, index),
+                    onPressed: () => _savePagePopup(context, pageIndex),
                     icon: Icon(Icons.save),
                   ),
                   // Share
                   IconButton(
-                    onPressed: () => _sharePagePopup(context, index),
+                    onPressed: () => _sharePagePopup(context, pageIndex),
                     icon: Icon(Icons.share),
                   ),
                   // Delete
                   IconButton(
                     onPressed: () async {
-                      if (await _deletePagePopup(context, index)) {
+                      if (await _deletePagePopup(context, pageIndex)) {
                         if (context.mounted) {
                           Navigator.pop(context);
                         }
@@ -1956,11 +1957,14 @@ class _PagesState extends State<Pages> {
         );
       },
     );
-    if (selectedIndex != null && selectedIndex != index) {
-      await filesHelper.changePageIndex(widget.docIndex, index, selectedIndex);
+    if (selectedIndex != null && selectedIndex != pageIndex) {
+      await filesHelper.changePageIndex(
+        widget.docIndex,
+        pageIndex,
+        selectedIndex,
+      );
       _loadPagesThumbnails();
     }
-    return AlertDialog();
   }
 }
 

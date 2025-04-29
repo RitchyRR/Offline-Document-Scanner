@@ -392,7 +392,6 @@ class ImageProcessingManager {
       final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
 
       if (otherIsolates.isEmpty) return;
-
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
@@ -409,7 +408,22 @@ class ImageProcessingManager {
       final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
 
       if (otherIsolates.isEmpty) return;
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
 
+  Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
+    while (isolates.isNotEmpty) {
+      final docKeys = isolates.keys.where((key) => key.$1 == docIndex).toList();
+      final docIsolates = docKeys.map((key) => isolates[key]!).toList();
+
+      if (docIsolates.isEmpty) return;
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
+
+  Future<void> awaitAllIsolates() async {
+    while (isolates.isNotEmpty) {
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
