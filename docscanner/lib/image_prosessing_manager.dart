@@ -167,8 +167,9 @@ class ImageProcessingManager {
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
-    bool isInitial,
-  ) async {
+    bool isInitial, {
+    Future<dynamic>? awaitBeforeIsolate,
+  }) async {
     if (pathIn.isEmpty) return;
     final warpperCompleter = Completer<void>();
 
@@ -190,6 +191,7 @@ class ImageProcessingManager {
 
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
+    await awaitBeforeIsolate;
     Isolate isolate = await Isolate.spawn(_processPageIsolate, (
       port.sendPort,
       filesHelper,
@@ -406,13 +408,12 @@ class ImageProcessingManager {
     );
 
     List<Future<dynamic>> beforeSecundary = [];
-    beforeSecundary.add(Future.delayed(Duration(milliseconds: 4000)));
+    beforeSecundary.add(Future.delayed(Duration(seconds: 10)));
     beforeSecundary.add(primaryFuture);
 
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
-      await Future.any(beforeSecundary);
       final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
 
       for (var (index, path) in pathsIn.indexed) {
@@ -427,8 +428,8 @@ class ImageProcessingManager {
           null,
           0,
           true,
+          awaitBeforeIsolate: Future.any(beforeSecundary),
         );
-
         // just a small delay
         if (isolates.length >= maxIsolates) {
           await Future.delayed(Duration(milliseconds: 500));
