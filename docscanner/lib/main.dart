@@ -341,9 +341,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
-    await filesHelper.repairDirectoryStructure();
-    await _loadDocsDisplay(supressWarnings: true);
     _receiveSharing();
+    await _loadDocsDisplay(supressWarnings: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      filesHelper.repairDirectoryStructure();
+    });
   }
 
   @override
