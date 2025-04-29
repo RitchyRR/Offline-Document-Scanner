@@ -2507,7 +2507,6 @@ class PagePreviewState extends State<PagePreview> {
     return PopScope(
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
         if (!allowPop) {
           _popOnProFilterPopup(context);
         } else {
@@ -2517,7 +2516,7 @@ class PagePreviewState extends State<PagePreview> {
             widget.pageIndex,
             _selectedVersion,
           );
-          Navigator.of(context).pop();
+          if (!didPop) Navigator.of(context).pop();
         }
       },
       child: Scaffold(
@@ -3690,7 +3689,8 @@ class _WarpState extends State<Warp> {
     if (_initialScaledPoints[0] == _scaledPoints[0] &&
         _initialScaledPoints[1] == _scaledPoints[1] &&
         _initialScaledPoints[2] == _scaledPoints[2] &&
-        _initialScaledPoints[3] == _scaledPoints[3]) {
+        _initialScaledPoints[3] == _scaledPoints[3] &&
+        !_panningDelayed) {
       return true;
     }
     bool? confirmDelete = await showDialog<bool>(
@@ -3719,8 +3719,10 @@ class _WarpState extends State<Warp> {
 
   final GlobalKey _imageAreaKey = GlobalKey();
   bool _allowPop = true;
+  bool _panningDelayed = false;
   final double _circleSize = 40;
 
+  // Warp
   @override
   Widget build(BuildContext context) {
     double scale = (_displayHeigth - _moveUpBy) / _displayHeigth;
@@ -3744,11 +3746,6 @@ class _WarpState extends State<Warp> {
             if (mounted && context.mounted) {
               Navigator.pop(context);
             }
-          }
-        } else {
-          // new thumbnail
-          if (mounted && context.mounted) {
-            Navigator.pop(context);
           }
         }
       },
@@ -3900,6 +3897,7 @@ class _WarpState extends State<Warp> {
                       ),
                     );
                     _panning = true;
+                    _panningDelayed = true;
                   },
                   onPanUpdate: (details) {
                     final box =
@@ -3958,6 +3956,10 @@ class _WarpState extends State<Warp> {
                     }
                     _positionHistory.clear();
                     _panning = false;
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      await Future.delayed(Duration(milliseconds: 500));
+                      _panningDelayed = false;
+                    });
                   },
                   child: Container(
                     width: _circleSize / counterScale,
