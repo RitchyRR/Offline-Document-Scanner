@@ -907,29 +907,32 @@ class FilesHelper {
     int docIndex,
     BuildContext context,
   ) async {
-    try {
-      ScaffoldMessengerState? messenger;
-      SnackBar? snackBar;
-      if (context.mounted) {
-        messenger = ScaffoldMessenger.of(context);
-        snackBar = SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Processing PDF...'),
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Theme.of(context).colorScheme.surface,
-                ),
-              ),
-            ],
-          ),
-          duration: const Duration(days: 1),
-        );
-      }
+    ReceivePort port = ReceivePort();
+    RootIsolateToken token = RootIsolateToken.instance!;
 
+    ScaffoldMessengerState? messenger;
+    SnackBar? snackBar;
+    if (context.mounted) {
+      messenger = ScaffoldMessenger.of(context);
+      snackBar = SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Processing PDF...'),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+      );
+    }
+
+    try {
       // Ask user to pick a folder
       String? selectedDirectory = await getDirectoryPath(
         confirmButtonText: "Select a Folder to Save PDF",
@@ -938,13 +941,13 @@ class FilesHelper {
         throw StateError('User-Action, pickFolderForDocumentPdf: cancelled');
       }
 
-      // Processing Indicator (SnackBar / Toast)
+      // SnackBar
       messenger?.showSnackBar(snackBar!);
 
       // Save PDF
-      String docName = "doc${docIndex + 1}.pdf";
-      String pdfPath = "$selectedDirectory/$docName";
-      File file = File(pdfPath);
+      final String docName = "doc${docIndex + 1}.pdf";
+      final String pdfPath = "$selectedDirectory/$docName";
+      final File file = File(pdfPath);
       if (file.existsSync()) {
         file.renameSync(
           "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
@@ -954,27 +957,72 @@ class FilesHelper {
               "Existing $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
         );
       }
-
       pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
+
+      // Isolate
+      Isolate.spawn(_pickFolderForDocumentPdfIsolate, (
+        port.sendPort,
+        token,
+        pdfPath,
+        pdf,
+      ));
+
+      final completer = Completer();
+      port.listen((message) {
+        if (message is bool) {
+          if (message) {
+            completer.complete(message);
+            messenger?.hideCurrentSnackBar();
+            // Saved Toast
+            const String basePath = "/storage/emulated/0";
+            final readablePath =
+                pdfPath.startsWith(basePath)
+                    ? pdfPath.substring(basePath.length)
+                    : pdfPath;
+            dev.log("PDF saved at: $readablePath");
+            Fluttertoast.showToast(
+              msg: "PDF saved at: $readablePath",
+              toastLength: Toast.LENGTH_LONG,
+            );
+            port.close();
+          } else {
+            messenger?.hideCurrentSnackBar();
+            messenger?.showSnackBar(
+              SnackBar(content: Text("Error: No PDF available to save.")),
+            );
+          }
+        }
+      });
+      return await completer.future;
+    } catch (e) {
+      dev.log("Error, pickFolderForDocumentPdf: $e");
+    }
+  }
+
+  static Future<void> _pickFolderForDocumentPdfIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      String pdfPath,
+      pdfw.Document? pdf,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    String pdfPath = data.$3;
+    pdfw.Document? pdf = data.$4;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    try {
       if (pdf == null) throw StateError('PDF is null');
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
-      // Saved Toast
-      const String basePath = "/storage/emulated/0";
-      final readablePath =
-          pdfPath.startsWith(basePath)
-              ? pdfPath.substring(basePath.length)
-              : pdfPath;
-      dev.log("PDF saved at: $readablePath");
-      Fluttertoast.showToast(
-        msg: "PDF saved at: $readablePath",
-        toastLength: Toast.LENGTH_LONG,
-      );
-      messenger?.hideCurrentSnackBar();
+      sendPort.send(true);
     } catch (e) {
-      //Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
-      dev.log("Error, pickFolderForDocumentPdf: $e");
+      dev.log("Error, _pickFolderForDocumentPdfIsolate: $e");
     }
+    sendPort.send(false);
   }
 
   static Future<void> pickFolderForImagePdf(
@@ -1067,11 +1115,10 @@ class FilesHelper {
     RootIsolateToken token = RootIsolateToken.instance!;
     ScaffoldMessengerState? messenger;
 
+    // Snackbar
     if (context.mounted) {
-      // has to happen before first await
       messenger = ScaffoldMessenger.of(context);
     }
-
     SnackBar snackBar = SnackBar(
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1090,10 +1137,11 @@ class FilesHelper {
     );
     messenger?.showSnackBar(snackBar);
 
-    final docsPath = await _getDocumentsPath();
+    final String docsPath = await _getDocumentsPath();
     final String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
     final pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
 
+    // Isolate
     Isolate.spawn(_shareDocumentPdfIsolate, (
       port.sendPort,
       token,
@@ -1111,7 +1159,7 @@ class FilesHelper {
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
-            SnackBar(content: Text("No PDF available to share.")),
+            SnackBar(content: Text("Error: No PDF available to share.")),
           );
         }
       }
