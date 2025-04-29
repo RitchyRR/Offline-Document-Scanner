@@ -458,9 +458,9 @@ class _MyHomePageState extends State<MyHomePage> {
     Map<String, dynamic> metadata = {};
 
     // Read
-    if (await file.exists()) {
+    if (file.existsSync()) {
       try {
-        String content = await file.readAsString();
+        String content = file.readAsStringSync();
         metadata = jsonDecode(content).cast<String, String>();
       } catch (e) {
         dev.log("Error,_saveDocName: Reading metadata: $e");
@@ -468,7 +468,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // Write
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       dev.log("Warning,_saveDocName: Metadata file missing, creating new one");
       metadata = {};
       metadata["date"] = "";
@@ -485,9 +485,9 @@ class _MyHomePageState extends State<MyHomePage> {
     Map<String, dynamic> metadata = {};
 
     // Read
-    if (await file.exists()) {
+    if (file.existsSync()) {
       try {
-        String content = await file.readAsString();
+        String content = file.readAsStringSync();
         metadata = jsonDecode(content).cast<String, String>();
       } catch (e) {
         dev.log("Error reading existing metadata, creating new one: $e");
@@ -798,25 +798,13 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void _openDocEditDialog(
-    BuildContext context,
-    int docIndex, {
-    bool allowChangeDocIndex = false,
-  }) async {
-    if (!allowChangeDocIndex) {
-      Future<void> future = imageProcessingManager.awaitAllIsolates();
-      future.whenComplete(() {
-        if (context.mounted) {
-          Navigator.pop(context);
-          allowChangeDocIndex = true;
-          _openDocEditDialog(context, docIndex, allowChangeDocIndex: true);
-        }
-      });
-    }
+  void _openDocEditDialog(BuildContext context, int docIndex) async {
+    Future<void> future = imageProcessingManager.awaitAllIsolates();
     {
+      bool allowChangeDocIndex = false;
       int? selectedIndex = await showDialog<int>(
         context: context,
-        builder: (BuildContext context) {
+        builder: (context) {
           int currentIndex = docIndex;
           TextEditingController nameController = TextEditingController(
             text: _docNames[docIndex],
@@ -826,6 +814,9 @@ class _MyHomePageState extends State<MyHomePage> {
             title: Text("Edit Document"),
             content: StatefulBuilder(
               builder: (context, setState) {
+                future.whenComplete(() {
+                  setState(() => allowChangeDocIndex = true);
+                });
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,7 +873,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context), // Close popup
+                onPressed: () => Navigator.pop(context),
                 child: Text("Cancel"),
               ),
               TextButton(
@@ -1656,7 +1647,7 @@ class _PagesState extends State<Pages> {
     );
     if (confirmDelete != null && confirmDelete == true) {
       // ignore: use_build_context_synchronously
-      await filesHelper.deletePage(context, widget.docIndex, pageIndex);
+      filesHelper.deletePage(context, widget.docIndex, pageIndex);
       return true;
     }
     return false;
@@ -1851,112 +1842,111 @@ class _PagesState extends State<Pages> {
     );
   }
 
-  void _openPageEditDialog(
-    BuildContext context,
-    int pageIndex, {
-    bool allowChangePageIndex = false,
-  }) async {
-    if (!allowChangePageIndex) {
-      Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
-        widget.docIndex,
-      );
-      future.whenComplete(() {
-        if (context.mounted) {
-          Navigator.pop(context);
-          allowChangePageIndex = true;
-          _openPageEditDialog(context, pageIndex, allowChangePageIndex: true);
-        }
-      });
-    }
+  void _openPageEditDialog(BuildContext context, int pageIndex) async {
+    bool allowChangePageIndex = false;
+    Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
+      widget.docIndex,
+    );
     int? selectedIndex = await showDialog<int>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         int currentIndex = pageIndex;
-        return AlertDialog(
-          title: Text("Page ${currentIndex + 1}"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(labelText: "Change Page Index"),
-                value: currentIndex,
-                isExpanded: true,
-                items: List.generate(
-                  _pageThumbnails.length,
-                  (i) => DropdownMenuItem(
-                    value: i,
-                    child: Text(
-                      overflow: TextOverflow.ellipsis,
-                      "Page ${i + 1}",
-                    ),
-                  ),
-                ),
-                onChanged:
-                    allowChangePageIndex
-                        ? (int? newValue) {
-                          if (newValue != null) {
-                            setState(() => currentIndex = newValue);
-                          }
-                        }
-                        : null,
-              ),
-              SizedBox(height: 24),
-
-              //// Save, Share, Delete
-              //Align(
-              //  alignment: Alignment.centerLeft,
-              //  child: Text(
-              //    "Save, Share, Delete",
-              //    style: TextStyle(
-              //      color: Colors.white70,
-              //      fontSize: 12,
-              //      fontWeight: FontWeight.w400,
-              //    ),
-              //  ),
-              //),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            future.whenComplete(() {
+              setState(() => allowChangePageIndex = true);
+            });
+            return AlertDialog(
+              title: Text("Page ${currentIndex + 1}"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Save
-                  IconButton(
-                    onPressed: () => _savePagePopup(context, pageIndex),
-                    icon: Icon(Icons.save),
+                  DropdownButtonFormField<int>(
+                    decoration: InputDecoration(labelText: "Change Page Index"),
+                    value: currentIndex,
+                    isExpanded: true,
+                    items: List.generate(
+                      _pageThumbnails.length,
+                      (i) => DropdownMenuItem(
+                        value: i,
+                        child: Text(
+                          overflow: TextOverflow.ellipsis,
+                          "Page ${i + 1}",
+                        ),
+                      ),
+                    ),
+                    onChanged:
+                        allowChangePageIndex
+                            ? (int? newValue) {
+                              if (newValue != null) {
+                                setState(() => currentIndex = newValue);
+                              }
+                            }
+                            : null,
                   ),
-                  // Share
-                  IconButton(
-                    onPressed: () => _sharePagePopup(context, pageIndex),
-                    icon: Icon(Icons.share),
-                  ),
-                  // Delete
-                  IconButton(
-                    onPressed: () async {
-                      if (await _deletePagePopup(context, pageIndex)) {
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                        }
-                      }
-                    },
-                    icon: Icon(Icons.delete),
+                  SizedBox(height: 24),
+
+                  //// Save, Share, Delete
+                  //Align(
+                  //  alignment: Alignment.centerLeft,
+                  //  child: Text(
+                  //    "Save, Share, Delete",
+                  //    style: TextStyle(
+                  //      color: Colors.white70,
+                  //      fontSize: 12,
+                  //      fontWeight: FontWeight.w400,
+                  //    ),
+                  //  ),
+                  //),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      // Save
+                      IconButton(
+                        onPressed: () => _savePagePopup(context, pageIndex),
+                        icon: Icon(Icons.save),
+                      ),
+                      // Share
+                      IconButton(
+                        onPressed: () => _sharePagePopup(context, pageIndex),
+                        icon: Icon(Icons.share),
+                      ),
+                      // Delete
+                      IconButton(
+                        onPressed: () async {
+                          if (await _deletePagePopup(context, pageIndex)) {
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          }
+                        },
+                        icon: Icon(Icons.delete),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, currentIndex);
-              },
-              child: Text("OK"),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, currentIndex);
+                  },
+                  child: Text("OK"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+
+    // Handle Results after Dialog closes
     if (selectedIndex != null && selectedIndex != pageIndex) {
       await filesHelper.changePageIndex(
         widget.docIndex,
@@ -3957,7 +3947,7 @@ class _WarpState extends State<Warp> {
                     _positionHistory.clear();
                     _panning = false;
                     WidgetsBinding.instance.addPostFrameCallback((_) async {
-                      await Future.delayed(Duration(milliseconds: 500));
+                      await Future.delayed(Duration(milliseconds: 600));
                       _panningDelayed = false;
                     });
                   },

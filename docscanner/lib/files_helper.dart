@@ -261,21 +261,25 @@ class FilesHelper {
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;
       String? backupPath;
-      List<FileSystemEntity> versions = Directory(pagePath).listSync();
-      for (var version in versions) {
-        if (!fullSized && version.path.contains(thumbnailName)) {
-          thumbnailPath = version.path;
-        } else if (version.path.contains(backupName)) {
-          backupPath = version.path;
+      try {
+        List<FileSystemEntity> versions = Directory(pagePath).listSync();
+        for (var version in versions) {
+          if (!fullSized && version.path.contains(thumbnailName)) {
+            thumbnailPath = version.path;
+          } else if (version.path.contains(backupName)) {
+            backupPath = version.path;
+          }
         }
-      }
-      if (thumbnailPath != null) {
-        thumbnailPaths[pageIndex] = thumbnailPath;
-        if (backupPath != null) {
-          imageCache.evict(FileImage(File(backupPath)), includeLive: false);
+        if (thumbnailPath != null) {
+          thumbnailPaths[pageIndex] = thumbnailPath;
+          if (backupPath != null) {
+            imageCache.evict(FileImage(File(backupPath)), includeLive: false);
+          }
+        } else if (backupPath != null) {
+          thumbnailPaths[pageIndex] = backupPath;
         }
-      } else if (backupPath != null) {
-        thumbnailPaths[pageIndex] = backupPath;
+      } catch (e) {
+        dev.log("Error: getPagesThumbnails: $e");
       }
     }
 
@@ -513,8 +517,9 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
         docIndex,
+        pageIndex,
       );
       messenger?.hideCurrentSnackBar();
       if (cancelDelete) return;
