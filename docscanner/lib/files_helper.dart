@@ -917,8 +917,10 @@ class FilesHelper {
         content: Text('Processing PDF...'),
         duration: Duration(days: 1),
       );
+      ScaffoldMessengerState? messenger;
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(snackBar);
       } else {
         Fluttertoast.showToast(
           msg: "Processing PDF...",
@@ -937,8 +939,8 @@ class FilesHelper {
               ? pdfPath.substring(basePath.length)
               : pdfPath;
       dev.log("PDF saved at: $readablePath");
-      if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
       Fluttertoast.showToast(msg: "PDF saved at: $readablePath");
+      messenger?.hideCurrentSnackBar();
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error, pickFolderForDocumentPdf: $e');
       dev.log("Error, pickFolderForDocumentPdf: $e");
@@ -991,14 +993,17 @@ class FilesHelper {
   }
 
   Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
+    ScaffoldMessengerState? messenger;
+    if (context.mounted) {
+      messenger = ScaffoldMessenger.of(context);
+    }
     List<String> imagePaths = (await getPagesThumbnails(docIndex)).$1;
     if (imagePaths.isNotEmpty) {
       shareImages(imagePaths, docIndex: docIndex);
     } else {
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text("No images available to share.")));
+      messenger?.showSnackBar(
+        SnackBar(content: Text("No images available to share.")),
+      );
     }
   }
 
@@ -1035,8 +1040,10 @@ class FilesHelper {
       content: Text('Processing PDF...'),
       duration: Duration(days: 1),
     );
+    ScaffoldMessengerState? messenger;
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(snackBar);
     } else {
       Fluttertoast.showToast(
         msg: "Processing PDF...",
@@ -1047,16 +1054,13 @@ class FilesHelper {
     if (pdf != null) {
       final pdfFile = File(pdfPath);
       await pdfFile.writeAsBytes(await pdf.save());
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
       await Share.shareXFiles([XFile(pdfPath)]);
       pdfFile.delete();
+      messenger?.hideCurrentSnackBar();
     } else {
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text("No PDF available to share.")));
+      messenger?.showSnackBar(
+        SnackBar(content: Text("No PDF available to share.")),
+      );
     }
   }
 
@@ -1067,6 +1071,10 @@ class FilesHelper {
     int firstPageIndex, {
     String? versionName,
   }) async {
+    ScaffoldMessengerState? messenger;
+    if (context.mounted) {
+      messenger = ScaffoldMessenger.of(context);
+    }
     // Save PDF
     final docsDir = await _getDocumentsPath();
     String pdfPath =
@@ -1084,10 +1092,9 @@ class FilesHelper {
       await Share.shareXFiles([xFile]);
       pdfFile.delete();
     } else {
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text("No PDF available to share.")));
+      messenger?.showSnackBar(
+        SnackBar(content: Text("No PDF available to share.")),
+      );
     }
   }
 
