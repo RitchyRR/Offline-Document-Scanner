@@ -21,7 +21,6 @@ const List<String> versionNames = [
 
 class ImageProcessingManager {
   Map<(int, int), Isolate> isolates = {};
-  //List<Completer> comleters = [];
   List<Capability?> capabilities = [];
 
   static Future<void> _processPageIsolate(
@@ -386,6 +385,35 @@ class ImageProcessingManager {
     }
   }
 
+  Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
+    while (isolates.isNotEmpty) {
+      final otherKeys =
+          isolates.keys.where((key) => key.$1 > docIndex).toList();
+      final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
+
+      if (otherIsolates.isEmpty) return;
+
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
+
+  Future<void> awaitIsolatesOfHigherIndexedPages(
+    int docIndex,
+    int pageIndex,
+  ) async {
+    while (isolates.isNotEmpty) {
+      final otherKeys =
+          isolates.keys
+              .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
+              .toList();
+      final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
+
+      if (otherIsolates.isEmpty) return;
+
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
+
   Future<void> processPages(
     int docIndex,
     int firstPageIndex,
@@ -626,10 +654,10 @@ class ImageProcessingManager {
     int angle,
     int pageThumbnailIndexIn,
   ) async {
-    ReceivePort primaryPort = ReceivePort();
+    ReceivePort port = ReceivePort();
     final primaryCompleter = Completer<void>();
     Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
-      primaryPort.sendPort,
+      port.sendPort,
       filesHelper,
       docIndex,
       pageIndex,
@@ -640,11 +668,11 @@ class ImageProcessingManager {
     isolates[(docIndex, pageIndex)] = primaryIsolate;
     capabilities.add(null);
 
-    primaryPort.listen((message) {
+    port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
-        primaryPort.close();
+        port.close();
 
         int index = isolates.values.toList().indexOf(primaryIsolate);
         isolates.removeWhere((key, value) => value == primaryIsolate);

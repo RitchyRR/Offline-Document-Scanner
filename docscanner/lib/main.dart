@@ -344,7 +344,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _receiveSharing();
     await _loadDocsDisplay(supressWarnings: true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      filesHelper.repairDirectoryStructure();
+      filesHelper.repairDirectoryStructure(context);
     });
   }
 
@@ -792,7 +792,8 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     if (confirmDelete == true) {
-      await filesHelper.deleteDocument(docIndex);
+      // ignore: use_build_context_synchronously
+      await filesHelper.deleteDocument(context, docIndex);
       _loadDocsDisplay();
     }
   }
@@ -1675,7 +1676,8 @@ class _PagesState extends State<Pages> {
       },
     );
     if (confirmDelete != null && confirmDelete == true) {
-      await filesHelper.deletePage(widget.docIndex, pageIndex);
+      // ignore: use_build_context_synchronously
+      await filesHelper.deletePage(context, widget.docIndex, pageIndex);
       return true;
     }
     return false;
@@ -1926,7 +1928,13 @@ class _PagesState extends State<Pages> {
                   ),
                   // Delete
                   IconButton(
-                    onPressed: () => _deletePagePopup(context, index),
+                    onPressed: () async {
+                      if (await _deletePagePopup(context, index)) {
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
                     icon: Icon(Icons.delete),
                   ),
                 ],
@@ -2407,7 +2415,8 @@ class PagePreviewState extends State<PagePreview> {
       },
     );
     if (confirmDelete != null && confirmDelete == true) {
-      await filesHelper.deletePage(widget.docIndex, widget.pageIndex);
+      // ignore: use_build_context_synchronously
+      await filesHelper.deletePage(context, widget.docIndex, widget.pageIndex);
       return true;
     }
     return false;

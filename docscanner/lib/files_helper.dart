@@ -282,13 +282,14 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  Future<void> repairDirectoryStructure() async {
+  Future<void> repairDirectoryStructure(BuildContext? context) async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     var i = 0;
     for (; i < 5; i++) {
       try {
-        if (!(await _repairDirectoryStructure())) break;
+        // ignore: use_build_context_synchronously
+        if (!(await _repairDirectoryStructure(context))) break;
       } catch (e) {
         dev.log("Error, repairDirectoryStructure: $e");
       }
@@ -300,7 +301,7 @@ class FilesHelper {
     }
   }
 
-  Future<bool> _repairDirectoryStructure() async {
+  Future<bool> _repairDirectoryStructure(BuildContext? context) async {
     bool anyChange = false;
     List<Future<void>> repairFutures = [];
 
@@ -358,7 +359,8 @@ class FilesHelper {
               }
             }
             if (!photoExists) {
-              await deletePage(docIndex, pageIndex);
+              // ignore: use_build_context_synchronously
+              await deletePage(context, docIndex, pageIndex, isBroken: true);
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
@@ -370,14 +372,51 @@ class FilesHelper {
         }
       } else {
         anyChange = true;
-        deleteDocument(docIndex);
+        // ignore: use_build_context_synchronously
+        deleteDocument(context, docIndex, isBroken: true);
       }
     }
     await Future.wait(repairFutures);
     return anyChange;
   }
 
-  Future<void> deleteDocument(int docIndex, {bool supressInfo = false}) async {
+  Future<void> deleteDocument(
+    BuildContext? context,
+    int docIndex, {
+    bool supressInfo = false,
+    bool isBroken = false,
+  }) async {
+    ScaffoldMessengerState? messenger;
+    SnackBar? snackBar;
+    bool cancelDelete = false;
+    if (context != null) {
+      messenger = ScaffoldMessenger.of(context);
+      snackBar = SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Deleting Document ${docIndex + 1}...'),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+        action:
+            isBroken
+                ? null
+                : SnackBarAction(
+                  label: 'Cancel',
+                  onPressed: () {
+                    cancelDelete = true;
+                  },
+                ),
+      );
+    }
     String docPath = await getDocumentPath(docIndex, supressWarning: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -387,8 +426,17 @@ class FilesHelper {
       if (!supressInfo) {
         dev.log("deleteDocument: Deleting document directory: $docPath");
       }
+
+      messenger?.showSnackBar(snackBar!);
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
+        docIndex,
+      );
+      messenger?.hideCurrentSnackBar();
+      if (cancelDelete) return;
+
       imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
+      Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
     }
 
     // rename all with higher docIndex to close the gap
@@ -414,7 +462,43 @@ class FilesHelper {
     ); // to not show deleted document
   }
 
-  Future<void> deletePage(int docIndex, int pageIndex) async {
+  Future<void> deletePage(
+    BuildContext? context,
+    int docIndex,
+    int pageIndex, {
+    bool isBroken = false,
+  }) async {
+    ScaffoldMessengerState? messenger;
+    SnackBar? snackBar;
+    bool cancelDelete = false;
+    if (context != null) {
+      messenger = ScaffoldMessenger.of(context);
+      snackBar = SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Deleting Document ${docIndex + 1}...'),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+        action:
+            isBroken
+                ? null
+                : SnackBarAction(
+                  label: 'Cancel',
+                  onPressed: () {
+                    cancelDelete = true;
+                  },
+                ),
+      );
+    }
     final pagePath = await getPagePath(docIndex, pageIndex);
     final pageDir = Directory(pagePath);
     if (!await pageDir.exists()) {
@@ -427,8 +511,19 @@ class FilesHelper {
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
+
+      messenger?.showSnackBar(snackBar!);
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
+        docIndex,
+      );
+      messenger?.hideCurrentSnackBar();
+      if (cancelDelete) return;
+
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
+      Fluttertoast.showToast(
+        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
+      );
     }
 
     // rename all with higher pageIndex to close the gap
@@ -454,7 +549,13 @@ class FilesHelper {
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
-      await deleteDocument(docIndex, supressInfo: true);
+      await deleteDocument(
+        // ignore: use_build_context_synchronously
+        context,
+        docIndex,
+        supressInfo: true,
+        isBroken: true,
+      );
       globalNotifier.triggerEvent(
         NotifierEvent.loadPagesThumbnails,
       ); // to not show deleted page and to Navigator.pop
@@ -723,13 +824,14 @@ class FilesHelper {
   }) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
-    Isolate.spawn(_pickImageIsolate, (
+    Future<Isolate> isolate = Isolate.spawn(_pickImageIsolate, (
       port.sendPort,
       token,
       source,
       isMultiImage,
     ));
 
+    ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     SnackBar snackBar = SnackBar(
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -749,16 +851,17 @@ class FilesHelper {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1000));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        messenger.showSnackBar(snackBar);
       }
     });
 
     final completer = Completer<List<String>>();
-    port.listen((message) {
+    port.listen((message) async {
       if (message is List<String>) {
         completer.complete(message);
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        messenger.hideCurrentSnackBar();
         port.close();
+        (await isolate).kill();
       }
     });
     return await completer.future;
