@@ -3130,10 +3130,19 @@ class PagePreviewState extends State<PagePreview> {
                                         stackTrace,
                                       ) {
                                         _refreshAfterBrokenImage(index);
-                                        return const SizedBox(
-                                          width: 50,
-                                          height: 50,
-                                          child: Icon(Icons.broken_image),
+                                        return SizedBox(
+                                          width:
+                                              _selectedVersion == index
+                                                  ? 70
+                                                  : 50,
+                                          height:
+                                              _selectedVersion == index
+                                                  ? 70
+                                                  : 50,
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(12.0),
+                                            child: CircularProgressIndicator(),
+                                          ),
                                         );
                                       },
                                     )
