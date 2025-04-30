@@ -1839,7 +1839,16 @@ class _PagesState extends State<Pages> {
     return Scaffold(
       appBar:
           !_selectMode
-              ? AppBar(title: Text("Document ${widget.docIndex + 1}"))
+              ? AppBar(
+                title: Text("Document ${widget.docIndex + 1}"),
+                actions: [
+                  IconButton(
+                    onPressed: () => _selectAll(),
+                    icon: Icon(Icons.select_all),
+                    tooltip: "Select all",
+                  ),
+                ],
+              )
               : AppBar(
                 title: Text("${selected.length} Pages selected"),
                 leading: IconButton(
