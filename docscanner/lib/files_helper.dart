@@ -243,13 +243,20 @@ class FilesHelper {
 
   Future<(List<String>, int)> getPagesThumbnails(
     int docIndex, {
+    List<int> pageIndexes = const [],
     bool fullSized = false,
   }) async {
+    int pagesCount;
     await _initializeDocumentsPath();
-    int pagesCount = await filesHelper.getPagesCount(docIndex);
+    if (pageIndexes.isEmpty) {
+      pagesCount = await filesHelper.getPagesCount(docIndex);
+      pageIndexes = List.generate(pagesCount, (index) => index);
+    } else {
+      pagesCount = pageIndexes.length;
+    }
     List<String> thumbnailPaths = List.generate(pagesCount, (_) => "");
 
-    for (var pageIndex = 0; pageIndex < pagesCount; pageIndex++) {
+    for (int pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
       final thumbnailIndex =
           await ImageProcessingManager.readPageThumbnailIndex(
@@ -271,12 +278,12 @@ class FilesHelper {
           }
         }
         if (thumbnailPath != null) {
-          thumbnailPaths[pageIndex] = thumbnailPath;
+          thumbnailPaths[pageIndexes.indexOf(pageIndex)] = thumbnailPath;
           if (backupPath != null) {
             imageCache.evict(FileImage(File(backupPath)), includeLive: false);
           }
         } else if (backupPath != null) {
-          thumbnailPaths[pageIndex] = backupPath;
+          thumbnailPaths[pageIndexes.indexOf(pageIndex)] = backupPath;
         }
       } catch (e) {
         dev.log("Error: getPagesThumbnails: $e");
@@ -916,35 +923,27 @@ class FilesHelper {
     sendPort.send(imagePaths);
   }
 
-  Future<pdfw.Document?> _convertDocumentToPdf(int docIndex) async {
-    try {
-      List<String> imagePaths =
-          (await getPagesThumbnails(docIndex, fullSized: true)).$1;
-      if (imagePaths.isEmpty) {
-        dev.log(
-          "Error, _convertDocumentToPdf: No images in Document $docIndex",
-        );
-      }
-      return _convertImagesToPdf(imagePaths, docIndex, 0);
-    } catch (e) {
-      dev.log("Error, _convertDocumentToPdf: $e");
+  Future<pdfw.Document?> _convertImagesToPdf(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+  }) async {
+    List<String> imagePaths =
+        (await getPagesThumbnails(
+          docIndex,
+          pageIndexes: pageIndexes,
+          fullSized: true,
+        )).$1;
+    if (imagePaths.isEmpty) {
+      dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
     }
-    return null;
-  }
-
-  static Future<pdfw.Document?> _convertImagesToPdf(
-    List<String> imagePathsIn,
-    int docIndex,
-    int firstPageIndex,
-  ) async {
     // Metadata
     List<int> ratioIndexes = [];
     List<int> orientations = [];
-    for (
-      var pageIndex = firstPageIndex;
-      pageIndex < (imagePathsIn.length + firstPageIndex);
-      pageIndex++
-    ) {
+    if (pageIndexes.isEmpty) {
+      pageIndexes = List.generate(imagePaths.length, (index) => index);
+    }
+
+    for (var pageIndex in pageIndexes) {
       ratioIndexes.add(
         await ImageProcessingManager.readPageRatioIndex(docIndex, pageIndex) ??
             0,
@@ -985,7 +984,7 @@ class FilesHelper {
 
       // Create PDF
       final pdf = pdfw.Document();
-      for (var (i, imagePath) in imagePathsIn.indexed) {
+      for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
@@ -1011,10 +1010,12 @@ class FilesHelper {
     return null;
   }
 
-  Future<void> pickFolderForDocumentPdf(
+  Future<void> pickFolderForImagesPdf(
     int docIndex,
-    BuildContext context,
-  ) async {
+    BuildContext context, {
+    List<int> pageIndexes = const [],
+    String? versionName,
+  }) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
 
@@ -1053,8 +1054,10 @@ class FilesHelper {
       messenger?.showSnackBar(snackBar!);
 
       // Save PDF
-      final String docName = "doc${docIndex + 1}.pdf";
+      final String docName =
+          "doc${docIndex + 1}${pageIndexes.length == 1 ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}") : ""}.pdf";
       final String pdfPath = "$selectedDirectory/$docName";
+
       final File file = File(pdfPath);
       if (file.existsSync()) {
         file.renameSync(
@@ -1065,10 +1068,15 @@ class FilesHelper {
               "Existing $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
         );
       }
-      pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
 
+      pdfw.Document? pdf;
+      if (pageIndexes.isEmpty) {
+        pdf = await _convertImagesToPdf(docIndex);
+      } else {
+        pdf = await _convertImagesToPdf(docIndex, pageIndexes: pageIndexes);
+      }
       // Isolate
-      Isolate.spawn(_pickFolderForDocumentPdfIsolate, (
+      Isolate.spawn(_writePfdToPathIsolate, (
         port.sendPort,
         token,
         pdfPath,
@@ -1107,7 +1115,7 @@ class FilesHelper {
     }
   }
 
-  static Future<void> _pickFolderForDocumentPdfIsolate(
+  static Future<void> _writePfdToPathIsolate(
     (
       SendPort sendPort,
       RootIsolateToken token,
@@ -1122,59 +1130,16 @@ class FilesHelper {
     pdfw.Document? pdf = data.$4;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
-    try {
-      if (pdf == null) throw StateError('PDF is null');
-      final pdfFile = File(pdfPath);
-      await pdfFile.writeAsBytes(await pdf.save());
-      sendPort.send(true);
-    } catch (e) {
-      dev.log("Error, _pickFolderForDocumentPdfIsolate: $e");
-    }
-    sendPort.send(false);
-  }
-
-  static Future<void> pickFolderForImagePdf(
-    String imagePath,
-    int docIndex,
-    int pageIndex, {
-    String? versionName,
-  }) async {
-    try {
-      // Ask user to pick a folder
-      String? selectedDirectory = await getDirectoryPath(
-        confirmButtonText: "Select a Folder to Save the PDF to.",
-      );
-      if (selectedDirectory == null) {
-        dev.log("User-Action, pickFolderForImagePdf: cancelled");
-        return;
+    if (pdf != null) {
+      try {
+        final pdfFile = File(pdfPath);
+        await pdfFile.writeAsBytes(await pdf.save());
+        sendPort.send(true);
+      } catch (e) {
+        dev.log("Error, _pickFolderForDocumentPdfIsolate: $e");
       }
-      // Save PDF
-      String pdfPath =
-          "$selectedDirectory/doc${docIndex + 1}_page${pageIndex + 1}${versionName != null ? "_$versionName" : ""}.pdf";
-      File file = File(pdfPath);
-      if (file.existsSync()) {
-        file.renameSync(
-          "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
-        );
-      }
-      pdfw.Document? pdf = await _convertImagesToPdf(
-        [imagePath],
-        docIndex,
-        pageIndex,
-      );
-      if (pdf == null) return;
-      final pdfFile = File(pdfPath);
-      await pdfFile.writeAsBytes(await pdf.save());
-      // Toast
-      const String basePath = "/storage/emulated/0";
-      final readablePath =
-          pdfPath.startsWith(basePath)
-              ? pdfPath.substring(basePath.length)
-              : pdfPath;
-      dev.log("PDF saved at: $readablePath");
-      Fluttertoast.showToast(msg: 'PDF saved at: "$readablePath"');
-    } catch (e) {
-      dev.log("Error, pickFolderForImagePdf: $e");
+    } else {
+      sendPort.send(false);
     }
   }
 
@@ -1218,7 +1183,12 @@ class FilesHelper {
     tempDir.delete(recursive: true);
   }
 
-  Future<void> shareDocumentPdf(BuildContext context, int docIndex) async {
+  Future<void> shareImagesPdf(
+    BuildContext context,
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    String? versionName,
+  }) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
     ScaffoldMessengerState? messenger;
@@ -1245,25 +1215,27 @@ class FilesHelper {
     );
     messenger?.showSnackBar(snackBar);
 
-    final String docsPath = await _getDocumentsPath();
-    final String pdfPath = "$docsPath/doc${docIndex + 1}.pdf";
-    final pdfw.Document? pdf = await _convertDocumentToPdf(docIndex);
+    // Save PDF
+    final docsDir = await _getDocumentsPath();
+    String pdfPath =
+        "$docsDir/doc${docIndex + 1}${pageIndexes.length == 1 ? "_page${pageIndexes.isNotEmpty ? pageIndexes.first + 1 : 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
+    pdfw.Document? pdf = await _convertImagesToPdf(
+      docIndex,
+      pageIndexes: pageIndexes,
+    );
 
     // Isolate
-    Isolate.spawn(_shareDocumentPdfIsolate, (
-      port.sendPort,
-      token,
-      pdfPath,
-      pdf,
-    ));
+    Isolate.spawn(_writePfdToPathIsolate, (port.sendPort, token, pdfPath, pdf));
 
     final completer = Completer();
-    port.listen((message) {
+    port.listen((message) async {
       if (message is bool) {
         if (message) {
-          completer.complete(message);
-          messenger?.hideCurrentSnackBar();
           port.close();
+          messenger?.hideCurrentSnackBar();
+          completer.complete(message);
+          await Share.shareXFiles([XFile(pdfPath)]);
+          File(pdfPath).delete();
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
@@ -1273,65 +1245,6 @@ class FilesHelper {
       }
     });
     return await completer.future;
-  }
-
-  Future<void> _shareDocumentPdfIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      String pdfPath,
-      pdfw.Document? pdf,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    RootIsolateToken token = data.$2;
-    String pdfPath = data.$3;
-    pdfw.Document? pdf = data.$4;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    if (pdf != null) {
-      final pdfFile = File(pdfPath);
-      await pdfFile.writeAsBytes(await pdf.save());
-      sendPort.send(true);
-      await Share.shareXFiles([XFile(pdfPath)]);
-      pdfFile.delete();
-    }
-    sendPort.send(false);
-  }
-
-  Future<void> shareImagesPdf(
-    BuildContext context,
-    List<String> imagePaths,
-    int docIndex,
-    int firstPageIndex, {
-    String? versionName,
-  }) async {
-    ScaffoldMessengerState? messenger;
-    if (context.mounted) {
-      messenger = ScaffoldMessenger.of(context);
-    }
-    // Save PDF
-    final docsDir = await _getDocumentsPath();
-    String pdfPath =
-        "$docsDir/doc${docIndex + 1}${imagePaths.length == 1 ? "_page${firstPageIndex + 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
-    pdfw.Document? pdf = await _convertImagesToPdf(
-      imagePaths,
-      docIndex,
-      firstPageIndex,
-    );
-    if (pdf != null) {
-      final pdfFile = File(pdfPath);
-      await pdfFile.writeAsBytes(await pdf.save());
-      XFile xFile = XFile(pdfPath);
-
-      await Share.shareXFiles([xFile]);
-      pdfFile.delete();
-    } else {
-      messenger?.showSnackBar(
-        SnackBar(content: Text("No PDF available to share.")),
-      );
-    }
   }
 
   static Future<String> rotateImageInTmpDir(
@@ -1377,10 +1290,10 @@ class FilesHelper {
     for (var angle = 90; angle <= 270; angle += 90) {
       paths.add("${tmpDir.path}/rotated_$angle.png");
     }
-    deleteImages(paths);
+    _deleteImages(paths);
   }
 
-  static Future<void> deleteImages(List<String> paths) async {
+  static Future<void> _deleteImages(List<String> paths) async {
     List<Future<void>> futures = [];
     for (var path in paths) {
       final file = File(path);

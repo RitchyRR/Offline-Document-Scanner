@@ -621,7 +621,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                               pagesCount == 1)
                                       ? () async {
                                         Navigator.pop(context);
-                                        await filesHelper.shareDocumentPdf(
+                                        await filesHelper.shareImagesPdf(
                                           context,
                                           docIndex,
                                         );
@@ -789,7 +789,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ? () async {
                                         Navigator.pop(context);
                                         await filesHelper
-                                            .pickFolderForDocumentPdf(
+                                            .pickFolderForImagesPdf(
                                               docIndex,
                                               context,
                                             );
@@ -1612,47 +1612,48 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
-  Future<void> _savePagePopup(BuildContext context, int pageIndex) async {
-    final int thumbnailIndex =
-        await ImageProcessingManager.readPageThumbnailIndex(
-          widget.docIndex,
-          pageIndex,
-        );
-    final String imagePath = await filesHelper.getVersionPath(
-      widget.docIndex,
-      pageIndex,
-      thumbnailIndex,
-    );
+  Future<void> _savePagesPopup(
+    BuildContext context,
+    List<int> pageIndexes,
+  ) async {
+    final List<String> imagePaths = [];
+    for (var pageIndex in pageIndexes) {
+      imagePaths.add(_pageThumbnails[pageIndex]);
+    }
+    final int pagesCount = pageIndexes.length;
+    final bool singlePage = pagesCount == 1;
 
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Save Page ${pageIndex + 1}"),
+          title: Text(
+            "Save${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
+          ),
 
           actions: [
-            ImagesScrollPreview(pagePaths: [imagePath]),
+            ImagesScrollPreview(pagePaths: imagePaths),
             SizedBox(height: 36.0),
 
             // Save Image
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
-                FilesHelper.saveImageToGallery(imagePath);
+                FilesHelper.saveImagesToGallery(imagePaths);
               },
 
               icon: Icon(Icons.image),
-              label: Text("Save Image to Gallery"),
+              label: Text("Save Image${singlePage ? "" : "s"} to Gallery"),
             ),
 
             // Save as PDF
             ElevatedButton.icon(
               onPressed: () async {
-                await FilesHelper.pickFolderForImagePdf(
-                  imagePath,
+                await filesHelper.pickFolderForImagesPdf(
                   widget.docIndex,
-                  pageIndex,
+                  context,
+                  pageIndexes: pageIndexes,
                 );
                 if (context.mounted) {
                   Navigator.pop(context);
@@ -1660,7 +1661,9 @@ class _PagesState extends State<Pages> {
               },
 
               icon: Icon(Icons.picture_as_pdf),
-              label: Text("Save PDF to Directory"),
+              label: Text(
+                "Save ${singlePage ? "" : "combined "}PDF to Directory",
+              ),
             ),
 
             // Cancel Button
@@ -1674,17 +1677,27 @@ class _PagesState extends State<Pages> {
     );
   }
 
-  Future<void> _sharePagePopup(BuildContext context, int pageIndex) async {
-    final String imagePath = _pageThumbnails[pageIndex];
+  Future<void> _sharePagesPopup(
+    BuildContext context,
+    List<int> pageIndexes,
+  ) async {
+    final List<String> imagePaths = [];
+    for (var pageIndex in pageIndexes) {
+      imagePaths.add(_pageThumbnails[pageIndex]);
+    }
+    final int pagesCount = pageIndexes.length;
+    final bool singlePage = pagesCount == 1;
 
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Share Page ${pageIndex + 1}"),
+          title: Text(
+            "Share${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
+          ),
           actions: [
-            ImagesScrollPreview(pagePaths: [imagePath]),
+            ImagesScrollPreview(pagePaths: imagePaths),
             SizedBox(height: 36.0),
 
             Column(
@@ -1694,10 +1707,10 @@ class _PagesState extends State<Pages> {
                 ElevatedButton.icon(
                   onPressed: () async {
                     Navigator.pop(context);
-                    await FilesHelper.shareImages([imagePath]);
+                    await FilesHelper.shareImages(imagePaths);
                   },
                   icon: Icon(Icons.image),
-                  label: Text("Share Image"),
+                  label: Text("Share Image${singlePage ? "" : "s"}"),
                 ),
 
                 // Share PDF
@@ -1706,13 +1719,12 @@ class _PagesState extends State<Pages> {
                     Navigator.pop(context);
                     await filesHelper.shareImagesPdf(
                       context,
-                      [imagePath],
                       widget.docIndex,
-                      pageIndex,
+                      pageIndexes: pageIndexes,
                     );
                   },
                   icon: Icon(Icons.picture_as_pdf),
-                  label: Text("Share PDF"),
+                  label: Text("Share ${singlePage ? "" : "combined "}PDF"),
                 ),
 
                 // Cancel Button
@@ -1728,12 +1740,20 @@ class _PagesState extends State<Pages> {
     );
   }
 
-  Future<bool> _deletePagePopup(BuildContext context, int pageIndex) async {
+  Future<bool> _deletePagesPopup(
+    BuildContext context,
+    List<int> pageIndexes,
+  ) async {
+    final int pagesCount = pageIndexes.length;
+    final bool singlePage = pagesCount == 1;
+
     bool? confirmDelete = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Delete Page ${pageIndex + 1}"),
+          title: Text(
+            "Delete${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
+          ),
           content: Text(
             "Are you sure you want to permanently delete this page?",
           ),
@@ -1751,11 +1771,64 @@ class _PagesState extends State<Pages> {
       },
     );
     if (confirmDelete != null && confirmDelete == true) {
-      // ignore: use_build_context_synchronously
-      filesHelper.deletePage(context, widget.docIndex, pageIndex);
+      var backwardsIndeces =
+          pageIndexes.reversed; // to not change the indexes with every delete
+      Future.microtask(() async {
+        for (var pageIndex in backwardsIndeces) {
+          // ignore: use_build_context_synchronously
+          await filesHelper.deletePage(context, widget.docIndex, pageIndex);
+        }
+      });
       return true;
     }
     return false;
+  }
+
+  bool _selectMode = false;
+  //bool _blockSelectTmp = false;
+  List<int> selected = [];
+
+  _selectPage(int index) {
+    //if (_blockSelectTmp) return;
+    //_blockSelectTmp = true;
+    //Future.microtask(() async {
+    //  await Future.delayed(Duration(milliseconds: 100));
+    //  _blockSelectTmp = false;
+    //});
+    if (selected.contains(index)) {
+      selected.remove(index);
+    } else {
+      selected.add(index);
+    }
+    if (selected.isEmpty) {
+      _selectMode = false;
+    } else {
+      selected.sort();
+      _selectMode = true;
+    }
+    Future.microtask(() {
+      setState(() {});
+    });
+  }
+
+  _selectAll() {
+    selected = List.generate(
+      _pageThumbnails.length,
+      (int index) => index,
+      growable: true,
+    );
+    _selectMode = true;
+    Future.microtask(() {
+      setState(() {});
+    });
+  }
+
+  _cancelSelectMode() {
+    selected = [];
+    _selectMode = false;
+    Future.microtask(() {
+      setState(() {});
+    });
   }
 
   // Pages
@@ -1764,7 +1837,24 @@ class _PagesState extends State<Pages> {
     //final bool isTopOfNavigationStack =
     //    ModalRoute.of(context)?.isCurrent ?? false;
     return Scaffold(
-      appBar: AppBar(title: Text("Document ${widget.docIndex + 1}")),
+      appBar:
+          !_selectMode
+              ? AppBar(title: Text("Document ${widget.docIndex + 1}"))
+              : AppBar(
+                title: Text("${selected.length} Pages selected"),
+                leading: IconButton(
+                  onPressed: () => _cancelSelectMode(),
+                  icon: Icon(Icons.close),
+                  tooltip: "Cancel Selection",
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () => _selectAll(),
+                    icon: Icon(Icons.select_all),
+                    tooltip: "Select all",
+                  ),
+                ],
+              ),
       body:
           _pageThumbnails
                   .isNotEmpty // && isTopOfNavigationStack
@@ -1832,21 +1922,28 @@ class _PagesState extends State<Pages> {
                                       child: IndicatorProcessingImage(),
                                     ),
                                   ),
-                              // Open PagePreview
+                              // InkWell
                               Positioned.fill(
                                 child: Material(
-                                  color: Colors.transparent,
+                                  color:
+                                      (_selectMode && selected.contains(index))
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withAlpha(150)
+                                          : Colors.transparent,
                                   child: InkWell(
                                     onTap:
                                         (thumbnailPath.isNotEmpty)
-                                            ? () => _openPagePreview(index)
+                                            ? !_selectMode
+                                                ? () => _openPagePreview(index)
+                                                : () => _selectPage(index)
                                             : null,
                                     onLongPress:
                                         (thumbnailPath.isNotEmpty)
-                                            ? () => _openPageEditDialog(
-                                              context,
-                                              index,
-                                            )
+                                            ? () {
+                                              _selectPage(index);
+                                            }
                                             : null,
                                     splashColor: Colors.black26,
                                     highlightColor: Colors.black26,
@@ -1860,11 +1957,24 @@ class _PagesState extends State<Pages> {
                                 child: GestureDetector(
                                   // Change Page Index Dialog
                                   onTap:
-                                      () => _openPageEditDialog(context, index),
+                                      _selectMode
+                                          ? () => _selectPage(index)
+                                          : () => _openPageEditDialog(
+                                            context,
+                                            index,
+                                          ),
+                                  onLongPress:
+                                      _selectMode
+                                          ? () => _selectPage(index)
+                                          : null,
                                   child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
+                                    padding: EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      (_selectMode && selected.contains(index))
+                                          ? 6
+                                          : 12,
+                                      6,
                                     ),
                                     decoration: BoxDecoration(
                                       color:
@@ -1874,13 +1984,32 @@ class _PagesState extends State<Pages> {
                                       borderRadius: BorderRadius.circular(20),
                                       boxShadow: [smallBoxShadow(context)],
                                     ),
-                                    child: Text(
-                                      "${index + 1}/$_pagesCount",
-                                      style: TextStyle(
-                                        //color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "${index + 1}/$_pagesCount",
+                                          style: TextStyle(
+                                            //color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width:
+                                              (_selectMode &&
+                                                      selected.contains(index))
+                                                  ? 8
+                                                  : 0,
+                                        ),
+                                        (_selectMode &&
+                                                selected.contains(index))
+                                            ? Icon(Icons.check, size: 20)
+                                            : SizedBox(),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -1897,52 +2026,107 @@ class _PagesState extends State<Pages> {
       // Floating Action Buttons
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: FloatingActionButton(
-                heroTag: "pickImage",
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        child:
+            !_selectMode
+                ? Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "pickImage",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () {
+                          _openImagePicker(
+                            ImageSource.gallery,
+                            isMultiImage: true,
+                          );
+                        },
+                        tooltip: 'Pick multiple Images from Gallery',
+                        child: const Icon(Icons.photo_library),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "pickImages",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () {
+                          _openImagePicker(ImageSource.gallery);
+                        },
+                        tooltip: 'Pick an Image from Gallery',
+                        child: const Icon(Icons.photo),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    if (_picker.supportsImageSource(ImageSource.camera))
+                      FloatingActionButton(
+                        heroTag: "makePhoto",
+                        onPressed: () {
+                          _openImagePicker(ImageSource.camera);
+                        },
+                        tooltip: 'Take a Photo',
+                        child: const Icon(Icons.camera_alt),
+                      ),
+                  ],
+                )
+                : Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "selectionDelete",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () async {
+                          bool deleted = await _deletePagesPopup(
+                            context,
+                            selected,
+                          );
+                          if (deleted) _cancelSelectMode();
+                        },
+                        tooltip: 'Delete',
+                        child: const Icon(Icons.delete),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "selectionSave",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () async {
+                          await _savePagesPopup(context, selected);
+                        },
+                        tooltip: 'Save',
+                        child: const Icon(Icons.save),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    if (_picker.supportsImageSource(ImageSource.camera))
+                      FloatingActionButton(
+                        heroTag: "selectionShare",
+                        onPressed: () async {
+                          await _sharePagesPopup(context, selected);
+                        },
+                        tooltip: 'Share',
+                        child: const Icon(Icons.share),
+                      ),
+                  ],
                 ),
-                onPressed: () {
-                  _openImagePicker(ImageSource.gallery, isMultiImage: true);
-                },
-                tooltip: 'Pick multiple Images from Gallery',
-                child: const Icon(Icons.photo_library),
-              ),
-            ),
-            SizedBox(height: 18.0),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: FloatingActionButton(
-                heroTag: "pickImages",
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onPressed: () {
-                  _openImagePicker(ImageSource.gallery);
-                },
-                tooltip: 'Pick an Image from Gallery',
-                child: const Icon(Icons.photo),
-              ),
-            ),
-            SizedBox(height: 18.0),
-            if (_picker.supportsImageSource(ImageSource.camera))
-              FloatingActionButton(
-                heroTag: "makePhoto",
-                onPressed: () {
-                  _openImagePicker(ImageSource.camera);
-                },
-                tooltip: 'Take a Photo',
-                child: const Icon(Icons.camera_alt),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -2008,18 +2192,18 @@ class _PagesState extends State<Pages> {
                     children: [
                       // Save
                       IconButton(
-                        onPressed: () => _savePagePopup(context, pageIndex),
+                        onPressed: () => _savePagesPopup(context, [pageIndex]),
                         icon: Icon(Icons.save),
                       ),
                       // Share
                       IconButton(
-                        onPressed: () => _sharePagePopup(context, pageIndex),
+                        onPressed: () => _sharePagesPopup(context, [pageIndex]),
                         icon: Icon(Icons.share),
                       ),
                       // Delete
                       IconButton(
                         onPressed: () async {
-                          if (await _deletePagePopup(context, pageIndex)) {
+                          if (await _deletePagesPopup(context, [pageIndex])) {
                             if (context.mounted) {
                               Navigator.pop(context);
                             }
@@ -2323,10 +2507,10 @@ class PagePreviewState extends State<PagePreview> {
                           onPressed:
                               (proUnlocked == true || versionIndex != 3)
                                   ? () async {
-                                    await FilesHelper.pickFolderForImagePdf(
-                                      imagePath,
+                                    await filesHelper.pickFolderForImagesPdf(
                                       widget.docIndex,
-                                      widget.pageIndex,
+                                      context,
+                                      pageIndexes: [widget.pageIndex],
                                       versionName: versionNames[versionIndex],
                                     );
                                     if (context.mounted) {
@@ -2443,9 +2627,8 @@ class PagePreviewState extends State<PagePreview> {
                                     Navigator.pop(context);
                                     await filesHelper.shareImagesPdf(
                                       context,
-                                      [imagePath],
                                       widget.docIndex,
-                                      widget.pageIndex,
+                                      pageIndexes: [widget.pageIndex],
                                       versionName: versionNames[versionIndex],
                                     );
                                   }
