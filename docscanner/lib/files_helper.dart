@@ -863,8 +863,8 @@ class FilesHelper {
     final completer = Completer<List<String>>();
     port.listen((message) async {
       if (message is List<String>) {
-        completer.complete(message);
         messenger.hideCurrentSnackBar();
+        completer.complete(message);
         port.close();
         (await isolate).kill();
       }
