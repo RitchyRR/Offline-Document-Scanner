@@ -1175,6 +1175,7 @@ class OpenCVHelper {
   }
 
   int _percentileValueInt(List<int> a, double percentile) {
+    if (a.isEmpty) return 0;
     a.sort();
     int index = (a.length.toDouble() * percentile).toInt();
     return a[index];
@@ -1190,6 +1191,7 @@ class OpenCVHelper {
     ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
     List<int> a = ref.data.toList();
     a.removeWhere((value) => value == 255);
+    if (a.isEmpty) return mat;
     a.sort();
     int lowIndex = (a.length.toDouble() * lowPercentile).toInt();
     double lowValue = a[lowIndex].toDouble();

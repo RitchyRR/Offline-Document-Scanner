@@ -829,19 +829,14 @@ class FilesHelper {
     saveImagesToGallery([imagePath]);
   }
 
-  static Future<List<String>> pickImage(
+  bool _pickingImage = false;
+  Future<List<String>> pickImage(
     BuildContext context,
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    ReceivePort port = ReceivePort();
-    RootIsolateToken token = RootIsolateToken.instance!;
-    Future<Isolate> isolate = Isolate.spawn(_pickImageIsolate, (
-      port.sendPort,
-      token,
-      source,
-      isMultiImage,
-    ));
+    if (_pickingImage) return [];
+    _pickingImage = true;
 
     ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     SnackBar snackBar = SnackBar(
@@ -860,6 +855,15 @@ class FilesHelper {
       ),
       duration: const Duration(days: 1),
     );
+    ReceivePort port = ReceivePort();
+    RootIsolateToken token = RootIsolateToken.instance!;
+    Isolate isolate = await Isolate.spawn(_pickImageIsolate, (
+      port.sendPort,
+      token,
+      source,
+      isMultiImage,
+    ));
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1000));
       if (context.mounted) {
@@ -872,8 +876,9 @@ class FilesHelper {
       if (message is List<String>) {
         messenger.hideCurrentSnackBar();
         completer.complete(message);
+        _pickingImage = false;
         port.close();
-        (await isolate).kill();
+        isolate.kill();
       }
     });
     return await completer.future;

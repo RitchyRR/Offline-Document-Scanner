@@ -277,7 +277,7 @@ class _MyHomePageState extends State<MyHomePage> {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths = await FilesHelper.pickImage(
+    List<String> picturePaths = await filesHelper.pickImage(
       context,
       source,
       isMultiImage: isMultiImage,
@@ -1584,7 +1584,7 @@ class _PagesState extends State<Pages> {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths = await FilesHelper.pickImage(
+    List<String> picturePaths = await filesHelper.pickImage(
       context,
       source,
       isMultiImage: isMultiImage,
