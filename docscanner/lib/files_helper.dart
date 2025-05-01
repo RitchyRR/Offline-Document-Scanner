@@ -814,17 +814,34 @@ class FilesHelper {
     Fluttertoast.showToast(msg: 'Saved $i images in album "$albumName"');
   }
 
-  static Future<void> saveImagesToGallery(List<String> imagePaths) async {
+  Future<void> saveImagesToGallery(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    int? versionIndex,
+  }) async {
+    List<String> imagePaths;
+    if (pageIndexes.length == 1 && versionIndex != null) {
+      imagePaths = [
+        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
+      ];
+    } else {
+      imagePaths =
+          (await getPagesThumbnails(
+            docIndex,
+            pageIndexes: pageIndexes,
+            fullSized: true,
+          )).$1;
+    }
+    if (imagePaths.isEmpty) {
+      dev.log("Error, saveImagesToGallery: No images in Document $docIndex");
+    }
+
     final albumName = "Scanned Documents";
 
     for (String imagePath in imagePaths) {
       await Gal.putImage(imagePath, album: albumName);
       Fluttertoast.showToast(msg: 'Saved in album "$albumName"');
     }
-  }
-
-  static void saveImageToGallery(String imagePath) {
-    saveImagesToGallery([imagePath]);
   }
 
   bool _pickingImage = false;
@@ -929,16 +946,25 @@ class FilesHelper {
   Future<pdfw.Document?> _convertImagesToPdf(
     int docIndex, {
     List<int> pageIndexes = const [],
+    int? versionIndex,
   }) async {
-    List<String> imagePaths =
-        (await getPagesThumbnails(
-          docIndex,
-          pageIndexes: pageIndexes,
-          fullSized: true,
-        )).$1;
+    List<String> imagePaths;
+    if (pageIndexes.length == 1 && versionIndex != null) {
+      imagePaths = [
+        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
+      ];
+    } else {
+      imagePaths =
+          (await getPagesThumbnails(
+            docIndex,
+            pageIndexes: pageIndexes,
+            fullSized: true,
+          )).$1;
+    }
     if (imagePaths.isEmpty) {
       dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
     }
+
     // Metadata
     List<int> ratioIndexes = [];
     List<int> orientations = [];
@@ -1017,7 +1043,7 @@ class FilesHelper {
     int docIndex,
     BuildContext context, {
     List<int> pageIndexes = const [],
-    String? versionName,
+    int? versionIndex,
   }) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
@@ -1060,6 +1086,8 @@ class FilesHelper {
         displayPageIndexes.add(pageIndex + 1);
       }
       // Save PDF
+      final String? versionName =
+          versionIndex != null ? versionNames[versionIndex] : null;
       final String docName =
           "doc${docIndex + 1}${pageIndexes.length == 1
               ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}")
@@ -1080,11 +1108,12 @@ class FilesHelper {
       }
 
       pdfw.Document? pdf;
-      if (pageIndexes.isEmpty) {
-        pdf = await _convertImagesToPdf(docIndex);
-      } else {
-        pdf = await _convertImagesToPdf(docIndex, pageIndexes: pageIndexes);
-      }
+      pdf = await _convertImagesToPdf(
+        docIndex,
+        pageIndexes: pageIndexes,
+        versionIndex: versionIndex,
+      );
+
       // Isolate
       Isolate isolate = await Isolate.spawn(_writePfdToPathIsolate, (
         port.sendPort,
@@ -1188,9 +1217,8 @@ class FilesHelper {
             fullSized: true,
           )).$1;
     }
-
     if (imagePaths.isEmpty) {
-      dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
+      dev.log("Error, shareImages: No images in Document $docIndex");
     }
 
     List<XFile> xFiles = [];
@@ -1205,7 +1233,7 @@ class FilesHelper {
     BuildContext context,
     int docIndex, {
     List<int> pageIndexes = const [],
-    String? versionName,
+    int? versionIndex,
   }) async {
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
@@ -1235,11 +1263,14 @@ class FilesHelper {
 
     // Save PDF
     final docsDir = await _getDocumentsPath();
+    final String? versionName =
+        versionIndex != null ? versionNames[versionIndex] : null;
     String pdfPath =
         "$docsDir/doc${docIndex + 1}${pageIndexes.length == 1 ? "_page${pageIndexes.isNotEmpty ? pageIndexes.first + 1 : 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
     pdfw.Document? pdf = await _convertImagesToPdf(
       docIndex,
       pageIndexes: pageIndexes,
+      versionIndex: versionIndex,
     );
 
     // Isolate

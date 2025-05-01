@@ -3915,16 +3915,26 @@ Future<void> _pagesPopup(
                                                 versionIndex != 3)
                                         ? () async {
                                           Navigator.pop(context);
-                                          if (type == PopUpType.share) {
-                                            filesHelper.shareImages(
-                                              docIndex,
-                                              pageIndexes: pageIndexes,
-                                              versionIndex: versionIndex,
-                                            );
-                                          } else if (type == PopUpType.save) {
-                                            FilesHelper.saveImagesToGallery(
-                                              imagePaths,
-                                            );
+                                          switch (type) {
+                                            case PopUpType.share:
+                                              filesHelper.shareImages(
+                                                docIndex,
+                                                pageIndexes: pageIndexes,
+                                                versionIndex: versionIndex,
+                                              );
+                                              break;
+                                            case PopUpType.save:
+                                              filesHelper.saveImagesToGallery(
+                                                docIndex,
+                                                pageIndexes: pageIndexes,
+                                                versionIndex: versionIndex,
+                                              );
+                                              break;
+                                            //case PopUpType.delete:
+                                            //
+                                            //  filesHelper.deleteDocument(context, docIndex);
+                                            //  break;
+                                            default:
                                           }
                                         }
                                         : null,
@@ -3982,6 +3992,7 @@ Future<void> _pagesPopup(
                                                     context,
                                                     docIndex,
                                                     pageIndexes: pageIndexes,
+                                                    versionIndex: versionIndex,
                                                   );
                                                 } else if (type ==
                                                     PopUpType.save) {
@@ -3991,6 +4002,8 @@ Future<void> _pagesPopup(
                                                         context,
                                                         pageIndexes:
                                                             pageIndexes,
+                                                        versionIndex:
+                                                            versionIndex,
                                                       );
                                                 }
                                                 if (context.mounted) {
