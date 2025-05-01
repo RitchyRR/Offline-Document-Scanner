@@ -678,9 +678,7 @@ class FilesHelper {
         return fse.path;
       }
     }
-    throw StateError(
-      "getVersionPath: Version does not exist: Doc $docIndex, Page $pageIndex, Version $versionIndex",
-    );
+    return "";
   }
 
   changeDocumentIndex(int currentIndex, int newIndex) async {

@@ -521,340 +521,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _shareDocumentPopup(BuildContext context, int docIndex) async {
-    var pThumbs = await filesHelper.getPagesThumbnails(docIndex);
-    List<String> pagePaths = pThumbs.$1;
-    int pagesCount = pThumbs.$2;
-    bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-
-    showDialog(
-      // ignore: use_build_context_synchronously
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return ValueListenableBuilder<NotifierEvent>(
-              valueListenable:
-                  (globalNotifier as ValueListenable<NotifierEvent>),
-              builder: (context, event, _) {
-                if (event == NotifierEvent.loadDocsThumbnails) {
-                  Future.microtask(() async {
-                    pThumbs = await filesHelper.getPagesThumbnails(docIndex);
-                    pagePaths = pThumbs.$1;
-                    pagesCount = pThumbs.$2;
-                    allPagesLoaded =
-                        !pagePaths.any((element) => element.isEmpty);
-                    if (mounted) setStateDialog(() {});
-                  });
-                }
-                return AlertDialog(
-                  title: Text(
-                    "Share ${_docNames[docIndex].isNotEmpty ? _docNames[docIndex] : "Document ${docIndex + 1}"}",
-                  ),
-                  actions: [
-                    ImagesScrollPreview(pagePaths: pagePaths),
-                    SizedBox(height: 36.0),
-                    !allPagesLoaded
-                        ? Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(),
-                              ),
-                              SizedBox(width: 8.0),
-                              SizedBox(
-                                width: 190,
-                                child: Text("Processing images..."),
-                              ),
-                            ],
-                          ),
-                        )
-                        : Row(),
-
-                    // Share as Images
-                    ElevatedButton.icon(
-                      onPressed:
-                          allPagesLoaded
-                              ? () async {
-                                Navigator.pop(context);
-                                await filesHelper.shareDocumentImages(
-                                  context,
-                                  docIndex,
-                                );
-                              }
-                              : null,
-                      icon: Icon(
-                        allPagesLoaded ? Icons.image : Icons.broken_image,
-                      ),
-                      label: Text(
-                        "Share ${pagesCount == 1 ? "Image" : "$pagesCount Images"}",
-                      ),
-                    ),
-
-                    // Share PDF
-                    SizedBox(
-                      height: (proUnlocked == true || pagesCount == 1) ? 0 : 4,
-                    ),
-                    Container(
-                      decoration:
-                          (proUnlocked == true || pagesCount == 1)
-                              ? null
-                              : BoxDecoration(
-                                color:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [smallBoxShadow(context)],
-                              ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal:
-                                  (proUnlocked == true || pagesCount == 1)
-                                      ? 0
-                                      : 4,
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  allPagesLoaded &&
-                                          (proUnlocked == true ||
-                                              pagesCount == 1)
-                                      ? () async {
-                                        Navigator.pop(context);
-                                        await filesHelper.shareImagesPdf(
-                                          context,
-                                          docIndex,
-                                        );
-                                      }
-                                      : null,
-                              icon: Icon(
-                                allPagesLoaded
-                                    ? Icons.picture_as_pdf
-                                    : Icons.broken_image,
-                              ),
-                              label: Text(
-                                "Share ${pagesCount == 1 ? "single page " : "combined "}PDF",
-                              ),
-                            ),
-                          ),
-                          (proUnlocked == true || pagesCount == 1)
-                              ? SizedBox()
-                              : Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  10,
-                                  0,
-                                  10,
-                                  6,
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final bool setProPopup = await proPopup(
-                                      context,
-                                    );
-                                    if (mounted && context.mounted) {
-                                      setState(() {
-                                        proUnlocked = setProPopup;
-                                      });
-                                      setStateDialog(() {});
-                                    }
-                                  },
-                                  icon: Icon(Icons.lock),
-                                  label: Text("Unlock PRO"),
-                                ),
-                              ),
-                        ],
-                      ),
-                    ),
-
-                    // Cancel Button
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: Text("Cancel"),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _saveDocumentPopup(BuildContext context, int docIndex) async {
-    var pThumbs = await filesHelper.getPagesThumbnails(docIndex);
-    List<String> pagePaths = pThumbs.$1;
-    int pagesCount = pThumbs.$2;
-    bool allPagesLoaded = !pagePaths.any((element) => element.isEmpty);
-
-    showDialog(
-      // ignore: use_build_context_synchronously
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return ValueListenableBuilder<NotifierEvent>(
-              valueListenable:
-                  (globalNotifier as ValueListenable<NotifierEvent>),
-              builder: (context, event, _) {
-                if (event == NotifierEvent.loadDocsThumbnails) {
-                  Future.microtask(() async {
-                    pThumbs = await filesHelper.getPagesThumbnails(docIndex);
-                    pagePaths = pThumbs.$1;
-                    pagesCount = pThumbs.$2;
-                    allPagesLoaded =
-                        !pagePaths.any((element) => element.isEmpty);
-                    if (mounted) setStateDialog(() {});
-                  });
-                }
-                return AlertDialog(
-                  title: Text(
-                    "Save ${_docNames[docIndex].isNotEmpty ? _docNames[docIndex] : "Document ${docIndex + 1}"}",
-                  ),
-                  actions: [
-                    ImagesScrollPreview(pagePaths: pagePaths),
-                    SizedBox(height: 36.0),
-                    !allPagesLoaded
-                        ? Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(),
-                              ),
-                              SizedBox(width: 8.0),
-                              SizedBox(
-                                width: 190,
-                                child: Text("Processing images..."),
-                              ),
-                            ],
-                          ),
-                        )
-                        : Row(),
-
-                    // Save as Images
-                    ElevatedButton.icon(
-                      onPressed:
-                          allPagesLoaded
-                              ? () async {
-                                Navigator.pop(context);
-                                await filesHelper.saveDocumentImagesToGallery(
-                                  docIndex,
-                                );
-                              }
-                              : null,
-                      icon: Icon(
-                        allPagesLoaded ? Icons.image : Icons.broken_image,
-                      ),
-                      label: Text(
-                        "Save ${pagesCount == 1 ? "Image" : "$pagesCount Images"} to Gallery",
-                      ),
-                    ),
-
-                    // Save as PDF
-                    SizedBox(
-                      height: (proUnlocked == true || pagesCount == 1) ? 0 : 4,
-                    ),
-                    Container(
-                      decoration:
-                          (proUnlocked == true || pagesCount == 1)
-                              ? null
-                              : BoxDecoration(
-                                color:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [smallBoxShadow(context)],
-                              ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal:
-                                  (proUnlocked == true || pagesCount == 1)
-                                      ? 0
-                                      : 4,
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  allPagesLoaded &&
-                                          (proUnlocked == true ||
-                                              pagesCount == 1)
-                                      ? () async {
-                                        Navigator.pop(context);
-                                        await filesHelper
-                                            .pickFolderForImagesPdf(
-                                              docIndex,
-                                              context,
-                                            );
-                                      }
-                                      : null,
-                              icon: Icon(
-                                allPagesLoaded
-                                    ? Icons.picture_as_pdf
-                                    : Icons.broken_image,
-                              ),
-                              label: Text(
-                                "Save ${pagesCount == 1 ? "single page " : "combined "}PDF to Directory",
-                              ),
-                            ),
-                          ),
-                          (proUnlocked == true || pagesCount == 1)
-                              ? SizedBox()
-                              : Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  10,
-                                  0,
-                                  10,
-                                  6,
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final bool setProPopup = await proPopup(
-                                      context,
-                                    );
-                                    if (mounted && context.mounted) {
-                                      setState(() {
-                                        proUnlocked = setProPopup;
-                                      });
-                                      setStateDialog(() {});
-                                    }
-                                  },
-                                  icon: Icon(Icons.lock),
-                                  label: Text("Unlock PRO"),
-                                ),
-                              ),
-                        ],
-                      ),
-                    ),
-
-                    // Cancel Button
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text("Cancel"),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _deleteDocumentPopup(BuildContext context, int docIndex) async {
     bool? confirmDelete = await showDialog<bool>(
       context: context,
@@ -1070,14 +736,14 @@ class _MyHomePageState extends State<MyHomePage> {
               // Documents Cards
               ? ListView.builder(
                 itemCount: _docsCount,
-                itemBuilder: (BuildContext context, int index) {
+                itemBuilder: (BuildContext context, int docIndex) {
                   String docName =
-                      _docNames[index].isNotEmpty
-                          ? _docNames[index]
-                          : "Document ${index + 1}";
-                  String creationDate = _docDates[index];
+                      _docNames[docIndex].isNotEmpty
+                          ? _docNames[docIndex]
+                          : "Document ${docIndex + 1}";
+                  String creationDate = _docDates[docIndex];
                   int pagesCount =
-                      _docPageCounts.isNotEmpty ? _docPageCounts[index] : -1;
+                      _docPageCounts.isNotEmpty ? _docPageCounts[docIndex] : -1;
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -1105,7 +771,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       onTap:
                                           () => _openDocEditDialog(
                                             context,
-                                            index,
+                                            docIndex,
                                           ),
                                       child: Padding(
                                         padding: EdgeInsets.all(12),
@@ -1163,18 +829,22 @@ class _MyHomePageState extends State<MyHomePage> {
                                       // Save Button
                                       IconButton(
                                         onPressed:
-                                            () => _saveDocumentPopup(
+                                            () => _pagesPopup(
                                               context,
-                                              index,
+                                              [],
+                                              PopUpType.save,
+                                              docIndex,
                                             ),
                                         icon: Icon(Icons.save),
                                       ),
                                       // Share Button
                                       IconButton(
                                         onPressed:
-                                            () => _shareDocumentPopup(
+                                            () => _pagesPopup(
                                               context,
-                                              index,
+                                              [],
+                                              PopUpType.share,
+                                              docIndex,
                                             ),
                                         icon: Icon(Icons.share),
                                       ),
@@ -1183,7 +853,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         onPressed:
                                             () => _deleteDocumentPopup(
                                               context,
-                                              index,
+                                              docIndex,
                                             ),
                                         icon: Icon(Icons.delete),
                                       ),
@@ -1203,13 +873,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                                 child: Stack(
                                   children: [
-                                    (_docThumbnails[index].isNotEmpty)
+                                    (_docThumbnails[docIndex].isNotEmpty)
                                         ? AnimatedSwitcher(
                                           duration: Duration(milliseconds: 200),
                                           child: Image.file(
-                                            File(_docThumbnails[index]),
+                                            File(_docThumbnails[docIndex]),
                                             key: ValueKey(
-                                              _docThumbnails[index],
+                                              _docThumbnails[docIndex],
                                             ),
                                             fit: BoxFit.cover,
                                             errorBuilder: (
@@ -1220,8 +890,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                               return AspectRatio(
                                                 aspectRatio:
                                                     (_thumbnailRatios.length >
-                                                            index)
-                                                        ? _thumbnailRatios[index]
+                                                            docIndex)
+                                                        ? _thumbnailRatios[docIndex]
                                                         : 1.0 / 1.414,
                                                 child: Builder(
                                                   builder: (context) {
@@ -1241,7 +911,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                         )
                                         : AspectRatio(
-                                          aspectRatio: _thumbnailRatios[index],
+                                          aspectRatio:
+                                              _thumbnailRatios[docIndex],
                                           child: Builder(
                                             builder: (context) {
                                               return Material(
@@ -1259,7 +930,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       child: Material(
                                         color: Colors.transparent,
                                         child: InkWell(
-                                          onTap: () => _openDocument(index),
+                                          onTap: () => _openDocument(docIndex),
                                           splashColor: Colors.black26,
                                           highlightColor: Colors.black26,
                                         ),
@@ -4121,7 +3792,7 @@ Future<void> _pagesPopup(
   int? versionIndex,
 }) async {
   late List<String> imagePaths;
-  late int pagesCount;
+  late int imagesCount;
   if (versionIndex != null && pageIndexes.length == 1) {
     imagePaths = [
       await filesHelper.getVersionPath(
@@ -4130,7 +3801,7 @@ Future<void> _pagesPopup(
         versionIndex,
       ),
     ];
-    pagesCount = 1;
+    imagesCount = 1;
   } else {
     var thumbs = await filesHelper.getPagesThumbnails(
       docIndex,
@@ -4138,9 +3809,10 @@ Future<void> _pagesPopup(
       fullSized: false,
     );
     imagePaths = thumbs.$1;
-    pagesCount = thumbs.$2;
+    imagesCount = thumbs.$2;
   }
-  final bool isSinglePage = pagesCount == 1;
+  final bool isSinglePage = imagesCount == 1;
+  bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
   //versionIndex = versionIndex ?? 3;
 
   showDialog(
@@ -4149,199 +3821,258 @@ Future<void> _pagesPopup(
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Text(
-              "${type == PopUpType.share
-                  ? "Share"
-                  : type == PopUpType.save
-                  ? "Save"
-                  : "Delete"}${isSinglePage ? "" : " $pagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}${versionIndex != null ? ", \n${versionNames[versionIndex]}" : ""}" : ""}",
-            ),
+          return ValueListenableBuilder<NotifierEvent>(
+            valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
+            builder: (context, event, _) {
+              if (event == NotifierEvent.loadDocsThumbnails ||
+                  event == NotifierEvent.loadPagesThumbnails) {
+                if (versionIndex != null && pageIndexes.length == 1) {
+                  Future.microtask(() async {
+                    imagePaths = [
+                      await filesHelper.getVersionPath(
+                        docIndex,
+                        pageIndexes.first,
+                        versionIndex,
+                      ),
+                    ];
+                    imagesCount = 1;
+                    allPagesLoaded =
+                        !imagePaths.any((element) => element.isEmpty);
+                    setStateDialog(() {});
+                  });
+                } else {
+                  Future.microtask(() async {
+                    var thumbs = await filesHelper.getPagesThumbnails(docIndex);
+                    imagePaths = thumbs.$1;
+                    imagesCount = thumbs.$2;
+                    allPagesLoaded =
+                        !imagePaths.any((element) => element.isEmpty);
+                    setStateDialog(() {});
+                  });
+                }
+              }
+              return AlertDialog(
+                title: Text(
+                  "${type == PopUpType.share
+                      ? "Share"
+                      : type == PopUpType.save
+                      ? "Save"
+                      : "Delete"}${isSinglePage ? "" : " $imagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}${versionIndex != null ? ", \n${versionNames[versionIndex]}" : ""}" : ""}",
+                ),
 
-            actions: [
-              ImagesScrollPreview(pagePaths: imagePaths),
-              SizedBox(height: 36.0),
-
-              Container(
-                decoration:
-                    (proUnlocked == true || versionIndex != 3)
-                        ? null
-                        : BoxDecoration(
-                          color:
-                              Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [smallBoxShadow(context)],
-                        ),
-                child: Column(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Image
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal:
-                                (proUnlocked == true || versionIndex != 3)
-                                    ? 0
-                                    : 4,
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed:
-                                (proUnlocked == true || versionIndex != 3)
-                                    ? () async {
-                                      Navigator.pop(context);
-                                      if (type == PopUpType.share) {
-                                        filesHelper.shareImages(
-                                          docIndex,
-                                          pageIndexes: pageIndexes,
-                                          versionIndex: versionIndex,
-                                        );
-                                      } else if (type == PopUpType.save) {
-                                        FilesHelper.saveImagesToGallery(
-                                          imagePaths,
-                                        );
-                                      }
-                                    }
-                                    : null,
-
-                            icon: Icon(Icons.image),
-                            label: Text(
-                              "${type == PopUpType.share
-                                  ? "Share"
-                                  : type == PopUpType.save
-                                  ? "Save"
-                                  : "Delete"} Image${isSinglePage ? "" : "s"} ${type == PopUpType.save ? "to Gallery" : ""}",
+                actions: [
+                  ImagesScrollPreview(pagePaths: imagePaths),
+                  SizedBox(height: 36.0),
+                  !allPagesLoaded
+                      ? Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(),
                             ),
-                          ),
+                            SizedBox(width: 8.0),
+                            SizedBox(
+                              width: 190,
+                              child: Text("Processing images..."),
+                            ),
+                          ],
                         ),
-
-                        // PDF
-                        SizedBox(
-                          height:
-                              (proUnlocked == true || pagesCount == 1) ? 0 : 4,
-                        ),
-                        Container(
-                          decoration:
-                              (proUnlocked == true || pagesCount == 1)
-                                  ? null
-                                  : BoxDecoration(
-                                    color:
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [smallBoxShadow(context)],
-                                  ),
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      (proUnlocked == true ||
-                                              (versionIndex != 3 &&
-                                                  pagesCount == 1))
-                                          ? 0
-                                          : 4,
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed:
-                                      (proUnlocked == true ||
-                                              (versionIndex != 3 &&
-                                                  pagesCount == 1))
-                                          ? () async {
-                                            if (type == PopUpType.share) {
-                                              filesHelper.shareImagesPdf(
-                                                context,
-                                                docIndex,
-                                                pageIndexes: pageIndexes,
-                                              );
-                                            } else if (type == PopUpType.save) {
-                                              filesHelper
-                                                  .pickFolderForImagesPdf(
-                                                    docIndex,
-                                                    context,
-                                                    pageIndexes: pageIndexes,
-                                                  );
-                                            }
-                                            if (context.mounted) {
-                                              Navigator.pop(context);
-                                            }
+                      )
+                      : SizedBox(),
+                  Container(
+                    decoration:
+                        (proUnlocked == true || versionIndex != 3)
+                            ? null
+                            : BoxDecoration(
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [smallBoxShadow(context)],
+                            ),
+                    child: Column(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // Image
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    (proUnlocked == true || versionIndex != 3)
+                                        ? 0
+                                        : 4,
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    allPagesLoaded &&
+                                            (proUnlocked == true ||
+                                                versionIndex != 3)
+                                        ? () async {
+                                          Navigator.pop(context);
+                                          if (type == PopUpType.share) {
+                                            filesHelper.shareImages(
+                                              docIndex,
+                                              pageIndexes: pageIndexes,
+                                              versionIndex: versionIndex,
+                                            );
+                                          } else if (type == PopUpType.save) {
+                                            FilesHelper.saveImagesToGallery(
+                                              imagePaths,
+                                            );
                                           }
-                                          : null,
+                                        }
+                                        : null,
 
-                                  icon: Icon(Icons.picture_as_pdf),
-                                  label: Text(
-                                    "${type == PopUpType.share
-                                        ? "Share"
-                                        : type == PopUpType.save
-                                        ? "Save"
-                                        : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
-                                  ),
+                                icon: Icon(Icons.image),
+                                label: Text(
+                                  "${type == PopUpType.share
+                                      ? "Share"
+                                      : type == PopUpType.save
+                                      ? "Save"
+                                      : "Delete"} Image${isSinglePage ? "" : "s"} ${type == PopUpType.save ? "to Gallery" : ""}",
                                 ),
                               ),
-                              (proUnlocked == true || pagesCount == 1)
-                                  ? SizedBox()
-                                  : Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      10,
-                                      0,
-                                      10,
-                                      6,
+                            ),
+
+                            // PDF
+                            SizedBox(
+                              height:
+                                  (proUnlocked == true || imagesCount == 1)
+                                      ? 0
+                                      : 4,
+                            ),
+                            Container(
+                              decoration:
+                                  (proUnlocked == true || imagesCount == 1)
+                                      ? null
+                                      : BoxDecoration(
+                                        color:
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(24),
+                                        boxShadow: [smallBoxShadow(context)],
+                                      ),
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          (proUnlocked == true ||
+                                                  (versionIndex != 3 &&
+                                                      imagesCount == 1))
+                                              ? 0
+                                              : 4,
                                     ),
                                     child: ElevatedButton.icon(
-                                      onPressed: () async {
-                                        final bool setProPopup = await proPopup(
-                                          context,
-                                        );
-                                        if (context.mounted) {
-                                          proUnlocked = setProPopup;
-                                          globalNotifier.triggerEvent(
-                                            NotifierEvent.setState,
-                                          );
-                                          setStateDialog(() {});
-                                        }
-                                      },
-                                      icon: Icon(Icons.lock),
-                                      label: Text("Unlock PRO"),
+                                      onPressed:
+                                          allPagesLoaded &&
+                                                  (proUnlocked == true ||
+                                                      (versionIndex != 3 &&
+                                                          imagesCount == 1))
+                                              ? () async {
+                                                if (type == PopUpType.share) {
+                                                  filesHelper.shareImagesPdf(
+                                                    context,
+                                                    docIndex,
+                                                    pageIndexes: pageIndexes,
+                                                  );
+                                                } else if (type ==
+                                                    PopUpType.save) {
+                                                  filesHelper
+                                                      .pickFolderForImagesPdf(
+                                                        docIndex,
+                                                        context,
+                                                        pageIndexes:
+                                                            pageIndexes,
+                                                      );
+                                                }
+                                                if (context.mounted) {
+                                                  Navigator.pop(context);
+                                                }
+                                              }
+                                              : null,
+
+                                      icon: Icon(Icons.picture_as_pdf),
+                                      label: Text(
+                                        "${type == PopUpType.share
+                                            ? "Share"
+                                            : type == PopUpType.save
+                                            ? "Save"
+                                            : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
+                                      ),
                                     ),
                                   ),
-                            ],
-                          ),
+                                  (proUnlocked == true || imagesCount == 1)
+                                      ? SizedBox()
+                                      : Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          10,
+                                          0,
+                                          10,
+                                          6,
+                                        ),
+                                        child: ElevatedButton.icon(
+                                          onPressed: () async {
+                                            final bool setProPopup =
+                                                await proPopup(context);
+                                            if (context.mounted) {
+                                              proUnlocked = setProPopup;
+                                              globalNotifier.triggerEvent(
+                                                NotifierEvent.setState,
+                                              );
+                                              setStateDialog(() {});
+                                            }
+                                          },
+                                          icon: Icon(Icons.lock),
+                                          label: Text("Unlock PRO"),
+                                        ),
+                                      ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
+                        // Unlock PRO
+                        (proUnlocked == true || versionIndex != 3)
+                            ? SizedBox()
+                            : Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final bool setProPopup = await proPopup(
+                                    context,
+                                  );
+                                  if (context.mounted) {
+                                    proUnlocked = setProPopup;
+                                    globalNotifier.triggerEvent(
+                                      NotifierEvent.setState,
+                                    );
+                                    setStateDialog(() {});
+                                  }
+                                },
+                                icon: Icon(Icons.lock),
+                                label: Text("Unlock PRO"),
+                              ),
+                            ),
                       ],
                     ),
-                    // Unlock PRO
-                    (proUnlocked == true || versionIndex != 3)
-                        ? SizedBox()
-                        : Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final bool setProPopup = await proPopup(context);
-                              if (context.mounted) {
-                                proUnlocked = setProPopup;
-                                globalNotifier.triggerEvent(
-                                  NotifierEvent.setState,
-                                );
-                                setStateDialog(() {});
-                              }
-                            },
-                            icon: Icon(Icons.lock),
-                            label: Text("Unlock PRO"),
-                          ),
-                        ),
-                  ],
-                ),
-              ),
+                  ),
 
-              // Cancel Button
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
-              ),
-            ],
+                  // Cancel Button
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text("Cancel"),
+                  ),
+                ],
+              );
+            },
           );
         },
       );
