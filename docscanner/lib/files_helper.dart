@@ -1057,10 +1057,17 @@ class FilesHelper {
 
       // SnackBar
       messenger?.showSnackBar(snackBar!);
-
+      List<int> displayPageIndexes = [];
+      for (var pageIndex in pageIndexes) {
+        displayPageIndexes.add(pageIndex + 1);
+      }
       // Save PDF
       final String docName =
-          "doc${docIndex + 1}${pageIndexes.length == 1 ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}") : ""}.pdf";
+          "doc${docIndex + 1}${pageIndexes.length == 1
+              ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}")
+              : pageIndexes.isNotEmpty
+              ? "_pages${displayPageIndexes.toString()}"
+              : ""}.pdf";
       final String pdfPath = "$selectedDirectory/$docName";
 
       final File file = File(pdfPath);
@@ -1081,7 +1088,7 @@ class FilesHelper {
         pdf = await _convertImagesToPdf(docIndex, pageIndexes: pageIndexes);
       }
       // Isolate
-      Isolate.spawn(_writePfdToPathIsolate, (
+      Isolate isolate = await Isolate.spawn(_writePfdToPathIsolate, (
         port.sendPort,
         token,
         pdfPath,
@@ -1156,7 +1163,7 @@ class FilesHelper {
     List<String> imagePaths =
         (await getPagesThumbnails(docIndex, fullSized: true)).$1;
     if (imagePaths.isNotEmpty) {
-      shareImages(imagePaths, docIndex: docIndex);
+      shareImages(docIndex);
     } else {
       messenger?.showSnackBar(
         SnackBar(content: Text("No images available to share.")),
@@ -1164,28 +1171,35 @@ class FilesHelper {
     }
   }
 
-  static Future<void> shareImages(
-    List<String> imagePaths, {
-    int? docIndex,
+  Future<void> shareImages(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    int? versionIndex,
   }) async {
-    // Unique filenames in temporary directory to prevent overwrites,
-    // because shareXFiles is stupid
-    final tempDir = await getApplicationSupportDirectory();
-    await tempDir.create(recursive: true);
+    List<String> imagePaths;
+    if (pageIndexes.length == 1 && versionIndex != null) {
+      imagePaths = [
+        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
+      ];
+    } else {
+      imagePaths =
+          (await getPagesThumbnails(
+            docIndex,
+            pageIndexes: pageIndexes,
+            fullSized: true,
+          )).$1;
+    }
+
+    if (imagePaths.isEmpty) {
+      dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
+    }
+
     List<XFile> xFiles = [];
-
-    for (var i = 0; i < imagePaths.length; i++) {
-      final originalPath = imagePaths[i];
-      final ext = originalPath.split('.').last;
-      final tempFilePath =
-          '${tempDir.path}/${docIndex != null ? "doc${docIndex}_page" : "image_"}$i.$ext';
-      await File(originalPath).copy(tempFilePath);
-
-      xFiles.add(XFile(tempFilePath));
+    for (var imagePath in imagePaths) {
+      xFiles.add(XFile(imagePath));
     }
 
     await Share.shareXFiles(xFiles);
-    tempDir.delete(recursive: true);
   }
 
   Future<void> shareImagesPdf(
@@ -1230,7 +1244,12 @@ class FilesHelper {
     );
 
     // Isolate
-    Isolate.spawn(_writePfdToPathIsolate, (port.sendPort, token, pdfPath, pdf));
+    Isolate isolate = await Isolate.spawn(_writePfdToPathIsolate, (
+      port.sendPort,
+      token,
+      pdfPath,
+      pdf,
+    ));
 
     final completer = Completer();
     port.listen((message) async {
@@ -1241,6 +1260,7 @@ class FilesHelper {
           completer.complete(message);
           await Share.shareXFiles([XFile(pdfPath)]);
           File(pdfPath).delete();
+          isolate.kill();
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(

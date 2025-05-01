@@ -38,6 +38,8 @@ enum NotifierEvent {
   processed2Saved,
 }
 
+enum PopUpType { share, save, delete }
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([
@@ -1396,65 +1398,69 @@ class ImagesScrollPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children:
-              pagePaths.map((path) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    8.0,
-                    4.0,
-                    8.0,
-                    12.0,
-                  ), // Spacing between images
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [smallBoxShadow(context)],
-                    ),
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: 160.0 * 1.414,
-                        maxWidth: 160.0,
-                      ),
-                      child:
-                          path.isNotEmpty
-                              ? Image.file(
-                                File(path),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return AspectRatio(
+    return Builder(
+      builder: (context) {
+        return Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children:
+                  pagePaths.map((path) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        8.0,
+                        4.0,
+                        8.0,
+                        12.0,
+                      ), // Spacing between images
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [smallBoxShadow(context)],
+                        ),
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxHeight: 160.0 * 1.414,
+                            maxWidth: 160.0,
+                          ),
+                          child:
+                              path.isNotEmpty
+                                  ? Image.file(
+                                    File(path),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return AspectRatio(
+                                        aspectRatio: 1 / 1.414,
+                                        child: Material(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.surfaceBright,
+                                          child: const Icon(Icons.broken_image),
+                                        ),
+                                      );
+                                    },
+                                  )
+                                  : AspectRatio(
                                     aspectRatio: 1 / 1.414,
                                     child: Material(
                                       color:
                                           Theme.of(
                                             context,
                                           ).colorScheme.surfaceBright,
-                                      child: const Icon(Icons.broken_image),
+                                      child: Center(
+                                        child:
+                                            const CircularProgressIndicator(),
+                                      ),
                                     ),
-                                  );
-                                },
-                              )
-                              : AspectRatio(
-                                aspectRatio: 1 / 1.414,
-                                child: Material(
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceBright,
-                                  child: Center(
-                                    child: const CircularProgressIndicator(),
                                   ),
-                                ),
-                              ),
-                    ),
-                  ),
-                );
-              }).toList(),
-        ),
-      ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1612,119 +1618,165 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
-  Future<void> _savePagesPopup(
+  Future<void> _pagesPopup(
     BuildContext context,
     List<int> pageIndexes,
-  ) async {
+    PopUpType type, {
+    int? versionIndex,
+  }) async {
     final List<String> imagePaths = [];
     for (var pageIndex in pageIndexes) {
       imagePaths.add(_pageThumbnails[pageIndex]);
     }
     final int pagesCount = pageIndexes.length;
-    final bool singlePage = pagesCount == 1;
+    final bool isSinglePage = pagesCount == 1;
 
     showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            "Save${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
-          ),
-
-          actions: [
-            ImagesScrollPreview(pagePaths: imagePaths),
-            SizedBox(height: 36.0),
-
-            // Save Image
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(context);
-                FilesHelper.saveImagesToGallery(imagePaths);
-              },
-
-              icon: Icon(Icons.image),
-              label: Text("Save Image${singlePage ? "" : "s"} to Gallery"),
-            ),
-
-            // Save as PDF
-            ElevatedButton.icon(
-              onPressed: () async {
-                await filesHelper.pickFolderForImagesPdf(
-                  widget.docIndex,
-                  context,
-                  pageIndexes: pageIndexes,
-                );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              },
-
-              icon: Icon(Icons.picture_as_pdf),
-              label: Text(
-                "Save ${singlePage ? "" : "combined "}PDF to Directory",
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(
+                "${type == PopUpType.share
+                    ? "Share"
+                    : type == PopUpType.save
+                    ? "Save"
+                    : "Delete"}${isSinglePage ? "" : " $pagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? pageIndexes.first + 1 : ""}", //, \n${versionNames[versionIndex]}
               ),
-            ),
 
-            // Cancel Button
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel"),
-            ),
-          ],
-        );
-      },
-    );
-  }
+              actions: [
+                ImagesScrollPreview(pagePaths: imagePaths),
+                SizedBox(height: 36.0),
 
-  Future<void> _sharePagesPopup(
-    BuildContext context,
-    List<int> pageIndexes,
-  ) async {
-    final List<String> imagePaths = [];
-    for (var pageIndex in pageIndexes) {
-      imagePaths.add(_pageThumbnails[pageIndex]);
-    }
-    final int pagesCount = pageIndexes.length;
-    final bool singlePage = pagesCount == 1;
+                Container(
+                  decoration:
+                      (proUnlocked == true ||
+                              isSinglePage) //|| versionIndex != 3
+                          ? null
+                          : BoxDecoration(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [smallBoxShadow(context)],
+                          ),
+                  child: Column(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Image
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal:
+                                  (proUnlocked == true ||
+                                          isSinglePage) //|| versionIndex != 3
+                                      ? 0
+                                      : 4,
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  (proUnlocked == true ||
+                                          isSinglePage) //|| versionIndex != 3
+                                      ? () async {
+                                        Navigator.pop(context);
+                                        if (type == PopUpType.share) {
+                                          filesHelper.shareImages(
+                                            widget.docIndex,
+                                            pageIndexes: pageIndexes,
+                                            versionIndex: versionIndex,
+                                          );
+                                        } else if (type == PopUpType.save) {
+                                          FilesHelper.saveImagesToGallery(
+                                            imagePaths,
+                                          );
+                                        }
+                                      }
+                                      : null,
 
-    showDialog(
-      // ignore: use_build_context_synchronously
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            "Share${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
-          ),
-          actions: [
-            ImagesScrollPreview(pagePaths: imagePaths),
-            SizedBox(height: 36.0),
+                              icon: Icon(Icons.image),
+                              label: Text(
+                                "${type == PopUpType.share
+                                    ? "Share"
+                                    : type == PopUpType.save
+                                    ? "Save"
+                                    : "Delete"} Image${isSinglePage ? "" : "s"} ${type == PopUpType.save ? "to Gallery" : ""}",
+                              ),
+                            ),
+                          ),
 
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Share Image
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await FilesHelper.shareImages(imagePaths);
-                  },
-                  icon: Icon(Icons.image),
-                  label: Text("Share Image${singlePage ? "" : "s"}"),
-                ),
+                          // PDF
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal:
+                                  (proUnlocked == true ||
+                                          isSinglePage) //|| versionIndex != 3
+                                      ? 0
+                                      : 4,
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  (proUnlocked == true ||
+                                          isSinglePage) //|| versionIndex != 3
+                                      ? () async {
+                                        if (type == PopUpType.share) {
+                                          filesHelper.shareImagesPdf(
+                                            context,
+                                            widget.docIndex,
+                                            pageIndexes: pageIndexes,
+                                          );
+                                        } else if (type == PopUpType.save) {
+                                          filesHelper.pickFolderForImagesPdf(
+                                            widget.docIndex,
+                                            context,
+                                            pageIndexes: pageIndexes,
+                                          );
+                                        }
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                        }
+                                      }
+                                      : null,
 
-                // Share PDF
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await filesHelper.shareImagesPdf(
-                      context,
-                      widget.docIndex,
-                      pageIndexes: pageIndexes,
-                    );
-                  },
-                  icon: Icon(Icons.picture_as_pdf),
-                  label: Text("Share ${singlePage ? "" : "combined "}PDF"),
+                              icon: Icon(Icons.picture_as_pdf),
+                              label: Text(
+                                "${type == PopUpType.share
+                                    ? "Share"
+                                    : type == PopUpType.save
+                                    ? "Save"
+                                    : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Unlock PRO
+                      (proUnlocked == true ||
+                              isSinglePage) //|| versionIndex != 3
+                          ? SizedBox()
+                          : Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final bool setProPopup = await proPopup(
+                                  context,
+                                );
+                                if (mounted && context.mounted) {
+                                  setState(() {
+                                    proUnlocked = setProPopup;
+                                  });
+                                  setStateDialog(() {});
+                                }
+                              },
+                              icon: Icon(Icons.lock),
+                              label: Text("Unlock PRO"),
+                            ),
+                          ),
+                    ],
+                  ),
                 ),
 
                 // Cancel Button
@@ -1733,8 +1785,8 @@ class _PagesState extends State<Pages> {
                   child: Text("Cancel"),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -2118,7 +2170,7 @@ class _PagesState extends State<Pages> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          await _savePagesPopup(context, selected);
+                          await _pagesPopup(context, selected, PopUpType.save);
                         },
                         tooltip: 'Save',
                         child: const Icon(Icons.save),
@@ -2129,7 +2181,7 @@ class _PagesState extends State<Pages> {
                       FloatingActionButton(
                         heroTag: "selectionShare",
                         onPressed: () async {
-                          await _sharePagesPopup(context, selected);
+                          await _pagesPopup(context, selected, PopUpType.share);
                         },
                         tooltip: 'Share',
                         child: const Icon(Icons.share),
@@ -2201,12 +2253,18 @@ class _PagesState extends State<Pages> {
                     children: [
                       // Save
                       IconButton(
-                        onPressed: () => _savePagesPopup(context, [pageIndex]),
+                        onPressed:
+                            () => _pagesPopup(context, [
+                              pageIndex,
+                            ], PopUpType.save),
                         icon: Icon(Icons.save),
                       ),
                       // Share
                       IconButton(
-                        onPressed: () => _sharePagesPopup(context, [pageIndex]),
+                        onPressed:
+                            () => _pagesPopup(context, [
+                              pageIndex,
+                            ], PopUpType.share),
                         icon: Icon(Icons.share),
                       ),
                       // Delete
@@ -2614,7 +2672,11 @@ class PagePreviewState extends State<PagePreview> {
                               (proUnlocked == true || versionIndex != 3)
                                   ? () async {
                                     Navigator.pop(context);
-                                    await FilesHelper.shareImages([imagePath]);
+                                    await filesHelper.shareImages(
+                                      widget.docIndex,
+                                      pageIndexes: [widget.pageIndex],
+                                      versionIndex: versionIndex,
+                                    );
                                   }
                                   : null,
                           icon: Icon(Icons.image),
