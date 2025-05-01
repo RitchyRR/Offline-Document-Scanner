@@ -1004,10 +1004,19 @@ class FilesHelper {
       // 2. Set correct aspect ratio
       List<PdfPageFormat> pageFormats = [];
       for (var (i, ratioIndex) in ratioIndexes.indexed) {
-        double height =
-            (orientations[i] == 0)
-                ? width * commonAspectRatios[ratioIndex].value
-                : width / commonAspectRatios[ratioIndex].value;
+        late double height;
+        if (versionIndex == 0) {
+          final image = await decodeImageFromList(
+            (File(imagePaths[i]).readAsBytesSync()),
+          );
+          double photoRatio = image.height.toDouble() / image.width.toDouble();
+          height = width * photoRatio;
+        } else {
+          height =
+              (orientations[i] == 0)
+                  ? width * commonAspectRatios[ratioIndex].value
+                  : width / commonAspectRatios[ratioIndex].value;
+        }
         pageFormats.add(PdfPageFormat(width, height));
       }
 
