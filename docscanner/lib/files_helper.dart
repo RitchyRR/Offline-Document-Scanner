@@ -391,6 +391,20 @@ class FilesHelper {
     return anyChange;
   }
 
+  Future<void> deleteImages(
+    BuildContext? context,
+    int docIndex, {
+    List<int> pageIndexes = const [],
+  }) async {
+    if (pageIndexes.isEmpty) {
+      deleteDocument(context, docIndex);
+    } else {
+      for (var pageIndex in pageIndexes) {
+        deletePage(context, docIndex, pageIndex);
+      }
+    }
+  }
+
   Future<void> deleteDocument(
     BuildContext? context,
     int docIndex, {

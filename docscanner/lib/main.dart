@@ -3791,8 +3791,10 @@ Future<void> _pagesPopup(
   int docIndex, {
   int? versionIndex,
 }) async {
+  final int imagesCount = pageIndexes.length;
+  final bool isSinglePage = imagesCount == 1;
+  final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
-  late int imagesCount;
   if (versionIndex != null && pageIndexes.length == 1) {
     imagePaths = [
       await filesHelper.getVersionPath(
@@ -3801,7 +3803,6 @@ Future<void> _pagesPopup(
         versionIndex,
       ),
     ];
-    imagesCount = 1;
   } else {
     var thumbs = await filesHelper.getPagesThumbnails(
       docIndex,
@@ -3809,56 +3810,55 @@ Future<void> _pagesPopup(
       fullSized: false,
     );
     imagePaths = thumbs.$1;
-    imagesCount = thumbs.$2;
   }
-  final bool isSinglePage = imagesCount == 1;
   bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
-  //versionIndex = versionIndex ?? 3;
 
   showDialog(
     // ignore: use_build_context_synchronously
     context: context,
     builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return ValueListenableBuilder<NotifierEvent>(
-            valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
-            builder: (context, event, _) {
-              if (event == NotifierEvent.loadDocsThumbnails ||
-                  event == NotifierEvent.loadPagesThumbnails) {
-                if (versionIndex != null && pageIndexes.length == 1) {
-                  Future.microtask(() async {
-                    imagePaths = [
-                      await filesHelper.getVersionPath(
-                        docIndex,
-                        pageIndexes.first,
-                        versionIndex,
-                      ),
-                    ];
-                    imagesCount = 1;
-                    allPagesLoaded =
-                        !imagePaths.any((element) => element.isEmpty);
-                    setStateDialog(() {});
-                  });
-                } else {
-                  Future.microtask(() async {
-                    var thumbs = await filesHelper.getPagesThumbnails(docIndex);
-                    imagePaths = thumbs.$1;
-                    imagesCount = thumbs.$2;
-                    allPagesLoaded =
-                        !imagePaths.any((element) => element.isEmpty);
-                    setStateDialog(() {});
-                  });
-                }
-              }
+      return ValueListenableBuilder<NotifierEvent>(
+        valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
+        builder: (context, event, _) {
+          if (event == NotifierEvent.loadDocsThumbnails ||
+              event == NotifierEvent.loadPagesThumbnails) {
+            if (versionIndex != null && pageIndexes.length == 1) {
+              Future.microtask(() async {
+                imagePaths = [
+                  await filesHelper.getVersionPath(
+                    docIndex,
+                    pageIndexes.first,
+                    versionIndex,
+                  ),
+                ];
+                allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
+              });
+            } else {
+              Future.microtask(() async {
+                var thumbs = await filesHelper.getPagesThumbnails(
+                  docIndex,
+                  pageIndexes: pageIndexes,
+                  fullSized: true,
+                );
+                imagePaths = thumbs.$1;
+                allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
+              });
+            }
+          }
+          String sAction =
+              type == PopUpType.share
+                  ? "Share"
+                  : type == PopUpType.save
+                  ? "Save"
+                  : "Delete";
+          String sObject =
+              isDocument
+                  ? "Document ${docIndex + 1}"
+                  : "${isSinglePage ? "" : "$imagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}${versionIndex != null ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
+          return StatefulBuilder(
+            builder: (context, setStateDialog) {
               return AlertDialog(
-                title: Text(
-                  "${type == PopUpType.share
-                      ? "Share"
-                      : type == PopUpType.save
-                      ? "Save"
-                      : "Delete"}${isSinglePage ? "" : " $imagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}${versionIndex != null ? ", \n${versionNames[versionIndex]}" : ""}" : ""}",
-                ),
+                title: Text("$sAction $sObject"),
 
                 actions: [
                   ImagesScrollPreview(pagePaths: imagePaths),
@@ -3930,11 +3930,13 @@ Future<void> _pagesPopup(
                                                 versionIndex: versionIndex,
                                               );
                                               break;
-                                            //case PopUpType.delete:
-                                            //
-                                            //  filesHelper.deleteDocument(context, docIndex);
-                                            //  break;
-                                            default:
+                                            case PopUpType.delete:
+                                              filesHelper.deleteImages(
+                                                context,
+                                                docIndex,
+                                                pageIndexes: pageIndexes,
+                                              );
+                                              break;
                                           }
                                         }
                                         : null,
@@ -3953,103 +3955,125 @@ Future<void> _pagesPopup(
                             // PDF
                             SizedBox(
                               height:
-                                  (proUnlocked == true || imagesCount == 1)
+                                  (proUnlocked == true ||
+                                          imagesCount == 1 ||
+                                          type == PopUpType.delete)
                                       ? 0
                                       : 4,
                             ),
-                            Container(
-                              decoration:
-                                  (proUnlocked == true || imagesCount == 1)
-                                      ? null
-                                      : BoxDecoration(
-                                        color:
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(24),
-                                        boxShadow: [smallBoxShadow(context)],
-                                      ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          (proUnlocked == true ||
-                                                  (versionIndex != 3 &&
-                                                      imagesCount == 1))
-                                              ? 0
-                                              : 4,
-                                    ),
-                                    child: ElevatedButton.icon(
-                                      onPressed:
-                                          allPagesLoaded &&
-                                                  (proUnlocked == true ||
+                            type == PopUpType.delete
+                                ? SizedBox()
+                                : Container(
+                                  decoration:
+                                      (proUnlocked == true || imagesCount == 1)
+                                          ? null
+                                          : BoxDecoration(
+                                            color:
+                                                Theme.of(context)
+                                                    .colorScheme
+                                                    .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
+                                            boxShadow: [
+                                              smallBoxShadow(context),
+                                            ],
+                                          ),
+                                  child: Column(
+                                    children: [
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal:
+                                              (proUnlocked == true ||
                                                       (versionIndex != 3 &&
                                                           imagesCount == 1))
-                                              ? () async {
-                                                if (type == PopUpType.share) {
-                                                  filesHelper.shareImagesPdf(
-                                                    context,
-                                                    docIndex,
-                                                    pageIndexes: pageIndexes,
-                                                    versionIndex: versionIndex,
-                                                  );
-                                                } else if (type ==
-                                                    PopUpType.save) {
-                                                  filesHelper
-                                                      .pickFolderForImagesPdf(
-                                                        docIndex,
-                                                        context,
-                                                        pageIndexes:
-                                                            pageIndexes,
-                                                        versionIndex:
-                                                            versionIndex,
-                                                      );
-                                                }
-                                                if (context.mounted) {
-                                                  Navigator.pop(context);
-                                                }
-                                              }
-                                              : null,
-
-                                      icon: Icon(Icons.picture_as_pdf),
-                                      label: Text(
-                                        "${type == PopUpType.share
-                                            ? "Share"
-                                            : type == PopUpType.save
-                                            ? "Save"
-                                            : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
-                                      ),
-                                    ),
-                                  ),
-                                  (proUnlocked == true || imagesCount == 1)
-                                      ? SizedBox()
-                                      : Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          10,
-                                          0,
-                                          10,
-                                          6,
+                                                  ? 0
+                                                  : 4,
                                         ),
                                         child: ElevatedButton.icon(
-                                          onPressed: () async {
-                                            final bool setProPopup =
-                                                await proPopup(context);
-                                            if (context.mounted) {
-                                              proUnlocked = setProPopup;
-                                              globalNotifier.triggerEvent(
-                                                NotifierEvent.setState,
-                                              );
-                                              setStateDialog(() {});
-                                            }
-                                          },
-                                          icon: Icon(Icons.lock),
-                                          label: Text("Unlock PRO"),
+                                          onPressed:
+                                              allPagesLoaded &&
+                                                      (proUnlocked == true ||
+                                                          (versionIndex != 3 &&
+                                                              imagesCount == 1))
+                                                  ? () async {
+                                                    switch (type) {
+                                                      case PopUpType.share:
+                                                        filesHelper
+                                                            .shareImagesPdf(
+                                                              context,
+                                                              docIndex,
+                                                              pageIndexes:
+                                                                  pageIndexes,
+                                                              versionIndex:
+                                                                  versionIndex,
+                                                            );
+                                                        break;
+                                                      case PopUpType.save:
+                                                        filesHelper
+                                                            .pickFolderForImagesPdf(
+                                                              docIndex,
+                                                              context,
+                                                              pageIndexes:
+                                                                  pageIndexes,
+                                                              versionIndex:
+                                                                  versionIndex,
+                                                            );
+                                                        break;
+                                                      case PopUpType.delete:
+                                                        filesHelper
+                                                            .deleteImages(
+                                                              context,
+                                                              docIndex,
+                                                              pageIndexes:
+                                                                  pageIndexes,
+                                                            );
+                                                        break;
+                                                    }
+                                                    if (context.mounted) {
+                                                      Navigator.pop(context);
+                                                    }
+                                                  }
+                                                  : null,
+
+                                          icon: Icon(Icons.picture_as_pdf),
+                                          label: Text(
+                                            "${type == PopUpType.share
+                                                ? "Share"
+                                                : type == PopUpType.save
+                                                ? "Save"
+                                                : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
+                                          ),
                                         ),
                                       ),
-                                ],
-                              ),
-                            ),
+                                      (proUnlocked == true || imagesCount == 1)
+                                          ? SizedBox()
+                                          : Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              10,
+                                              0,
+                                              10,
+                                              6,
+                                            ),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () async {
+                                                final bool setProPopup =
+                                                    await proPopup(context);
+                                                if (context.mounted) {
+                                                  proUnlocked = setProPopup;
+                                                  globalNotifier.triggerEvent(
+                                                    NotifierEvent.setState,
+                                                  );
+                                                  setStateDialog(() {});
+                                                }
+                                              },
+                                              icon: Icon(Icons.lock),
+                                              label: Text("Unlock PRO"),
+                                            ),
+                                          ),
+                                    ],
+                                  ),
+                                ),
                           ],
                         ),
                         // Unlock PRO
