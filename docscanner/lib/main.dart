@@ -2036,7 +2036,7 @@ class PagePreviewState extends State<PagePreview> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Delete Page"),
+          title: Text("Delete Page ${widget.pageIndex + 1}"),
           content: Text(
             "Are you sure you want to permanently delete this page?",
           ),
@@ -2401,7 +2401,7 @@ class PagePreviewState extends State<PagePreview> {
               width: 40,
               height: 40,
               child: FloatingActionButton(
-                heroTag: "sharePageVersion",
+                heroTag: "savePageVersion",
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -2410,42 +2410,43 @@ class PagePreviewState extends State<PagePreview> {
                         ? () => _pagesPopup(
                           context,
                           [widget.pageIndex],
-                          PopUpType.share,
+                          PopUpType.save,
                           widget.docIndex,
                           versionIndex: _selectedVersion,
                         )
                         : null,
                 tooltip:
-                    enableFABs ? 'Share Image' : 'Waiting for image to load...',
+                    enableFABs ? 'Save Image' : 'Waiting for image to load...',
                 backgroundColor:
                     enableFABs ? null : Theme.of(context).disabledColor,
-                elevation: enableFABs ? null : 0.0,
+                elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
                 child: Icon(
-                  Icons.share,
+                  Icons.save,
                   color: enableFABs ? null : Theme.of(context).disabledColor,
                 ),
               ),
             ),
             SizedBox(height: 18.0),
             FloatingActionButton(
-              heroTag: "savePageVersion",
+              heroTag: "sharePageVersion",
+
               onPressed:
                   enableFABs
                       ? () => _pagesPopup(
                         context,
                         [widget.pageIndex],
-                        PopUpType.save,
+                        PopUpType.share,
                         widget.docIndex,
                         versionIndex: _selectedVersion,
                       )
                       : null,
               tooltip:
-                  enableFABs ? 'Save Image' : 'Waiting for image to load...',
+                  enableFABs ? 'Share Image' : 'Waiting for image to load...',
               backgroundColor:
                   enableFABs ? null : Theme.of(context).disabledColor,
-              elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
+              elevation: enableFABs ? null : 0.0,
               child: Icon(
-                Icons.save,
+                Icons.share,
                 color: enableFABs ? null : Theme.of(context).disabledColor,
               ),
             ),
