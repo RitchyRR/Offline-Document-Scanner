@@ -1113,6 +1113,7 @@ class FilesHelper {
               toastLength: Toast.LENGTH_LONG,
             );
             port.close();
+            isolate.kill();
           } else {
             messenger?.hideCurrentSnackBar();
             messenger?.showSnackBar(
