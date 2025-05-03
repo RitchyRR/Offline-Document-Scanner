@@ -521,37 +521,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _deleteDocumentPopup(BuildContext context, int docIndex) async {
-    bool? confirmDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            "Delete ${_docNames[docIndex].isNotEmpty ? _docNames[docIndex] : "Document ${docIndex + 1}"}",
-          ),
-          content: Text(
-            "Are you sure you want to permanently delete this document?",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text("Delete", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmDelete == true) {
-      // ignore: use_build_context_synchronously
-      await filesHelper.deleteDocument(context, docIndex);
-      _loadDocsDisplay();
-    }
-  }
-
   void _openDocEditDialog(BuildContext context, int docIndex) async {
     Future<void> future = imageProcessingManager.awaitAllIsolates();
     {
@@ -565,7 +534,7 @@ class _MyHomePageState extends State<MyHomePage> {
           );
 
           return AlertDialog(
-            title: Text("Edit Document"),
+            title: Text("Edit Document ${docIndex + 1}"),
             content: StatefulBuilder(
               builder: (context, setState) {
                 future.whenComplete(() {
@@ -826,7 +795,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      // Save Button
+                                      // Save
                                       IconButton(
                                         onPressed:
                                             () => _pagesPopup(
@@ -837,7 +806,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                             ),
                                         icon: Icon(Icons.save),
                                       ),
-                                      // Share Button
+                                      // Share
                                       IconButton(
                                         onPressed:
                                             () => _pagesPopup(
@@ -848,11 +817,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                             ),
                                         icon: Icon(Icons.share),
                                       ),
-                                      // Delete Button with Confirmation Dialog
+                                      // Delete
                                       IconButton(
                                         onPressed:
-                                            () => _deleteDocumentPopup(
+                                            () => _pagesPopup(
                                               context,
+                                              [],
+                                              PopUpType.delete,
                                               docIndex,
                                             ),
                                         icon: Icon(Icons.delete),
@@ -1296,50 +1267,6 @@ class _PagesState extends State<Pages> {
     return firstPageIndex;
   }
 
-  Future<bool> _deletePagesPopup(
-    BuildContext context,
-    List<int> pageIndexes,
-  ) async {
-    final int pagesCount = pageIndexes.length;
-    final bool singlePage = pagesCount == 1;
-
-    bool? confirmDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            "Delete${singlePage ? "" : " $pagesCount"} Page${singlePage ? "" : "s"} ${singlePage ? pageIndexes.first + 1 : ""}",
-          ),
-          content: Text(
-            "Are you sure you want to permanently delete this page?",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text("Delete", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmDelete != null && confirmDelete == true) {
-      var backwardsIndeces =
-          pageIndexes.reversed; // to not change the indexes with every delete
-      Future.microtask(() async {
-        for (var pageIndex in backwardsIndeces) {
-          // ignore: use_build_context_synchronously
-          await filesHelper.deletePage(context, widget.docIndex, pageIndex);
-        }
-      });
-      return true;
-    }
-    return false;
-  }
-
   bool _selectMode = false;
   //bool _blockSelectTmp = false;
   List<int> selected = [];
@@ -1654,9 +1581,11 @@ class _PagesState extends State<Pages> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          bool deleted = await _deletePagesPopup(
+                          bool deleted = await _pagesPopup(
                             context,
                             selected,
+                            PopUpType.delete,
+                            widget.docIndex,
                           );
                           if (deleted) _cancelSelectMode();
                         },
@@ -1674,7 +1603,7 @@ class _PagesState extends State<Pages> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          await _pagesPopup(
+                          _pagesPopup(
                             context,
                             selected,
                             PopUpType.save,
@@ -1690,7 +1619,7 @@ class _PagesState extends State<Pages> {
                       FloatingActionButton(
                         heroTag: "selectionShare",
                         onPressed: () async {
-                          await _pagesPopup(
+                          _pagesPopup(
                             context,
                             selected,
                             PopUpType.share,
@@ -1790,7 +1719,12 @@ class _PagesState extends State<Pages> {
                       // Delete
                       IconButton(
                         onPressed: () async {
-                          if (await _deletePagesPopup(context, [pageIndex])) {
+                          if (await _pagesPopup(
+                            context,
+                            selected,
+                            PopUpType.delete,
+                            widget.docIndex,
+                          )) {
                             if (context.mounted) {
                               Navigator.pop(context);
                             }
@@ -2031,36 +1965,6 @@ class PagePreviewState extends State<PagePreview> {
     if (mounted) setState(() {});
   }
 
-  Future<bool> _deletePagePopup(BuildContext context) async {
-    bool? confirmDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Delete Page ${widget.pageIndex + 1}"),
-          content: Text(
-            "Are you sure you want to permanently delete this page?",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text("Delete", style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmDelete != null && confirmDelete == true) {
-      // ignore: use_build_context_synchronously
-      await filesHelper.deletePage(context, widget.docIndex, widget.pageIndex);
-      return true;
-    }
-    return false;
-  }
-
   Future<void> _reprocessingSetup() async {
     _metadataBlocked = true;
     _ratioIndex = null; // don't reset _new values, for uninterrupted display
@@ -2102,7 +2006,10 @@ class PagePreviewState extends State<PagePreview> {
         return AlertDialog(
           title: Text("Unlock PRO filter"),
           content: Text(
-            "You have selected the PRO filter, by selecting its thumbnail and then trying to leave this page.\n\nTo get access, first unlock PRO features.\n\nAlternatively select a different version before leaving.",
+            "You have selected the PRO filter, by selecting its thumbnail "
+            "and then trying to leave this page.\n\n"
+            "To get access, first unlock PRO features.\n\n"
+            "Alternatively select a different version before leaving.",
           ),
           actions: [
             TextButton(
@@ -2191,7 +2098,13 @@ class PagePreviewState extends State<PagePreview> {
               onSelected: (String value) async {
                 switch (value) {
                   case "del":
-                    bool deleted = await _deletePagePopup(context);
+                    bool deleted = await _pagesPopup(
+                      context,
+                      [widget.pageIndex],
+                      PopUpType.delete,
+                      widget.docIndex,
+                      versionIndex: _selectedVersion,
+                    );
                     if (deleted && mounted && context.mounted) {
                       Navigator.pop(context);
                     }
@@ -3785,33 +3698,47 @@ class PositionTimestamp {
   PositionTimestamp({required this.position, required this.timestamp});
 }
 
-Future<void> _pagesPopup(
+Future<bool> _pagesPopup(
   BuildContext context,
   List<int> pageIndexes,
   PopUpType type,
   int docIndex, {
   int? versionIndex,
 }) async {
-  final int imagesCount = pageIndexes.length;
-  final bool isSinglePage = imagesCount == 1;
+  bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
+  late int imagesCount;
+  // version
   if (versionIndex != null && pageIndexes.length == 1) {
-    imagePaths = [
-      await filesHelper.getVersionPath(
-        docIndex,
-        pageIndexes.first,
-        versionIndex,
-      ),
-    ];
-  } else {
+    if (type == PopUpType.delete) {
+      imagePaths =
+          (await filesHelper.getImagePathsForPage(
+            docIndex,
+            pageIndexes.first,
+          )).$1;
+    } else {
+      imagePaths = [
+        await filesHelper.getVersionPath(
+          docIndex,
+          pageIndexes.first,
+          versionIndex,
+        ),
+      ];
+    }
+    imagesCount = 1;
+  }
+  // single page / multiple pages / document
+  else {
     var thumbs = await filesHelper.getPagesThumbnails(
       docIndex,
       pageIndexes: pageIndexes,
       fullSized: false,
     );
     imagePaths = thumbs.$1;
+    imagesCount = thumbs.$2;
   }
+  final bool isSinglePage = imagesCount == 1;
   bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
 
   showDialog(
@@ -3855,7 +3782,9 @@ Future<void> _pagesPopup(
           String sObject =
               isDocument
                   ? "Document ${docIndex + 1}"
-                  : "${isSinglePage ? "" : "$imagesCount"} Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}${versionIndex != null ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
+                  : "${isSinglePage ? "" : "$imagesCount "}"
+                      "Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}"
+                              "${versionIndex != null && type != PopUpType.delete ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
           return StatefulBuilder(
             builder: (context, setStateDialog) {
               return AlertDialog(
@@ -3863,7 +3792,7 @@ Future<void> _pagesPopup(
 
                 actions: [
                   ImagesScrollPreview(pagePaths: imagePaths),
-                  SizedBox(height: 36.0),
+                  SizedBox(height: 12.0),
                   !allPagesLoaded
                       ? Padding(
                         padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
@@ -3884,87 +3813,94 @@ Future<void> _pagesPopup(
                         ),
                       )
                       : SizedBox(),
-                  Container(
-                    decoration:
-                        (proUnlocked == true || versionIndex != 3)
-                            ? null
-                            : BoxDecoration(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [smallBoxShadow(context)],
-                            ),
-                    child: Column(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            // Image
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    (proUnlocked == true || versionIndex != 3)
-                                        ? 0
-                                        : 4,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed:
-                                    allPagesLoaded &&
-                                            (proUnlocked == true ||
-                                                versionIndex != 3)
-                                        ? () async {
-                                          Navigator.pop(context);
-                                          switch (type) {
-                                            case PopUpType.share:
-                                              filesHelper.shareImages(
-                                                docIndex,
-                                                pageIndexes: pageIndexes,
-                                                versionIndex: versionIndex,
-                                              );
-                                              break;
-                                            case PopUpType.save:
-                                              filesHelper.saveImagesToGallery(
-                                                docIndex,
-                                                pageIndexes: pageIndexes,
-                                                versionIndex: versionIndex,
-                                              );
-                                              break;
-                                            case PopUpType.delete:
-                                              filesHelper.deleteImages(
-                                                context,
-                                                docIndex,
-                                                pageIndexes: pageIndexes,
-                                              );
-                                              break;
-                                          }
-                                        }
-                                        : null,
+                  type == PopUpType.delete
+                      ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Are you sure you want to \npermanently delete ${isDocument ? ""
+                                  "this document" : ""
+                                  "${isSinglePage ? "this " : "these $imagesCount "}" // ${docIndex + 1}
+                                  "page${isSinglePage ? "" : "s"}"}?", //${isSinglePage ? " ${pageIndexes.first + 1}" : ""}
+                        ),
+                      )
+                      : SizedBox(),
+                  SizedBox(height: 24.0),
 
-                                icon: Icon(Icons.image),
-                                label: Text(
-                                  "${type == PopUpType.share
-                                      ? "Share"
-                                      : type == PopUpType.save
-                                      ? "Save"
-                                      : "Delete"} Image${isSinglePage ? "" : "s"} ${type == PopUpType.save ? "to Gallery" : ""}",
+                  type == PopUpType.delete
+                      ? SizedBox()
+                      : Container(
+                        decoration:
+                            (proUnlocked == true || versionIndex != 3)
+                                ? null
+                                : BoxDecoration(
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [smallBoxShadow(context)],
                                 ),
-                              ),
-                            ),
+                        child: Column(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                // Image
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        (proUnlocked == true ||
+                                                versionIndex != 3)
+                                            ? 0
+                                            : 4,
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        allPagesLoaded &&
+                                                (proUnlocked == true ||
+                                                    versionIndex != 3)
+                                            ? () async {
+                                              Navigator.pop(context);
+                                              switch (type) {
+                                                case PopUpType.share:
+                                                  filesHelper.shareImages(
+                                                    docIndex,
+                                                    pageIndexes: pageIndexes,
+                                                    versionIndex: versionIndex,
+                                                  );
+                                                  break;
+                                                case PopUpType.save:
+                                                  filesHelper
+                                                      .saveImagesToGallery(
+                                                        docIndex,
+                                                        pageIndexes:
+                                                            pageIndexes,
+                                                        versionIndex:
+                                                            versionIndex,
+                                                      );
+                                                  break;
+                                                default:
+                                              }
+                                            }
+                                            : null,
 
-                            // PDF
-                            SizedBox(
-                              height:
-                                  (proUnlocked == true ||
-                                          imagesCount == 1 ||
-                                          type == PopUpType.delete)
-                                      ? 0
-                                      : 4,
-                            ),
-                            type == PopUpType.delete
-                                ? SizedBox()
-                                : Container(
+                                    icon: Icon(Icons.image),
+                                    label: Text(
+                                      "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
+                                      ?*/ "Save"} Image${isSinglePage ? "" : "s"} "
+                                      "${type == PopUpType.save ? "to Gallery" : ""}",
+                                    ),
+                                  ),
+                                ),
+
+                                // PDF
+                                SizedBox(
+                                  height:
+                                      (proUnlocked == true || imagesCount == 1)
+                                          ? 0
+                                          : 4,
+                                ),
+                                Container(
                                   decoration:
                                       (proUnlocked == true || imagesCount == 1)
                                           ? null
@@ -4021,15 +3957,7 @@ Future<void> _pagesPopup(
                                                                   versionIndex,
                                                             );
                                                         break;
-                                                      case PopUpType.delete:
-                                                        filesHelper
-                                                            .deleteImages(
-                                                              context,
-                                                              docIndex,
-                                                              pageIndexes:
-                                                                  pageIndexes,
-                                                            );
-                                                        break;
+                                                      default:
                                                     }
                                                     if (context.mounted) {
                                                       Navigator.pop(context);
@@ -4039,11 +3967,9 @@ Future<void> _pagesPopup(
 
                                           icon: Icon(Icons.picture_as_pdf),
                                           label: Text(
-                                            "${type == PopUpType.share
-                                                ? "Share"
-                                                : type == PopUpType.save
-                                                ? "Save"
-                                                : "Delete"} ${isSinglePage ? "" : "combined "}PDF${type == PopUpType.save ? " to Directory" : ""}",
+                                            "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
+                                      ?*/ "Save"} ${isSinglePage ? "" : "combined "}PDF"
+                                            "${type == PopUpType.save ? " to Directory" : ""}",
                                           ),
                                         ),
                                       ),
@@ -4075,38 +4001,68 @@ Future<void> _pagesPopup(
                                     ],
                                   ),
                                 ),
+                              ],
+                            ),
+                            // Unlock PRO
+                            (proUnlocked == true || versionIndex != 3)
+                                ? SizedBox()
+                                : Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    0,
+                                    10,
+                                    6,
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final bool setProPopup = await proPopup(
+                                        context,
+                                      );
+                                      if (context.mounted) {
+                                        proUnlocked = setProPopup;
+                                        globalNotifier.triggerEvent(
+                                          NotifierEvent.setState,
+                                        );
+                                        setStateDialog(() {});
+                                      }
+                                    },
+                                    icon: Icon(Icons.lock),
+                                    label: Text("Unlock PRO"),
+                                  ),
+                                ),
                           ],
                         ),
-                        // Unlock PRO
-                        (proUnlocked == true || versionIndex != 3)
-                            ? SizedBox()
-                            : Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final bool setProPopup = await proPopup(
-                                    context,
-                                  );
-                                  if (context.mounted) {
-                                    proUnlocked = setProPopup;
-                                    globalNotifier.triggerEvent(
-                                      NotifierEvent.setState,
-                                    );
-                                    setStateDialog(() {});
-                                  }
-                                },
-                                icon: Icon(Icons.lock),
-                                label: Text("Unlock PRO"),
+                      ),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Cancel Button
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text("Cancel"),
+                      ),
+                      type == PopUpType.delete
+                          ? Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                confirmDelete = true;
+                                filesHelper.deleteImages(
+                                  context,
+                                  docIndex,
+                                  pageIndexes: pageIndexes,
+                                );
+                                Navigator.pop(context);
+                              },
+                              child: Text(
+                                "Delete",
+                                style: TextStyle(color: Colors.red),
                               ),
                             ),
-                      ],
-                    ),
-                  ),
-
-                  // Cancel Button
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text("Cancel"),
+                          )
+                          : SizedBox(),
+                    ],
                   ),
                 ],
               );
@@ -4116,4 +4072,5 @@ Future<void> _pagesPopup(
       );
     },
   );
+  return confirmDelete;
 }
