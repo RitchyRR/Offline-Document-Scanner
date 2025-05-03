@@ -4239,6 +4239,13 @@ Future<void> _writeDocUnlocked(int docIndex, bool unlocked) async {
     }
   }
 
+  if (unlocked) {
+    // disable after one hour (only necessary if in backround for over 1 hour)
+    Future.delayed(Duration(hours: 1)).then((_) {
+      _writeDocUnlocked(docIndex, false);
+    });
+  }
+
   // Write
   metadata["unlocked"] = unlocked;
   await file.writeAsString(jsonEncode(metadata));
@@ -4285,7 +4292,12 @@ Future<void> _writePageUnlocked(
     }
   }
 
-  if (!unlocked) {
+  if (unlocked) {
+    // disable after one hour (only necessary if in backround for over 1 hour)
+    Future.delayed(Duration(hours: 1)).then((_) {
+      _writePageUnlocked(docIndex, pageIndex, false);
+    });
+  } else {
     if (3 ==
         await ImageProcessingManager.readPageThumbnailIndex(
           docIndex,
