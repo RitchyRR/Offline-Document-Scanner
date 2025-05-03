@@ -271,7 +271,8 @@ class _MyHomePageState extends State<MyHomePage> {
     // Creation Date
     final now = DateTime.now();
     _docDates.add("${now.year}-${now.month}-${now.day}");
-    _saveDocDate(docIndex);
+    fixMetadataLengths(docIndex + 1);
+    _writeDocDate(docIndex, _docDates[docIndex]);
 
     return (docIndex, firstPageIndex);
   }
@@ -348,7 +349,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> initAsync() async {
     _receiveSharing();
-    await _loadDocsDisplay(supressWarnings: true);
+    await _loadDocsDisplay(onInit: true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       filesHelper.repairDirectoryStructure(context);
     });
@@ -378,7 +379,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> _docDates = [];
   List<double> _thumbnailRatios = [];
   int _docsCount = 0;
-  Future<void> _loadDocsDisplay({bool supressWarnings = false}) async {
+  Future<void> _loadDocsDisplay({bool onInit = false}) async {
     // Thumbnails
     var thumbs = await filesHelper.getDocThumbnails();
     List<String> thumbnailPaths = thumbs.$1;
@@ -387,6 +388,15 @@ class _MyHomePageState extends State<MyHomePage> {
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
+      // reset ad supported doc/page unlocks
+      if (onInit) _writeDocUnlocked(docIndex, false);
+      for (
+        var pageIndex = 0;
+        pageIndex < _docPageCounts[docIndex];
+        pageIndex++
+      ) {
+        if (onInit) _writePageUnlocked(docIndex, pageIndex, false);
+      }
     }
     // Document Metadata (Names, Dates, AspectRatios)
     _docNames = List.generate(_docsCount, (_) => "");
@@ -409,22 +419,22 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         }
       } else {
-        _saveDocName(docIndex);
+        _writeDocName(docIndex, _docNames[docIndex]);
       }
-      bool supressWarnings_ = supressWarnings;
-      if (thumbnailPaths[docIndex].isEmpty) supressWarnings_ = true;
+      bool supressWarnings = onInit;
+      if (thumbnailPaths[docIndex].isEmpty) supressWarnings = true;
       int ratioIndex =
           await ImageProcessingManager.readPageRatioIndex(
             docIndex,
             0,
-            supressWarnings: supressWarnings_,
+            supressWarnings: supressWarnings,
           ) ??
           0;
       int orientationIndex =
           await ImageProcessingManager.readPageOrientationIndex(
             docIndex,
             0,
-            supressWarnings: supressWarnings_,
+            supressWarnings: supressWarnings,
           ) ??
           0;
       double ratioValue = commonAspectRatios[ratioIndex].value;
@@ -453,61 +463,6 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var i = 0; i < ratiosShortBy; i++) {
       _thumbnailRatios.add(1.0 / 1.414);
     }
-  }
-
-  Future<void> _saveDocName(int docIndex) async {
-    final docPath = await filesHelper.getDocumentPath(docIndex);
-    if (!Directory(docPath).existsSync()) {
-      dev.log(
-        "Error, _saveDocName: Trying to save metadata into empty Document $docIndex",
-      );
-      return;
-    }
-    final file = File('$docPath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (file.existsSync()) {
-      try {
-        String content = file.readAsStringSync();
-        metadata = jsonDecode(content).cast<String, String>();
-      } catch (e) {
-        dev.log("Error,_saveDocName: Reading metadata: $e");
-      }
-    }
-
-    // Write
-    if (!file.existsSync()) {
-      dev.log("Warning,_saveDocName: Metadata file missing, creating new one");
-      metadata = {};
-      metadata["date"] = "";
-    }
-    metadata["name"] = _docNames[docIndex];
-    fixMetadataLengths(docIndex + 1);
-
-    await file.writeAsString(jsonEncode(metadata));
-  }
-
-  Future<void> _saveDocDate(int docIndex) async {
-    final docPath = await filesHelper.getDocumentPath(docIndex);
-    final file = File('$docPath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (file.existsSync()) {
-      try {
-        String content = file.readAsStringSync();
-        metadata = jsonDecode(content).cast<String, String>();
-      } catch (e) {
-        dev.log("Error reading existing metadata, creating new one: $e");
-        metadata["name"] = "";
-      }
-    }
-
-    fixMetadataLengths(docIndex + 1);
-    // Write
-    metadata["date"] = _docDates[docIndex];
-    await file.writeAsString(jsonEncode(metadata));
   }
 
   Future<void> _openDocument(int docIndex) async {
@@ -605,7 +560,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     _docNames[docIndex] = nameController.text.trim();
                   });
-                  _saveDocName(docIndex);
+                  _writeDocName(docIndex, _docNames[docIndex]);
                   Navigator.pop(context, currentIndex);
                 },
                 child: Text("OK"),
@@ -1025,14 +980,71 @@ Future<bool> proPopup(BuildContext context) async {
     },
   );
   if (setProUnlocked != null && setProUnlocked == true) {
-    //todo actual payment
-    //todo replace toggle with true
+    //todo actual payment + replace toggle with true
     bool toggle = !(proUnlocked == true);
     final sStorage = FlutterSecureStorage();
     await sStorage.write(key: 'proUnlocked', value: toggle ? 'true' : 'false');
     proUnlocked = toggle;
     Fluttertoast.showToast(msg: 'PRO features unlocked!');
     return toggle;
+  }
+  return false;
+}
+
+Future<bool> _unlockDocumentWithAd(BuildContext context) async {
+  //todo just play a fullscreen ad, not this popup.
+  bool? setProUnlocked = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text("Unlock Document"),
+        content: Text("Watch a fullscreen Ad to unlock this Document once."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Watch", style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      );
+    },
+  );
+  if (setProUnlocked != null && setProUnlocked == true) {
+    Fluttertoast.showToast(msg: 'Combined PDF unlocked for Document!');
+    return true;
+  }
+  return false;
+}
+
+Future<bool> _unlockPageWithAd(BuildContext context) async {
+  //todo just play a fullscreen ad, not this popup.
+  bool? setProUnlocked = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text("Unlock PRO for Page"),
+        content: Text(
+          "Watch a fullscreen Ad to unlock this Page's PRO version once.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Watch", style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      );
+    },
+  );
+  if (setProUnlocked != null && setProUnlocked == true) {
+    Fluttertoast.showToast(msg: 'PRO filter unlocked for Page!');
+    return true;
   }
   return false;
 }
@@ -1253,6 +1265,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
+    _writeDocUnlocked(widget.docIndex, false);
     int firstPageIndex = await filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       picturePaths.length,
@@ -1819,6 +1832,8 @@ class PagePreviewState extends State<PagePreview> {
   double _pictureScale = 0.0;
   double _evenPictureScale = 0.0;
   double _oddPictureScale = 0.0;
+  // Unlock page
+  bool _pageUnlocked = false;
 
   @override
   void initState() {
@@ -1845,6 +1860,7 @@ class PagePreviewState extends State<PagePreview> {
     _picturePath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarnings: true);
+    _pageUnlocked = await _readPageUnlocked(widget.docIndex, widget.pageIndex);
   }
 
   @override
@@ -2046,7 +2062,8 @@ class PagePreviewState extends State<PagePreview> {
         _selectedVersion == 0
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
-    bool allowPop = proUnlocked == true || _selectedVersion != 3;
+    bool allowPop =
+        proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
     return PopScope(
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2450,8 +2467,9 @@ class PagePreviewState extends State<PagePreview> {
                           ),
                         ),
                         // Locked Badge
-                        (!(proUnlocked == true) && index == 3)
-                            ? Positioned(
+                        (proUnlocked == true || index != 3 || _pageUnlocked)
+                            ? SizedBox()
+                            : Positioned(
                               top: 0,
                               right: 0,
                               child: CustomIconButton(
@@ -2474,8 +2492,7 @@ class PagePreviewState extends State<PagePreview> {
                                       context,
                                     ).colorScheme.primaryContainer,
                               ),
-                            )
-                            : SizedBox(),
+                            ),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -3750,6 +3767,14 @@ Future<bool> _pagesPopup(
   final bool isSinglePage = imagesCount == 1;
   bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
 
+  bool docUnlocked = false;
+  bool pageUnlocked = false;
+  if (isDocument) {
+    docUnlocked = await _readDocUnlocked(docIndex);
+  } else if (isSinglePage && versionIndex != null) {
+    pageUnlocked = await _readPageUnlocked(docIndex, pageIndexes.first);
+  }
+
   showDialog(
     // ignore: use_build_context_synchronously
     context: context,
@@ -3839,7 +3864,9 @@ Future<bool> _pagesPopup(
                       ? SizedBox()
                       : Container(
                         decoration:
-                            (proUnlocked == true || versionIndex != 3)
+                            (proUnlocked == true ||
+                                    pageUnlocked ||
+                                    versionIndex != 3)
                                 ? null
                                 : BoxDecoration(
                                   color:
@@ -3859,6 +3886,7 @@ Future<bool> _pagesPopup(
                                   padding: EdgeInsets.symmetric(
                                     horizontal:
                                         (proUnlocked == true ||
+                                                pageUnlocked ||
                                                 versionIndex != 3)
                                             ? 0
                                             : 4,
@@ -3867,6 +3895,7 @@ Future<bool> _pagesPopup(
                                     onPressed:
                                         allPagesLoaded &&
                                                 (proUnlocked == true ||
+                                                    pageUnlocked ||
                                                     versionIndex != 3)
                                             ? () async {
                                               Navigator.pop(context);
@@ -3905,13 +3934,17 @@ Future<bool> _pagesPopup(
                                 // PDF
                                 SizedBox(
                                   height:
-                                      (proUnlocked == true || imagesCount == 1)
+                                      (proUnlocked == true ||
+                                              (docUnlocked && isDocument) ||
+                                              imagesCount == 1)
                                           ? 0
                                           : 4,
                                 ),
                                 Container(
                                   decoration:
-                                      (proUnlocked == true || imagesCount == 1)
+                                      (proUnlocked == true ||
+                                              (docUnlocked && isDocument) ||
+                                              imagesCount == 1)
                                           ? null
                                           : BoxDecoration(
                                             color:
@@ -3931,8 +3964,11 @@ Future<bool> _pagesPopup(
                                         padding: EdgeInsets.symmetric(
                                           horizontal:
                                               (proUnlocked == true ||
-                                                      (versionIndex != 3 &&
-                                                          imagesCount == 1))
+                                                      (docUnlocked &&
+                                                          isDocument) ||
+                                                      (pageUnlocked ||
+                                                          versionIndex != 3 &&
+                                                              imagesCount == 1))
                                                   ? 0
                                                   : 4,
                                         ),
@@ -3940,8 +3976,13 @@ Future<bool> _pagesPopup(
                                           onPressed:
                                               allPagesLoaded &&
                                                       (proUnlocked == true ||
-                                                          (versionIndex != 3 &&
-                                                              imagesCount == 1))
+                                                          (docUnlocked &&
+                                                              isDocument) ||
+                                                          (pageUnlocked ||
+                                                              versionIndex !=
+                                                                      3 &&
+                                                                  imagesCount ==
+                                                                      1))
                                                   ? () async {
                                                     switch (type) {
                                                       case PopUpType.share:
@@ -3982,7 +4023,9 @@ Future<bool> _pagesPopup(
                                           ),
                                         ),
                                       ),
-                                      (proUnlocked == true || imagesCount == 1)
+                                      (proUnlocked == true ||
+                                              (docUnlocked && isDocument) ||
+                                              imagesCount == 1)
                                           ? SizedBox()
                                           : Padding(
                                             padding: const EdgeInsets.fromLTRB(
@@ -3991,20 +4034,41 @@ Future<bool> _pagesPopup(
                                               10,
                                               6,
                                             ),
-                                            child: ElevatedButton.icon(
-                                              onPressed: () async {
-                                                final bool setProPopup =
-                                                    await proPopup(context);
-                                                if (context.mounted) {
-                                                  proUnlocked = setProPopup;
-                                                  globalNotifier.triggerEvent(
-                                                    NotifierEvent.setState,
-                                                  );
-                                                  setStateDialog(() {});
-                                                }
-                                              },
-                                              icon: Icon(Icons.lock),
-                                              label: Text("Unlock PRO"),
+                                            child: Column(
+                                              children: [
+                                                ElevatedButton.icon(
+                                                  onPressed: () async {
+                                                    final bool setProPopup =
+                                                        await proPopup(context);
+                                                    proUnlocked = setProPopup;
+                                                    globalNotifier.triggerEvent(
+                                                      NotifierEvent.setState,
+                                                    );
+                                                    setStateDialog(() {});
+                                                  },
+                                                  icon: Icon(Icons.lock),
+                                                  label: Text("Unlock PRO"),
+                                                ),
+                                                (isDocument)
+                                                    ? ElevatedButton.icon(
+                                                      onPressed: () async {
+                                                        docUnlocked =
+                                                            await _unlockDocumentWithAd(
+                                                              context,
+                                                            );
+                                                        _writeDocUnlocked(
+                                                          docIndex,
+                                                          docUnlocked,
+                                                        );
+                                                        setStateDialog(() {});
+                                                      },
+                                                      icon: Icon(
+                                                        Icons.play_arrow,
+                                                      ),
+                                                      label: Text("Watch Ad"),
+                                                    )
+                                                    : SizedBox(),
+                                              ],
                                             ),
                                           ),
                                     ],
@@ -4013,7 +4077,9 @@ Future<bool> _pagesPopup(
                               ],
                             ),
                             // Unlock PRO
-                            (proUnlocked == true || versionIndex != 3)
+                            (proUnlocked == true ||
+                                    pageUnlocked ||
+                                    versionIndex != 3)
                                 ? SizedBox()
                                 : Padding(
                                   padding: const EdgeInsets.fromLTRB(
@@ -4022,21 +4088,42 @@ Future<bool> _pagesPopup(
                                     10,
                                     6,
                                   ),
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      final bool setProPopup = await proPopup(
-                                        context,
-                                      );
-                                      if (context.mounted) {
-                                        proUnlocked = setProPopup;
-                                        globalNotifier.triggerEvent(
-                                          NotifierEvent.setState,
-                                        );
-                                        setStateDialog(() {});
-                                      }
-                                    },
-                                    icon: Icon(Icons.lock),
-                                    label: Text("Unlock PRO"),
+                                  child: Column(
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final bool setProPopup =
+                                              await proPopup(context);
+                                          if (context.mounted) {
+                                            proUnlocked = setProPopup;
+                                            globalNotifier.triggerEvent(
+                                              NotifierEvent.setState,
+                                            );
+                                            setStateDialog(() {});
+                                          }
+                                        },
+                                        icon: Icon(Icons.lock),
+                                        label: Text("Unlock PRO"),
+                                      ),
+                                      (isSinglePage && versionIndex != null)
+                                          ? ElevatedButton.icon(
+                                            onPressed: () async {
+                                              pageUnlocked =
+                                                  await _unlockPageWithAd(
+                                                    context,
+                                                  );
+                                              _writePageUnlocked(
+                                                docIndex,
+                                                pageIndexes.first,
+                                                pageUnlocked,
+                                              );
+                                              setStateDialog(() {});
+                                            },
+                                            icon: Icon(Icons.play_arrow),
+                                            label: Text("Watch Ad"),
+                                          )
+                                          : SizedBox(),
+                                    ],
                                   ),
                                 ),
                           ],
@@ -4082,4 +4169,153 @@ Future<bool> _pagesPopup(
     },
   );
   return confirmDelete;
+}
+
+Future<void> _writeDocName(int docIndex, String newName) async {
+  final docPath = await filesHelper.getDocumentPath(docIndex);
+  if (!Directory(docPath).existsSync()) {
+    dev.log(
+      "Error, _saveDocName: Trying to save metadata into empty Document $docIndex",
+    );
+    return;
+  }
+  final file = File('$docPath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+    } catch (e) {
+      dev.log("Error,_saveDocName: Reading metadata: $e");
+    }
+  }
+
+  // Write
+  if (!file.existsSync()) {
+    dev.log("Warning,_saveDocName: Metadata file missing, creating new one");
+    metadata = {};
+  }
+  metadata["name"] = newName;
+
+  await file.writeAsString(jsonEncode(metadata));
+}
+
+Future<void> _writeDocDate(int docIndex, String newDate) async {
+  final docPath = await filesHelper.getDocumentPath(docIndex);
+  final file = File('$docPath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+    } catch (e) {
+      dev.log("Error reading existing metadata, creating new one: $e");
+    }
+  }
+
+  // Write
+  metadata["date"] = newDate;
+  await file.writeAsString(jsonEncode(metadata));
+}
+
+Future<void> _writeDocUnlocked(int docIndex, bool unlocked) async {
+  final docPath = await filesHelper.getDocumentPath(docIndex);
+  final file = File('$docPath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+    } catch (e) {
+      dev.log(
+        "Error, _writeDocUnlocked: No existing metadata, creating new one: $e",
+      );
+    }
+  }
+
+  // Write
+  metadata["unlocked"] = unlocked;
+  await file.writeAsString(jsonEncode(metadata));
+}
+
+Future<bool> _readDocUnlocked(int docIndex) async {
+  final docPath = await filesHelper.getDocumentPath(docIndex);
+  final file = File('$docPath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+      return metadata["unlocked"] == true;
+    } catch (e) {
+      dev.log(
+        "Error, _readDocUnlocked: No existing metadata, creating new one: $e",
+      );
+    }
+  }
+  return false;
+}
+
+Future<void> _writePageUnlocked(
+  int docIndex,
+  int pageIndex,
+  bool unlocked,
+) async {
+  final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+  final file = File('$pagePath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+    } catch (e) {
+      dev.log(
+        "Error, _writePageUnlocked: No existing metadata, creating new one: $e",
+      );
+    }
+  }
+
+  if (!unlocked) {
+    if (3 ==
+        await ImageProcessingManager.readPageThumbnailIndex(
+          docIndex,
+          pageIndex,
+        )) {
+      ImageProcessingManager.writePageThumbnailIndex(docIndex, pageIndex, 2);
+    }
+  }
+
+  // Write
+  metadata["unlocked"] = unlocked;
+  await file.writeAsString(jsonEncode(metadata));
+}
+
+Future<bool> _readPageUnlocked(int docIndex, int pageIndex) async {
+  final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+  final file = File('$pagePath/metadata.json');
+  Map<String, dynamic> metadata = {};
+
+  // Read
+  if (file.existsSync()) {
+    try {
+      String content = file.readAsStringSync();
+      metadata = jsonDecode(content).cast<String, dynamic>();
+      return metadata["unlocked"] == true;
+    } catch (e) {
+      dev.log(
+        "Error, _readPageUnlocked: No existing metadata, creating new one: $e",
+      );
+    }
+  }
+  return false;
 }
