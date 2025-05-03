@@ -3213,7 +3213,7 @@ class _WarpState extends State<Warp> {
     _initialScaledPoints = List.from(_scaledPoints);
 
     for (var point in _scaledPoints) {
-      double maxHeight = 400.0;
+      double maxHeight = 424.0;
       double pointMoveUpBy = point.dy - maxHeight;
       if (pointMoveUpBy > _moveUpBy) {
         _moveUpBy = pointMoveUpBy;
@@ -3225,18 +3225,19 @@ class _WarpState extends State<Warp> {
   void _scaleImage() {
     double newMoveUpBy = 0.0;
     for (var point in _scaledPoints) {
-      double maxHeight = 400.0;
+      double maxHeight = 424.0;
       double pointMoveUpBy = point.dy - maxHeight;
       if (pointMoveUpBy > newMoveUpBy) {
         newMoveUpBy = pointMoveUpBy;
       }
     }
 
-    double change = newMoveUpBy - _moveUpBy;
-    if (mounted && change.abs() > 25) {
-      setState(() {
-        _moveUpBy += change / 60;
-      });
+    double changeUp = newMoveUpBy - _moveUpBy;
+    if (mounted) {
+      if (changeUp.isNegative || changeUp > 25) {
+        _moveUpBy += changeUp / 60;
+        setState(() {});
+      }
     }
   }
 
@@ -3322,11 +3323,11 @@ class _WarpState extends State<Warp> {
         appBar: AppBar(title: const Text("Adjust Corners")),
         body: OverflowBox(
           alignment: Alignment.topCenter,
-          minHeight: 0.0,
+          minHeight: 24.0,
           maxHeight: double.infinity,
           child: Column(
             children: [
-              SizedBox(height: 24),
+              // Magnifier
               SizedBox(
                 width: _magnifierSize,
                 height: _magnifierSize,
@@ -3361,16 +3362,20 @@ class _WarpState extends State<Warp> {
                         : SizedBox(),
               ),
               SizedBox(height: 24),
+              // Image + CornersOverlay
               _displayHeigth != 0
                   ? Transform.translate(
-                    offset: Offset(0, -(_moveUpBy / 2)),
+                    offset: Offset(
+                      0,
+                      ((scale * _displayHeigth - _displayHeigth) / 2),
+                    ),
                     child: Transform.scale(
                       scale: scale,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           Center(child: Image.file(File(widget.imagePath))),
-                          _draggableCornerOverlay(scale),
+                          _draggableCornersOverlay(scale),
                         ],
                       ),
                     ),
@@ -3418,7 +3423,7 @@ class _WarpState extends State<Warp> {
     }
   }
 
-  Widget _draggableCornerOverlay(double counterScale) {
+  Widget _draggableCornersOverlay(double counterScale) {
     if (_screenWidth == 0) {
       return SizedBox();
     }
