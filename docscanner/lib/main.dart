@@ -4391,6 +4391,7 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isFlashOn = false;
   final List<XFile> _capturedImages = [];
+  double _cameraAspectRatio = 3 / 4;
 
   @override
   void initState() {
@@ -4412,6 +4413,10 @@ class _CameraScreenState extends State<CameraScreen> {
     );
 
     await _controller!.initialize();
+
+    final size = _controller!.value.previewSize!;
+    _cameraAspectRatio = size.height / size.width;
+
     if (mounted) setState(() {});
   }
 
@@ -4444,7 +4449,7 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _openImageGallery(BuildContext context) {
+  void _openPhotosGrid(BuildContext context) {
     showModalBottomSheet(
       backgroundColor: ColorScheme.dark().surface,
       showDragHandle: true,
@@ -4564,7 +4569,24 @@ class _CameraScreenState extends State<CameraScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Camera Preview
-            CameraPreview(_controller!),
+            Stack(
+              children: [
+                CameraPreview(_controller!),
+                AspectRatio(
+                  aspectRatio: _cameraAspectRatio,
+                  child: Center(
+                    child: Text(
+                      "+",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w100,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -4630,7 +4652,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
 
                 Tooltip(
-                  message: 'Open gallery',
+                  message: 'Preview Photos',
                   child: ThumbnailWithBadge(
                     image:
                         _capturedImages.isNotEmpty
@@ -4640,7 +4662,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     onTap:
                         _capturedImages.isEmpty
                             ? null
-                            : () => _openImageGallery(context),
+                            : () => _openPhotosGrid(context),
                   ),
                 ),
               ],
