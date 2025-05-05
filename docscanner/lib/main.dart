@@ -15,7 +15,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// camera:
 import 'package:camera/camera.dart';
+import 'package:camera_android_camerax/camera_android_camerax.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 // local:
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
@@ -43,6 +46,7 @@ enum NotifierEvent {
 enum PopUpType { share, save, delete }
 
 void main() async {
+  CameraPlatform.instance = AndroidCameraCameraX();
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -4626,16 +4630,18 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ],
               ),
-              body: PageView.builder(
-                controller: controller,
+              body: PhotoViewGallery.builder(
+                pageController: controller,
+                scrollPhysics: const PageScrollPhysics(),
+                backgroundDecoration: BoxDecoration(color: Colors.transparent),
                 itemCount: _capturedImages.length,
-                itemBuilder: (context, index) {
-                  return PhotoView(
+                builder: (context, index) {
+                  // Processed Images
+                  return PhotoViewGalleryPageOptions(
                     imageProvider: FileImage(File(_capturedImages[index].path)),
-                    backgroundDecoration: BoxDecoration(color: Colors.black),
-                    maxScale: 1.0,
-                    minScale: PhotoViewComputedScale.contained,
                     filterQuality: FilterQuality.high,
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: 1.0,
                   );
                 },
               ),
