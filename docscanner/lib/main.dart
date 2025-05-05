@@ -181,7 +181,15 @@ class _MyAppState extends State<MyApp> {
                 );
 
               case '/camera':
-                return MaterialPageRoute(builder: (_) => CameraScreen());
+                return MaterialPageRoute(
+                  builder:
+                      (context) => Theme(
+                        data: Theme.of(context).copyWith(
+                          brightness: Brightness.dark,
+                        ), //for tooltips and splash effects
+                        child: CameraScreen(),
+                      ),
+                );
 
               case '/warp':
                 final args = settings.arguments as Map<String, dynamic>;
@@ -4372,14 +4380,14 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _initializeCamera() async {
     final cameras = await availableCameras();
-    CameraDescription? backCamera = cameras.firstWhere(
+    final backCamera = cameras.firstWhere(
       (camera) => camera.lensDirection == CameraLensDirection.back,
       orElse: () => cameras.first,
     );
 
     _controller = CameraController(
       backCamera,
-      ResolutionPreset.high,
+      ResolutionPreset.max,
       enableAudio: false,
     );
 
@@ -4418,7 +4426,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   void _openImageGallery(BuildContext context) {
     showModalBottomSheet(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: ColorScheme.dark().surface,
       showDragHandle: true,
       useSafeArea: true,
       context: context,
@@ -4426,27 +4434,32 @@ class _CameraScreenState extends State<CameraScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder:
-          (_) => GridView.builder(
-            itemCount: _capturedImages.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 3,
-              mainAxisSpacing: 3,
-            ),
-            itemBuilder: (_, index) {
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  splashColor: Colors.white,
-                  highlightColor: Colors.white,
-                  onTap: () {
-                    _openFullscreenViewer(index);
-                  },
-                  child: Image.file(
-                    File(_capturedImages[index].path),
-                    fit: BoxFit.cover,
-                  ),
+          (_) => StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return GridView.builder(
+                itemCount: _capturedImages.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 3,
+                  mainAxisSpacing: 3,
                 ),
+                itemBuilder: (_, index) {
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      splashColor: Colors.white,
+                      highlightColor: Colors.white,
+                      onTap: () {
+                        _openFullscreenViewer(index, setStateDialog);
+                        setStateDialog(() {});
+                      },
+                      child: Image.file(
+                        File(_capturedImages[index].path),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -4463,9 +4476,10 @@ class _CameraScreenState extends State<CameraScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: Colors.black,
         leading: IconButton(
           tooltip: 'Close Camera',
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -4483,18 +4497,20 @@ class _CameraScreenState extends State<CameraScreen> {
         ],
       ),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: CameraPreview(_controller!)),
-          const SizedBox(height: 16),
+          // Camera Preview
+          CameraPreview(_controller!),
+          const SizedBox(height: 32),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 55,
+                height: 55,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: IconButton(
                   tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
@@ -4527,16 +4543,16 @@ class _CameraScreenState extends State<CameraScreen> {
                 },
 
                 child: Container(
-                  width: 70,
-                  height: 70,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
                   ),
                   child: Center(
                     child: Container(
-                      width: 50,
-                      height: 50,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color:
@@ -4571,7 +4587,10 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  void _openFullscreenViewer(int initialIndex) {
+  _openFullscreenViewer(
+    int initialIndex,
+    Function(void Function()) setStateGallery,
+  ) {
     PageController controller = PageController(initialPage: initialIndex);
 
     showDialog(
@@ -4597,6 +4616,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       setState(() {
                         _capturedImages.removeAt(index);
                       });
+                      setStateGallery(() {});
                       if (_capturedImages.isEmpty) {
                         Navigator.pop(context);
                       } else {
@@ -4654,7 +4674,7 @@ class ThumbnailWithBadge extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(
                 color: image != null ? Colors.white : Colors.white54,
-                width: 3,
+                width: 2,
               ),
               image:
                   image != null
@@ -4669,9 +4689,9 @@ class ThumbnailWithBadge extends StatelessWidget {
           if (count > 0)
             Positioned(
               right: 0,
-              top: 0,
+              top: -6,
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white, //Theme.of(context).colorScheme.
@@ -4679,7 +4699,7 @@ class ThumbnailWithBadge extends StatelessWidget {
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
