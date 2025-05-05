@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:camera/camera.dart';
 // local:
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
@@ -179,6 +180,9 @@ class _MyAppState extends State<MyApp> {
                       ),
                 );
 
+              case '/camera':
+                return MaterialPageRoute(builder: (_) => CameraScreen());
+
               case '/warp':
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
@@ -281,11 +285,16 @@ class _MyHomePageState extends State<MyHomePage> {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths = await filesHelper.pickImage(
-      context,
-      source,
-      isMultiImage: isMultiImage,
-    );
+    List<String> picturePaths;
+    if (source == ImageSource.camera) {
+      picturePaths = await _openCamera();
+    } else {
+      picturePaths = await filesHelper.pickImage(
+        context,
+        source,
+        isMultiImage: isMultiImage,
+      );
+    }
     if (picturePaths.isEmpty) return;
 
     final newIndexes = await _processDocument(picturePaths);
@@ -304,6 +313,17 @@ class _MyHomePageState extends State<MyHomePage> {
     future.whenComplete(() async {
       _loadDocsDisplay();
     });
+  }
+
+  Future<List<String>> _openCamera() async {
+    final result = await Navigator.pushNamed(context, '/camera');
+    List<String> picturePaths = [];
+    if (result is List<XFile>) {
+      for (var xfile in result) {
+        picturePaths.add(xfile.path);
+      }
+    }
+    return picturePaths;
   }
 
   void _receiveSharing() {
@@ -917,26 +937,26 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: () {
                   _openImagePicker(ImageSource.gallery, isMultiImage: true);
                 },
-                tooltip: 'Pick multiple Images from Gallery',
+                tooltip: 'Pick Images from Gallery',
                 child: const Icon(Icons.photo_library),
               ),
             ),
-            SizedBox(height: 18.0),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: FloatingActionButton(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                heroTag: "pickImages",
-                onPressed: () {
-                  _openImagePicker(ImageSource.gallery);
-                },
-                tooltip: 'Pick an Image from Gallery',
-                child: const Icon(Icons.photo),
-              ),
-            ),
+            //SizedBox(height: 18.0),
+            //SizedBox(
+            //  width: 40,
+            //  height: 40,
+            //  child: FloatingActionButton(
+            //    shape: RoundedRectangleBorder(
+            //      borderRadius: BorderRadius.circular(12),
+            //    ),
+            //    heroTag: "pickImages",
+            //    onPressed: () {
+            //      _openImagePicker(ImageSource.gallery);
+            //    },
+            //    tooltip: 'Pick an Image from Gallery',
+            //    child: const Icon(Icons.photo),
+            //  ),
+            //),
             SizedBox(height: 18.0),
             if (_picker.supportsImageSource(ImageSource.camera))
               FloatingActionButton(
@@ -1550,27 +1570,27 @@ class _PagesState extends State<Pages> {
                             isMultiImage: true,
                           );
                         },
-                        tooltip: 'Pick multiple Images from Gallery',
+                        tooltip: 'Pick Images from Gallery',
                         child: const Icon(Icons.photo_library),
                       ),
                     ),
                     SizedBox(height: 18.0),
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        heroTag: "pickImages",
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () {
-                          _openImagePicker(ImageSource.gallery);
-                        },
-                        tooltip: 'Pick an Image from Gallery',
-                        child: const Icon(Icons.photo),
-                      ),
-                    ),
-                    SizedBox(height: 18.0),
+                    //SizedBox(
+                    //  width: 40,
+                    //  height: 40,
+                    //  child: FloatingActionButton(
+                    //    heroTag: "pickImages",
+                    //    shape: RoundedRectangleBorder(
+                    //      borderRadius: BorderRadius.circular(12),
+                    //    ),
+                    //    onPressed: () {
+                    //      _openImagePicker(ImageSource.gallery);
+                    //    },
+                    //    tooltip: 'Pick an Image from Gallery',
+                    //    child: const Icon(Icons.photo),
+                    //  ),
+                    //),
+                    //SizedBox(height: 18.0),
                     if (_picker.supportsImageSource(ImageSource.camera))
                       FloatingActionButton(
                         heroTag: "makePhoto",
@@ -4330,4 +4350,344 @@ Future<bool> _readPageUnlocked(int docIndex, int pageIndex) async {
     }
   }
   return false;
+}
+
+class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
+
+  @override
+  State<CameraScreen> createState() => _CameraScreenState();
+}
+
+class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _controller;
+  bool _isFlashOn = false;
+  final List<XFile> _capturedImages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    CameraDescription? backCamera = cameras.firstWhere(
+      (camera) => camera.lensDirection == CameraLensDirection.back,
+      orElse: () => cameras.first,
+    );
+
+    _controller = CameraController(
+      backCamera,
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+
+    await _controller!.initialize();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _toggleFlash() async {
+    _isFlashOn = !_isFlashOn;
+    await _controller?.setFlashMode(
+      _isFlashOn ? FlashMode.torch : FlashMode.off,
+    );
+    setState(() {});
+  }
+
+  Future<void> _takePicture() async {
+    if (_controller == null || _controller!.value.isTakingPicture) {
+      return;
+    }
+
+    try {
+      final image = await _controller!.takePicture();
+      setState(() {
+        _capturedImages.add(image);
+      });
+    } catch (e) {
+      dev.log("Error taking picture: $e");
+    }
+  }
+
+  void _openImageGallery(BuildContext context) {
+    showModalBottomSheet(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      showDragHandle: true,
+      useSafeArea: true,
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder:
+          (_) => GridView.builder(
+            itemCount: _capturedImages.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 3,
+              mainAxisSpacing: 3,
+            ),
+            itemBuilder: (_, index) {
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  splashColor: Colors.white,
+                  highlightColor: Colors.white,
+                  onTap: () {
+                    _openFullscreenViewer(index);
+                  },
+                  child: Image.file(
+                    File(_capturedImages[index].path),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  bool _isPressingCaptureButton = false;
+  @override
+  Widget build(BuildContext context) {
+    if (_controller == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Close Camera',
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          CustomIconButton(
+            tooltip: 'Process Photos',
+            isDisabled: _capturedImages.isEmpty,
+            onTap: () {
+              Navigator.pop(context, _capturedImages);
+            },
+            color: Theme.of(context).colorScheme.primaryContainer,
+            icon: Icons.check,
+            iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+          SizedBox(width: 12),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(child: CameraPreview(_controller!)),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: IconButton(
+                  tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
+                  onPressed: _toggleFlash,
+                  icon: Icon(
+                    _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+
+              GestureDetector(
+                onTap: () {
+                  _takePicture();
+                },
+                onTapDown: (details) {
+                  setState(() {
+                    _isPressingCaptureButton = true;
+                  });
+                },
+                onTapUp: (details) {
+                  setState(() {
+                    _isPressingCaptureButton = false;
+                  });
+                },
+                onTapCancel: () {
+                  setState(() {
+                    _isPressingCaptureButton = false;
+                  });
+                },
+
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color:
+                            _isPressingCaptureButton
+                                ? Colors.transparent
+                                : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              Tooltip(
+                message: 'Open gallery',
+                child: ThumbnailWithBadge(
+                  image:
+                      _capturedImages.isNotEmpty
+                          ? File(_capturedImages.first.path)
+                          : null,
+                  count: _capturedImages.length,
+                  onTap:
+                      _capturedImages.isEmpty
+                          ? null
+                          : () => _openImageGallery(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  void _openFullscreenViewer(int initialIndex) {
+    PageController controller = PageController(initialPage: initialIndex);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                leading: IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Delete Photo',
+                    icon: Icon(Icons.delete, color: Colors.white),
+                    onPressed: () {
+                      int index = controller.page!.round();
+                      setState(() {
+                        _capturedImages.removeAt(index);
+                      });
+                      if (_capturedImages.isEmpty) {
+                        Navigator.pop(context);
+                      } else {
+                        setStateDialog(() {});
+                      }
+                    },
+                  ),
+                ],
+              ),
+              body: PageView.builder(
+                controller: controller,
+                itemCount: _capturedImages.length,
+                itemBuilder: (context, index) {
+                  return PhotoView(
+                    imageProvider: FileImage(File(_capturedImages[index].path)),
+                    backgroundDecoration: BoxDecoration(color: Colors.black),
+                    maxScale: 1.0,
+                    minScale: PhotoViewComputedScale.contained,
+                    filterQuality: FilterQuality.high,
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class ThumbnailWithBadge extends StatelessWidget {
+  final File? image;
+  final int count;
+  final VoidCallback? onTap;
+
+  const ThumbnailWithBadge({
+    super.key,
+    required this.image,
+    required this.count,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Stack(
+        alignment: Alignment.topRight,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: image != null ? Colors.white : Colors.white54,
+                width: 3,
+              ),
+              image:
+                  image != null
+                      ? DecorationImage(
+                        image: FileImage(image!),
+                        fit: BoxFit.cover,
+                      )
+                      : null,
+              color: Colors.white30,
+            ),
+          ),
+          if (count > 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white, //Theme.of(context).colorScheme.
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

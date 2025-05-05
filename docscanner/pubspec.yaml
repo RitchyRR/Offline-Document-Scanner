@@ -37,6 +37,7 @@ dependencies:
   flutter_secure_storage: # proUnlocked
   receive_sharing_intent:
     path: lib_plugins/receive_sharing_intent
+  camera: ^0.11.1
 
 
 dev_dependencies:
