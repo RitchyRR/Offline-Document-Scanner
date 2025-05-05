@@ -1283,11 +1283,16 @@ class _PagesState extends State<Pages> {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths = await filesHelper.pickImage(
-      context,
-      source,
-      isMultiImage: isMultiImage,
-    );
+    List<String> picturePaths;
+    if (source == ImageSource.camera) {
+      picturePaths = await _openCamera();
+    } else {
+      picturePaths = await filesHelper.pickImage(
+        context,
+        source,
+        isMultiImage: isMultiImage,
+      );
+    }
     if (picturePaths.isEmpty) return;
 
     int firstPageIndex = await _processNewPages(picturePaths);
@@ -1310,6 +1315,17 @@ class _PagesState extends State<Pages> {
     );
 
     return firstPageIndex;
+  }
+
+  Future<List<String>> _openCamera() async {
+    final result = await Navigator.pushNamed(context, '/camera');
+    List<String> picturePaths = [];
+    if (result is List<XFile>) {
+      for (var xfile in result) {
+        picturePaths.add(xfile.path);
+      }
+    }
+    return picturePaths;
   }
 
   bool _selectMode = false;
@@ -4440,6 +4456,7 @@ class _CameraScreenState extends State<CameraScreen> {
       builder:
           (_) => StatefulBuilder(
             builder: (context, setStateDialog) {
+              if (_capturedImages.isEmpty) Navigator.pop(context);
               return GridView.builder(
                 itemCount: _capturedImages.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -4470,123 +4487,167 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
+  Future<bool> _leaveConfirmationDialog() async {
+    bool? confirmLeave = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Discard Photos"),
+          content: Text(
+            "Are you sure you want to discard the photos that you have taken?",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text("Discard", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmLeave == true;
+  }
+
   bool _isPressingCaptureButton = false;
   @override
   Widget build(BuildContext context) {
     if (_controller == null) {
+      Future.microtask(() async {
+        await Future.delayed(Duration(seconds: 5));
+        if (_controller == null && mounted && context.mounted) {
+          Navigator.pop(context);
+        }
+      });
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    bool allowPop = _capturedImages.isEmpty;
+    return PopScope(
+      canPop: allowPop,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!allowPop) {
+          if (await _leaveConfirmationDialog() && mounted && context.mounted) {
+            allowPop = true;
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.black,
-        leading: IconButton(
-          tooltip: 'Close Camera',
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          CustomIconButton(
-            tooltip: 'Process Photos',
-            isDisabled: _capturedImages.isEmpty,
-            onTap: () {
-              Navigator.pop(context, _capturedImages);
-            },
-            color: Theme.of(context).colorScheme.primaryContainer,
-            icon: Icons.check,
-            iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            tooltip: 'Close Camera',
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.maybePop(context),
           ),
-          SizedBox(width: 12),
-        ],
-      ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Camera Preview
-          CameraPreview(_controller!),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Container(
-                width: 55,
-                height: 55,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: IconButton(
-                  tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
-                  onPressed: _toggleFlash,
-                  icon: Icon(
-                    _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-
-              GestureDetector(
-                onTap: () {
-                  _takePicture();
-                },
-                onTapDown: (details) {
-                  setState(() {
-                    _isPressingCaptureButton = true;
-                  });
-                },
-                onTapUp: (details) {
-                  setState(() {
-                    _isPressingCaptureButton = false;
-                  });
-                },
-                onTapCancel: () {
-                  setState(() {
-                    _isPressingCaptureButton = false;
-                  });
-                },
-
-                child: Container(
-                  width: 80,
-                  height: 80,
+          actions: [
+            CustomIconButton(
+              tooltip: 'Process Photos',
+              isDisabled: _capturedImages.isEmpty,
+              onTap: () {
+                allowPop = true;
+                Navigator.pop(context, _capturedImages);
+              },
+              color: Theme.of(context).colorScheme.primaryContainer,
+              icon: Icons.check,
+              iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+            SizedBox(width: 12),
+          ],
+        ),
+        body: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Camera Preview
+            CameraPreview(_controller!),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Container(
+                  width: 55,
+                  height: 55,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: Center(
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            _isPressingCaptureButton
-                                ? Colors.transparent
-                                : Colors.white,
+                  child: IconButton(
+                    tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
+                    onPressed: _toggleFlash,
+                    icon: Icon(
+                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+
+                GestureDetector(
+                  onTap: () {
+                    _takePicture();
+                  },
+                  onTapDown: (details) {
+                    setState(() {
+                      _isPressingCaptureButton = true;
+                    });
+                  },
+                  onTapUp: (details) {
+                    setState(() {
+                      _isPressingCaptureButton = false;
+                    });
+                  },
+                  onTapCancel: () {
+                    setState(() {
+                      _isPressingCaptureButton = false;
+                    });
+                  },
+
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              _isPressingCaptureButton
+                                  ? Colors.transparent
+                                  : Colors.white,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              Tooltip(
-                message: 'Open gallery',
-                child: ThumbnailWithBadge(
-                  image:
-                      _capturedImages.isNotEmpty
-                          ? File(_capturedImages.first.path)
-                          : null,
-                  count: _capturedImages.length,
-                  onTap:
-                      _capturedImages.isEmpty
-                          ? null
-                          : () => _openImageGallery(context),
+                Tooltip(
+                  message: 'Open gallery',
+                  child: ThumbnailWithBadge(
+                    image:
+                        _capturedImages.isNotEmpty
+                            ? File(_capturedImages.first.path)
+                            : null,
+                    count: _capturedImages.length,
+                    onTap:
+                        _capturedImages.isEmpty
+                            ? null
+                            : () => _openImageGallery(context),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-        ],
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
