@@ -298,6 +298,7 @@ class _MyHomePageState extends State<MyHomePage> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths;
+    if (filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       picturePaths = await _openCamera();
     } else {
@@ -328,6 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<List<String>> _openCamera() async {
+    filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
     List<String> picturePaths = [];
     if (result is List<XFile>) {
@@ -335,6 +337,7 @@ class _MyHomePageState extends State<MyHomePage> {
         picturePaths.add(xfile.path);
       }
     }
+    filesHelper.pickingImage = false;
     return picturePaths;
   }
 
@@ -1284,6 +1287,7 @@ class _PagesState extends State<Pages> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths;
+    if (filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       picturePaths = await _openCamera();
     } else {
@@ -1318,6 +1322,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<List<String>> _openCamera() async {
+    filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
     List<String> picturePaths = [];
     if (result is List<XFile>) {
@@ -1325,6 +1330,7 @@ class _PagesState extends State<Pages> {
         picturePaths.add(xfile.path);
       }
     }
+    filesHelper.pickingImage = false;
     return picturePaths;
   }
 
@@ -2116,6 +2122,7 @@ class PagePreviewState extends State<PagePreview> {
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
         if (!allowPop) {
+          HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
         } else {
           // new thumbnail
@@ -3377,6 +3384,7 @@ class _WarpState extends State<Warp> {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (!_allowPop) {
+          HapticFeedback.heavyImpact();
           if (await _leaveConfirmationDialog()) {
             if (mounted && context.mounted) {
               Navigator.pop(context);
@@ -4535,6 +4543,7 @@ class _CameraScreenState extends State<CameraScreen> {
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
         if (!allowPop) {
+          HapticFeedback.heavyImpact();
           if (await _leaveConfirmationDialog() && mounted && context.mounted) {
             allowPop = true;
             Navigator.of(context).pop();
@@ -4593,7 +4602,10 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                   child: IconButton(
                     tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
-                    onPressed: _toggleFlash,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      _toggleFlash();
+                    },
                     icon: Icon(
                       _isFlashOn ? Icons.flash_on : Icons.flash_off,
                       color: Colors.white,
@@ -4606,11 +4618,13 @@ class _CameraScreenState extends State<CameraScreen> {
                     _takePicture();
                   },
                   onTapDown: (details) {
+                    HapticFeedback.mediumImpact();
                     setState(() {
                       _isPressingCaptureButton = true;
                     });
                   },
                   onTapUp: (details) {
+                    HapticFeedback.lightImpact();
                     setState(() {
                       _isPressingCaptureButton = false;
                     });
@@ -4625,6 +4639,10 @@ class _CameraScreenState extends State<CameraScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
+                      color:
+                          _isPressingCaptureButton
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : Colors.transparent,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
@@ -4692,6 +4710,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     tooltip: 'Delete Photo',
                     icon: Icon(Icons.delete, color: Colors.white),
                     onPressed: () {
+                      HapticFeedback.lightImpact();
                       int index = controller.page!.round();
                       setState(() {
                         _capturedImages.removeAt(index);

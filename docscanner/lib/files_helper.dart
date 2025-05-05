@@ -858,14 +858,14 @@ class FilesHelper {
     }
   }
 
-  bool _pickingImage = false;
+  bool pickingImage = false;
   Future<List<String>> pickImage(
     BuildContext context,
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    if (_pickingImage) return [];
-    _pickingImage = true;
+    if (pickingImage) return [];
+    pickingImage = true;
 
     ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     SnackBar snackBar = SnackBar(
@@ -905,7 +905,7 @@ class FilesHelper {
       if (message is List<String>) {
         messenger.hideCurrentSnackBar();
         completer.complete(message);
-        _pickingImage = false;
+        pickingImage = false;
         port.close();
         isolate.kill();
       }
