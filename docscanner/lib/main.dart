@@ -4470,30 +4470,33 @@ class _CameraScreenState extends State<CameraScreen> {
           (_) => StatefulBuilder(
             builder: (context, setStateDialog) {
               if (_capturedImages.isEmpty) Navigator.pop(context);
-              return GridView.builder(
-                itemCount: _capturedImages.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 3,
-                  mainAxisSpacing: 3,
-                ),
-                itemBuilder: (_, index) {
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      splashColor: Colors.white,
-                      highlightColor: Colors.white,
-                      onTap: () {
-                        _openFullscreenViewer(index, setStateDialog);
-                        setStateDialog(() {});
-                      },
-                      child: Image.file(
-                        File(_capturedImages[index].path),
-                        fit: BoxFit.cover,
+              return Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: GridView.builder(
+                  itemCount: _capturedImages.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 1,
+                    mainAxisSpacing: 1,
+                  ),
+                  itemBuilder: (_, index) {
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        splashColor: Colors.white,
+                        highlightColor: Colors.white,
+                        onTap: () {
+                          _openFullscreenViewer(index, setStateDialog);
+                          setStateDialog(() {});
+                        },
+                        child: Image.file(
+                          File(_capturedImages[index].path),
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               );
             },
           ),
