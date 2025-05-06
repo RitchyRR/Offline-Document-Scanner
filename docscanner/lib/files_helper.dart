@@ -903,12 +903,14 @@ class FilesHelper {
     final completer = Completer<List<String>>();
     port.listen((message) async {
       if (message is List<String>) {
-        messenger.hideCurrentSnackBar();
         completer.complete(message);
-        pickingImage = false;
-        port.close();
-        isolate.kill();
+      } else {
+        completer.complete([]);
       }
+      messenger.hideCurrentSnackBar();
+      pickingImage = false;
+      port.close();
+      isolate.kill();
     });
     return await completer.future;
   }
