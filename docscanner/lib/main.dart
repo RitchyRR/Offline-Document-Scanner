@@ -4429,28 +4429,33 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   @override
-  void dispose() {
-    _controller?.dispose();
+  void dispose() async {
     super.dispose();
+    await _controller?.setFlashMode(FlashMode.off);
+    _controller?.dispose();
   }
 
-  void _toggleFlash() async {
+  Future<void> _toggleFlash() async {
     _isFlashOn = !_isFlashOn;
     await _controller?.setFlashMode(
       _isFlashOn ? FlashMode.torch : FlashMode.off,
     );
-    setState(() {});
+    if (mounted && context.mounted) setState(() {});
   }
 
+  bool _cameraFlash = false;
   Future<void> _takePicture() async {
     if (_controller == null || _controller!.value.isTakingPicture) {
       return;
     }
-
     try {
-      final image = await _controller!.takePicture();
       setState(() {
-        _capturedImages.add(image);
+        _cameraFlash = true;
+      });
+      final image = await _controller!.takePicture();
+      _capturedImages.add(image);
+      setState(() {
+        _cameraFlash = false;
       });
     } catch (e) {
       dev.log("Error taking picture: $e");
@@ -4538,7 +4543,6 @@ class _CameraScreenState extends State<CameraScreen> {
           Navigator.pop(context);
         }
       });
-      return const Center(child: CircularProgressIndicator());
     }
 
     bool allowPop = _capturedImages.isEmpty;
@@ -4583,11 +4587,20 @@ class _CameraScreenState extends State<CameraScreen> {
             // Camera Preview
             Stack(
               children: [
-                CameraPreview(_controller!),
+                _controller != null
+                    ? CameraPreview(_controller!)
+                    : const Center(child: CircularProgressIndicator()),
                 AspectRatio(
                   aspectRatio: _cameraAspectRatio,
-                  child: Center(
-                    child: CustomPaint(painter: CrosshairPainter()),
+                  child: Stack(
+                    children: [
+                      _cameraFlash
+                          ? Positioned.fill(
+                            child: Container(color: Colors.black38),
+                          )
+                          : SizedBox(),
+                      Center(child: CustomPaint(painter: CrosshairPainter())),
+                    ],
                   ),
                 ),
               ],
@@ -4617,17 +4630,17 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
 
                 GestureDetector(
-                  onTap: () {
-                    _takePicture();
-                  },
                   onTapDown: (details) {
+                    if (_cameraFlash) return;
                     HapticFeedback.mediumImpact();
                     setState(() {
                       _isPressingCaptureButton = true;
                     });
                   },
                   onTapUp: (details) {
+                    if (!_isPressingCaptureButton) return;
                     HapticFeedback.lightImpact();
+                    _takePicture();
                     setState(() {
                       _isPressingCaptureButton = false;
                     });
@@ -4643,7 +4656,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     height: 80,
                     decoration: BoxDecoration(
                       color:
-                          _isPressingCaptureButton
+                          _isPressingCaptureButton || _cameraFlash
                               ? Theme.of(context).colorScheme.primaryContainer
                               : Colors.transparent,
                       shape: BoxShape.circle,
@@ -4656,7 +4669,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color:
-                              _isPressingCaptureButton
+                              _isPressingCaptureButton || _cameraFlash
                                   ? Colors.transparent
                                   : Colors.white,
                         ),
@@ -4888,15 +4901,17 @@ class ThumbnailWithBadge extends StatelessWidget {
           if (count > 0)
             Positioned(
               right: 0,
-              top: -6,
+              top: 0,
               child: Container(
-                padding: const EdgeInsets.all(5),
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white, //Theme.of(context).colorScheme.
                 ),
                 child: Text(
                   '$count',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black,
