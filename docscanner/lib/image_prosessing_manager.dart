@@ -3,6 +3,8 @@ import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'
+    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'dart:io';
@@ -26,6 +28,7 @@ class ImageProcessingManager {
   static Future<void> _processPageIsolate(
     (
       SendPort sendPort,
+      RootIsolateToken token,
       FilesHelper filesHelperIn,
       bool isPrimary,
       int docIndex,
@@ -42,19 +45,21 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    bool isPrimary = data.$3;
-    int docIndex = data.$4;
-    int pageIndex = data.$5;
-    String newPicturePath = data.$6;
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+    FilesHelper filesHelperIn = data.$3;
+    bool isPrimary = data.$4;
+    int docIndex = data.$5;
+    int pageIndex = data.$6;
+    String newPicturePath = data.$7;
 
-    int? ratioIndexIn = data.$7;
-    int? orientationIndexIn = data.$8;
-    int? pageThumbnailIndexIn = data.$9;
-    List<List<int>>? cornerPointsIn = data.$10;
-    bool? proUnlockedIn = data.$11;
-    int rotationIn = data.$12;
-    bool isInitial = data.$13;
+    int? ratioIndexIn = data.$8;
+    int? orientationIndexIn = data.$9;
+    int? pageThumbnailIndexIn = data.$10;
+    List<List<int>>? cornerPointsIn = data.$11;
+    bool? proUnlockedIn = data.$12;
+    int rotationIn = data.$13;
+    bool isInitial = data.$14;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
@@ -191,8 +196,10 @@ class ImageProcessingManager {
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
     await awaitBeforeIsolate;
+    RootIsolateToken token = RootIsolateToken.instance!;
     Isolate isolate = await Isolate.spawn(_processPageIsolate, (
       port.sendPort,
+      token,
       filesHelper,
       isPrimary,
       docIndex,
@@ -242,6 +249,7 @@ class ImageProcessingManager {
   static Future<void> _repairPageIsolate(
     (
       SendPort sendPort,
+      RootIsolateToken token,
       FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
@@ -254,15 +262,17 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+    FilesHelper filesHelperIn = data.$3;
+    int docIndex = data.$4;
+    int pageIndex = data.$5;
 
-    int? ratioIndexIn = data.$5;
-    int? orientationIndexIn = data.$6;
-    int? pageThumbnailIndexIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    bool? proUnlockedIn = data.$9;
+    int? ratioIndexIn = data.$6;
+    int? orientationIndexIn = data.$7;
+    int? pageThumbnailIndexIn = data.$8;
+    List<List<int>>? cornerPointsIn = data.$9;
+    bool? proUnlockedIn = data.$10;
 
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
@@ -518,8 +528,10 @@ class ImageProcessingManager {
     int? thumbnailIndex = metadata.$3;
     List<List<int>>? cornerPoints = metadata.$4;
 
+    RootIsolateToken token = RootIsolateToken.instance!;
     Isolate isolate = await Isolate.spawn(_repairPageIsolate, (
       port.sendPort,
+      token,
       filesHelper,
       docIndex,
       pageIndex,

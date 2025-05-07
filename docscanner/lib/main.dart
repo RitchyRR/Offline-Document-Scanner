@@ -299,7 +299,11 @@ class _MyHomePageState extends State<MyHomePage> {
     final now = DateTime.now();
     _docDates.add("${now.year}-${now.month}-${now.day}");
     fixMetadataLengths(docIndex + 1);
-    metadataHelper.writeDocDate(docIndex, _docDates[docIndex]);
+    metadataHelper.writeDocDate(
+      docIndex,
+      _docDates[docIndex],
+      supressWarnings: true,
+    );
 
     return (docIndex, firstPageIndex);
   }
@@ -1945,6 +1949,7 @@ class PagePreviewState extends State<PagePreview> {
     _pageUnlocked = await metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
+      supressWarnings: true,
     );
   }
 

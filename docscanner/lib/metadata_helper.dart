@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:docscanner/main.dart';
 import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:flutter/services.dart'
+    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 // encryption:
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart';
@@ -20,8 +22,9 @@ class MetadataHelper {
   static Future<void> _writeDoc(
     int docIndex,
     String keyIn,
-    dynamic valueIn,
-  ) async {
+    dynamic valueIn, {
+    bool supressWarnings = false,
+  }) async {
     final docPath = await filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -31,6 +34,7 @@ class MetadataHelper {
     }
     final file = File('$docPath/metadata.json');
     Map<String, dynamic> metadata = {};
+
     // Read + Decrypt
     if (file.existsSync()) {
       try {
@@ -39,11 +43,12 @@ class MetadataHelper {
       } catch (e) {
         dev.log("Error, _writeDoc, $keyIn: Reading metadata: $e");
       }
-    } else {
+    } else if (!supressWarnings) {
       dev.log(
         "Warning, _writeDoc, $keyIn: No existing metadata, creating new one.",
       );
     }
+
     // Write + Encrypt
     metadata[keyIn] = valueIn;
     final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
@@ -152,8 +157,17 @@ class MetadataHelper {
     }
   }
 
-  Future<void> writeDocDate(int docIndex, String newDate) async {
-    _writeDoc(docIndex, "date", newDate);
+  Future<void> writeDocDate(
+    int docIndex,
+    String newDate, {
+    bool supressWarnings = false,
+  }) async {
+    await _writeDoc(
+      docIndex,
+      "date",
+      newDate,
+      supressWarnings: supressWarnings,
+    );
   }
 
   Future<String?> readDocDate(int docIndex) async {
@@ -166,7 +180,7 @@ class MetadataHelper {
   }
 
   Future<void> writeDocUnlocked(int docIndex, bool unlocked) async {
-    _writeDoc(docIndex, "unlocked", unlocked);
+    await _writeDoc(docIndex, "unlocked", unlocked ? 'true' : 'false');
 
     if (unlocked) {
       // Re-lock after 1 hour
@@ -178,8 +192,8 @@ class MetadataHelper {
 
   Future<bool> readDocUnlocked(int docIndex) async {
     dynamic value = await _readDoc(docIndex, "unlocked");
-    if (value is bool) {
-      return value;
+    if (value is String) {
+      return value == 'true';
     } else {
       return false;
     }
@@ -190,7 +204,12 @@ class MetadataHelper {
     int pageIndex,
     bool unlocked,
   ) async {
-    _writePage(docIndex, pageIndex, "unlocked", unlocked);
+    await _writePage(
+      docIndex,
+      pageIndex,
+      "unlocked",
+      unlocked ? 'true' : 'false',
+    );
 
     if (unlocked) {
       // Re-lock after 1 hour
@@ -204,10 +223,19 @@ class MetadataHelper {
     }
   }
 
-  Future<bool> readPageUnlocked(int docIndex, int pageIndex) async {
-    dynamic value = await _readPage(docIndex, pageIndex, "unlocked");
-    if (value is bool) {
-      return value;
+  Future<bool> readPageUnlocked(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarnings = false,
+  }) async {
+    dynamic value = await _readPage(
+      docIndex,
+      pageIndex,
+      "unlocked",
+      supressWarnings: supressWarnings,
+    );
+    if (value is String) {
+      return value == 'true';
     } else {
       return false;
     }
@@ -231,7 +259,7 @@ class MetadataHelper {
 
     try {
       // Write
-      if (ratioIndex != null) metadata["apectRatio"] = ratioIndex.toString();
+      if (ratioIndex != null) metadata["aspectRatio"] = (ratioIndex).toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
       metadata["thumbnail"] =
@@ -241,7 +269,7 @@ class MetadataHelper {
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
-      if (filesHelperIn != null) {
+      if (filesHelperIn == null) {
         // if started outside of isolate
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
       }
@@ -269,7 +297,7 @@ class MetadataHelper {
       try {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, dynamic>();
-        ratioIndex = int.parse(metadata["apectRatio"]);
+        ratioIndex = int.tryParse(metadata["aspectRatio"]);
         String orientationString = metadata["orientation"];
         orientationIndex =
             (orientationString == "portrait" || orientationString == "")
@@ -292,8 +320,7 @@ class MetadataHelper {
       } catch (e) {
         dev.log("Error, readPageMetadata: $e");
       }
-    }
-    if (!supressWarnings) {
+    } else if (!supressWarnings) {
       dev.log(
         "Warning, readPageMetadata: Metadata does not exist for $pagePath",
       );
@@ -352,7 +379,7 @@ class MetadataHelper {
     int pageIndex,
     List<List<int>> cornerPoints,
   ) async {
-    _writePage(docIndex, pageIndex, "corners", cornerPoints);
+    await _writePage(docIndex, pageIndex, "corners", cornerPoints);
   }
 
   static Future<int?> readPageRatioIndex(
@@ -363,11 +390,11 @@ class MetadataHelper {
     dynamic value = await _readPage(
       docIndex,
       pageIndex,
-      "apectRatio",
+      "aspectRatio",
       supressWarnings: supressWarnings,
     );
-    if (value is int?) {
-      return value;
+    if (value is String) {
+      return int.tryParse(value);
     } else {
       return null;
     }
@@ -400,11 +427,10 @@ class MetadataHelper {
     dynamic value = await _readPage(
       docIndex,
       pageIndex,
-      "apectRatio",
+      "thumbnail",
       supressWarnings: supressWarnings,
     );
     if (value is int) {
-      //todo check if works (value is int?)
       if (value == 0) {
         throw StateError('metadata: thumbnail cant be the picture');
       }
@@ -420,7 +446,6 @@ class MetadataHelper {
     FilesHelper? filesHelperIn,
     bool supressWarnings = false,
   }) async {
-    //todo
     String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
       docIndex,
       pageIndex,
@@ -441,7 +466,7 @@ class MetadataHelper {
                 .toList();
         return cornerPoints;
       } catch (e) {
-        dev.log("Error, readPageThumbnailIndex: $e");
+        dev.log("Error, readPageCornerPoints: $e");
       }
     }
     if (!supressWarnings) {
@@ -458,47 +483,72 @@ class MetadataCryptoHelper {
   static const _keySize = 32; // 256-bit AES
   static final _secureStorage = FlutterSecureStorage();
 
-  static Future<Key> _getOrCreateKey() async {
-    String? keyBase64 = await _secureStorage.read(key: _storageKey);
+  static Future<Key> _getOrCreateKey(RootIsolateToken? token) async {
+    try {
+      if (token != null) {
+        BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+      }
+      String? keyBase64 = await _secureStorage.read(key: _storageKey);
 
-    if (keyBase64 == null) {
-      final random = Random.secure();
-      final keyBytes = List<int>.generate(_keySize, (_) => random.nextInt(256));
-      keyBase64 = base64UrlEncode(keyBytes);
-      await _secureStorage.write(key: _storageKey, value: keyBase64);
+      if (keyBase64 == null) {
+        final random = Random.secure();
+        final keyBytes = List<int>.generate(
+          _keySize,
+          (_) => random.nextInt(256),
+        );
+        keyBase64 = base64UrlEncode(keyBytes);
+        await _secureStorage.write(key: _storageKey, value: keyBase64);
+      }
+
+      return Key(base64Url.decode(keyBase64));
+    } catch (e) {
+      dev.log("Error, _getOrCreateKey: $e");
+      throw StateError("_getOrCreateKey: $e");
     }
-
-    return Key(base64Url.decode(keyBase64));
   }
 
-  static Future<String> encryptMetadata(Map<String, dynamic> metadata) async {
-    final key = await _getOrCreateKey();
-    final iv = IV.fromSecureRandom(16);
-    final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+  static Future<String> encryptMetadata(
+    Map<String, dynamic> metadata, {
+    RootIsolateToken? token,
+  }) async {
+    try {
+      final key = await _getOrCreateKey(token);
+      final iv = IV.fromSecureRandom(16);
+      final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
 
-    final encrypted = encrypter.encrypt(jsonEncode(metadata), iv: iv);
-    final encryptedWithIv = jsonEncode({
-      "iv": base64UrlEncode(iv.bytes),
-      "data": encrypted.base64,
-    });
+      final encrypted = encrypter.encrypt(jsonEncode(metadata), iv: iv);
+      final encryptedWithIv = jsonEncode({
+        "iv": base64UrlEncode(iv.bytes),
+        "data": encrypted.base64,
+      });
 
-    return encryptedWithIv;
+      return encryptedWithIv;
+    } catch (e) {
+      dev.log("Error, encryptMetadata: $e");
+      throw StateError("encryptMetadata: $e");
+    }
   }
 
   static Future<Map<String, dynamic>> decryptMetadata(
-    String encryptedJson,
-  ) async {
-    final key = await _getOrCreateKey();
-    final Map<String, dynamic> decoded = jsonDecode(encryptedJson);
-    final iv = IV.fromBase64(decoded["iv"]);
-    final encryptedData = decoded["data"];
+    String encryptedJson, {
+    RootIsolateToken? token,
+  }) async {
+    try {
+      final key = await _getOrCreateKey(token);
+      final Map<String, dynamic> decoded = jsonDecode(encryptedJson);
+      final iv = IV.fromBase64(decoded["iv"]);
+      final encryptedData = decoded["data"];
 
-    final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
-    final decrypted = encrypter.decrypt(
-      Encrypted.fromBase64(encryptedData),
-      iv: iv,
-    );
+      final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+      final decrypted = encrypter.decrypt(
+        Encrypted.fromBase64(encryptedData),
+        iv: iv,
+      );
 
-    return jsonDecode(decrypted);
+      return jsonDecode(decrypted);
+    } catch (e) {
+      dev.log("Error, decryptMetadata: $e");
+      throw StateError("decryptMetadata: $e");
+    }
   }
 }
