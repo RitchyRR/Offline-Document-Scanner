@@ -60,24 +60,24 @@ class FilesHelper {
   Future<(String, int)> _reserveNewDocument() async {
     int docIndex = 0;
     while (await Directory(
-      await getDocumentPath(docIndex, supressWarning: true),
+      await getDocumentPath(docIndex, supressWarnings: true),
     ).exists()) {
       docIndex++;
     }
 
-    String newDocPath = await getDocumentPath(docIndex, supressWarning: true);
+    String newDocPath = await getDocumentPath(docIndex, supressWarnings: true);
     await Directory(newDocPath).create();
     return (newDocPath, docIndex);
   }
 
   Future<String> getDocumentPath(
     int docIndex, {
-    bool supressWarning = false,
+    bool supressWarnings = false,
   }) async {
     await _initializeDocumentsPath();
 
     String docPath = '$docsPath/Document $docIndex';
-    if (!Directory(docPath).existsSync() && !supressWarning) {
+    if (!Directory(docPath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getDocumentPath: Requested Document $docIndex does not exist.",
       );
@@ -100,11 +100,11 @@ class FilesHelper {
   Future<String> getPagePath(
     int docIndex,
     int pageIndex, {
-    bool supressWarning = false,
+    bool supressWarnings = false,
   }) async {
     String documentPath = await getDocumentPath(docIndex);
     String pagePath = '$documentPath/Page $pageIndex';
-    if (!Directory(pagePath).existsSync() && !supressWarning) {
+    if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getPagePath: Requested directory \"$pagePath\" does not exist.",
       );
@@ -183,7 +183,7 @@ class FilesHelper {
   Future<String> getPageShape(
     int docIndex,
     int pageIndex, {
-    bool supresswarning = false,
+    bool supressWarnings = false,
   }) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -193,7 +193,7 @@ class FilesHelper {
         return fse.path;
       }
     }
-    if (!supresswarning) {
+    if (!supressWarnings) {
       dev.log("Warning, getPageShape: No shape in page");
     }
     return "";
@@ -208,7 +208,7 @@ class FilesHelper {
       int thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         0,
-        supressWarning: true,
+        supressWarnings: true,
       );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
@@ -262,7 +262,7 @@ class FilesHelper {
       final thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
-        supressWarning: true,
+        supressWarnings: true,
       );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
@@ -322,7 +322,7 @@ class FilesHelper {
       // Rename documents to match their index
       String expectedDocPath = await getDocumentPath(
         docIndex,
-        supressWarning: true,
+        supressWarnings: true,
       );
       if (doc.path != expectedDocPath) {
         dev.log("Renaming ${doc.path} -> $expectedDocPath");
@@ -338,7 +338,7 @@ class FilesHelper {
           String expectedPagePath = await getPagePath(
             docIndex,
             pageIndex,
-            supressWarning: true,
+            supressWarnings: true,
           );
           if (pageFse.path != expectedPagePath) {
             dev.log("Renaming ${pageFse.path} -> $expectedPagePath");
@@ -442,7 +442,7 @@ class FilesHelper {
                 ),
       );
     }
-    String docPath = await getDocumentPath(docIndex, supressWarning: true);
+    String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Warning, deleteDocument: Document $docIndex nonexistent, moving following Documents up",
@@ -466,7 +466,7 @@ class FilesHelper {
 
     // rename all with higher docIndex to close the gap
     Directory fromDirectory = Directory(
-      await getDocumentPath(docIndex + 1, supressWarning: true),
+      await getDocumentPath(docIndex + 1, supressWarnings: true),
     );
     String toPath = docPath;
     for (int i = docIndex; i < await getDocumentsCount();) {
@@ -478,9 +478,9 @@ class FilesHelper {
 
       docIndex++;
       fromDirectory = Directory(
-        await getDocumentPath(docIndex + 1, supressWarning: true),
+        await getDocumentPath(docIndex + 1, supressWarnings: true),
       );
-      toPath = await getDocumentPath(docIndex, supressWarning: true);
+      toPath = await getDocumentPath(docIndex, supressWarnings: true);
     }
     globalNotifier.triggerEvent(
       NotifierEvent.loadDocsThumbnails,
@@ -554,7 +554,7 @@ class FilesHelper {
 
     // rename all with higher pageIndex to close the gap
     Directory fromDirectory = Directory(
-      await getPagePath(docIndex, pageIndex + 1, supressWarning: true),
+      await getPagePath(docIndex, pageIndex + 1, supressWarnings: true),
     );
     String toPath = pagePath;
     for (int i = pageIndex; i < await getPagesCount(docIndex);) {
@@ -568,9 +568,9 @@ class FilesHelper {
 
       pageIndex++;
       fromDirectory = Directory(
-        await getPagePath(docIndex, pageIndex + 1, supressWarning: true),
+        await getPagePath(docIndex, pageIndex + 1, supressWarnings: true),
       );
-      toPath = await getPagePath(docIndex, pageIndex, supressWarning: true);
+      toPath = await getPagePath(docIndex, pageIndex, supressWarnings: true);
     }
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
@@ -713,7 +713,7 @@ class FilesHelper {
         String fromPath = await getDocumentPath(rollingIndex + 1);
         String toPath = await getDocumentPath(
           rollingIndex,
-          supressWarning: true,
+          supressWarnings: true,
         );
         await Directory(fromPath).rename(toPath);
       }
@@ -727,7 +727,7 @@ class FilesHelper {
         String fromPath = await getDocumentPath(rollingIndex - 1);
         String toPath = await getDocumentPath(
           rollingIndex,
-          supressWarning: true,
+          supressWarnings: true,
         );
         await Directory(fromPath).rename(toPath);
       }
@@ -755,7 +755,7 @@ class FilesHelper {
         String toPath = await getPagePath(
           docIndex,
           rollingIndex,
-          supressWarning: true,
+          supressWarnings: true,
         );
         await Directory(fromPath).rename(toPath);
       }
@@ -770,7 +770,7 @@ class FilesHelper {
         String toPath = await getPagePath(
           docIndex,
           rollingIndex,
-          supressWarning: true,
+          supressWarnings: true,
         );
         await Directory(fromPath).rename(toPath);
       }

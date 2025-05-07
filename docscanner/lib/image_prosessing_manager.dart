@@ -68,7 +68,7 @@ class ImageProcessingManager {
     String shapePath = await filesHelperIn.getPageShape(
       docIndex,
       pageIndex,
-      supresswarning: isInitial,
+      supressWarnings: isInitial,
     );
     if (shapePath.isNotEmpty && rotationIn != 0) {
       Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
