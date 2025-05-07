@@ -26,6 +26,7 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
 import 'package:docscanner/files_helper.dart';
+import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 
@@ -33,6 +34,7 @@ import 'package:docscanner/opencv_helper.dart';
 final GlobalNotifier globalNotifier = GlobalNotifier();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 final FilesHelper filesHelper = FilesHelper();
+final MetadataHelper metadataHelper = MetadataHelper(filesHelper);
 final AdsHelper adsHelper = AdsHelper();
 bool? proUnlocked;
 
@@ -298,7 +300,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final now = DateTime.now();
     _docDates.add("${now.year}-${now.month}-${now.day}");
     fixMetadataLengths(docIndex + 1);
-    _writeDocDate(docIndex, _docDates[docIndex]);
+    metadataHelper.writeDocDate(docIndex, _docDates[docIndex]);
 
     return (docIndex, firstPageIndex);
   }
@@ -434,13 +436,15 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
       // reset ad supported doc/page unlocks
-      if (onInit) _writeDocUnlocked(docIndex, false);
+      if (onInit) metadataHelper.writeDocUnlocked(docIndex, false);
       for (
         var pageIndex = 0;
         pageIndex < _docPageCounts[docIndex];
         pageIndex++
       ) {
-        if (onInit) _writePageUnlocked(docIndex, pageIndex, false);
+        if (onInit) {
+          metadataHelper.writePageUnlocked(docIndex, pageIndex, false);
+        }
       }
     }
     // Document Metadata (Names, Dates, AspectRatios)
@@ -464,7 +468,7 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         }
       } else {
-        _writeDocName(docIndex, _docNames[docIndex]);
+        metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
       }
       bool supressWarnings = onInit;
       if (thumbnailPaths[docIndex].isEmpty) supressWarnings = true;
@@ -605,7 +609,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     _docNames[docIndex] = nameController.text.trim();
                   });
-                  _writeDocName(docIndex, _docNames[docIndex]);
+                  metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
                   Navigator.pop(context, currentIndex);
                 },
                 child: Text("OK"),
@@ -1348,7 +1352,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
-    _writeDocUnlocked(widget.docIndex, false);
+    metadataHelper.writeDocUnlocked(widget.docIndex, false);
     int firstPageIndex = await filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       picturePaths.length,
@@ -1949,7 +1953,10 @@ class PagePreviewState extends State<PagePreview> {
     _picturePath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarnings: true);
-    _pageUnlocked = await _readPageUnlocked(widget.docIndex, widget.pageIndex);
+    _pageUnlocked = await metadataHelper.readPageUnlocked(
+      widget.docIndex,
+      widget.pageIndex,
+    );
   }
 
   @override
@@ -2003,7 +2010,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.setState:
-        _pageUnlocked = await _readPageUnlocked(
+        _pageUnlocked = await metadataHelper.readPageUnlocked(
           widget.docIndex,
           widget.pageIndex,
         );
@@ -2147,7 +2154,7 @@ class PagePreviewState extends State<PagePreview> {
                 if (context.mounted) {
                   Navigator.pop(context, adWatched);
                 }
-                _writePageUnlocked(
+                metadataHelper.writePageUnlocked(
                   widget.docIndex,
                   widget.pageIndex,
                   adWatched,
@@ -3878,9 +3885,12 @@ Future<bool> _pagesPopup(
   bool docUnlocked = false;
   bool pageUnlocked = false;
   if (isDocument) {
-    docUnlocked = await _readDocUnlocked(docIndex);
+    docUnlocked = await metadataHelper.readDocUnlocked(docIndex);
   } else if (isSinglePage && versionIndex != null) {
-    pageUnlocked = await _readPageUnlocked(docIndex, pageIndexes.first);
+    pageUnlocked = await metadataHelper.readPageUnlocked(
+      docIndex,
+      pageIndexes.first,
+    );
   }
 
   showDialog(
@@ -4159,10 +4169,11 @@ Future<bool> _pagesPopup(
                                                               context,
                                                             );
                                                         setStateDialog(() {});
-                                                        await _writeDocUnlocked(
-                                                          docIndex,
-                                                          docUnlocked,
-                                                        );
+                                                        await metadataHelper
+                                                            .writeDocUnlocked(
+                                                              docIndex,
+                                                              docUnlocked,
+                                                            );
                                                       },
                                                       icon: Icon(
                                                         Icons.play_arrow,
@@ -4207,11 +4218,12 @@ Future<bool> _pagesPopup(
                                                     context,
                                                   );
                                               setStateDialog(() {});
-                                              await _writePageUnlocked(
-                                                docIndex,
-                                                pageIndexes.first,
-                                                pageUnlocked,
-                                              );
+                                              await metadataHelper
+                                                  .writePageUnlocked(
+                                                    docIndex,
+                                                    pageIndexes.first,
+                                                    pageUnlocked,
+                                                  );
                                               globalNotifier.triggerEvent(
                                                 NotifierEvent.setState,
                                               );
@@ -4266,167 +4278,6 @@ Future<bool> _pagesPopup(
     },
   );
   return confirmDelete;
-}
-
-Future<void> _writeDocName(int docIndex, String newName) async {
-  final docPath = await filesHelper.getDocumentPath(docIndex);
-  if (!Directory(docPath).existsSync()) {
-    dev.log(
-      "Error, _saveDocName: Trying to save metadata into empty Document $docIndex",
-    );
-    return;
-  }
-  final file = File('$docPath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-    } catch (e) {
-      dev.log("Error,_saveDocName: Reading metadata: $e");
-    }
-  }
-
-  // Write
-  if (!file.existsSync()) {
-    dev.log("Warning,_saveDocName: Metadata file missing, creating new one");
-    metadata = {};
-  }
-  metadata["name"] = newName;
-
-  await file.writeAsString(jsonEncode(metadata));
-}
-
-Future<void> _writeDocDate(int docIndex, String newDate) async {
-  final docPath = await filesHelper.getDocumentPath(docIndex);
-  final file = File('$docPath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-    } catch (e) {
-      dev.log("Error reading existing metadata, creating new one: $e");
-    }
-  }
-
-  // Write
-  metadata["date"] = newDate;
-  await file.writeAsString(jsonEncode(metadata));
-}
-
-Future<void> _writeDocUnlocked(int docIndex, bool unlocked) async {
-  final docPath = await filesHelper.getDocumentPath(docIndex);
-  final file = File('$docPath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-    } catch (e) {
-      dev.log(
-        "Error, _writeDocUnlocked: No existing metadata, creating new one: $e",
-      );
-    }
-  }
-
-  if (unlocked) {
-    // disable after one hour (only necessary if in backround for over 1 hour)
-    Future.delayed(Duration(hours: 1)).then((_) {
-      _writeDocUnlocked(docIndex, false);
-    });
-  }
-
-  // Write
-  metadata["unlocked"] = unlocked;
-  await file.writeAsString(jsonEncode(metadata));
-}
-
-Future<bool> _readDocUnlocked(int docIndex) async {
-  final docPath = await filesHelper.getDocumentPath(docIndex);
-  final file = File('$docPath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-      return metadata["unlocked"] == true;
-    } catch (e) {
-      dev.log(
-        "Error, _readDocUnlocked: No existing metadata, creating new one: $e",
-      );
-    }
-  }
-  return false;
-}
-
-Future<void> _writePageUnlocked(
-  int docIndex,
-  int pageIndex,
-  bool unlocked,
-) async {
-  final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-  final file = File('$pagePath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-    } catch (e) {
-      dev.log(
-        "Error, _writePageUnlocked: No existing metadata, creating new one: $e",
-      );
-    }
-  }
-
-  if (unlocked) {
-    // disable after one hour (only necessary if in backround for over 1 hour)
-    Future.delayed(Duration(hours: 1)).then((_) {
-      _writePageUnlocked(docIndex, pageIndex, false);
-    });
-  } else {
-    if (3 ==
-        await ImageProcessingManager.readPageThumbnailIndex(
-          docIndex,
-          pageIndex,
-        )) {
-      ImageProcessingManager.writePageThumbnailIndex(docIndex, pageIndex, 2);
-    }
-  }
-
-  // Write
-  metadata["unlocked"] = unlocked;
-  await file.writeAsString(jsonEncode(metadata));
-}
-
-Future<bool> _readPageUnlocked(int docIndex, int pageIndex) async {
-  final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-  final file = File('$pagePath/metadata.json');
-  Map<String, dynamic> metadata = {};
-
-  // Read
-  if (file.existsSync()) {
-    try {
-      String content = file.readAsStringSync();
-      metadata = jsonDecode(content).cast<String, dynamic>();
-      return metadata["unlocked"] == true;
-    } catch (e) {
-      dev.log(
-        "Error, _readPageUnlocked: No existing metadata, creating new one: $e",
-      );
-    }
-  }
-  return false;
 }
 
 class CameraScreen extends StatefulWidget {
