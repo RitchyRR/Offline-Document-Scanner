@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+// monetization:
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // function:
 import 'dart:io';
 import 'dart:async'; // Timer
@@ -14,7 +18,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // camera:
 import 'package:camera/camera.dart';
 import 'package:camera_android_camerax/camera_android_camerax.dart';
@@ -30,6 +33,7 @@ import 'package:docscanner/opencv_helper.dart';
 final GlobalNotifier globalNotifier = GlobalNotifier();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 final FilesHelper filesHelper = FilesHelper();
+final AdsHelper adsHelper = AdsHelper();
 bool? proUnlocked;
 
 enum NotifierEvent {
@@ -48,6 +52,11 @@ enum PopUpType { share, save, delete }
 void main() async {
   CameraPlatform.instance = AndroidCameraCameraX();
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
+  // Play Test Ads
+  MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
+  );
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
@@ -119,6 +128,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     initAsync();
+    initStoreInfo();
   }
 
   Future<void> initAsync() async {
@@ -680,10 +690,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   break;
                 case "pro":
-                  final bool setProPopup = await proPopup(context);
-                  setState(() {
-                    proUnlocked = setProPopup;
-                  });
+                  proPopup(context);
                   break;
               }
             },
@@ -989,14 +996,89 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+final InAppPurchase iap = InAppPurchase.instance;
+final List<ProductDetails> products = [];
+Future<void> initStoreInfo() async {
+  final bool available = await iap.isAvailable();
+  if (!available) {
+    setPro(false);
+    dev.log("Error, initStoreInfo: In-App-Purchases not available");
+    return;
+  }
+
+  const Set<String> productNames = {"pro_upgrade"};
+  final ProductDetailsResponse response = await iap.queryProductDetails(
+    productNames,
+  );
+
+  if (response.notFoundIDs.isNotEmpty) {
+    setPro(false);
+    dev.log(
+      "Error, initStoreInfo: Product IDs not forund: ${response.notFoundIDs}",
+    );
+  }
+  products.addAll(response.productDetails);
+  listenToPurchaseUpdates();
+}
+
+StreamSubscription<List<PurchaseDetails>>? subscription;
+void listenToPurchaseUpdates() {
+  subscription = iap.purchaseStream.listen((purchases) {
+    for (var purchase in purchases) {
+      switch (purchase.productID) {
+        case "pro_upgrade":
+          switch (purchase.status) {
+            case PurchaseStatus.purchased:
+            case PurchaseStatus.restored:
+              setPro(true);
+              break;
+            case PurchaseStatus.pending:
+              break;
+            default:
+              setPro(false);
+              break;
+          }
+          break;
+        default:
+          switch (purchase.status) {
+            case PurchaseStatus.canceled:
+            case PurchaseStatus.error:
+              setPro(false);
+              break;
+            default:
+              break;
+          }
+          break;
+      }
+    }
+  });
+}
+
+Future<bool> buyPro() async {
+  ProductDetails proUpgrade;
+  try {
+    proUpgrade = products[0];
+  } catch (e) {
+    dev.log("Error, buyPro: proUpgrade not available: $e");
+    return false;
+  }
+  final PurchaseParam purchaseParam = PurchaseParam(productDetails: proUpgrade);
+  if (!await iap.buyNonConsumable(purchaseParam: purchaseParam)) {
+    dev.log("Error, buyPro: Request not sent successfully.");
+    return false;
+  }
+  return true;
+}
+
 Future<bool> proPopup(BuildContext context) async {
-  bool? setProUnlocked = await showDialog<bool>(
+  bool? selectBuyPro = await showDialog<bool>(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text("Toggle PRO features"), //todo "Unlock PRO features"
+        title: Text("Unlock PRO features"),
         content: Text(
-          "Save and share multi page PDFs.\nGet access to the PRO filter.",
+          "Save and share multi page PDFs.\n"
+          "Get access to the PRO filter.",
         ),
         actions: [
           TextButton(
@@ -1005,49 +1087,60 @@ Future<bool> proPopup(BuildContext context) async {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              "Toggle", //Purchase
-              style: TextStyle(color: Colors.green),
-            ),
+            child: Text("Purchase", style: TextStyle(color: Colors.green)),
           ),
         ],
       );
     },
   );
-  if (setProUnlocked != null && setProUnlocked == true) {
-    //todo actual payment + replace toggle with true
-    bool toggle = !(proUnlocked == true);
-    final sStorage = FlutterSecureStorage();
-    await sStorage.write(key: 'proUnlocked', value: toggle ? 'true' : 'false');
-    proUnlocked = toggle;
-    Fluttertoast.showToast(msg: 'PRO features unlocked!');
-    return toggle;
+  if (selectBuyPro == true) {
+    return buyPro();
   }
   return false;
 }
 
+setPro(bool proUnlockedIn) {
+  bool showMessages = true;
+  if (proUnlocked == proUnlockedIn) showMessages = false;
+  proUnlocked = proUnlockedIn;
+  final sStorage = FlutterSecureStorage();
+  sStorage.write(
+    key: 'proUnlocked',
+    value: proUnlockedIn == true ? 'true' : 'false',
+  );
+  if (showMessages) {
+    if (proUnlockedIn == true) {
+      Fluttertoast.showToast(msg: 'PRO features unlocked!');
+    } else {
+      Fluttertoast.showToast(msg: 'PRO features disabled!');
+    }
+  }
+  globalNotifier.triggerEvent(NotifierEvent.setState);
+}
+
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
   //todo just play a fullscreen ad, not this popup.
-  bool? setProUnlocked = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text("Unlock Document"),
-        content: Text("Watch a fullscreen Ad to unlock this Document once."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text("Watch", style: TextStyle(color: Colors.green)),
-          ),
-        ],
-      );
-    },
-  );
-  if (setProUnlocked != null && setProUnlocked == true) {
+  bool setProUnlocked = await adsHelper.showRewardAd();
+  //await showDialog<bool>(
+  //  context: context,
+  //  builder: (BuildContext context) {
+  //    return AlertDialog(
+  //      title: Text("Unlock Document"),
+  //      content: Text("Watch a fullscreen Ad to unlock this Document once."),
+  //      actions: [
+  //        TextButton(
+  //          onPressed: () => Navigator.pop(context, false),
+  //          child: Text("Cancel"),
+  //        ),
+  //        ElevatedButton(
+  //          onPressed: () => Navigator.pop(context, true),
+  //          child: Text("Watch", style: TextStyle(color: Colors.green)),
+  //        ),
+  //      ],
+  //    );
+  //  },
+  //);
+  if (setProUnlocked) {
     Fluttertoast.showToast(msg: 'Combined PDF unlocked for Document!');
     return true;
   }
@@ -1056,28 +1149,29 @@ Future<bool> _unlockDocumentWithAd(BuildContext context) async {
 
 Future<bool> _unlockPageWithAd(BuildContext context) async {
   //todo just play a fullscreen ad, not this popup.
-  bool? setProUnlocked = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text("Unlock PRO for Page"),
-        content: Text(
-          "Watch a fullscreen Ad to unlock this Page's PRO version once.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text("Watch", style: TextStyle(color: Colors.green)),
-          ),
-        ],
-      );
-    },
-  );
-  if (setProUnlocked != null && setProUnlocked == true) {
+  bool setProUnlocked = await adsHelper.showRewardAd();
+  //bool? setProUnlocked = await showDialog<bool>(
+  //  context: context,
+  //  builder: (BuildContext context) {
+  //    return AlertDialog(
+  //      title: Text("Unlock PRO for Page"),
+  //      content: Text(
+  //        "Watch a fullscreen Ad to unlock this Page's PRO version once.",
+  //      ),
+  //      actions: [
+  //        TextButton(
+  //          onPressed: () => Navigator.pop(context, false),
+  //          child: Text("Cancel"),
+  //        ),
+  //        ElevatedButton(
+  //          onPressed: () => Navigator.pop(context, true),
+  //          child: Text("Watch", style: TextStyle(color: Colors.green)),
+  //        ),
+  //      ],
+  //    );
+  //  },
+  //);
+  if (setProUnlocked) {
     Fluttertoast.showToast(msg: 'PRO filter unlocked for Page!');
     return true;
   }
@@ -1968,6 +2062,10 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.setState:
+        _pageUnlocked = await _readPageUnlocked(
+          widget.docIndex,
+          widget.pageIndex,
+        );
         setState(() {});
         break;
       default:
@@ -2070,8 +2168,9 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Future<bool> _popOnProFilterPopup(BuildContext context) async {
-    bool? setProUnlocked = await showDialog<bool>(
+  Future<void> _popOnProFilterPopup(BuildContext context) async {
+    //bool? setProUnlocked = await
+    showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -2087,25 +2186,47 @@ class PagePreviewState extends State<PagePreview> {
               onPressed: () => Navigator.pop(context, false),
               child: Text("Cancel"),
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text("Purchase", style: TextStyle(color: Colors.green)),
+            //ElevatedButton(
+            //  onPressed: () => Navigator.pop(context, true),
+            //  child: Text("Purchase", style: TextStyle(color: Colors.green)),
+            //),
+            ElevatedButton.icon(
+              onPressed: () async {
+                bool purchased = await proPopup(context);
+                if (context.mounted) {
+                  Navigator.pop(context, purchased);
+                }
+              },
+              icon: Icon(Icons.lock),
+              label: Text("Unlock PRO"),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                bool adWatched = await _unlockPageWithAd(context);
+                _pageUnlocked = adWatched;
+                setState(() {});
+                if (context.mounted) {
+                  Navigator.pop(context, adWatched);
+                }
+                _writePageUnlocked(
+                  widget.docIndex,
+                  widget.pageIndex,
+                  adWatched,
+                );
+              },
+              icon: Icon(Icons.play_arrow),
+              label: Text("Watch Ad"),
             ),
           ],
         );
       },
     );
-    if (setProUnlocked != null && setProUnlocked == true) {
-      //todo actual payment
-      final sStorage = FlutterSecureStorage();
-      await sStorage.write(key: 'proUnlocked', value: 'true');
-      Fluttertoast.showToast(msg: 'PRO features unlocked!');
-      setState(() {
-        proUnlocked = true;
-      });
-      return true;
-    }
-    return false;
+    //if (setProUnlocked == true) {
+    //  // PostFrameCallback necessary for allowPop to register
+    //  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //    if (context.mounted) Navigator.maybePop(context);
+    //  });
+    //}
   }
 
   // Page Preview
@@ -2529,14 +2650,6 @@ class PagePreviewState extends State<PagePreview> {
                               right: 0,
                               child: CustomIconButton(
                                 onTap: null,
-                                //() async {
-                                //  final bool setProPopup = await proPopup(
-                                //    context,
-                                //  );
-                                //  setState(() {
-                                //    proUnlocked = setProPopup;
-                                //  });
-                                //},
                                 icon: Icons.lock,
                                 iconColor:
                                     Theme.of(
@@ -4094,13 +4207,7 @@ Future<bool> _pagesPopup(
                                               children: [
                                                 ElevatedButton.icon(
                                                   onPressed: () async {
-                                                    final bool setProPopup =
-                                                        await proPopup(context);
-                                                    proUnlocked = setProPopup;
-                                                    globalNotifier.triggerEvent(
-                                                      NotifierEvent.setState,
-                                                    );
-                                                    setStateDialog(() {});
+                                                    proPopup(context);
                                                   },
                                                   icon: Icon(Icons.lock),
                                                   label: Text("Unlock PRO"),
@@ -4112,11 +4219,11 @@ Future<bool> _pagesPopup(
                                                             await _unlockDocumentWithAd(
                                                               context,
                                                             );
-                                                        _writeDocUnlocked(
+                                                        setStateDialog(() {});
+                                                        await _writeDocUnlocked(
                                                           docIndex,
                                                           docUnlocked,
                                                         );
-                                                        setStateDialog(() {});
                                                       },
                                                       icon: Icon(
                                                         Icons.play_arrow,
@@ -4148,15 +4255,7 @@ Future<bool> _pagesPopup(
                                     children: [
                                       ElevatedButton.icon(
                                         onPressed: () async {
-                                          final bool setProPopup =
-                                              await proPopup(context);
-                                          if (context.mounted) {
-                                            proUnlocked = setProPopup;
-                                            globalNotifier.triggerEvent(
-                                              NotifierEvent.setState,
-                                            );
-                                            setStateDialog(() {});
-                                          }
+                                          proPopup(context);
                                         },
                                         icon: Icon(Icons.lock),
                                         label: Text("Unlock PRO"),
@@ -4168,12 +4267,15 @@ Future<bool> _pagesPopup(
                                                   await _unlockPageWithAd(
                                                     context,
                                                   );
-                                              _writePageUnlocked(
+                                              setStateDialog(() {});
+                                              await _writePageUnlocked(
                                                 docIndex,
                                                 pageIndexes.first,
                                                 pageUnlocked,
                                               );
-                                              setStateDialog(() {});
+                                              globalNotifier.triggerEvent(
+                                                NotifierEvent.setState,
+                                              );
                                             },
                                             icon: Icon(Icons.play_arrow),
                                             label: Text("Watch Ad"),
@@ -4923,5 +5025,69 @@ class ThumbnailWithBadge extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class AdsHelper {
+  late Future<void> _loadFuture;
+  AdsHelper() {
+    _loadFuture = _loadRewardAd();
+  }
+
+  RewardedAd? _rewardAd;
+  bool _isAdLoaded = false;
+
+  Future<void> _loadRewardAd() async {
+    final completer = Completer<void>();
+    RewardedAd.load(
+      adUnitId: "ca-app-pub-6739996186409182/8967462940",
+      request: AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (RewardedAd ad) {
+          _rewardAd = ad;
+          _isAdLoaded = true;
+
+          _rewardAd?.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _loadRewardAd(); // Reload after watching
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              ad.dispose();
+              _loadRewardAd();
+            },
+          );
+          completer.complete();
+        },
+        onAdFailedToLoad: (LoadAdError error) {
+          dev.log("Error: Failed to load reward ad: $error");
+          Fluttertoast.showToast(msg: "Error: Failed to load ad.");
+          completer.complete();
+        },
+      ),
+    );
+    return completer.future;
+  }
+
+  Future<bool> showRewardAd() async {
+    await _loadFuture;
+    final completer = Completer<void>();
+    bool watachedAd = false;
+    if (_isAdLoaded && _rewardAd != null) {
+      _rewardAd!.show(
+        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+          dev.log('User earned reward: ${reward.type}'); //${reward.amount}
+          //Fluttertoast.showToast(msg: "User earned reward: ${reward.type}");
+          watachedAd = true;
+          completer.complete();
+        },
+      );
+    } else {
+      dev.log("Error: Ad not loaded yet.");
+      Fluttertoast.showToast(msg: "Error: Ad not loaded.");
+      completer.complete();
+    }
+    await completer.future;
+    return watachedAd;
   }
 }
