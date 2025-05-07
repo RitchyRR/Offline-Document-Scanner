@@ -1099,7 +1099,7 @@ Future<bool> proPopup(BuildContext context) async {
   return false;
 }
 
-setPro(bool proUnlockedIn) {
+setPro(final bool proUnlockedIn) {
   bool showMessages = true;
   if (proUnlocked == proUnlockedIn) showMessages = false;
   proUnlocked = proUnlockedIn;
@@ -1119,60 +1119,20 @@ setPro(bool proUnlockedIn) {
 }
 
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
-  //todo just play a fullscreen ad, not this popup.
-  bool setProUnlocked = await adsHelper.showRewardAd();
-  //await showDialog<bool>(
-  //  context: context,
-  //  builder: (BuildContext context) {
-  //    return AlertDialog(
-  //      title: Text("Unlock Document"),
-  //      content: Text("Watch a fullscreen Ad to unlock this Document once."),
-  //      actions: [
-  //        TextButton(
-  //          onPressed: () => Navigator.pop(context, false),
-  //          child: Text("Cancel"),
-  //        ),
-  //        ElevatedButton(
-  //          onPressed: () => Navigator.pop(context, true),
-  //          child: Text("Watch", style: TextStyle(color: Colors.green)),
-  //        ),
-  //      ],
-  //    );
-  //  },
-  //);
-  if (setProUnlocked) {
-    Fluttertoast.showToast(msg: 'Combined PDF unlocked for Document!');
+  final bool adWatched = await adsHelper.showRewardAd();
+  if (adWatched) {
+    Fluttertoast.showToast(
+      msg: 'Combined PDF temorarily unlocked for Document!',
+    );
     return true;
   }
   return false;
 }
 
 Future<bool> _unlockPageWithAd(BuildContext context) async {
-  //todo just play a fullscreen ad, not this popup.
-  bool setProUnlocked = await adsHelper.showRewardAd();
-  //bool? setProUnlocked = await showDialog<bool>(
-  //  context: context,
-  //  builder: (BuildContext context) {
-  //    return AlertDialog(
-  //      title: Text("Unlock PRO for Page"),
-  //      content: Text(
-  //        "Watch a fullscreen Ad to unlock this Page's PRO version once.",
-  //      ),
-  //      actions: [
-  //        TextButton(
-  //          onPressed: () => Navigator.pop(context, false),
-  //          child: Text("Cancel"),
-  //        ),
-  //        ElevatedButton(
-  //          onPressed: () => Navigator.pop(context, true),
-  //          child: Text("Watch", style: TextStyle(color: Colors.green)),
-  //        ),
-  //      ],
-  //    );
-  //  },
-  //);
-  if (setProUnlocked) {
-    Fluttertoast.showToast(msg: 'PRO filter unlocked for Page!');
+  final bool adWatched = await adsHelper.showRewardAd();
+  if (adWatched) {
+    Fluttertoast.showToast(msg: 'PRO filter temorarily unlocked for Page!');
     return true;
   }
   return false;
@@ -1357,23 +1317,11 @@ class _PagesState extends State<Pages> {
   }
 
   Future<void> _openPagePreview(int pageIndex) async {
-    //Future<void> future =
     Navigator.pushNamed(
       context,
       '/preview',
       arguments: {'docIndex': widget.docIndex, 'pageIndex': pageIndex},
     );
-    //future.whenComplete(() {
-    //  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //    List<String> pageImages = await filesHelper.getImagePathsForPage(
-    //      docIndex,
-    //      pageIndex,
-    //    );
-    //    for (var path in pageImages) {
-    //      imageCache.evict(FileImage(File(path)), includeLive: false);
-    //    }
-    //  });
-    //});
   }
 
   Future<void> _openImagePicker(
@@ -1429,16 +1377,9 @@ class _PagesState extends State<Pages> {
   }
 
   bool _selectMode = false;
-  //bool _blockSelectTmp = false;
   List<int> selected = [];
 
   _selectPage(int index) {
-    //if (_blockSelectTmp) return;
-    //_blockSelectTmp = true;
-    //Future.microtask(() async {
-    //  await Future.delayed(Duration(milliseconds: 100));
-    //  _blockSelectTmp = false;
-    //});
     if (selected.contains(index)) {
       selected.remove(index);
     } else {
@@ -1854,49 +1795,49 @@ class _PagesState extends State<Pages> {
                   //    ),
                   //  ),
                   //),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      // Save
-                      IconButton(
-                        onPressed:
-                            () => _pagesPopup(
-                              context,
-                              [pageIndex],
-                              PopUpType.save,
-                              widget.docIndex,
-                            ),
-                        icon: Icon(Icons.save),
-                      ),
-                      // Share
-                      IconButton(
-                        onPressed:
-                            () => _pagesPopup(
-                              context,
-                              [pageIndex],
-                              PopUpType.share,
-                              widget.docIndex,
-                            ),
-                        icon: Icon(Icons.share),
-                      ),
-                      // Delete
-                      IconButton(
-                        onPressed: () async {
-                          if (await _pagesPopup(
-                            context,
-                            selected,
-                            PopUpType.delete,
-                            widget.docIndex,
-                          )) {
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                            }
-                          }
-                        },
-                        icon: Icon(Icons.delete),
-                      ),
-                    ],
-                  ),
+                  //Row(
+                  //  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  //  children: [
+                  //    // Save
+                  //    IconButton(
+                  //      onPressed:
+                  //          () => _pagesPopup(
+                  //            context,
+                  //            [pageIndex],
+                  //            PopUpType.save,
+                  //            widget.docIndex,
+                  //          ),
+                  //      icon: Icon(Icons.save),
+                  //    ),
+                  //    // Share
+                  //    IconButton(
+                  //      onPressed:
+                  //          () => _pagesPopup(
+                  //            context,
+                  //            [pageIndex],
+                  //            PopUpType.share,
+                  //            widget.docIndex,
+                  //          ),
+                  //      icon: Icon(Icons.share),
+                  //    ),
+                  //    // Delete
+                  //    IconButton(
+                  //      onPressed: () async {
+                  //        if (await _pagesPopup(
+                  //          context,
+                  //          selected,
+                  //          PopUpType.delete,
+                  //          widget.docIndex,
+                  //        )) {
+                  //          if (context.mounted) {
+                  //            Navigator.pop(context);
+                  //          }
+                  //        }
+                  //      },
+                  //      icon: Icon(Icons.delete),
+                  //    ),
+                  //  ],
+                  //),
                 ],
               ),
               actions: [
@@ -2101,9 +2042,7 @@ class PagePreviewState extends State<PagePreview> {
     if (mounted) {
       setState(() {
         _newRatioIndex;
-        //dev.log("Updated _newRatioIndex: $_newRatioIndex");
         _newOrientationIndex;
-        //dev.log("Updated _newOrientation: $_newOrientation");
       });
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
@@ -2169,7 +2108,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _popOnProFilterPopup(BuildContext context) async {
-    //bool? setProUnlocked = await
+    //final bool? selectedUnlock = await
     showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -2221,7 +2160,7 @@ class PagePreviewState extends State<PagePreview> {
         );
       },
     );
-    //if (setProUnlocked == true) {
+    //if (selectedUnlock == true) {
     //  // PostFrameCallback necessary for allowPop to register
     //  WidgetsBinding.instance.addPostFrameCallback((_) async {
     //    if (context.mounted) Navigator.maybePop(context);
