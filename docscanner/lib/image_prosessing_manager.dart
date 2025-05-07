@@ -1,15 +1,15 @@
 // function:
-import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:isolate';
-import 'package:docscanner/main.dart';
+import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:async';
 // my packages:
-import 'opencv_helper.dart';
+import 'package:docscanner/main.dart';
+import 'package:docscanner/opencv_helper.dart';
 import 'package:docscanner/files_helper.dart';
 
 const List<String> versionNames = [
@@ -99,7 +99,7 @@ class ImageProcessingManager {
     int ratioIndex = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
-    await writePageMetadata(
+    await MetadataHelper.writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
@@ -300,7 +300,7 @@ class ImageProcessingManager {
     int ratioIndex = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
-    await writePageMetadata(
+    await MetadataHelper.writePageMetadata(
       docIndex,
       pageIndex,
       ratioIndex,
@@ -512,10 +512,7 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
 
     // Read Matadata
-    var metadata = await ImageProcessingManager.readPageMetadata(
-      docIndex,
-      pageIndex,
-    );
+    var metadata = await metadataHelper.readPageMetadata(docIndex, pageIndex);
     int? ratioIndex = metadata.$1;
     int? orientationIndex = metadata.$2;
     int? thumbnailIndex = metadata.$3;
@@ -703,301 +700,6 @@ class ImageProcessingManager {
       }
     });
     await primaryCompleter.future;
-  }
-
-  static Future<void> writePageMetadata(
-    int docIndex,
-    int pageIndex,
-    int? ratioIndex,
-    int? orientationIndex,
-    int? thumbnailIndex,
-    List<List<int>>? cornerPoints, {
-    FilesHelper? filesHelperIn,
-  }) async {
-    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
-      docIndex,
-      pageIndex,
-    );
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    try {
-      // Write
-      if (ratioIndex != null) metadata["apectRatio"] = ratioIndex.toString();
-      metadata["orientation"] =
-          orientationIndex == 0 ? "portrait" : "landscape";
-      metadata["thumbnail"] =
-          versionNames[thumbnailIndex != null && thumbnailIndex != 0
-              ? thumbnailIndex
-              : ((proUnlocked == true) ? 3 : 2)];
-      if (cornerPoints != null) metadata["corners"] = cornerPoints;
-      await file.writeAsString(jsonEncode(metadata));
-      if (filesHelperIn != null) {
-        // if started outside of isolate
-        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-      }
-    } catch (e) {
-      dev.log("Error, writePageMetadata: $e");
-    }
-  }
-
-  static Future<(int?, int?, int?, List<List<int>>?)> readPageMetadata(
-    int docIndex,
-    int pageIndex, {
-    bool supressWarning = false,
-  }) async {
-    int? ratioIndex;
-    int? orientationIndex;
-    int? thumbnailIndex;
-    List<List<int>>? cornerPoints;
-
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (await file.exists()) {
-      try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
-        ratioIndex = int.parse(metadata["apectRatio"]);
-        String orientationString = metadata["orientation"];
-        orientationIndex =
-            (orientationString == "portrait" || orientationString == "")
-                ? 0
-                : 1;
-        String? thumbnailString = metadata["thumbnail"];
-        if (thumbnailString != null) {
-          thumbnailIndex = versionNames.indexOf(thumbnailString);
-          if (thumbnailIndex == 0) {
-            throw StateError('metadata: thumbnail cant be the picture');
-          }
-          cornerPoints =
-              (metadata["corners"] as List)
-                  .map<List<int>>(
-                    (e) => (e as List).map((v) => v as int).toList(),
-                  )
-                  .toList();
-        }
-        return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
-      } catch (e) {
-        dev.log("Error, readPageMetadata: $e");
-      }
-    }
-    if (!supressWarning) {
-      dev.log(
-        "Warning, readPageMetadata: Metadata does not exist for $pagePath",
-      );
-    }
-    return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
-  }
-
-  static Future<void> writePageThumbnailIndex(
-    int docIndex,
-    int pageIndex,
-    int thumbnailIndex,
-  ) async {
-    bool updateThumbnail = false; // is new and not picture
-    String newThumbnailName = versionNames[thumbnailIndex];
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    try {
-      // Read
-      if (await file.exists()) {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
-      } else {
-        dev.log(
-          "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
-        );
-        return;
-      }
-      if (thumbnailIndex != 0 &&
-          (metadata["thumbnail"] != null
-                  ? versionNames.indexOf(metadata["thumbnail"])
-                  : ((proUnlocked == true) ? 3 : 2)) !=
-              thumbnailIndex) {
-        updateThumbnail = true;
-      }
-
-      // Write
-      if (updateThumbnail) {
-        imageProcessingManager.applyThumbnail(
-          docIndex,
-          pageIndex,
-          thumbnailIndex,
-        );
-        metadata["thumbnail"] = newThumbnailName;
-        await file.writeAsString(jsonEncode(metadata));
-      }
-    } catch (e) {
-      dev.log("Error, writePageThumbnailIndex: $e");
-    }
-  }
-
-  static Future<void> writePageCornerPoints(
-    int docIndex,
-    int pageIndex,
-    List<List<int>> cornerPoints,
-  ) async {
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    try {
-      // Read
-      if (await file.exists()) {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
-      } else {
-        dev.log(
-          "Error, writePageCornerPoints: metadata File does not exist (Page $pageIndex, Document $docIndex)",
-        );
-      }
-
-      // Write
-      metadata["corners"] = cornerPoints;
-      await file.writeAsString(jsonEncode(metadata));
-      globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-    } catch (e) {
-      dev.log("Error, writePageCornerPoints: $e");
-    }
-  }
-
-  static Future<int?> readPageRatioIndex(
-    int docIndex,
-    int pageIndex, {
-    bool supressWarnings = false,
-  }) async {
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (await file.exists()) {
-      try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
-        return int.parse(metadata["apectRatio"]);
-      } catch (e) {
-        dev.log("Error, readPageRatioIndex: $e");
-      }
-    }
-    if (!supressWarnings) {
-      dev.log(
-        "Warning, readPageRatioIndex: Metadata does not exist for $pagePath",
-      );
-    }
-    return null;
-  }
-
-  static Future<int?> readPageOrientationIndex(
-    int docIndex,
-    int pageIndex, {
-    bool supressWarnings = false,
-  }) async {
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (await file.exists()) {
-      try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
-        String orientationString = metadata["orientation"];
-        return (orientationString == "portrait" || orientationString == "")
-            ? 0
-            : 1;
-      } catch (e) {
-        dev.log("Error, readPageOrientationIndex: $e");
-      }
-    }
-    if (!supressWarnings) {
-      dev.log(
-        "Warning, readPageOrientationIndex: Metadata does not exist for $pagePath",
-      );
-    }
-    return null;
-  }
-
-  static Future<int> readPageThumbnailIndex(
-    int docIndex,
-    int pageIndex, {
-    FilesHelper? filesHelperIn,
-    bool supressWarning = false,
-  }) async {
-    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
-      docIndex,
-      pageIndex,
-    );
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (await file.exists()) {
-      try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, String>();
-        String? thumbnailString = metadata["thumbnail"];
-
-        if (thumbnailString != null) {
-          int? retInt = versionNames.indexOf(thumbnailString);
-          if (retInt == 0) {
-            throw StateError('metadata: thumbnail cant be the picture');
-          } else {
-            return retInt;
-          }
-        }
-      } catch (e) {
-        dev.log("Error, readPageThumbnailIndex: $e");
-      }
-    }
-    if (!supressWarning) {
-      dev.log(
-        "Warning, readPageThumbnailIndex: Metadata does not exist for $pagePath",
-      );
-    }
-    return (proUnlocked == true) ? 3 : 2;
-  }
-
-  static Future<List<List<int>>> readPageCornerPoints(
-    int docIndex,
-    int pageIndex, {
-    FilesHelper? filesHelperIn,
-    bool supressWarnings = false,
-  }) async {
-    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
-      docIndex,
-      pageIndex,
-    );
-    final file = File('$pagePath/metadata.json');
-    Map<String, dynamic> metadata = {};
-
-    // Read
-    if (await file.exists()) {
-      try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
-        List<List<int>> cornerPoints =
-            (metadata["corners"] as List)
-                .map<List<int>>(
-                  (e) => (e as List).map((v) => v as int).toList(),
-                )
-                .toList();
-        return cornerPoints;
-      } catch (e) {
-        dev.log("Error, readPageThumbnailIndex: $e");
-      }
-    }
-    if (!supressWarnings) {
-      dev.log(
-        "Warning, readPageCornerPoints: Metadata does not exist for $pagePath",
-      );
-    }
-    return [];
   }
 
   static Future<void> _saveScaledThumbnail(

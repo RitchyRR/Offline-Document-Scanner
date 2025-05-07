@@ -41,6 +41,7 @@ dependencies:
   camera_android_camerax: 
   camera_platform_interface: 
   google_mobile_ads:
+  encrypt:
 
 
 dev_dependencies:

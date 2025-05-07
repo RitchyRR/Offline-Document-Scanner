@@ -12,7 +12,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // function:
 import 'dart:io';
 import 'dart:async'; // Timer
-import 'dart:convert'; // json
 import 'dart:developer' as dev;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,12 +30,12 @@ import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/opencv_helper.dart';
 
 // global variables:
-final GlobalNotifier globalNotifier = GlobalNotifier();
-final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
-final FilesHelper filesHelper = FilesHelper();
-final MetadataHelper metadataHelper = MetadataHelper(filesHelper);
-final AdsHelper adsHelper = AdsHelper();
 bool? proUnlocked;
+final GlobalNotifier globalNotifier = GlobalNotifier();
+final FilesHelper filesHelper = FilesHelper();
+final MetadataHelper metadataHelper = MetadataHelper();
+final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
+final AdsHelper adsHelper = AdsHelper();
 
 enum NotifierEvent {
   loadPagesThumbnails,
@@ -452,35 +451,25 @@ class _MyHomePageState extends State<MyHomePage> {
     _docDates = List.generate(_docsCount, (_) => "");
     _thumbnailRatios = List.generate(_docsCount, (_) => 1.0 / 1.414);
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
-      final docPath = await filesHelper.getDocumentPath(docIndex);
-      final metaDataPath = File('$docPath/metadata.json');
-
-      if (await metaDataPath.exists()) {
-        try {
-          String content = await metaDataPath.readAsString();
-          Map<String, dynamic> metadata = jsonDecode(content);
-
-          _docNames[docIndex] = metadata["name"] ?? "";
-          _docDates[docIndex] = metadata["date"] ?? "";
-        } catch (e) {
-          dev.log(
-            "Error, _refreshDocsDisplay: Reading metadata for doc $docIndex: $e",
-          );
-        }
+      _docDates[docIndex] = (await metadataHelper.readDocDate(docIndex)) ?? "";
+      String? docName = await metadataHelper.readDocName(docIndex);
+      if (docName != null) {
+        _docNames[docIndex] = docName;
       } else {
         metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
       }
+
       bool supressWarnings = onInit;
       if (thumbnailPaths[docIndex].isEmpty) supressWarnings = true;
       int ratioIndex =
-          await ImageProcessingManager.readPageRatioIndex(
+          await MetadataHelper.readPageRatioIndex(
             docIndex,
             0,
             supressWarnings: supressWarnings,
           ) ??
           0;
       int orientationIndex =
-          await ImageProcessingManager.readPageOrientationIndex(
+          await MetadataHelper.readPageOrientationIndex(
             docIndex,
             0,
             supressWarnings: supressWarnings,
@@ -1289,14 +1278,14 @@ class _PagesState extends State<Pages> {
       bool supressWarnings_ = supressWarnings;
       if (thumbnailPaths[pageIndex].isEmpty) supressWarnings_ = true;
       int ratioIndex =
-          await ImageProcessingManager.readPageRatioIndex(
+          await MetadataHelper.readPageRatioIndex(
             widget.docIndex,
             pageIndex,
             supressWarnings: supressWarnings_,
           ) ??
           0;
       int orientationIndex =
-          await ImageProcessingManager.readPageOrientationIndex(
+          await MetadataHelper.readPageOrientationIndex(
             widget.docIndex,
             pageIndex,
             supressWarnings: supressWarnings_,
@@ -2025,7 +2014,7 @@ class PagePreviewState extends State<PagePreview> {
     for (var versionPath in _versionPaths) {
       if (versionPath.isEmpty) return;
     }
-    int? versionIndex = await ImageProcessingManager.readPageThumbnailIndex(
+    int? versionIndex = await MetadataHelper.readPageThumbnailIndex(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2035,13 +2024,13 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _loadPageMeatadata({bool supressWarnings = false}) async {
     _newRatioIndex =
-        _ratioIndex = await ImageProcessingManager.readPageRatioIndex(
+        _ratioIndex = await MetadataHelper.readPageRatioIndex(
           widget.docIndex,
           widget.pageIndex,
           supressWarnings: supressWarnings,
         );
     _newOrientationIndex =
-        _orientation = await ImageProcessingManager.readPageOrientationIndex(
+        _orientation = await MetadataHelper.readPageOrientationIndex(
           widget.docIndex,
           widget.pageIndex,
           supressWarnings: supressWarnings,
@@ -2066,7 +2055,7 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _refreshCornersOverlay({bool supressWarnings = false}) async {
     // Corners
-    _cornerPoints = await ImageProcessingManager.readPageCornerPoints(
+    _cornerPoints = await MetadataHelper.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: supressWarnings,
@@ -2193,7 +2182,7 @@ class PagePreviewState extends State<PagePreview> {
           _popOnProFilterPopup(context);
         } else {
           // new thumbnail
-          ImageProcessingManager.writePageThumbnailIndex(
+          MetadataHelper.writePageThumbnailIndex(
             widget.docIndex,
             widget.pageIndex,
             _selectedVersion,
@@ -2730,7 +2719,7 @@ class PagePreviewState extends State<PagePreview> {
     bool customCorners = false;
 
     // Read Matadata
-    var metadata = await ImageProcessingManager.readPageMetadata(
+    var metadata = await metadataHelper.readPageMetadata(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2745,7 +2734,7 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     if (newCornerPoints == null) {
-      newCornerPoints = await ImageProcessingManager.readPageCornerPoints(
+      newCornerPoints = await MetadataHelper.readPageCornerPoints(
         widget.docIndex,
         widget.pageIndex,
       );
@@ -2755,7 +2744,7 @@ class PagePreviewState extends State<PagePreview> {
       customCorners = true;
     }
 
-    await ImageProcessingManager.writePageMetadata(
+    await MetadataHelper.writePageMetadata(
       widget.docIndex,
       widget.pageIndex,
       _newRatioIndex,
@@ -2778,7 +2767,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {
           _metadataBlocked = true;
         });
-        ImageProcessingManager.writePageCornerPoints(
+        MetadataHelper.writePageCornerPoints(
           widget.docIndex,
           widget.pageIndex,
           newCornerPoints,

@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/main.dart';
+import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
@@ -204,7 +205,7 @@ class FilesHelper {
     List<String> thumbnailPaths = List.generate(docsCount, (_) => "");
     for (var docIndex = 0; docIndex < docsCount; docIndex++) {
       final page0Path = await getPagePath(docIndex, 0);
-      int thumbnailIndex = await ImageProcessingManager.readPageThumbnailIndex(
+      int thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         0,
         supressWarning: true,
@@ -258,12 +259,11 @@ class FilesHelper {
 
     for (int pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
-      final thumbnailIndex =
-          await ImageProcessingManager.readPageThumbnailIndex(
-            docIndex,
-            pageIndex,
-            supressWarning: true,
-          );
+      final thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        supressWarning: true,
+      );
       final thumbnailName = "thumbnail";
       final backupName = versionNames[thumbnailIndex];
       String? thumbnailPath;
@@ -990,15 +990,10 @@ class FilesHelper {
 
     for (var pageIndex in pageIndexes) {
       ratioIndexes.add(
-        await ImageProcessingManager.readPageRatioIndex(docIndex, pageIndex) ??
-            0,
+        await MetadataHelper.readPageRatioIndex(docIndex, pageIndex) ?? 0,
       );
       orientations.add(
-        await ImageProcessingManager.readPageOrientationIndex(
-              docIndex,
-              pageIndex,
-            ) ??
-            0,
+        await MetadataHelper.readPageOrientationIndex(docIndex, pageIndex) ?? 0,
       );
     }
 
