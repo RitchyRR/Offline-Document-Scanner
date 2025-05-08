@@ -172,7 +172,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial, {
-    Future<dynamic>? awaitBeforeIsolate,
+    Future<dynamic>? priorFuture,
   }) async {
     if (pathIn.isEmpty) return;
     final wrapperCompleter = Completer<void>();
@@ -195,7 +195,16 @@ class ImageProcessingManager {
 
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
-    await awaitBeforeIsolate;
+
+    // await prior future if too many isolates are running
+    if (priorFuture != null) {
+      bool isPriorDone = false;
+      priorFuture.then((_) => isPriorDone = true);
+      while (!isPriorDone && isolates.length >= maxIsolates) {
+        await Future.delayed(Duration(milliseconds: 95));
+      }
+    }
+
     RootIsolateToken token = RootIsolateToken.instance!;
     Isolate isolate = await Isolate.spawn(_processPageIsolate, (
       port.sendPort,
@@ -446,7 +455,7 @@ class ImageProcessingManager {
     if (pathsIn.isEmpty) return;
 
     // First page is opened in PagePreview -> more NotifierEvents
-    Future<void> primaryFuture = processPageWrapper(
+    Future primaryFuture = processPageWrapper(
       true,
       docIndex,
       firstPageIndex,
@@ -459,17 +468,13 @@ class ImageProcessingManager {
       true,
     );
 
-    List<Future<dynamic>> beforeSecundary = [];
-    beforeSecundary.add(Future.delayed(Duration(seconds: 10)));
-    beforeSecundary.add(primaryFuture);
+    Future priorFuture = primaryFuture;
 
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
-      final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
-
       for (var (index, path) in pathsIn.indexed) {
-        processPageWrapper(
+        Future newFuture = processPageWrapper(
           false,
           docIndex,
           firstPageIndex + 1 + index,
@@ -480,14 +485,11 @@ class ImageProcessingManager {
           null,
           0,
           true,
-          awaitBeforeIsolate: Future.any(beforeSecundary),
+          priorFuture: priorFuture,
         );
-        // just a small delay
-        if (isolates.length >= maxIsolates) {
-          await Future.delayed(Duration(milliseconds: 500));
-        } else {
-          await Future.delayed(Duration(milliseconds: 50));
-        }
+        priorFuture = newFuture;
+        // small delay between starts
+        await Future.delayed(Duration(milliseconds: 20));
       }
     }
   }
@@ -527,6 +529,10 @@ class ImageProcessingManager {
     int? orientationIndex = metadata.$2;
     int? thumbnailIndex = metadata.$3;
     List<List<int>>? cornerPoints = metadata.$4;
+
+    while (isolates.length >= maxIsolates) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
 
     RootIsolateToken token = RootIsolateToken.instance!;
     Isolate isolate = await Isolate.spawn(_repairPageIsolate, (
@@ -679,6 +685,12 @@ class ImageProcessingManager {
   ) async {
     ReceivePort port = ReceivePort();
     final primaryCompleter = Completer<void>();
+
+    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+    while (isolates.length >= maxIsolates) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+
     Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
       port.sendPort,
       filesHelper,
@@ -809,6 +821,11 @@ class ImageProcessingManager {
   ) async {
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
+
+    while (isolates.length >= maxIsolates) {
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+
     Isolate isolate = await Isolate.spawn(_applyThumbnailIsolate, (
       port.sendPort,
       filesHelper,
