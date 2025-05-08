@@ -31,21 +31,9 @@ import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
 
-void main() async {
-  AppGlobals();
-  CameraPlatform.instance = AndroidCameraCameraX();
-  WidgetsFlutterBinding.ensureInitialized();
-  MobileAds.instance.initialize();
-  // Play Test Ads
-  MobileAds.instance.updateRequestConfiguration(
-    RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
-  );
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    //DeviceOrientation.portraitDown,
-  ]);
-  runApp(ChangeNotifierProvider.value(value: g.globalNotifier, child: MyApp()));
-}
+final AdsHelper adsHelper = AdsHelper();
+
+final GlobalNotifier globalNotifier = GlobalNotifier();
 
 class GlobalNotifier extends ValueNotifier<NotifierEvent> {
   GlobalNotifier() : super(NotifierEvent.loadPagesThumbnails);
@@ -56,6 +44,22 @@ class GlobalNotifier extends ValueNotifier<NotifierEvent> {
     }
     value = event;
   }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  g.filesHelper; // initialise
+  CameraPlatform.instance = AndroidCameraCameraX();
+  MobileAds.instance.initialize();
+  // Play Test Ads
+  MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
+  );
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    //DeviceOrientation.portraitDown,
+  ]);
+  runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
@@ -123,7 +127,7 @@ class _MyAppState extends State<MyApp> {
       }
     });
     final sStorage = FlutterSecureStorage();
-    final proUnlockedString = await sStorage.read(key: 'proUnlocked');
+    final proUnlockedString = await sStorage.read(key: 'g.proUnlocked');
     setState(() {
       g.proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
     });
@@ -375,7 +379,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    g.globalNotifier.addListener(_handleGlobalEvent);
+    globalNotifier.addListener(_handleGlobalEvent);
     initAsync();
   }
 
@@ -390,13 +394,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    g.globalNotifier.removeListener(_handleGlobalEvent);
+    globalNotifier.removeListener(_handleGlobalEvent);
     super.dispose();
   }
 
   void _handleGlobalEvent() {
     if (!mounted) return;
-    switch (g.globalNotifier.value) {
+    switch (globalNotifier.value) {
       case NotifierEvent.loadDocsThumbnails:
         _loadDocsDisplay();
         break;
@@ -455,7 +459,7 @@ class _MyHomePageState extends State<MyHomePage> {
             0,
             supressWarnings: supressWarnings,
           ) ??
-          0;
+          math.sqrt2;
       int orientationIndex =
           await MetadataHelper.readPageOrientationIndex(
             docIndex,
@@ -502,7 +506,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _openDocEditDialog(BuildContext context, int docIndex) async {
-    Future<void> future = imageProcessingManager.awaitAllIsolates();
+    Future<void> future = g.imageProcessingManager.awaitAllIsolates();
     {
       bool allowChangeDocIndex = false;
       int? selectedIndex = await showDialog<int>(
@@ -585,7 +589,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     _docNames[docIndex] = nameController.text.trim();
                   });
-                  metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
+                  g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
                   Navigator.pop(context, currentIndex);
                 },
                 child: Text("OK"),
@@ -597,17 +601,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
       // Handle the result after the popup closes
       if (selectedIndex != null && selectedIndex != docIndex) {
-        await filesHelper.changeDocumentIndex(docIndex, selectedIndex);
+        await g.filesHelper.changeDocumentIndex(docIndex, selectedIndex);
         _loadDocsDisplay();
       }
     }
   }
 
   Future<void> _selectAspectRatios(BuildContext context) async {
-    // Make a temporary modifiable copy
+    // bool List for selected Ratios
     List<bool> selectedStates =
-        commonAspectRatios
-            .map((aspect) => availableAspectRatios.contains(aspect))
+        g.commonAspectRatios
+            .map((aspect) => g.availableAspectRatios.contains(aspect))
             .toList();
 
     bool? selectionConfirmed = await showDialog<bool>(
@@ -632,9 +636,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     thumbVisibility: true,
                     child: ListView.builder(
                       shrinkWrap: true,
-                      itemCount: commonAspectRatios.length,
+                      itemCount: g.commonAspectRatios.length,
                       itemBuilder: (context, index) {
-                        final aspect = commonAspectRatios[index];
+                        final aspect = g.commonAspectRatios[index];
                         return CheckboxListTile(
                           title: Text(aspect.name),
                           subtitle: Text(aspect.description),
@@ -668,9 +672,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Save only if confirmed
     if (selectionConfirmed == true) {
-      availableAspectRatios = [
-        for (int i = 0; i < commonAspectRatios.length; i++)
-          if (selectedStates[i]) commonAspectRatios[i],
+      g.availableAspectRatios = [
+        for (int i = 0; i < g.commonAspectRatios.length; i++)
+          if (selectedStates[i]) g.commonAspectRatios[i],
       ];
       saveAvailableAspectRatios();
     }
@@ -679,29 +683,29 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> saveAvailableAspectRatios() async {
     final prefs = await SharedPreferences.getInstance();
     final values =
-        availableAspectRatios.map((e) => e.value.toString()).toList();
-    await prefs.setStringList("availableAspectRatios", values);
+        g.availableAspectRatios.map((e) => e.value.toString()).toList();
+    await prefs.setStringList("g.availableAspectRatios", values);
   }
 
   Future<void> loadAvailableAspectRatios() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedValues = prefs.getStringList("availableAspectRatios");
+    final savedValues = prefs.getStringList("g.availableAspectRatios");
 
     if (savedValues == null || savedValues.isEmpty) {
       // Default selection
-      availableAspectRatios =
-          commonAspectRatios
+      g.availableAspectRatios =
+          g.commonAspectRatios
               .where(
                 (e) =>
-                    e.value == math.sqrt(2) || // DIN
+                    e.value == math.sqrt2 || // DIN
                     e.value == 4 / 3 || // 4:3
                     e.value == 16 / 9 || // 16:9
                     e.value == 21 / 9, // 21:9
               )
               .toList();
     } else {
-      availableAspectRatios =
-          commonAspectRatios
+      g.availableAspectRatios =
+          g.commonAspectRatios
               .where((e) => savedValues.contains(e.value.toString()))
               .toList();
     }
@@ -723,13 +727,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         SizedBox(width: 8),
                         Icon(
-                          proUnlocked == true ? Icons.info : Icons.lock,
+                          g.proUnlocked == true ? Icons.info : Icons.lock,
                           color:
                               Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                         SizedBox(width: 10),
                         Text(
-                          proUnlocked == true ? "PRO features" : "Unlock PRO",
+                          g.proUnlocked == true ? "PRO features" : "Unlock PRO",
                           style: TextStyle(
                             color:
                                 Theme.of(
@@ -1137,8 +1141,8 @@ Future<void> initStoreInfo() async {
 deactivateProAfterWeekOffline() async {
   final sStorage = FlutterSecureStorage();
 
-  final bool isSaved = 'true' == await sStorage.read(key: 'proUnlocked');
-  final String? savedDate = await sStorage.read(key: 'proUnlockedDate');
+  final bool isSaved = 'true' == await sStorage.read(key: 'g.proUnlocked');
+  final String? savedDate = await sStorage.read(key: 'g.proUnlockedDate');
 
   if (isSaved && savedDate != null) {
     final unlockTime = DateTime.tryParse(savedDate);
@@ -1231,7 +1235,7 @@ Future<bool> proPopup(BuildContext context) async {
     builder: (BuildContext context) {
       return AlertDialog(
         title:
-            proUnlocked == true
+            g.proUnlocked == true
                 ? Text("PRO features:")
                 : Text("Unlock PRO features"),
         content: Column(
@@ -1242,13 +1246,13 @@ Future<bool> proPopup(BuildContext context) async {
               " •  Save and share multi page PDFs.\n"
               " •  Get access to the PRO filter.",
             ),
-            (proUnlocked == true)
+            (g.proUnlocked == true)
                 ? Text("\nThank you for your support! :)")
                 : SizedBox(),
           ],
         ),
         actions: [
-          proUnlocked == true
+          g.proUnlocked == true
               ? ElevatedButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: Text("OK", style: TextStyle(color: Colors.green)),
@@ -1257,7 +1261,7 @@ Future<bool> proPopup(BuildContext context) async {
                 onPressed: () => Navigator.pop(context, false),
                 child: Text("Cancel"),
               ),
-          proUnlocked == true
+          g.proUnlocked == true
               ? SizedBox()
               : ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
@@ -1275,18 +1279,18 @@ Future<bool> proPopup(BuildContext context) async {
 
 setPro(final bool proUnlockedIn) {
   bool showMessages = true;
-  if (proUnlocked == proUnlockedIn) showMessages = false;
-  proUnlocked = proUnlockedIn;
+  if (g.proUnlocked == proUnlockedIn) showMessages = false;
+  g.proUnlocked = proUnlockedIn;
 
   final sStorage = FlutterSecureStorage();
   sStorage.write(
-    key: 'proUnlocked',
+    key: 'g.proUnlocked',
     value: proUnlockedIn == true ? 'true' : 'false',
   );
 
   if (proUnlockedIn) {
     final now = DateTime.now().toIso8601String();
-    sStorage.write(key: 'proUnlockedDate', value: now);
+    sStorage.write(key: 'g.proUnlockedDate', value: now);
   }
 
   if (showMessages) {
@@ -1446,7 +1450,7 @@ class _PagesState extends State<Pages> {
     bool onInit = false,
     bool supressWarnings = false,
   }) async {
-    var thumbs = await filesHelper.getPagesThumbnails(widget.docIndex);
+    var thumbs = await g.filesHelper.getPagesThumbnails(widget.docIndex);
     _pagesCount = thumbs.$2;
     List<String> thumbnailPaths = thumbs.$1;
 
@@ -1469,7 +1473,7 @@ class _PagesState extends State<Pages> {
             pageIndex,
             supressWarnings: supressWarnings_,
           ) ??
-          0;
+          math.sqrt2;
       int orientationIndex =
           await MetadataHelper.readPageOrientationIndex(
             widget.docIndex,
@@ -1507,11 +1511,11 @@ class _PagesState extends State<Pages> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths;
-    if (filesHelper.pickingImage) return;
+    if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       picturePaths = await _openCamera();
     } else {
-      picturePaths = await filesHelper.pickImage(
+      picturePaths = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
@@ -1526,13 +1530,13 @@ class _PagesState extends State<Pages> {
   }
 
   Future<int> _processNewPages(List<String> picturePaths) async {
-    metadataHelper.writeDocUnlocked(widget.docIndex, false);
-    int firstPageIndex = await filesHelper.reserveNewPagesInDocment(
+    g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
+    int firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       picturePaths.length,
     );
 
-    imageProcessingManager.processPages(
+    g.imageProcessingManager.processPages(
       widget.docIndex,
       firstPageIndex,
       picturePaths,
@@ -1542,7 +1546,7 @@ class _PagesState extends State<Pages> {
   }
 
   Future<List<String>> _openCamera() async {
-    filesHelper.pickingImage = true;
+    g.filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
     List<String> picturePaths = [];
     if (result is List<XFile>) {
@@ -1550,7 +1554,7 @@ class _PagesState extends State<Pages> {
         picturePaths.add(xfile.path);
       }
     }
-    filesHelper.pickingImage = false;
+    g.filesHelper.pickingImage = false;
     return picturePaths;
   }
 
@@ -1917,7 +1921,7 @@ class _PagesState extends State<Pages> {
 
   void _openPageEditDialog(BuildContext context, int pageIndex) async {
     bool allowChangePageIndex = false;
-    Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
+    Future<void> future = g.imageProcessingManager.awaitAllIsolatesOfDocument(
       widget.docIndex,
     );
     int? selectedIndex = await showDialog<int>(
@@ -2040,7 +2044,7 @@ class _PagesState extends State<Pages> {
 
     // Handle Results after Dialog closes
     if (selectedIndex != null && selectedIndex != pageIndex) {
-      await filesHelper.changePageIndex(
+      await g.filesHelper.changePageIndex(
         widget.docIndex,
         pageIndex,
         selectedIndex,
@@ -2119,7 +2123,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _initAsync() async {
-    var imagePaths = await filesHelper.getImagePathsForPage(
+    var imagePaths = await g.filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2127,7 +2131,7 @@ class PagePreviewState extends State<PagePreview> {
     _picturePath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarnings: true);
-    _pageUnlocked = await metadataHelper.readPageUnlocked(
+    _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: true,
@@ -2150,7 +2154,7 @@ class PagePreviewState extends State<PagePreview> {
         _loadPageMeatadata();
         break;
       case NotifierEvent.pictureSaved:
-        _versionPaths[0] = await filesHelper.getVersionPath(
+        _versionPaths[0] = await g.filesHelper.getVersionPath(
           widget.docIndex,
           widget.pageIndex,
           0,
@@ -2161,7 +2165,7 @@ class PagePreviewState extends State<PagePreview> {
         _refreshCornersOverlay(supressWarnings: true);
         break;
       case NotifierEvent.warpSaved:
-        _versionPaths[1] = await filesHelper.getVersionPath(
+        _versionPaths[1] = await g.filesHelper.getVersionPath(
           widget.docIndex,
           widget.pageIndex,
           1,
@@ -2169,7 +2173,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.processed1Saved:
-        _versionPaths[2] = await filesHelper.getVersionPath(
+        _versionPaths[2] = await g.filesHelper.getVersionPath(
           widget.docIndex,
           widget.pageIndex,
           2,
@@ -2177,7 +2181,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.processed2Saved:
-        _versionPaths[3] = await filesHelper.getVersionPath(
+        _versionPaths[3] = await g.filesHelper.getVersionPath(
           widget.docIndex,
           widget.pageIndex,
           3,
@@ -2185,7 +2189,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.setState:
-        _pageUnlocked = await metadataHelper.readPageUnlocked(
+        _pageUnlocked = await g.metadataHelper.readPageUnlocked(
           widget.docIndex,
           widget.pageIndex,
         );
@@ -2261,7 +2265,7 @@ class PagePreviewState extends State<PagePreview> {
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientation = null;
     _totalRotation = 0;
-    filesHelper.deleteProcessedVersionsOfPage(
+    g.filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2329,7 +2333,7 @@ class PagePreviewState extends State<PagePreview> {
                 if (context.mounted) {
                   Navigator.pop(context, adWatched);
                 }
-                metadataHelper.writePageUnlocked(
+                g.metadataHelper.writePageUnlocked(
                   widget.docIndex,
                   widget.pageIndex,
                   adWatched,
@@ -2359,7 +2363,7 @@ class PagePreviewState extends State<PagePreview> {
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
     bool allowPop =
-        proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
+        g.proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
     return PopScope(
       canPop: allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2438,8 +2442,8 @@ class PagePreviewState extends State<PagePreview> {
               child: AspectRatio(
                 aspectRatio:
                     (((_orientation ?? 0) == 0)
-                        ? 1.0 / (_ratioValue ?? math.sqrt(2))
-                        : (_ratioValue ?? math.sqrt(2))),
+                        ? 1.0 / (_ratioValue ?? math.sqrt2)
+                        : (_ratioValue ?? math.sqrt2)),
                 child: Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -2765,7 +2769,7 @@ class PagePreviewState extends State<PagePreview> {
                           ),
                         ),
                         // Locked Badge
-                        (proUnlocked == true || index != 3 || _pageUnlocked)
+                        (g.proUnlocked == true || index != 3 || _pageUnlocked)
                             ? SizedBox()
                             : Positioned(
                               top: 0,
@@ -2885,7 +2889,9 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
-          ((_ratioValue == _newRatioValue) &&
+          ((_newRatioValue != null &&
+                  (_ratioValue == _newRatioValue ||
+                      _ratioValue == 1.0 / _newRatioValue!)) &&
               (_orientation == _newOrientationIndex) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
@@ -2906,7 +2912,7 @@ class PagePreviewState extends State<PagePreview> {
     bool customCorners = false;
 
     // Read Matadata
-    var metadata = await metadataHelper.readPageMetadata(
+    var metadata = await g.metadataHelper.readPageMetadata(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2916,7 +2922,7 @@ class PagePreviewState extends State<PagePreview> {
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
-    imageProcessingManager.killIsolatesOfPage(
+    g.imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -2960,17 +2966,17 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      imageProcessingManager.rotatePage(
+      g.imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        thumbnailIndex ?? (proUnlocked == true ? 3 : 2),
+        thumbnailIndex ?? (g.proUnlocked == true ? 3 : 2),
       );
       _totalRotation = 0;
     } else {
       _reprocessingSetup();
-      imageProcessingManager.reprocessPage(
+      g.imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
@@ -2995,11 +3001,11 @@ class PagePreviewState extends State<PagePreview> {
           int col = p[1];
 
           switch (quarterTurns) {
-            case 1: // 90° CW
+            case 1: // 90°
               return [col, _imagePixelHeight - row];
             case 2: // 180°
               return [_imagePixelHeight - row, _imagePixelWidth - col];
-            case 3: // 270° CW
+            case 3: // 270°
               return [_imagePixelWidth - col, row];
             default: // 0°
               return [row, col];
@@ -3016,8 +3022,11 @@ class PagePreviewState extends State<PagePreview> {
 
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
-    int? initialIndex = availableAspectRatios.indexWhere(
-      (element) => element.value == _newRatioValue,
+    int? initialIndex = g.availableAspectRatios.indexWhere(
+      (element) =>
+          _newRatioValue != null &&
+          (element.value == _newRatioValue ||
+              element.value == 1.0 / _newRatioValue!),
     );
     initialIndex = initialIndex != -1 ? initialIndex : null;
     return Container(
@@ -3037,14 +3046,14 @@ class PagePreviewState extends State<PagePreview> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon(Icons.arrow_drop_down, color: Colors.black),
-          value: initialIndex, //_newRatioValue,
+          value: initialIndex,
           items: List.generate(
-            availableAspectRatios.length,
+            g.availableAspectRatios.length,
             (i) => DropdownMenuItem(
               alignment: Alignment.center,
               value: i,
               child: Text(
-                availableAspectRatios[i].name,
+                g.availableAspectRatios[i].name,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
@@ -3057,7 +3066,7 @@ class PagePreviewState extends State<PagePreview> {
                       setState(
                         () =>
                             _newRatioValue =
-                                availableAspectRatios[newValue].value,
+                                g.availableAspectRatios[newValue].value,
                       );
                     }
                   },
@@ -4038,13 +4047,13 @@ Future<bool> _pagesPopup(
   if (versionIndex != null && pageIndexes.length == 1) {
     if (type == PopUpType.delete) {
       imagePaths =
-          (await filesHelper.getImagePathsForPage(
+          (await g.filesHelper.getImagePathsForPage(
             docIndex,
             pageIndexes.first,
           )).$1;
     } else {
       imagePaths = [
-        await filesHelper.getVersionPath(
+        await g.filesHelper.getVersionPath(
           docIndex,
           pageIndexes.first,
           versionIndex,
@@ -4055,7 +4064,7 @@ Future<bool> _pagesPopup(
   }
   // single page / multiple pages / document
   else {
-    var thumbs = await filesHelper.getPagesThumbnails(
+    var thumbs = await g.filesHelper.getPagesThumbnails(
       docIndex,
       pageIndexes: pageIndexes,
       fullSized: false,
@@ -4069,9 +4078,9 @@ Future<bool> _pagesPopup(
   bool docUnlocked = false;
   bool pageUnlocked = false;
   if (isDocument) {
-    docUnlocked = await metadataHelper.readDocUnlocked(docIndex);
+    docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
   } else if (isSinglePage && versionIndex != null) {
-    pageUnlocked = await metadataHelper.readPageUnlocked(
+    pageUnlocked = await g.metadataHelper.readPageUnlocked(
       docIndex,
       pageIndexes.first,
     );
@@ -4089,7 +4098,7 @@ Future<bool> _pagesPopup(
             if (versionIndex != null && pageIndexes.length == 1) {
               Future.microtask(() async {
                 imagePaths = [
-                  await filesHelper.getVersionPath(
+                  await g.filesHelper.getVersionPath(
                     docIndex,
                     pageIndexes.first,
                     versionIndex,
@@ -4099,7 +4108,7 @@ Future<bool> _pagesPopup(
               });
             } else {
               Future.microtask(() async {
-                var thumbs = await filesHelper.getPagesThumbnails(
+                var thumbs = await g.filesHelper.getPagesThumbnails(
                   docIndex,
                   pageIndexes: pageIndexes,
                   fullSized: true,
@@ -4166,7 +4175,7 @@ Future<bool> _pagesPopup(
                       ? SizedBox()
                       : Container(
                         decoration:
-                            (proUnlocked == true ||
+                            (g.proUnlocked == true ||
                                     pageUnlocked ||
                                     versionIndex != 3)
                                 ? null
@@ -4187,7 +4196,7 @@ Future<bool> _pagesPopup(
                                 Padding(
                                   padding: EdgeInsets.symmetric(
                                     horizontal:
-                                        (proUnlocked == true ||
+                                        (g.proUnlocked == true ||
                                                 pageUnlocked ||
                                                 versionIndex != 3)
                                             ? 0
@@ -4196,21 +4205,21 @@ Future<bool> _pagesPopup(
                                   child: ElevatedButton.icon(
                                     onPressed:
                                         allPagesLoaded &&
-                                                (proUnlocked == true ||
+                                                (g.proUnlocked == true ||
                                                     pageUnlocked ||
                                                     versionIndex != 3)
                                             ? () async {
                                               Navigator.pop(context);
                                               switch (type) {
                                                 case PopUpType.share:
-                                                  filesHelper.shareImages(
+                                                  g.filesHelper.shareImages(
                                                     docIndex,
                                                     pageIndexes: pageIndexes,
                                                     versionIndex: versionIndex,
                                                   );
                                                   break;
                                                 case PopUpType.save:
-                                                  filesHelper
+                                                  g.filesHelper
                                                       .saveImagesToGallery(
                                                         docIndex,
                                                         pageIndexes:
@@ -4236,7 +4245,7 @@ Future<bool> _pagesPopup(
                                 // PDF
                                 SizedBox(
                                   height:
-                                      (proUnlocked == true ||
+                                      (g.proUnlocked == true ||
                                               (docUnlocked && isDocument) ||
                                               imagesCount == 1)
                                           ? 0
@@ -4244,7 +4253,7 @@ Future<bool> _pagesPopup(
                                 ),
                                 Container(
                                   decoration:
-                                      (proUnlocked == true ||
+                                      (g.proUnlocked == true ||
                                               (docUnlocked && isDocument) ||
                                               imagesCount == 1)
                                           ? null
@@ -4265,7 +4274,7 @@ Future<bool> _pagesPopup(
                                       Padding(
                                         padding: EdgeInsets.symmetric(
                                           horizontal:
-                                              (proUnlocked == true ||
+                                              (g.proUnlocked == true ||
                                                       (docUnlocked &&
                                                           isDocument) ||
                                                       (pageUnlocked ||
@@ -4277,7 +4286,7 @@ Future<bool> _pagesPopup(
                                         child: ElevatedButton.icon(
                                           onPressed:
                                               allPagesLoaded &&
-                                                      (proUnlocked == true ||
+                                                      (g.proUnlocked == true ||
                                                           (docUnlocked &&
                                                               isDocument) ||
                                                           (pageUnlocked ||
@@ -4288,7 +4297,7 @@ Future<bool> _pagesPopup(
                                                   ? () async {
                                                     switch (type) {
                                                       case PopUpType.share:
-                                                        filesHelper
+                                                        g.filesHelper
                                                             .shareImagesPdf(
                                                               context,
                                                               docIndex,
@@ -4299,7 +4308,7 @@ Future<bool> _pagesPopup(
                                                             );
                                                         break;
                                                       case PopUpType.save:
-                                                        filesHelper
+                                                        g.filesHelper
                                                             .pickFolderForImagesPdf(
                                                               docIndex,
                                                               context,
@@ -4325,7 +4334,7 @@ Future<bool> _pagesPopup(
                                           ),
                                         ),
                                       ),
-                                      (proUnlocked == true ||
+                                      (g.proUnlocked == true ||
                                               (docUnlocked && isDocument) ||
                                               imagesCount == 1)
                                           ? SizedBox()
@@ -4353,7 +4362,7 @@ Future<bool> _pagesPopup(
                                                               context,
                                                             );
                                                         setStateDialog(() {});
-                                                        await metadataHelper
+                                                        await g.metadataHelper
                                                             .writeDocUnlocked(
                                                               docIndex,
                                                               docUnlocked,
@@ -4374,7 +4383,7 @@ Future<bool> _pagesPopup(
                               ],
                             ),
                             // Unlock PRO
-                            (proUnlocked == true ||
+                            (g.proUnlocked == true ||
                                     pageUnlocked ||
                                     versionIndex != 3)
                                 ? SizedBox()
@@ -4402,7 +4411,7 @@ Future<bool> _pagesPopup(
                                                     context,
                                                   );
                                               setStateDialog(() {});
-                                              await metadataHelper
+                                              await g.metadataHelper
                                                   .writePageUnlocked(
                                                     docIndex,
                                                     pageIndexes.first,
@@ -4437,7 +4446,7 @@ Future<bool> _pagesPopup(
                             child: ElevatedButton(
                               onPressed: () {
                                 confirmDelete = true;
-                                filesHelper.deleteImages(
+                                g.filesHelper.deleteImages(
                                   context,
                                   docIndex,
                                   pageIndexes: pageIndexes,

@@ -1,6 +1,7 @@
 // function:
 import 'dart:developer' as dev;
 import 'dart:isolate';
+import 'package:docscanner/app_globals.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
@@ -10,9 +11,8 @@ import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:async';
 // my packages:
-import 'package:docscanner/main.dart';
 import 'package:docscanner/opencv_helper.dart';
-import 'package:docscanner/files_helper.dart';
+import 'package:docscanner/main.dart' show globalNotifier;
 
 const List<String> versionNames = [
   "picture",
@@ -29,7 +29,6 @@ class ImageProcessingManager {
     (
       SendPort sendPort,
       RootIsolateToken token,
-      FilesHelper filesHelperIn,
       bool isPrimary,
       int docIndex,
       int pageIndex,
@@ -38,45 +37,45 @@ class ImageProcessingManager {
       int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
-      bool? proUnlockedIn,
       int rotationIn,
       bool isInitial,
+      AppGlobals g,
     )
     data,
   ) async {
     SendPort sendPort = data.$1;
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-    FilesHelper filesHelperIn = data.$3;
-    bool isPrimary = data.$4;
-    int docIndex = data.$5;
-    int pageIndex = data.$6;
-    String newPicturePath = data.$7;
+    bool isPrimary = data.$3;
+    int docIndex = data.$4;
+    int pageIndex = data.$5;
+    String newPicturePath = data.$6;
 
-    double? ratioValueIn = data.$8;
-    int? orientationIndexIn = data.$9;
-    int? pageThumbnailIndexIn = data.$10;
-    List<List<int>>? cornerPointsIn = data.$11;
-    bool? proUnlockedIn = data.$12;
-    int rotationIn = data.$13;
-    bool isInitial = data.$14;
+    double? ratioValueIn = data.$7;
+    int? orientationIndexIn = data.$8;
+    int? pageThumbnailIndexIn = data.$9;
+    List<List<int>>? cornerPointsIn = data.$10;
+    int rotationIn = data.$11;
+    bool isInitial = data.$12;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
+    AppGlobals g = data.$13;
 
     List<String> versionPaths = List.generate(4, (index) => "");
+    OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Original
     versionPaths[0] = newPicturePath;
     // Re-use Shape
-    String shapePath = await filesHelperIn.getPageShape(
+    String shapePath = await g.filesHelper.getPageShape(
       docIndex,
       pageIndex,
       supressWarnings: isInitial,
     );
     if (shapePath.isNotEmpty && rotationIn != 0) {
       Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
-      shapePath = await filesHelperIn.savePageShape(
+      shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
         rotatedShape,
@@ -96,7 +95,7 @@ class ImageProcessingManager {
     Uint8List warped = warpedRet.$1;
     Uint8List shape = warpedRet.$2;
     if (shapePath.isEmpty) {
-      filesHelperIn.savePageShape(docIndex, pageIndex, shape);
+      g.filesHelper.savePageShape(docIndex, pageIndex, shape);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
@@ -108,13 +107,13 @@ class ImageProcessingManager {
       pageIndex,
       ratioValue,
       orientationIndex,
-      (proUnlockedIn == true) ? 3 : 2,
+      (g.proUnlocked == true) ? 3 : 2,
       cornerPoints,
-      filesHelperIn: filesHelperIn,
+      gIn: g,
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
 
-    versionPaths[1] = await filesHelperIn.savePageVersion(
+    versionPaths[1] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       1,
@@ -126,7 +125,7 @@ class ImageProcessingManager {
     Uint8List processed1 = cvHelper.processImage1(
       ParamsProcessImage1(versionPaths[1]),
     );
-    versionPaths[2] = await filesHelperIn.savePageVersion(
+    versionPaths[2] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       2,
@@ -138,7 +137,7 @@ class ImageProcessingManager {
     Uint8List processed2 = cvHelper.processImage2(
       ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
-    versionPaths[3] = await filesHelperIn.savePageVersion(
+    versionPaths[3] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       3,
@@ -152,8 +151,8 @@ class ImageProcessingManager {
 
     await _saveScaledThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndexIn ?? ((proUnlockedIn == true) ? 3 : 2)],
-      filesHelperIn.screenWidth,
+      versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
+      g.filesHelper.screenWidth,
       overwrite: true,
     );
 
@@ -184,7 +183,7 @@ class ImageProcessingManager {
     } else {
       throw StateError('picture does not exist');
     }
-    String newPhotoPath = await filesHelper.savePageVersion(
+    String newPhotoPath = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       0,
@@ -208,7 +207,6 @@ class ImageProcessingManager {
     Isolate isolate = await Isolate.spawn(_processPageIsolate, (
       port.sendPort,
       token,
-      filesHelper,
       isPrimary,
       docIndex,
       pageIndex,
@@ -217,9 +215,9 @@ class ImageProcessingManager {
       orientationIndexIn,
       pageThumbnailIndex,
       cornerPointsIn,
-      proUnlocked,
       rotationIn,
       isInitial,
+      g,
     ));
 
     Capability? cap;
@@ -240,6 +238,7 @@ class ImageProcessingManager {
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
         capabilities.removeAt(index);
+        isolate.kill();
 
         // Resume next paused isolate
         for (int i = 0; i < isolates.length; i++) {
@@ -258,38 +257,36 @@ class ImageProcessingManager {
     (
       SendPort sendPort,
       RootIsolateToken token,
-      FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
       double? ratioValueIn,
       int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
-      bool? proUnlockedIn,
+      AppGlobals g,
     )
     data,
   ) async {
     SendPort sendPort = data.$1;
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-    FilesHelper filesHelperIn = data.$3;
-    int docIndex = data.$4;
-    int pageIndex = data.$5;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
 
-    double? ratioValueIn = data.$6;
-    int? orientationIndexIn = data.$7;
-    int? pageThumbnailIndexIn = data.$8;
-    List<List<int>>? cornerPointsIn = data.$9;
-    bool? proUnlockedIn = data.$10;
+    double? ratioValueIn = data.$5;
+    int? orientationIndexIn = data.$6;
+    int? pageThumbnailIndexIn = data.$7;
+    List<List<int>>? cornerPointsIn = data.$8;
+    AppGlobals g = data.$9;
 
     if (pageThumbnailIndexIn == 0) {
       throw StateError('thumbnail cant be the picture');
     }
 
-    OpenCVHelper cvHelper = OpenCVHelper();
+    OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Original
-    var imagePaths = await filesHelperIn.getImagePathsForPage(
+    var imagePaths = await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
     );
@@ -311,7 +308,7 @@ class ImageProcessingManager {
     Uint8List warped = warpedRet.$1;
     Uint8List shape = warpedRet.$2;
     if (shapePath.isEmpty) {
-      filesHelperIn.savePageShape(docIndex, pageIndex, shape);
+      g.filesHelper.savePageShape(docIndex, pageIndex, shape);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
@@ -323,13 +320,13 @@ class ImageProcessingManager {
       pageIndex,
       ratioValue,
       orientationIndex,
-      (proUnlockedIn == true) ? 3 : 2,
+      (g.proUnlocked == true) ? 3 : 2,
       cornerPoints,
-      filesHelperIn: filesHelperIn,
+      gIn: g,
     );
 
     if (versionPaths[1].isEmpty) {
-      versionPaths[1] = await filesHelperIn.savePageVersion(
+      versionPaths[1] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         1,
@@ -343,7 +340,7 @@ class ImageProcessingManager {
       Uint8List processed1 = cvHelper.processImage1(
         ParamsProcessImage1(versionPaths[1]),
       );
-      versionPaths[2] = await filesHelperIn.savePageVersion(
+      versionPaths[2] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         2,
@@ -357,7 +354,7 @@ class ImageProcessingManager {
       Uint8List processed2 = cvHelper.processImage2(
         ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
       );
-      versionPaths[3] = await filesHelperIn.savePageVersion(
+      versionPaths[3] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         3,
@@ -373,8 +370,8 @@ class ImageProcessingManager {
     if (thumbnailPath.isEmpty) {
       await _saveScaledThumbnail(
         sendPort,
-        versionPaths[pageThumbnailIndexIn ?? ((proUnlockedIn == true) ? 3 : 2)],
-        filesHelperIn.screenWidth,
+        versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
+        g.filesHelper.screenWidth,
         overwrite: true,
       );
     }
@@ -523,7 +520,7 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
 
     // Read Matadata
-    var metadata = await metadataHelper.readPageMetadata(docIndex, pageIndex);
+    var metadata = await g.metadataHelper.readPageMetadata(docIndex, pageIndex);
     double? ratioValue = metadata.$1;
     int? orientationIndex = metadata.$2;
     int? thumbnailIndex = metadata.$3;
@@ -537,14 +534,13 @@ class ImageProcessingManager {
     Isolate isolate = await Isolate.spawn(_repairPageIsolate, (
       port.sendPort,
       token,
-      filesHelper,
       docIndex,
       pageIndex,
       ratioValue,
       orientationIndex,
       thumbnailIndex,
       cornerPoints,
-      proUnlocked,
+      g,
     ));
 
     Capability? cap;
@@ -565,6 +561,7 @@ class ImageProcessingManager {
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
         capabilities.removeAt(index);
+        isolate.kill();
 
         // Resume next paused isolate
         for (int i = 0; i < isolates.length; i++) {
@@ -582,24 +579,24 @@ class ImageProcessingManager {
   static Future<void> _rotatePageIsolate(
     (
       SendPort sendPort,
-      FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
       List<String> versionPaths, //[0] is potentially rotated
       int rotationIn,
       int pageThumbnailIndexIn,
+      AppGlobals g,
     )
     data,
   ) async {
     SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    List<String> versionPaths = data.$5;
-    int rotationIn = data.$6;
-    int pageThumbnailIndexIn = data.$7;
+    int docIndex = data.$2;
+    int pageIndex = data.$3;
+    List<String> versionPaths = data.$4;
+    int rotationIn = data.$5;
+    int pageThumbnailIndexIn = data.$6;
+    AppGlobals g = data.$7;
 
-    OpenCVHelper cvHelper = OpenCVHelper();
+    OpenCVHelper cvHelper = OpenCVHelper(g);
 
     /// 1. save rotated picture
 
@@ -610,7 +607,7 @@ class ImageProcessingManager {
     } else {
       throw StateError('rotated picture does not exist');
     }
-    await filesHelperIn.savePageVersion(
+    await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       0,
@@ -621,10 +618,10 @@ class ImageProcessingManager {
     /// 2. rotate processed -> save
 
     // Shape
-    String? shapePath = await filesHelperIn.getPageShape(docIndex, pageIndex);
+    String? shapePath = await g.filesHelper.getPageShape(docIndex, pageIndex);
     if (shapePath.isEmpty && rotationIn != 0) {
       Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
-      shapePath = await filesHelperIn.savePageShape(
+      shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
         rotatedShape,
@@ -633,7 +630,7 @@ class ImageProcessingManager {
 
     // Warped
     Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], rotationIn);
-    versionPaths[1] = await filesHelperIn.savePageVersion(
+    versionPaths[1] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       1,
@@ -643,7 +640,7 @@ class ImageProcessingManager {
 
     // Processed1
     Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], rotationIn);
-    versionPaths[2] = await filesHelperIn.savePageVersion(
+    versionPaths[2] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       2,
@@ -653,7 +650,7 @@ class ImageProcessingManager {
 
     // Processed2
     Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], rotationIn);
-    versionPaths[3] = await filesHelperIn.savePageVersion(
+    versionPaths[3] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       3,
@@ -668,7 +665,7 @@ class ImageProcessingManager {
     await _saveScaledThumbnail(
       sendPort,
       versionPaths[pageThumbnailIndexIn],
-      filesHelperIn.screenWidth,
+      g.filesHelper.screenWidth,
       overwrite: true,
     );
 
@@ -687,12 +684,12 @@ class ImageProcessingManager {
 
     Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
       port.sendPort,
-      filesHelper,
       docIndex,
       pageIndex,
       versionPaths,
       angle,
       pageThumbnailIndexIn,
+      g,
     ));
     isolates[(docIndex, pageIndex)] = primaryIsolate;
     capabilities.add(null);
@@ -781,20 +778,20 @@ class ImageProcessingManager {
   static Future<void> _applyThumbnailIsolate(
     (
       SendPort sendPort,
-      FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
       int thumbnailIndex,
+      AppGlobals g,
     )
     data,
   ) async {
     SendPort sendPort = data.$1;
-    FilesHelper filesHelperIn = data.$2;
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    int thumbnailIndex = data.$5;
+    int docIndex = data.$2;
+    int pageIndex = data.$3;
+    int thumbnailIndex = data.$4;
+    AppGlobals g = data.$5;
 
-    var imagePaths = await filesHelperIn.getImagePathsForPage(
+    var imagePaths = await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
     );
@@ -802,7 +799,7 @@ class ImageProcessingManager {
     await _saveScaledThumbnail(
       sendPort,
       versionPaths[thumbnailIndex],
-      filesHelperIn.screenWidth,
+      g.filesHelper.screenWidth,
       overwrite: true,
     );
     sendPort.send('done');
@@ -822,10 +819,10 @@ class ImageProcessingManager {
 
     Isolate isolate = await Isolate.spawn(_applyThumbnailIsolate, (
       port.sendPort,
-      filesHelper,
       docIndex,
       pageIndex,
       thumbnailIndex,
+      g,
     ));
 
     Capability? cap;

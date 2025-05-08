@@ -1,5 +1,6 @@
 import 'dart:developer' as dev;
 import 'dart:typed_data';
+import 'package:docscanner/app_globals.dart';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
@@ -43,9 +44,8 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  List<double> availableAspectRatioValues;
-  OpenCVHelper(availableAspectRatioValuesIn)
-    : availableAspectRatioValues = availableAspectRatioValuesIn;
+  AppGlobals g;
+  OpenCVHelper(gIn) : g = gIn;
 
   (Uint8List, Uint8List, List<int>, double, int, List<List<int>>) warpImage(
     ParamsWarpImage params,
@@ -171,7 +171,7 @@ class OpenCVHelper {
     bool onlyCalculateBorder,
   ) {
     List<List<int>> corners = cornerPointsIn ?? [];
-    double ratioValue = ratioValueIn ?? math.sqrt(2);
+    double ratioValue = ratioValueIn ?? math.sqrt2;
     int orientation = orientationIn ?? 0;
     bool customCorners = cornerPointsIn != null;
 
@@ -390,7 +390,7 @@ class OpenCVHelper {
       (pad * 0.4).toInt(),
       (pad * 0.4).toInt(),
       cv.MatType.CV_8UC1,
-    ); // 0.7 ~= 1/sqrt(2) <- when closing with rect is diagonal, but 0,7 is too much if border is unclear
+    ); // 0.7 ~= 1/sqrt2 <- when closing with rect is diagonal, but 0,7 is too much if border is unclear
     closedShape = cv.dilate(
       closedShape,
       kernelLimit,
@@ -786,16 +786,16 @@ class OpenCVHelper {
       calculatedValueIn = 1.0 / calculatedValueIn;
     }
     // find closest match
-    double matchingValue = math.sqrt(2);
+    double matchingValue = math.sqrt2;
     if (metadataValueIn != null) {
       matchingValue = metadataValueIn;
     } else {
       double smallestDifference = double.infinity;
-      for (var value in availableAspectRatioValues) {
-        double difference = (value - calculatedValueIn).abs();
+      for (var availableRatio in g.availableAspectRatios) {
+        double difference = (availableRatio.value - calculatedValueIn).abs();
         if (difference < smallestDifference) {
           smallestDifference = difference;
-          matchingValue = value;
+          matchingValue = availableRatio.value;
         }
       }
     }

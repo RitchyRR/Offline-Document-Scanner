@@ -1,31 +1,25 @@
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
-import 'dart:math';
-// my packages:
-import 'package:docscanner/main.dart';
-import 'package:docscanner/files_helper.dart';
-import 'package:docscanner/image_prosessing_manager.dart';
+import 'dart:math' as math;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
+// my packages:
+import 'package:docscanner/app_globals.dart';
+import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/main.dart' show globalNotifier;
 // encryption:
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart';
 
 class MetadataHelper {
-  //late FilesHelper filesHelper;
-  //late bool? proUnlocked;
-  //MetadataHelper(FilesHelper filesHelperIn, bool? proUnlockedIn)
-  //  : filesHelper = filesHelperIn,
-  //    proUnlocked = proUnlockedIn;
-
   static Future<void> _writeDoc(
     int docIndex,
     String keyIn,
     dynamic valueIn, {
     bool supressWarnings = false,
   }) async {
-    final docPath = await filesHelper.getDocumentPath(docIndex);
+    final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Error, _writeDoc, $keyIn: Document deos not exist: Document $docIndex",
@@ -56,7 +50,7 @@ class MetadataHelper {
   }
 
   static Future<dynamic> _readDoc(int docIndex, String keyIn) async {
-    final docPath = await filesHelper.getDocumentPath(docIndex);
+    final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
         "Error, saveDocName: Document deos not exist: Document $docIndex",
@@ -87,7 +81,7 @@ class MetadataHelper {
     String keyIn,
     dynamic value,
   ) async {
-    final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     if (!Directory(pagePath).existsSync()) {
       dev.log(
@@ -119,7 +113,7 @@ class MetadataHelper {
     String keyIn, {
     bool supressWarnings = false,
   }) async {
-    final pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     if (!Directory(pagePath).existsSync()) {
       dev.log(
@@ -248,39 +242,38 @@ class MetadataHelper {
     int? orientationIndex,
     int? thumbnailIndex,
     List<List<int>>? cornerPoints, {
-    FilesHelper? filesHelperIn,
+    AppGlobals? gIn,
   }) async {
-    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
-      docIndex,
-      pageIndex,
-    );
+    bool isIsolate = false;
+    if (gIn != null) isIsolate = true;
+    String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
+        .getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
-    // Read
+    // Read + Decrypt
     if (await file.exists()) {
       try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
+        final encryptedContent = file.readAsStringSync();
+        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       } catch (e) {
         dev.log("Error, writePageMetadata, reading: $e");
       }
     }
 
     try {
-      // Write
-      if (ratioValue != null) metadata["aspectRatio"] = ratioValue.toString();
+      // Write + Encrypt
+      if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
       metadata["thumbnail"] =
           versionNames[thumbnailIndex != null && thumbnailIndex != 0
               ? thumbnailIndex
-              : ((proUnlocked == true) ? 3 : 2)];
+              : ((g.proUnlocked == true) ? 3 : 2)];
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
-      if (filesHelperIn == null) {
-        // if started outside of isolate
+      if (!isIsolate) {
         globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
       }
     } catch (e) {
@@ -288,47 +281,58 @@ class MetadataHelper {
     }
   }
 
-  Future<(double?, int?, int?, List<List<int>>?)> readPageMetadata(
+  Future<(double, int?, int?, List<List<int>>?)> readPageMetadata(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
   }) async {
-    double? ratioValue;
+    double ratioValue = math.sqrt2;
     int? orientationIndex;
     int? thumbnailIndex;
     List<List<int>>? cornerPoints;
 
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
-    // Read
+    // Read + Decrypt
     if (await file.exists()) {
+      final encryptedContent = file.readAsStringSync();
+      metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       try {
-        String content = await file.readAsString();
-        metadata = jsonDecode(content).cast<String, dynamic>();
-        ratioValue = double.tryParse(metadata["aspectRatio"]);
+        ratioValue = double.tryParse(metadata["aspectRatio"]) ?? math.sqrt2;
+      } catch (e) {
+        dev.log("Error, readPageMetadata, ratioValue: $e");
+      }
+      try {
         String orientationString = metadata["orientation"];
         orientationIndex =
             (orientationString == "portrait" || orientationString == "")
                 ? 0
                 : 1;
+      } catch (e) {
+        dev.log("Error, readPageMetadata, orientationString: $e");
+      }
+      try {
         String? thumbnailString = metadata["thumbnail"];
         if (thumbnailString != null) {
           thumbnailIndex = versionNames.indexOf(thumbnailString);
           if (thumbnailIndex == 0) {
             throw StateError('metadata: thumbnail cant be the picture');
           }
-          cornerPoints =
-              (metadata["corners"] as List)
-                  .map<List<int>>(
-                    (e) => (e as List).map((v) => v as int).toList(),
-                  )
-                  .toList();
         }
-        return (ratioValue, orientationIndex, thumbnailIndex, cornerPoints);
       } catch (e) {
-        dev.log("Error, readPageMetadata: $e");
+        dev.log("Error, readPageMetadata, thumbnailString: $e");
+      }
+      try {
+        cornerPoints =
+            (metadata["corners"] as List)
+                .map<List<int>>(
+                  (e) => (e as List).map((v) => v as int).toList(),
+                )
+                .toList();
+      } catch (e) {
+        dev.log("Error, readPageMetadata, cornerPoints: $e");
       }
     } else if (!supressWarnings) {
       dev.log(
@@ -345,12 +349,12 @@ class MetadataHelper {
     bool tmpPro = false,
   }) async {
     if (thumbnailIndexIn == 0) return;
-    if (thumbnailIndexIn == 3 && !(proUnlocked == true) && !tmpPro) {
+    if (thumbnailIndexIn == 3 && !(g.proUnlocked == true) && !tmpPro) {
       thumbnailIndexIn = 2;
     }
     bool updateThumbnail = false; // is new
     String newThumbnailName = versionNames[thumbnailIndexIn];
-    String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -367,14 +371,14 @@ class MetadataHelper {
       }
       if ((metadata["thumbnail"] != null
               ? versionNames.indexOf(metadata["thumbnail"])
-              : ((proUnlocked == true) ? 3 : 2)) !=
+              : ((g.proUnlocked == true) ? 3 : 2)) !=
           thumbnailIndexIn) {
         updateThumbnail = true;
       }
 
       // Write + Encrypt
       if (updateThumbnail) {
-        imageProcessingManager.applyThumbnail(
+        g.imageProcessingManager.applyThumbnail(
           docIndex,
           pageIndex,
           thumbnailIndexIn,
@@ -435,9 +439,12 @@ class MetadataHelper {
   static Future<int> readPageThumbnailIndex(
     int docIndex,
     int pageIndex, {
-    FilesHelper? filesHelperIn,
+    AppGlobals? gIn,
     bool supressWarnings = false,
   }) async {
+    bool isIsolate = false;
+    if (gIn != null) isIsolate = true;
+
     dynamic value = await _readPage(
       docIndex,
       pageIndex,
@@ -451,20 +458,23 @@ class MetadataHelper {
       }
       return thumbnailIndex;
     } else {
-      return (proUnlocked == true) ? 3 : 2;
+      return (isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true)
+          ? 3
+          : 2;
     }
   }
 
   static Future<List<List<int>>> readPageCornerPoints(
     int docIndex,
     int pageIndex, {
-    FilesHelper? filesHelperIn,
+    AppGlobals? gIn,
     bool supressWarnings = false,
   }) async {
-    String pagePath = await (filesHelperIn ?? filesHelper).getPagePath(
-      docIndex,
-      pageIndex,
-    );
+    bool isIsolate = false;
+    if (gIn != null) isIsolate = true;
+
+    String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
+        .getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -506,7 +516,7 @@ class MetadataCryptoHelper {
       String? keyBase64 = await _secureStorage.read(key: _storageKey);
 
       if (keyBase64 == null) {
-        final random = Random.secure();
+        final random = math.Random.secure();
         final keyBytes = List<int>.generate(
           _keySize,
           (_) => random.nextInt(256),

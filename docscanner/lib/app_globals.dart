@@ -1,22 +1,25 @@
+import 'dart:math' as math;
 import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/main.dart';
 import 'package:docscanner/metadata_helper.dart';
 
 class AppGlobals {
-  AppGlobals();
+  // singleton setup:
+  static final AppGlobals _instance = AppGlobals._internal();
+  factory AppGlobals() {
+    return _instance;
+  }
+  AppGlobals._internal(); // private constructor
 
   bool? proUnlocked;
-  final GlobalNotifier globalNotifier = GlobalNotifier();
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();
   final ImageProcessingManager imageProcessingManager =
       ImageProcessingManager();
-  final AdsHelper adsHelper = AdsHelper();
 
   final List<AspectRatioInfo> commonAspectRatios = [
     //// International Standard (ISO 216 - A, B, C series)
-    AspectRatioInfo("DIN", "DIN A/B/C (√2:1)", math.sqrt(2)), // ~1.414
+    AspectRatioInfo("DIN", "DIN A/B/C (√2:1)", math.sqrt2), // ~1.414
     //// North American Paper Sizes (Letter, Legal, etc.)
     AspectRatioInfo("Letter", "Letter (8.5x11″, US)", 11 / 8.5), // ~1.294
     AspectRatioInfo("Legal", "Legal (8.5x14″, US)", 14 / 8.5), // ~1.647
@@ -43,7 +46,7 @@ class AppGlobals {
   List<AspectRatioInfo> availableAspectRatios = [];
 }
 
-AppGlobals g = AppGlobals();
+final g = AppGlobals();
 
 class AspectRatioInfo {
   final String name;

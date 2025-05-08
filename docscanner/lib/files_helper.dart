@@ -3,10 +3,6 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/main.dart';
-import 'package:docscanner/metadata_helper.dart';
-import 'package:docscanner/opencv_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -15,12 +11,17 @@ import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:developer' as dev;
-
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pdfw;
-//import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
+// my packages:
+import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/main.dart' show globalNotifier;
+import 'package:docscanner/metadata_helper.dart';
+import 'package:docscanner/opencv_helper.dart';
+
+import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
 class FilesHelper {
   late String docsPath = "";
@@ -49,7 +50,7 @@ class FilesHelper {
     if (Directory(docsPath).existsSync()) {
       return;
     }
-
+    WidgetsFlutterBinding.ensureInitialized();
     final baseDir = await getApplicationDocumentsDirectory();
     docsPath = '${baseDir.path}/Documents';
     var docsDir = Directory(docsPath);
@@ -202,7 +203,7 @@ class FilesHelper {
 
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
-    int docsCount = await filesHelper.getDocumentsCount();
+    int docsCount = await g.filesHelper.getDocumentsCount();
     List<String> thumbnailPaths = List.generate(docsCount, (_) => "");
     for (var docIndex = 0; docIndex < docsCount; docIndex++) {
       final page0Path = await getPagePath(docIndex, 0);
@@ -251,7 +252,7 @@ class FilesHelper {
     int pagesCount;
     await _initializeDocumentsPath();
     if (pageIndexes.isEmpty) {
-      pagesCount = await filesHelper.getPagesCount(docIndex);
+      pagesCount = await g.filesHelper.getPagesCount(docIndex);
       pageIndexes = List.generate(pagesCount, (index) => index);
     } else {
       pagesCount = pageIndexes.length;
@@ -377,7 +378,7 @@ class FilesHelper {
               //       deletePage() will delete these Documents
             } else {
               repairFutures.add(
-                imageProcessingManager.repairPage(docIndex, pageIndex),
+                g.imageProcessingManager.repairPage(docIndex, pageIndex),
               );
             }
           }
@@ -454,13 +455,13 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
+      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
         docIndex,
       );
       messenger?.hideCurrentSnackBar();
       if (cancelDelete) return;
 
-      imageProcessingManager.killIsolatesOfDocument(docIndex);
+      g.imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
       Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
     }
@@ -539,14 +540,14 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
         docIndex,
         pageIndex,
       );
       messenger?.hideCurrentSnackBar();
       if (cancelDelete) return;
 
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      g.imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
       Fluttertoast.showToast(
         msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
@@ -992,7 +993,7 @@ class FilesHelper {
     for (var pageIndex in pageIndexes) {
       ratioValues.add(
         await MetadataHelper.readPageRatioValue(docIndex, pageIndex) ??
-            math.sqrt(2),
+            math.sqrt2,
       );
       orientations.add(
         await MetadataHelper.readPageOrientationIndex(docIndex, pageIndex) ?? 0,
@@ -1004,7 +1005,7 @@ class FilesHelper {
       double width = 21.0 * PdfPageFormat.cm;
       // 1. Get common width (shared across pages)
       for (double ratioValue in ratioValues) {
-        if (ratioValue == math.sqrt(2)) // A4
+        if (ratioValue == math.sqrt2) // DIN A4
         {
           width = 21.0 * PdfPageFormat.cm;
           break;
@@ -1337,6 +1338,7 @@ class FilesHelper {
         imagePath,
         rotatedFilePath,
         rotationIn,
+        g,
       ));
       await port.first;
       port.close();
@@ -1346,14 +1348,22 @@ class FilesHelper {
   }
 
   static Future<void> _rotateImageInTmpDirIsolate(
-    (SendPort sendPort, String imagePath, String rotatedFilePath, int angle)
+    (
+      SendPort sendPort,
+      String imagePath,
+      String rotatedFilePath,
+      int angle,
+      AppGlobals gIn,
+    )
     data,
   ) async {
     SendPort sendPort = data.$1;
     String imagePath = data.$2;
     String rotatedFilePath = data.$3;
     int angle = data.$4;
+    AppGlobals gIn = data.$5;
 
+    OpenCVHelper cvHelper = OpenCVHelper(gIn);
     Uint8List rotatedBytes = cvHelper.rotateImage(imagePath, angle);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
     sendPort.send(true);
