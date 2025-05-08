@@ -1014,8 +1014,32 @@ Future<void> initStoreInfo() async {
     );
   }
 
+  if (!available || response.notFoundIDs.contains("pro_upgrade")) {
+    deactivateProAfterWeekOffline();
+  }
+
   products.addAll(response.productDetails);
   iap.restorePurchases(); // activate listenToPurchaseUpdates() // does not work for license testing
+}
+
+deactivateProAfterWeekOffline() async {
+  final sStorage = FlutterSecureStorage();
+
+  final bool isSaved = 'true' == await sStorage.read(key: 'proUnlocked');
+  final String? savedDate = await sStorage.read(key: 'proUnlockedDate');
+
+  if (isSaved && savedDate != null) {
+    final unlockTime = DateTime.tryParse(savedDate);
+    final now = DateTime.now();
+
+    if (unlockTime != null && now.difference(unlockTime).inDays < 7) {
+      setPro(true); // still within grace period
+    } else {
+      setPro(false); // expired or unreadable
+    }
+  } else {
+    setPro(false); // no record
+  }
 }
 
 StreamSubscription<List<PurchaseDetails>>? subscription;
@@ -1141,17 +1165,22 @@ setPro(final bool proUnlockedIn) {
   bool showMessages = true;
   if (proUnlocked == proUnlockedIn) showMessages = false;
   proUnlocked = proUnlockedIn;
+
   final sStorage = FlutterSecureStorage();
   sStorage.write(
     key: 'proUnlocked',
     value: proUnlockedIn == true ? 'true' : 'false',
   );
+
+  if (proUnlockedIn) {
+    final now = DateTime.now().toIso8601String();
+    sStorage.write(key: 'proUnlockedDate', value: now);
+  }
+
   if (showMessages) {
-    if (proUnlockedIn == true) {
-      Fluttertoast.showToast(msg: 'PRO features unlocked!');
-    } else {
-      Fluttertoast.showToast(msg: 'PRO features disabled!');
-    }
+    Fluttertoast.showToast(
+      msg: proUnlockedIn ? 'PRO features unlocked!' : 'PRO features disabled!',
+    );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
 }
