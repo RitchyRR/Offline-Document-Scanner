@@ -42,6 +42,7 @@ dependencies:
   camera_platform_interface: 
   google_mobile_ads:
   encrypt:
+  shared_preferences:
 
 
 dev_dependencies:

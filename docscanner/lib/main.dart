@@ -1,10 +1,12 @@
 // design:
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 // monetization:
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -24,33 +26,13 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 // local:
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
+import 'package:docscanner/app_globals.dart';
 import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/opencv_helper.dart';
-
-// global variables:
-bool? proUnlocked;
-final GlobalNotifier globalNotifier = GlobalNotifier();
-final FilesHelper filesHelper = FilesHelper();
-final MetadataHelper metadataHelper = MetadataHelper();
-final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
-final AdsHelper adsHelper = AdsHelper();
-
-enum NotifierEvent {
-  loadPagesThumbnails,
-  loadDocsThumbnails,
-  loadPageMetadata,
-  pictureSaved,
-  warpSaved,
-  processed1Saved,
-  processed2Saved,
-  setState,
-}
-
-enum PopUpType { share, save, delete }
 
 void main() async {
+  AppGlobals();
   CameraPlatform.instance = AndroidCameraCameraX();
   WidgetsFlutterBinding.ensureInitialized();
   MobileAds.instance.initialize();
@@ -62,7 +44,7 @@ void main() async {
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
   ]);
-  runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
+  runApp(ChangeNotifierProvider.value(value: g.globalNotifier, child: MyApp()));
 }
 
 class GlobalNotifier extends ValueNotifier<NotifierEvent> {
@@ -135,7 +117,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> initAsync() async {
     Future.microtask(() {
       if (mounted) {
-        filesHelper.calculateScreenWidth(context);
+        g.filesHelper.calculateScreenWidth(context);
       } else {
         dev.log("Error, _MyAppState, initAsync(): not mounted");
       }
@@ -143,7 +125,7 @@ class _MyAppState extends State<MyApp> {
     final sStorage = FlutterSecureStorage();
     final proUnlockedString = await sStorage.read(key: 'proUnlocked');
     setState(() {
-      proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
+      g.proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
     });
   }
 
@@ -289,17 +271,17 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> _docThumbnails = [];
 
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
-    var newDoc = await filesHelper.createNewDocument(picturePaths.length);
+    var newDoc = await g.filesHelper.createNewDocument(picturePaths.length);
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
-    imageProcessingManager.processPages(docIndex, 0, picturePaths);
+    g.imageProcessingManager.processPages(docIndex, 0, picturePaths);
 
     // Creation Date
     final now = DateTime.now();
     _docDates.add("${now.year}-${now.month}-${now.day}");
     fixMetadataLengths(docIndex + 1);
-    metadataHelper.writeDocDate(
+    g.metadataHelper.writeDocDate(
       docIndex,
       _docDates[docIndex],
       supressWarnings: true,
@@ -313,11 +295,11 @@ class _MyHomePageState extends State<MyHomePage> {
     bool isMultiImage = false,
   }) async {
     List<String> picturePaths;
-    if (filesHelper.pickingImage) return;
+    if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       picturePaths = await _openCamera();
     } else {
-      picturePaths = await filesHelper.pickImage(
+      picturePaths = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
@@ -344,7 +326,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<List<String>> _openCamera() async {
-    filesHelper.pickingImage = true;
+    g.filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
     List<String> picturePaths = [];
     if (result is List<XFile>) {
@@ -352,7 +334,7 @@ class _MyHomePageState extends State<MyHomePage> {
         picturePaths.add(xfile.path);
       }
     }
-    filesHelper.pickingImage = false;
+    g.filesHelper.pickingImage = false;
     return picturePaths;
   }
 
@@ -393,27 +375,28 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
+    g.globalNotifier.addListener(_handleGlobalEvent);
     initAsync();
   }
 
   Future<void> initAsync() async {
     _receiveSharing();
     await _loadDocsDisplay(onInit: true);
+    await loadAvailableAspectRatios();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      filesHelper.repairDirectoryStructure(context);
+      g.filesHelper.repairDirectoryStructure(context);
     });
   }
 
   @override
   void dispose() {
-    globalNotifier.removeListener(_handleGlobalEvent);
+    g.globalNotifier.removeListener(_handleGlobalEvent);
     super.dispose();
   }
 
   void _handleGlobalEvent() {
     if (!mounted) return;
-    switch (globalNotifier.value) {
+    switch (g.globalNotifier.value) {
       case NotifierEvent.loadDocsThumbnails:
         _loadDocsDisplay();
         break;
@@ -431,22 +414,22 @@ class _MyHomePageState extends State<MyHomePage> {
   int _docsCount = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
     // Thumbnails
-    var thumbs = await filesHelper.getDocThumbnails();
+    var thumbs = await g.filesHelper.getDocThumbnails();
     List<String> thumbnailPaths = thumbs.$1;
     _docsCount = thumbs.$2;
     // Page Counts
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
-      _docPageCounts.add(await filesHelper.getPagesCount(docIndex));
+      _docPageCounts.add(await g.filesHelper.getPagesCount(docIndex));
       // reset ad supported doc/page unlocks
-      if (onInit) metadataHelper.writeDocUnlocked(docIndex, false);
+      if (onInit) g.metadataHelper.writeDocUnlocked(docIndex, false);
       for (
         var pageIndex = 0;
         pageIndex < _docPageCounts[docIndex];
         pageIndex++
       ) {
         if (onInit) {
-          metadataHelper.writePageUnlocked(docIndex, pageIndex, false);
+          g.metadataHelper.writePageUnlocked(docIndex, pageIndex, false);
         }
       }
     }
@@ -455,18 +438,19 @@ class _MyHomePageState extends State<MyHomePage> {
     _docDates = List.generate(_docsCount, (_) => "");
     _thumbnailRatios = List.generate(_docsCount, (_) => 1.0 / 1.414);
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
-      _docDates[docIndex] = (await metadataHelper.readDocDate(docIndex)) ?? "";
-      String? docName = await metadataHelper.readDocName(docIndex);
+      _docDates[docIndex] =
+          (await g.metadataHelper.readDocDate(docIndex)) ?? "";
+      String? docName = await g.metadataHelper.readDocName(docIndex);
       if (docName != null) {
         _docNames[docIndex] = docName;
       } else {
-        metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
+        g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
       }
 
       bool supressWarnings = onInit;
       if (thumbnailPaths[docIndex].isEmpty) supressWarnings = true;
-      int ratioIndex =
-          await MetadataHelper.readPageRatioIndex(
+      double ratioValue =
+          await MetadataHelper.readPageRatioValue(
             docIndex,
             0,
             supressWarnings: supressWarnings,
@@ -479,7 +463,6 @@ class _MyHomePageState extends State<MyHomePage> {
             supressWarnings: supressWarnings,
           ) ??
           0;
-      double ratioValue = commonAspectRatios[ratioIndex].value;
       _thumbnailRatios[docIndex] =
           orientationIndex == 0 ? 1.0 / ratioValue : ratioValue;
     }
@@ -620,6 +603,110 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _selectAspectRatios(BuildContext context) async {
+    // Make a temporary modifiable copy
+    List<bool> selectedStates =
+        commonAspectRatios
+            .map((aspect) => availableAspectRatios.contains(aspect))
+            .toList();
+
+    bool? selectionConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Select Aspect Ratios"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Select the aspect ratios "
+                  "that you want the app to be able to recognize "
+                  "and that you can manually select.",
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 300,
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: commonAspectRatios.length,
+                      itemBuilder: (context, index) {
+                        final aspect = commonAspectRatios[index];
+                        return CheckboxListTile(
+                          title: Text(aspect.name),
+                          subtitle: Text(aspect.description),
+                          value: selectedStates[index],
+                          onChanged: (bool? value) {
+                            selectedStates[index] = value ?? false;
+                            (context as Element)
+                                .markNeedsBuild(); // force UI refresh
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            ElevatedButton(
+              child: const Text("Update Selection"),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Save only if confirmed
+    if (selectionConfirmed == true) {
+      availableAspectRatios = [
+        for (int i = 0; i < commonAspectRatios.length; i++)
+          if (selectedStates[i]) commonAspectRatios[i],
+      ];
+      saveAvailableAspectRatios();
+    }
+  }
+
+  Future<void> saveAvailableAspectRatios() async {
+    final prefs = await SharedPreferences.getInstance();
+    final values =
+        availableAspectRatios.map((e) => e.value.toString()).toList();
+    await prefs.setStringList("availableAspectRatios", values);
+  }
+
+  Future<void> loadAvailableAspectRatios() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedValues = prefs.getStringList("availableAspectRatios");
+
+    if (savedValues == null || savedValues.isEmpty) {
+      // Default selection
+      availableAspectRatios =
+          commonAspectRatios
+              .where(
+                (e) =>
+                    e.value == math.sqrt(2) || // DIN
+                    e.value == 4 / 3 || // 4:3
+                    e.value == 16 / 9 || // 16:9
+                    e.value == 21 / 9, // 21:9
+              )
+              .toList();
+    } else {
+      availableAspectRatios =
+          commonAspectRatios
+              .where((e) => savedValues.contains(e.value.toString()))
+              .toList();
+    }
+  }
+
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -676,9 +763,34 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
+                  PopupMenuItem(
+                    value: "ratios",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.crop,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Aspect Ratios",
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
             onSelected: (String value) async {
               switch (value) {
+                case "pro":
+                  proPopup(context);
                 case "licenses":
                   showLicensePage(
                     context: context,
@@ -686,8 +798,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     //applicationVersion: '1.0.0',
                   );
                   break;
-                case "pro":
-                  proPopup(context);
+                case "ratios":
+                  _selectAspectRatios(context);
                   break;
               }
             },
@@ -1351,8 +1463,8 @@ class _PagesState extends State<Pages> {
       }
       bool supressWarnings_ = supressWarnings;
       if (thumbnailPaths[pageIndex].isEmpty) supressWarnings_ = true;
-      int ratioIndex =
-          await MetadataHelper.readPageRatioIndex(
+      double ratioValue =
+          await MetadataHelper.readPageRatioValue(
             widget.docIndex,
             pageIndex,
             supressWarnings: supressWarnings_,
@@ -1365,7 +1477,6 @@ class _PagesState extends State<Pages> {
             supressWarnings: supressWarnings_,
           ) ??
           0;
-      double ratioValue = commonAspectRatios[ratioIndex].value;
       _thumbnailRatios[pageIndex] =
           orientationIndex == 0 ? 1.0 / ratioValue : ratioValue;
     }
@@ -1969,8 +2080,8 @@ class PagePreviewState extends State<PagePreview> {
   String _picturePath = "";
   int _imageRetryKey = 0; // to refresh brokenImages
   // Reprocessing Parameters
-  int? _ratioIndex;
-  int? _newRatioIndex;
+  double? _ratioValue;
+  double? _newRatioValue;
   int? _orientation;
   int? _newOrientationIndex;
   int _totalRotation = 0;
@@ -2098,8 +2209,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _loadPageMeatadata({bool supressWarnings = false}) async {
-    _newRatioIndex =
-        _ratioIndex = await MetadataHelper.readPageRatioIndex(
+    _newRatioValue =
+        _ratioValue = await MetadataHelper.readPageRatioValue(
           widget.docIndex,
           widget.pageIndex,
           supressWarnings: supressWarnings,
@@ -2112,7 +2223,7 @@ class PagePreviewState extends State<PagePreview> {
         );
     if (mounted) {
       setState(() {
-        _newRatioIndex;
+        _newRatioValue;
         _newOrientationIndex;
       });
     }
@@ -2147,7 +2258,7 @@ class PagePreviewState extends State<PagePreview> {
 
   Future<void> _reprocessingSetup() async {
     _metadataBlocked = true;
-    _ratioIndex = null; // don't reset _new values, for uninterrupted display
+    _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientation = null;
     _totalRotation = 0;
     filesHelper.deleteProcessedVersionsOfPage(
@@ -2327,8 +2438,8 @@ class PagePreviewState extends State<PagePreview> {
               child: AspectRatio(
                 aspectRatio:
                     (((_orientation ?? 0) == 0)
-                        ? 1.0 / commonAspectRatios[_ratioIndex ?? 0].value
-                        : commonAspectRatios[_ratioIndex ?? 0].value),
+                        ? 1.0 / (_ratioValue ?? math.sqrt(2))
+                        : (_ratioValue ?? math.sqrt(2))),
                 child: Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -2774,7 +2885,7 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
-          ((_ratioIndex == _newRatioIndex) &&
+          ((_ratioValue == _newRatioValue) &&
               (_orientation == _newOrientationIndex) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
@@ -2799,7 +2910,7 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
-    int? ratioIndex = metadata.$1;
+    double? ratioValue = metadata.$1;
     int? orientationIndex = metadata.$2;
     int? thumbnailIndex = metadata.$3;
     //List<List<int>>? cornerPoints = metadata.$4;
@@ -2823,7 +2934,7 @@ class PagePreviewState extends State<PagePreview> {
     await MetadataHelper.writePageMetadata(
       widget.docIndex,
       widget.pageIndex,
-      _newRatioIndex,
+      _newRatioValue,
       _newOrientationIndex,
       null,
       newCornerPoints,
@@ -2831,7 +2942,7 @@ class PagePreviewState extends State<PagePreview> {
 
     // Compare old and new metadata -> only rotation?
 
-    if (ratioIndex != _newRatioIndex) onlyRotation = false;
+    if (ratioValue != _newRatioValue) onlyRotation = false;
     int quarterTurns = (_totalRotation ~/ 90) % 4;
     if (quarterTurns.isEven && orientationIndex != _newOrientationIndex ||
         quarterTurns.isOdd && orientationIndex == _newOrientationIndex) {
@@ -2863,7 +2974,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
-        customCorners ? null : _newRatioIndex,
+        customCorners ? null : _newRatioValue,
         customCorners ? null : _newOrientationIndex,
         thumbnailIndex,
         newCornerPoints,
@@ -2905,6 +3016,10 @@ class PagePreviewState extends State<PagePreview> {
 
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
+    int? initialIndex = availableAspectRatios.indexWhere(
+      (element) => element.value == _newRatioValue,
+    );
+    initialIndex = initialIndex != -1 ? initialIndex : null;
     return Container(
       constraints: const BoxConstraints(maxHeight: height, minHeight: height),
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -2922,14 +3037,14 @@ class PagePreviewState extends State<PagePreview> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon(Icons.arrow_drop_down, color: Colors.black),
-          value: _newRatioIndex,
+          value: initialIndex, //_newRatioValue,
           items: List.generate(
-            commonAspectRatios.length,
+            availableAspectRatios.length,
             (i) => DropdownMenuItem(
               alignment: Alignment.center,
               value: i,
               child: Text(
-                commonAspectRatios[i].name,
+                availableAspectRatios[i].name,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
@@ -2938,8 +3053,12 @@ class PagePreviewState extends State<PagePreview> {
               _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
-                    if (newValue != null && newValue != _newRatioIndex) {
-                      setState(() => _newRatioIndex = newValue);
+                    if (newValue != null && newValue != _newRatioValue) {
+                      setState(
+                        () =>
+                            _newRatioValue =
+                                availableAspectRatios[newValue].value,
+                      );
                     }
                   },
         ),

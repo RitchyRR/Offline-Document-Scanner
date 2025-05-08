@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/main.dart';
@@ -982,15 +983,16 @@ class FilesHelper {
     }
 
     // Metadata
-    List<int> ratioIndexes = [];
+    List<double> ratioValues = [];
     List<int> orientations = [];
     if (pageIndexes.isEmpty) {
       pageIndexes = List.generate(imagePaths.length, (index) => index);
     }
 
     for (var pageIndex in pageIndexes) {
-      ratioIndexes.add(
-        await MetadataHelper.readPageRatioIndex(docIndex, pageIndex) ?? 0,
+      ratioValues.add(
+        await MetadataHelper.readPageRatioValue(docIndex, pageIndex) ??
+            math.sqrt(2),
       );
       orientations.add(
         await MetadataHelper.readPageOrientationIndex(docIndex, pageIndex) ?? 0,
@@ -1001,12 +1003,13 @@ class FilesHelper {
       // Select Aspect ratio
       double width = 21.0 * PdfPageFormat.cm;
       // 1. Get common width (shared across pages)
-      for (int ratioIndex in ratioIndexes) {
-        if (ratioIndex == 0) // A4
+      for (double ratioValue in ratioValues) {
+        if (ratioValue == math.sqrt(2)) // A4
         {
           width = 21.0 * PdfPageFormat.cm;
           break;
-        } else if (ratioIndex == 1 || ratioIndex == 2) // Legal / Letter
+        } else if (ratioValue == 11 / 8.5 ||
+            ratioValue == 14 / 8.5) // Letter / Legal
         {
           width = 8.5 * PdfPageFormat.inch;
           break;
@@ -1014,7 +1017,7 @@ class FilesHelper {
       }
       // 2. Set correct aspect ratio
       List<PdfPageFormat> pageFormats = [];
-      for (var (i, ratioIndex) in ratioIndexes.indexed) {
+      for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
           final image = await decodeImageFromList(
@@ -1024,9 +1027,7 @@ class FilesHelper {
           height = width * photoRatio;
         } else {
           height =
-              (orientations[i] == 0)
-                  ? width * commonAspectRatios[ratioIndex].value
-                  : width / commonAspectRatios[ratioIndex].value;
+              (orientations[i] == 0) ? width * ratioValue : width / ratioValue;
         }
         pageFormats.add(PdfPageFormat(width, height));
       }
@@ -1352,7 +1353,6 @@ class FilesHelper {
     String imagePath = data.$2;
     String rotatedFilePath = data.$3;
     int angle = data.$4;
-    OpenCVHelper cvHelper = OpenCVHelper();
 
     Uint8List rotatedBytes = cvHelper.rotateImage(imagePath, angle);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);

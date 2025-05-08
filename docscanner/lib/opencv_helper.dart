@@ -3,45 +3,10 @@ import 'dart:typed_data';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
-class AspectRatioInfo {
-  final String name;
-  final String description;
-  final double value;
-
-  AspectRatioInfo(this.name, this.description, this.value);
-}
-
-final List<AspectRatioInfo> commonAspectRatios = [
-  //// International Standard (ISO 216 - A, B, C series)
-  AspectRatioInfo("DIN", "DIN A/B/C (√2:1)", math.sqrt(2)), // ~1.414
-  //// North American Paper Sizes (Letter, Legal, etc.)
-  AspectRatioInfo("Letter", "Letter (8.5x11″, US)", 11 / 8.5), // ~1.294
-  AspectRatioInfo("Legal", "Legal (8.5x14″, US)", 14 / 8.5), // ~1.647
-  AspectRatioInfo(
-    "Tabloid",
-    "Tabloid / Ledger (11x17″, US)",
-    17 / 11,
-  ), // ~1.545
-  //// Cards & Paper
-  AspectRatioInfo("Business Card", "Business Card (3.5x2″)", 3.5 / 2), // 1.75
-  AspectRatioInfo(
-    "Credit Card",
-    "Credit Card (ISO/ID-1, 85.6x53.98 mm)",
-    85.6 / 53.98,
-  ), // ~1.586
-  AspectRatioInfo("Square", "1:1 Square (Notes, Covers)", 1.0), // 1.0
-  //// Photo & Monitors
-  AspectRatioInfo("5:4", "5:4 (Photo, Old Monitors)", 5 / 4), // 1.25
-  AspectRatioInfo("4:3", "4:3 (Photo)", 4 / 3), // 1.333
-  AspectRatioInfo("16:9", "16:9 (Video, Widescreen)", 16 / 9), // ~1.777
-  AspectRatioInfo("16:10", "16:10 (Widescreen)", 16 / 10), // 1.6
-  AspectRatioInfo("21:9", "21:9 (Ultrawide, Cinema)", 21 / 9), // ~2.333
-];
-
 class ParamsWarpImage {
   String pathIn = "";
   String shape;
-  int? inRatioIndex;
+  double? ratioValueIn;
   int? orientation;
   List<List<int>>? cornerPoints;
   bool onlyCalculateBorder;
@@ -49,7 +14,7 @@ class ParamsWarpImage {
   ParamsWarpImage(
     this.pathIn,
     this.shape, {
-    this.inRatioIndex,
+    this.ratioValueIn,
     this.orientation,
     this.cornerPoints,
     this.onlyCalculateBorder = false,
@@ -78,7 +43,11 @@ class OpenCVHelper {
   var borderCutIn = List<int>.generate(4, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  (Uint8List, Uint8List, List<int>, int, int, List<List<int>>) warpImage(
+  List<double> availableAspectRatioValues;
+  OpenCVHelper(availableAspectRatioValuesIn)
+    : availableAspectRatioValues = availableAspectRatioValuesIn;
+
+  (Uint8List, Uint8List, List<int>, double, int, List<List<int>>) warpImage(
     ParamsWarpImage params,
   ) {
     cv.Mat imageMat = _loadImage(params.pathIn);
@@ -87,21 +56,21 @@ class OpenCVHelper {
     final warpedRes = _warpImage(
       imageMat,
       shape,
-      params.inRatioIndex,
+      params.ratioValueIn,
       params.orientation,
       params.cornerPoints,
       params.onlyCalculateBorder,
     );
     cv.Mat? warped = warpedRes.$1;
     shape = warpedRes.$2;
-    int ratioIndex = warpedRes.$3;
+    double ratioValue = warpedRes.$3;
     int orientation = warpedRes.$4;
     List<List<int>> cornerPoints = warpedRes.$5;
     return (
       _returnImage(warped),
       _returnImage(shape),
       borderCorrectionDepth,
-      ratioIndex,
+      ratioValue,
       orientation,
       cornerPoints,
     );
@@ -193,16 +162,16 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, cv.Mat, int, int, List<List<int>>) _warpImage(
+  (cv.Mat?, cv.Mat, double, int, List<List<int>>) _warpImage(
     cv.Mat imageMat,
     cv.Mat? shape,
-    int? ratioIndexIn,
+    double? ratioValueIn,
     int? orientationIn,
     List<List<int>>? cornerPointsIn,
     bool onlyCalculateBorder,
   ) {
     List<List<int>> corners = cornerPointsIn ?? [];
-    int ratioIndex = ratioIndexIn ?? 0;
+    double ratioValue = ratioValueIn ?? math.sqrt(2);
     int orientation = orientationIn ?? 0;
     bool customCorners = cornerPointsIn != null;
 
@@ -222,19 +191,19 @@ class OpenCVHelper {
       // 3. Corner detection
       corners = _detectCorners(shape);
     }
-    if (ratioIndexIn == null || orientationIn == null) {
+    if (ratioValueIn == null || orientationIn == null) {
       // 4. Perspective transformation
       final traffo = _calculateTransformation(
         shape,
         corners,
-        ratioIndexIn,
+        ratioValueIn,
         orientationIn,
         noBoderCutin: customCorners,
       );
-      ratioIndex = traffo.$1;
+      ratioValue = traffo.$1;
       orientation = traffo.$2;
     } else {
-      double ratio = commonAspectRatios[ratioIndex].value;
+      double ratio = ratioValue;
       ratio = (orientation == 0 ? ratio : 1.0 / ratio);
       _setHeightFromCorners(corners, ratio);
       //cv.Mat warpedShape = _transformImage(shape, corners);
@@ -248,7 +217,7 @@ class OpenCVHelper {
     }
     imageMat.dispose();
 
-    return (warped, shape, ratioIndex, orientation, corners);
+    return (warped, shape, ratioValue, orientation, corners);
   }
 
   /// Filter Image 1: subtract background quickly
@@ -647,33 +616,29 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  (int, int) _calculateTransformation(
+  (double, int) _calculateTransformation(
     cv.Mat shape,
     List<List<int>> corners,
-    int? inRatioIndex,
-    int? orientationIndex, {
+    double? ratioIn,
+    int? orientationIndexIn, {
     bool noBoderCutin = false,
   }) {
     // Estimate aspect ratio
-    double ratio = 0.0;
-    ratio =
-        (inRatioIndex != null)
-            ? commonAspectRatios[inRatioIndex].value
-            : _calculateAspectRatio(corners);
+    double newRatio = 0.0;
+    newRatio = (ratioIn != null) ? ratioIn : _calculateAspectRatio(corners);
     final matchedRatio = _matchAspectRatioAndOrientation(
-      ratio,
-      inRatioIndex,
-      orientationIndex,
+      newRatio,
+      ratioIn,
+      orientationIndexIn,
     );
-    ratio = matchedRatio.$1;
-    final ratioIndex = matchedRatio.$2;
-    orientationIndex = matchedRatio.$3;
+    newRatio = matchedRatio.$1;
+    orientationIndexIn = matchedRatio.$2;
 
-    _setHeightFromCorners(corners, ratio);
+    _setHeightFromCorners(corners, newRatio);
 
     _calculateBorderSize(shape, corners, noBoderCutin: noBoderCutin);
 
-    return (ratioIndex, orientationIndex);
+    return (newRatio, orientationIndexIn);
   }
 
   void _calculateBorderSize(
@@ -806,42 +771,40 @@ class OpenCVHelper {
     return ratio;
   }
 
-  (double, int, int) _matchAspectRatioAndOrientation(
-    double inputAspectRatio,
-    int? inRatioIndex,
-    int? orientation,
+  (double, int) _matchAspectRatioAndOrientation(
+    double calculatedValueIn,
+    double? metadataValueIn,
+    int? orientationIn,
   ) {
-    if (orientation == null) {
-      orientation = 0;
-      if (inputAspectRatio < 1.0) {
-        orientation = 1;
+    if (orientationIn == null) {
+      orientationIn = 0;
+      if (calculatedValueIn < 1.0) {
+        orientationIn = 1;
       }
     }
-    if (orientation == 1) {
-      inputAspectRatio = 1.0 / inputAspectRatio;
+    if (orientationIn == 1) {
+      calculatedValueIn = 1.0 / calculatedValueIn;
     }
     // find closest match
-    int matchIndex = 0;
-    if (inRatioIndex != null) {
-      matchIndex = inRatioIndex;
+    double matchingValue = math.sqrt(2);
+    if (metadataValueIn != null) {
+      matchingValue = metadataValueIn;
     } else {
       double smallestDifference = double.infinity;
-      for (var (index, ratioInfo) in commonAspectRatios.indexed) {
-        double difference = (ratioInfo.value - inputAspectRatio).abs();
+      for (var value in availableAspectRatioValues) {
+        double difference = (value - calculatedValueIn).abs();
         if (difference < smallestDifference) {
           smallestDifference = difference;
-          matchIndex = index;
+          matchingValue = value;
         }
       }
     }
     //dev.log(
-    //  "Aspect Ratio: ${commonAspectRatios[matchIndex].name}: ${commonAspectRatios[matchIndex].value} (${inRatioIndex == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
+    //  "Aspect Ratio: ${availableAspectRatios[matchIndex].name}: ${availableAspectRatios[matchIndex].value} (${ratioValueIn == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
     //);
     double matchingRatio =
-        orientation == 0
-            ? commonAspectRatios[matchIndex].value
-            : 1.0 / commonAspectRatios[matchIndex].value;
-    return (matchingRatio, matchIndex, orientation);
+        orientationIn == 0 ? matchingValue : 1.0 / matchingValue;
+    return (matchingRatio, orientationIn);
   }
 
   // Step 4.1.1: Set Border Corrections

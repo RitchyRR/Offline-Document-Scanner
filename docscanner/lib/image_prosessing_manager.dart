@@ -34,7 +34,7 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       String newPicturePath,
-      int? ratioIndexIn,
+      double? ratioValueIn,
       int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
@@ -53,7 +53,7 @@ class ImageProcessingManager {
     int pageIndex = data.$6;
     String newPicturePath = data.$7;
 
-    int? ratioIndexIn = data.$8;
+    double? ratioValueIn = data.$8;
     int? orientationIndexIn = data.$9;
     int? pageThumbnailIndexIn = data.$10;
     List<List<int>>? cornerPointsIn = data.$11;
@@ -64,7 +64,6 @@ class ImageProcessingManager {
       throw StateError('thumbnail cant be the picture');
     }
 
-    OpenCVHelper cvHelper = OpenCVHelper();
     List<String> versionPaths = List.generate(4, (index) => "");
 
     // Original
@@ -89,7 +88,7 @@ class ImageProcessingManager {
       ParamsWarpImage(
         versionPaths[0],
         shapePath,
-        inRatioIndex: ratioIndexIn,
+        ratioValueIn: ratioValueIn,
         orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
       ),
@@ -101,13 +100,13 @@ class ImageProcessingManager {
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
-    int ratioIndex = warpedRet.$4;
+    double ratioValue = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
     await MetadataHelper.writePageMetadata(
       docIndex,
       pageIndex,
-      ratioIndex,
+      ratioValue,
       orientationIndex,
       (proUnlockedIn == true) ? 3 : 2,
       cornerPoints,
@@ -166,7 +165,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String pathIn,
-    int? ratioIndexIn,
+    double? ratioValueIn,
     int? orientationIndexIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
@@ -214,7 +213,7 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       newPhotoPath,
-      ratioIndexIn,
+      ratioValueIn,
       orientationIndexIn,
       pageThumbnailIndex,
       cornerPointsIn,
@@ -262,7 +261,7 @@ class ImageProcessingManager {
       FilesHelper filesHelperIn,
       int docIndex,
       int pageIndex,
-      int? ratioIndexIn,
+      double? ratioValueIn,
       int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
@@ -277,7 +276,7 @@ class ImageProcessingManager {
     int docIndex = data.$4;
     int pageIndex = data.$5;
 
-    int? ratioIndexIn = data.$6;
+    double? ratioValueIn = data.$6;
     int? orientationIndexIn = data.$7;
     int? pageThumbnailIndexIn = data.$8;
     List<List<int>>? cornerPointsIn = data.$9;
@@ -303,7 +302,7 @@ class ImageProcessingManager {
       ParamsWarpImage(
         versionPaths[0],
         shapePath,
-        inRatioIndex: ratioIndexIn,
+        ratioValueIn: ratioValueIn,
         orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
         onlyCalculateBorder: versionPaths[1].isNotEmpty,
@@ -316,13 +315,13 @@ class ImageProcessingManager {
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
-    int ratioIndex = warpedRet.$4;
+    double ratioValue = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
     await MetadataHelper.writePageMetadata(
       docIndex,
       pageIndex,
-      ratioIndex,
+      ratioValue,
       orientationIndex,
       (proUnlockedIn == true) ? 3 : 2,
       cornerPoints,
@@ -498,7 +497,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String pathIn,
-    int? ratioIndexIn,
+    double? ratioValueIn,
     int? orientationIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
@@ -509,7 +508,7 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       pathIn,
-      ratioIndexIn,
+      ratioValueIn,
       orientationIn,
       pageThumbnailIndex,
       cornerPointsIn,
@@ -525,7 +524,7 @@ class ImageProcessingManager {
 
     // Read Matadata
     var metadata = await metadataHelper.readPageMetadata(docIndex, pageIndex);
-    int? ratioIndex = metadata.$1;
+    double? ratioValue = metadata.$1;
     int? orientationIndex = metadata.$2;
     int? thumbnailIndex = metadata.$3;
     List<List<int>>? cornerPoints = metadata.$4;
@@ -541,7 +540,7 @@ class ImageProcessingManager {
       filesHelper,
       docIndex,
       pageIndex,
-      ratioIndex,
+      ratioValue,
       orientationIndex,
       thumbnailIndex,
       cornerPoints,

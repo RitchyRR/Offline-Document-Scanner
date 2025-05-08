@@ -244,7 +244,7 @@ class MetadataHelper {
   static Future<void> writePageMetadata(
     int docIndex,
     int pageIndex,
-    int? ratioIndex,
+    double? ratioValue,
     int? orientationIndex,
     int? thumbnailIndex,
     List<List<int>>? cornerPoints, {
@@ -269,7 +269,7 @@ class MetadataHelper {
 
     try {
       // Write
-      if (ratioIndex != null) metadata["aspectRatio"] = (ratioIndex).toString();
+      if (ratioValue != null) metadata["aspectRatio"] = ratioValue.toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
       metadata["thumbnail"] =
@@ -288,12 +288,12 @@ class MetadataHelper {
     }
   }
 
-  Future<(int?, int?, int?, List<List<int>>?)> readPageMetadata(
+  Future<(double?, int?, int?, List<List<int>>?)> readPageMetadata(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
   }) async {
-    int? ratioIndex;
+    double? ratioValue;
     int? orientationIndex;
     int? thumbnailIndex;
     List<List<int>>? cornerPoints;
@@ -307,7 +307,7 @@ class MetadataHelper {
       try {
         String content = await file.readAsString();
         metadata = jsonDecode(content).cast<String, dynamic>();
-        ratioIndex = int.tryParse(metadata["aspectRatio"]);
+        ratioValue = double.tryParse(metadata["aspectRatio"]);
         String orientationString = metadata["orientation"];
         orientationIndex =
             (orientationString == "portrait" || orientationString == "")
@@ -326,7 +326,7 @@ class MetadataHelper {
                   )
                   .toList();
         }
-        return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
+        return (ratioValue, orientationIndex, thumbnailIndex, cornerPoints);
       } catch (e) {
         dev.log("Error, readPageMetadata: $e");
       }
@@ -335,7 +335,7 @@ class MetadataHelper {
         "Warning, readPageMetadata: Metadata does not exist for $pagePath",
       );
     }
-    return (ratioIndex, orientationIndex, thumbnailIndex, cornerPoints);
+    return (ratioValue, orientationIndex, thumbnailIndex, cornerPoints);
   }
 
   static Future<void> writePageThumbnailIndex(
@@ -396,7 +396,7 @@ class MetadataHelper {
     await _writePage(docIndex, pageIndex, "corners", cornerPoints);
   }
 
-  static Future<int?> readPageRatioIndex(
+  static Future<double?> readPageRatioValue(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
@@ -408,7 +408,7 @@ class MetadataHelper {
       supressWarnings: supressWarnings,
     );
     if (value is String) {
-      return int.tryParse(value);
+      return double.tryParse(value);
     } else {
       return null;
     }
