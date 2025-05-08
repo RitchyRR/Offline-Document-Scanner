@@ -331,11 +331,15 @@ class MetadataHelper {
   static Future<void> writePageThumbnailIndex(
     int docIndex,
     int pageIndex,
-    int thumbnailIndex,
-  ) async {
-    if (thumbnailIndex == 0) return;
+    int thumbnailIndexIn, {
+    bool tmpPro = false,
+  }) async {
+    if (thumbnailIndexIn == 0) return;
+    if (thumbnailIndexIn == 3 && !(proUnlocked == true) && !tmpPro) {
+      thumbnailIndexIn = 2;
+    }
     bool updateThumbnail = false; // is new
-    String newThumbnailName = versionNames[thumbnailIndex];
+    String newThumbnailName = versionNames[thumbnailIndexIn];
     String pagePath = await filesHelper.getPagePath(docIndex, pageIndex);
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
@@ -354,7 +358,7 @@ class MetadataHelper {
       if ((metadata["thumbnail"] != null
               ? versionNames.indexOf(metadata["thumbnail"])
               : ((proUnlocked == true) ? 3 : 2)) !=
-          thumbnailIndex) {
+          thumbnailIndexIn) {
         updateThumbnail = true;
       }
 
@@ -363,7 +367,7 @@ class MetadataHelper {
         imageProcessingManager.applyThumbnail(
           docIndex,
           pageIndex,
-          thumbnailIndex,
+          thumbnailIndexIn,
         );
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
@@ -430,11 +434,12 @@ class MetadataHelper {
       "thumbnail",
       supressWarnings: supressWarnings,
     );
-    if (value is int) {
-      if (value == 0) {
+    if (value is String) {
+      int thumbnailIndex = versionNames.indexOf(value);
+      if (thumbnailIndex == 0) {
         throw StateError('metadata: thumbnail cant be the picture');
       }
-      return value;
+      return thumbnailIndex;
     } else {
       return (proUnlocked == true) ? 3 : 2;
     }

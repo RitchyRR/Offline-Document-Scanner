@@ -2191,6 +2191,7 @@ class PagePreviewState extends State<PagePreview> {
             widget.docIndex,
             widget.pageIndex,
             _selectedVersion,
+            tmpPro: _pageUnlocked,
           );
           if (!didPop) Navigator.of(context).pop();
         }
