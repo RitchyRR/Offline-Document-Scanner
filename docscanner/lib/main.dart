@@ -998,10 +998,10 @@ final List<ProductDetails> products = [];
 Future<void> initStoreInfo() async {
   final bool available = await iap.isAvailable();
   if (!available) {
-    setPro(false);
     dev.log("Error, initStoreInfo: In-App-Purchases not available");
     return;
   }
+  listenToPurchaseUpdates();
 
   const Set<String> productNames = {"pro_upgrade"};
   final ProductDetailsResponse response = await iap.queryProductDetails(
@@ -1009,56 +1009,67 @@ Future<void> initStoreInfo() async {
   );
 
   if (response.notFoundIDs.isNotEmpty) {
-    setPro(false);
     dev.log(
       "Error, initStoreInfo: Product IDs not forund: ${response.notFoundIDs}",
     );
   }
+
   products.addAll(response.productDetails);
-  await checkIfProIsUnlocked();
-  listenToPurchaseUpdates();
+  iap.restorePurchases(); // activate listenToPurchaseUpdates() // does not work for license testing
 }
 
 StreamSubscription<List<PurchaseDetails>>? subscription;
 void listenToPurchaseUpdates() {
-  subscription = iap.purchaseStream.listen((purchases) {
-    for (var purchase in purchases) {
-      switch (purchase.productID) {
-        case "pro_upgrade":
-          switch (purchase.status) {
-            case PurchaseStatus.purchased:
-            case PurchaseStatus.restored:
-              setPro(true);
-              break;
-            case PurchaseStatus.error:
-            case PurchaseStatus.pending:
-            case PurchaseStatus.canceled:
-              //setPro(false);
-              break;
-          }
-          break;
-        default:
-          switch (purchase.status) {
-            default:
-              break;
-          }
-          break;
+  subscription = iap.purchaseStream.listen(
+    (purchases) async {
+      for (var purchase in purchases) {
+        switch (purchase.productID) {
+          case "pro_upgrade":
+            switch (purchase.status) {
+              case PurchaseStatus.purchased:
+              case PurchaseStatus.restored:
+                if (purchase.pendingCompletePurchase) {
+                  await iap.completePurchase(purchase);
+                }
+                setPro(true);
+                break;
+              case PurchaseStatus.error:
+                if (purchase.error != null) {
+                  if (purchase.error!.message ==
+                      "BillingResponse.itemAlreadyOwned") {
+                    setPro(true);
+                  } else {
+                    setPro(false);
+                  }
+                }
+              case PurchaseStatus.pending:
+                break;
+              case PurchaseStatus.canceled:
+                setPro(false);
+                break;
+            }
+            break;
+          default:
+            switch (purchase.status) {
+              case PurchaseStatus.error:
+                if (purchase.error != null) {
+                  if (purchase.error!.message ==
+                      "BillingResponse.itemAlreadyOwned") {
+                    setPro(true);
+                  }
+                }
+                break;
+              default:
+                break;
+            }
+            break;
+        }
       }
-    }
-  });
-}
-
-Future<void> checkIfProIsUnlocked() async {
-  ProductDetails? proUpgrade;
-  try {
-    proUpgrade = products[0];
-  } catch (e) {
-    dev.log("Error, buyPro: proUpgrade not available: $e");
-  }
-  final PurchaseParam? purchaseParam =
-      proUpgrade != null ? PurchaseParam(productDetails: proUpgrade) : null;
-  await iap.restorePurchases(
-    applicationUserName: purchaseParam?.applicationUserName,
+    },
+    onDone: () => subscription?.cancel(),
+    onError: (error) {
+      dev.log("purchaseStream error: $error");
+    },
   );
 }
 
