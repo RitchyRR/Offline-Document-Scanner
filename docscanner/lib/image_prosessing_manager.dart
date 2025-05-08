@@ -686,11 +686,6 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
     final primaryCompleter = Completer<void>();
 
-    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
-    while (isolates.length >= maxIsolates) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
-
     Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
       port.sendPort,
       filesHelper,

@@ -636,13 +636,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         SizedBox(width: 8),
                         Icon(
-                          Icons.lock,
+                          proUnlocked == true ? Icons.info : Icons.lock,
                           color:
                               Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
                         SizedBox(width: 10),
                         Text(
-                          "Unlock PRO",
+                          proUnlocked == true ? "PRO features" : "Unlock PRO",
                           style: TextStyle(
                             color:
                                 Theme.of(
@@ -1015,6 +1015,7 @@ Future<void> initStoreInfo() async {
     );
   }
   products.addAll(response.productDetails);
+  await checkIfProIsUnlocked();
   listenToPurchaseUpdates();
 }
 
@@ -1029,19 +1030,15 @@ void listenToPurchaseUpdates() {
             case PurchaseStatus.restored:
               setPro(true);
               break;
+            case PurchaseStatus.error:
             case PurchaseStatus.pending:
-              break;
-            default:
-              setPro(false);
+            case PurchaseStatus.canceled:
+              //setPro(false);
               break;
           }
           break;
         default:
           switch (purchase.status) {
-            case PurchaseStatus.canceled:
-            case PurchaseStatus.error:
-              setPro(false);
-              break;
             default:
               break;
           }
@@ -1049,6 +1046,20 @@ void listenToPurchaseUpdates() {
       }
     }
   });
+}
+
+Future<void> checkIfProIsUnlocked() async {
+  ProductDetails? proUpgrade;
+  try {
+    proUpgrade = products[0];
+  } catch (e) {
+    dev.log("Error, buyPro: proUpgrade not available: $e");
+  }
+  final PurchaseParam? purchaseParam =
+      proUpgrade != null ? PurchaseParam(productDetails: proUpgrade) : null;
+  await iap.restorePurchases(
+    applicationUserName: purchaseParam?.applicationUserName,
+  );
 }
 
 Future<bool> buyPro() async {
@@ -1072,20 +1083,39 @@ Future<bool> proPopup(BuildContext context) async {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text("Unlock PRO features"),
-        content: Text(
-          "Save and share multi page PDFs.\n"
-          "Get access to the PRO filter.",
+        title:
+            proUnlocked == true
+                ? Text("PRO features:")
+                : Text("Unlock PRO features"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              " •  Save and share multi page PDFs.\n"
+              " •  Get access to the PRO filter.",
+            ),
+            (proUnlocked == true)
+                ? Text("\nThank you for your support! :)")
+                : SizedBox(),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text("Purchase", style: TextStyle(color: Colors.green)),
-          ),
+          proUnlocked == true
+              ? ElevatedButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text("OK", style: TextStyle(color: Colors.green)),
+              )
+              : TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text("Cancel"),
+              ),
+          proUnlocked == true
+              ? SizedBox()
+              : ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text("Purchase", style: TextStyle(color: Colors.green)),
+              ),
         ],
       );
     },
@@ -2116,7 +2146,7 @@ class PagePreviewState extends State<PagePreview> {
         return AlertDialog(
           title: Text("Unlock PRO filter"),
           content: Text(
-            "You have selected the PRO filter, by selecting its thumbnail "
+            "You have selected the PRO filter, by selecting it"
             "and then trying to leave this page.\n\n"
             "To get access, first unlock PRO features.\n\n"
             "Alternatively select a different version before leaving.",
