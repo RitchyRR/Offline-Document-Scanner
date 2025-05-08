@@ -257,6 +257,16 @@ class MetadataHelper {
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
+    // Read
+    if (await file.exists()) {
+      try {
+        String content = await file.readAsString();
+        metadata = jsonDecode(content).cast<String, dynamic>();
+      } catch (e) {
+        dev.log("Error, writePageMetadata, reading: $e");
+      }
+    }
+
     try {
       // Write
       if (ratioIndex != null) metadata["aspectRatio"] = (ratioIndex).toString();
