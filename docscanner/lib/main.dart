@@ -48,7 +48,6 @@ class GlobalNotifier extends ValueNotifier<NotifierEvent> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  g.filesHelper; // initialise
   CameraPlatform.instance = AndroidCameraCameraX();
   MobileAds.instance.initialize();
   // Play Test Ads
@@ -2914,13 +2913,12 @@ class PagePreviewState extends State<PagePreview> {
     bool customCorners = false;
 
     // Read Matadata
-    var metadata = await g.metadataHelper.readPageMetadata(
+    var metadata = await g.metadataHelper.readPageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
     );
     double? ratioValue = metadata.$1;
     int? orientationIndex = metadata.$2;
-    int? thumbnailIndex = metadata.$3;
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
@@ -2939,12 +2937,11 @@ class PagePreviewState extends State<PagePreview> {
       customCorners = true;
     }
 
-    await MetadataHelper.writePageMetadata(
+    await MetadataHelper.writePageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
       _newRatioValue,
       _newOrientationIndex,
-      null,
       newCornerPoints,
     );
 
@@ -2973,7 +2970,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        thumbnailIndex ?? (g.proUnlocked == true ? 3 : 2),
+        (g.proUnlocked == true ? 3 : 2),
       );
       _totalRotation = 0;
     } else {
@@ -2984,7 +2981,7 @@ class PagePreviewState extends State<PagePreview> {
         _versionPaths[0], // potentially rotated image
         customCorners ? null : _newRatioValue,
         customCorners ? null : _newOrientationIndex,
-        thumbnailIndex,
+        (g.proUnlocked == true ? 3 : 2),
         newCornerPoints,
         _totalRotation,
       );

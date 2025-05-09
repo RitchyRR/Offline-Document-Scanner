@@ -106,12 +106,11 @@ class ImageProcessingManager {
     double ratioValue = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
-    await MetadataHelper.writePageMetadata(
+    await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
       ratioValue,
       orientationIndex,
-      null,
       cornerPoints,
       gIn: g,
     );
@@ -276,7 +275,6 @@ class ImageProcessingManager {
       int pageIndex,
       double? ratioValueIn,
       int? orientationIndexIn,
-      int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       AppGlobals g,
     )
@@ -290,13 +288,8 @@ class ImageProcessingManager {
 
     double? ratioValueIn = data.$5;
     int? orientationIndexIn = data.$6;
-    int? pageThumbnailIndexIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    AppGlobals g = data.$9;
-
-    if (pageThumbnailIndexIn == 0) {
-      throw StateError('thumbnail cant be the picture');
-    }
+    List<List<int>>? cornerPointsIn = data.$7;
+    AppGlobals g = data.$8;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
@@ -330,12 +323,11 @@ class ImageProcessingManager {
     double ratioValue = warpedRet.$4;
     int orientationIndex = warpedRet.$5;
     List<List<int>> cornerPoints = warpedRet.$6;
-    await MetadataHelper.writePageMetadata(
+    await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
       ratioValue,
       orientationIndex,
-      (g.proUnlocked == true) ? 3 : 2,
       cornerPoints,
       gIn: g,
     );
@@ -383,14 +375,14 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
-      int thumbnailIndex =
-          pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
+      int thumbnailIndex = ((g.proUnlocked == true) ? 3 : 2);
       bool newThumbnail = await _scaleAndSaveThumbnail(
         sendPort,
         docIndex,
         pageIndex,
         thumbnailIndex,
         g,
+        overwrite: false,
       );
       if (newThumbnail) {
         await MetadataHelper.writePageThumbnailIndex(
@@ -546,11 +538,13 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
 
     // Read Matadata
-    var metadata = await g.metadataHelper.readPageMetadata(docIndex, pageIndex);
-    double? ratioValue = metadata.$1;
-    int? orientationIndex = metadata.$2;
-    int? thumbnailIndex = metadata.$3;
-    List<List<int>>? cornerPoints = metadata.$4;
+    var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
+      docIndex,
+      pageIndex,
+    );
+    double? ratioValue = processingMetadata.$1;
+    int? orientationIndex = processingMetadata.$2;
+    List<List<int>>? cornerPoints = processingMetadata.$3;
 
     while (isolates.length >= maxIsolates) {
       await Future.delayed(Duration(milliseconds: 100));
@@ -564,7 +558,6 @@ class ImageProcessingManager {
       pageIndex,
       ratioValue,
       orientationIndex,
-      thumbnailIndex,
       cornerPoints,
       g,
     ));
@@ -702,7 +695,6 @@ class ImageProcessingManager {
       g,
       overwrite: false,
     );
-
     if (newThumbnail) {
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,

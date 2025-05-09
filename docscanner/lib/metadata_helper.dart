@@ -235,12 +235,11 @@ class MetadataHelper {
     }
   }
 
-  static Future<void> writePageMetadata(
+  static Future<void> writePageProcessingMetadata(
     int docIndex,
     int pageIndex,
     double? ratioValue,
     int? orientationIndex,
-    int? thumbnailIndex,
     List<List<int>>? cornerPoints, {
     AppGlobals? gIn,
   }) async {
@@ -266,12 +265,6 @@ class MetadataHelper {
       if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
-      if (thumbnailIndex != null) {
-        metadata["thumbnail"] =
-            versionNames[thumbnailIndex != 0
-                ? thumbnailIndex
-                : ((g.proUnlocked == true) ? 3 : 2)];
-      }
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
@@ -283,14 +276,13 @@ class MetadataHelper {
     }
   }
 
-  Future<(double, int?, int?, List<List<int>>?)> readPageMetadata(
+  Future<(double?, int?, List<List<int>>?)> readPageProcessingMetadata(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
   }) async {
-    double ratioValue = math.sqrt2;
+    double? ratioValue;
     int? orientationIndex;
-    int? thumbnailIndex;
     List<List<int>>? cornerPoints;
 
     String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
@@ -302,7 +294,7 @@ class MetadataHelper {
       final encryptedContent = file.readAsStringSync();
       metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       try {
-        ratioValue = double.tryParse(metadata["aspectRatio"]) ?? math.sqrt2;
+        ratioValue = double.tryParse(metadata["aspectRatio"]);
       } catch (e) {
         dev.log("Error, readPageMetadata, ratioValue: $e");
       }
@@ -314,17 +306,6 @@ class MetadataHelper {
                 : 1;
       } catch (e) {
         dev.log("Error, readPageMetadata, orientationString: $e");
-      }
-      try {
-        String? thumbnailString = metadata["thumbnail"];
-        if (thumbnailString != null) {
-          thumbnailIndex = versionNames.indexOf(thumbnailString);
-          if (thumbnailIndex == 0) {
-            throw StateError('metadata: thumbnail cant be the picture');
-          }
-        }
-      } catch (e) {
-        dev.log("Error, readPageMetadata, thumbnailString: $e");
       }
       try {
         cornerPoints =
@@ -341,7 +322,7 @@ class MetadataHelper {
         "Warning, readPageMetadata: Metadata does not exist for $pagePath",
       );
     }
-    return (ratioValue, orientationIndex, thumbnailIndex, cornerPoints);
+    return (ratioValue, orientationIndex, cornerPoints);
   }
 
   static Future<void> writePageThumbnailIndex(

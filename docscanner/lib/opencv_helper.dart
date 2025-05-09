@@ -165,31 +165,29 @@ class OpenCVHelper {
   (cv.Mat?, cv.Mat, double, int, List<List<int>>) _warpImage(
     cv.Mat imageMat,
     cv.Mat? shape,
-    double? ratioValueIn,
-    int? orientationIn,
-    List<List<int>>? cornerPointsIn,
-    bool onlyCalculateBorder,
+    final double? ratioValueIn,
+    final int? orientationIn,
+    final List<List<int>>? cornerPointsIn,
+    final bool onlyCalculateBorder,
   ) {
-    List<List<int>> corners = cornerPointsIn ?? [];
-    double ratioValue = ratioValueIn ?? math.sqrt2;
-    int orientation = orientationIn ?? 0;
-    bool customCorners = cornerPointsIn != null;
+    List<List<int>> corners;
+    double ratioValue;
+    int orientation;
 
     if (shape == null) {
       // 1. Isolate remove Text and Images to get Shape
       cv.Mat? bg = _removeTextAndImages(imageMat);
-      //return (bg, 0, 0, corners);
 
       // 2. create a binary image, white representing the shape of the document
       shape = _documentMask(bg);
-      //return (shape, 0, 0, corners);
       bg.dispose();
       bg = null;
-      //return (shape, 0, 0, corners);
     }
-    if (!customCorners) {
+    if (cornerPointsIn == null) {
       // 3. Corner detection
       corners = _detectCorners(shape);
+    } else {
+      corners = cornerPointsIn;
     }
     if (ratioValueIn == null || orientationIn == null) {
       // 4. Perspective transformation
@@ -198,17 +196,20 @@ class OpenCVHelper {
         corners,
         ratioValueIn,
         orientationIn,
-        noBoderCutin: customCorners,
+        noBoderCutin: cornerPointsIn != null,
       );
       ratioValue = traffo.$1;
       orientation = traffo.$2;
     } else {
-      double ratio = ratioValue;
-      ratio = (orientation == 0 ? ratio : 1.0 / ratio);
-      _setHeightFromCorners(corners, ratio);
+      orientation = orientationIn;
+      ratioValue = (orientation == 0 ? ratioValueIn : 1.0 / ratioValueIn);
+      _setHeightFromCorners(corners, ratioValue);
       //cv.Mat warpedShape = _transformImage(shape, corners);
-      //return (warpedShape, 0, 0, corners);
-      _calculateBorderSize(shape, corners, noBoderCutin: customCorners);
+      _calculateBorderSize(
+        shape,
+        corners,
+        noBoderCutin: cornerPointsIn != null,
+      );
     }
 
     cv.Mat? warped;
@@ -624,21 +625,22 @@ class OpenCVHelper {
     bool noBoderCutin = false,
   }) {
     // Estimate aspect ratio
-    double newRatio = 0.0;
-    newRatio = (ratioIn != null) ? ratioIn : _calculateAspectRatio(corners);
+    double calculatedRatio = 0.0;
+    calculatedRatio =
+        (ratioIn != null) ? ratioIn : _calculateAspectRatio(corners);
     final matchedRatio = _matchAspectRatioAndOrientation(
-      newRatio,
+      calculatedRatio,
       ratioIn,
       orientationIndexIn,
     );
-    newRatio = matchedRatio.$1;
+    calculatedRatio = matchedRatio.$1;
     orientationIndexIn = matchedRatio.$2;
 
-    _setHeightFromCorners(corners, newRatio);
+    _setHeightFromCorners(corners, calculatedRatio);
 
     _calculateBorderSize(shape, corners, noBoderCutin: noBoderCutin);
 
-    return (newRatio, orientationIndexIn);
+    return (calculatedRatio, orientationIndexIn);
   }
 
   void _calculateBorderSize(
@@ -772,27 +774,27 @@ class OpenCVHelper {
   }
 
   (double, int) _matchAspectRatioAndOrientation(
-    double calculatedValueIn,
-    double? metadataValueIn,
-    int? orientationIn,
+    double calculatedRatioIn,
+    double? metadataRatioIn,
+    int? orientationIndexIn,
   ) {
-    if (orientationIn == null) {
-      orientationIn = 0;
-      if (calculatedValueIn < 1.0) {
-        orientationIn = 1;
+    if (orientationIndexIn == null) {
+      orientationIndexIn = 0;
+      if (calculatedRatioIn < 1.0) {
+        orientationIndexIn = 1;
       }
     }
-    if (orientationIn == 1) {
-      calculatedValueIn = 1.0 / calculatedValueIn;
+    if (orientationIndexIn == 1) {
+      calculatedRatioIn = 1.0 / calculatedRatioIn;
     }
     // find closest match
     double matchingValue = math.sqrt2;
-    if (metadataValueIn != null) {
-      matchingValue = metadataValueIn;
+    if (metadataRatioIn != null) {
+      matchingValue = metadataRatioIn;
     } else {
       double smallestDifference = double.infinity;
       for (var availableRatio in g.availableAspectRatios) {
-        double difference = (availableRatio.value - calculatedValueIn).abs();
+        double difference = (availableRatio.value - calculatedRatioIn).abs();
         if (difference < smallestDifference) {
           smallestDifference = difference;
           matchingValue = availableRatio.value;
@@ -803,8 +805,8 @@ class OpenCVHelper {
     //  "Aspect Ratio: ${availableAspectRatios[matchIndex].name}: ${availableAspectRatios[matchIndex].value} (${ratioValueIn == null ? "calculated: $inputAspectRatio, " : ""}${portrait ? "portrait" : "horizontal"})",
     //);
     double matchingRatio =
-        orientationIn == 0 ? matchingValue : 1.0 / matchingValue;
-    return (matchingRatio, orientationIn);
+        orientationIndexIn == 0 ? matchingValue : 1.0 / matchingValue;
+    return (matchingRatio, orientationIndexIn);
   }
 
   // Step 4.1.1: Set Border Corrections
