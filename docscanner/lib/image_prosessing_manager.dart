@@ -2,6 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'package:docscanner/app_globals.dart';
+import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
@@ -66,7 +67,7 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(sendPort, p.dirname(versionPaths[0]));
+    _deleteScaledThumbnail(sendPort, p.dirname(newPicturePath));
     // Original
     versionPaths[0] = newPicturePath;
     // Re-use Shape
@@ -600,7 +601,10 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(sendPort, p.dirname(versionPaths[0]));
+    _deleteScaledThumbnail(
+      sendPort,
+      await g.filesHelper.getPagePath(docIndex, pageIndex),
+    );
 
     /// 1. save rotated picture
 
@@ -779,11 +783,14 @@ class ImageProcessingManager {
     }
   }
 
-  static _deleteScaledThumbnail(SendPort? sendPort, String pagePath) {
+  static Future<void> _deleteScaledThumbnail(
+    SendPort? sendPort,
+    String pagePath,
+  ) async {
     for (FileSystemEntity fse in Directory(pagePath).listSync()) {
       if (fse.path.contains("thumbnail")) {
         String oldThumbnailPath = fse.path;
-        File(oldThumbnailPath).delete();
+        await File(oldThumbnailPath).delete();
       }
     }
   }
