@@ -65,6 +65,8 @@ class ImageProcessingManager {
     List<String> versionPaths = List.generate(4, (index) => "");
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    // Delete old Thumbnail
+    _deleteScaledThumbnail(sendPort, p.dirname(versionPaths[0]));
     // Original
     versionPaths[0] = newPicturePath;
     // Re-use Shape
@@ -597,6 +599,9 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    // Delete old Thumbnail
+    _deleteScaledThumbnail(sendPort, p.dirname(versionPaths[0]));
+
     /// 1. save rotated picture
 
     File rotatedPictureFile = File(versionPaths[0]);
@@ -665,6 +670,7 @@ class ImageProcessingManager {
       sendPort,
       versionPaths[pageThumbnailIndexIn],
       g.filesHelper.screenWidth,
+      overwrite: false,
     );
 
     sendPort.send('done');
@@ -770,6 +776,15 @@ class ImageProcessingManager {
     } else {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
       sendPort.send(NotifierEvent.loadDocsThumbnails);
+    }
+  }
+
+  static _deleteScaledThumbnail(SendPort? sendPort, String pagePath) {
+    for (FileSystemEntity fse in Directory(pagePath).listSync()) {
+      if (fse.path.contains("thumbnail")) {
+        String oldThumbnailPath = fse.path;
+        File(oldThumbnailPath).delete();
+      }
     }
   }
 
