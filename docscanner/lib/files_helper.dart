@@ -658,22 +658,26 @@ class FilesHelper {
     List<String> versionPaths = ["", "", "", ""];
     String shapePath = "";
     String thumbnailPath = "";
-    List<FileSystemEntity> versionsFSE =
-        (Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path)));
-    for (var fse in versionsFSE) {
-      for (var (versionIndex, versionName) in versionNames.indexed) {
-        if (fse.path.contains(versionName)) {
-          versionPaths[versionIndex] = fse.path;
-          break;
+    try {
+      List<FileSystemEntity> versionsFSE =
+          (Directory(pagePath).listSync()
+            ..sort((a, b) => a.path.compareTo(b.path)));
+      for (var fse in versionsFSE) {
+        for (var (versionIndex, versionName) in versionNames.indexed) {
+          if (fse.path.contains(versionName)) {
+            versionPaths[versionIndex] = fse.path;
+            break;
+          }
+        }
+        if (fse.path.contains("shape")) {
+          shapePath = fse.path;
+        }
+        if (fse.path.contains("thumbnail")) {
+          thumbnailPath = fse.path;
         }
       }
-      if (fse.path.contains("shape")) {
-        shapePath = fse.path;
-      }
-      if (fse.path.contains("thumbnail")) {
-        thumbnailPath = fse.path;
-      }
+    } catch (e) {
+      dev.log("Error, getImagePathsForPage: $e");
     }
 
     return (versionPaths, shapePath, thumbnailPath);

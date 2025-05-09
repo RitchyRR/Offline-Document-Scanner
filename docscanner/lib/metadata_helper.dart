@@ -266,10 +266,12 @@ class MetadataHelper {
       if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
       metadata["orientation"] =
           orientationIndex == 0 ? "portrait" : "landscape";
-      metadata["thumbnail"] =
-          versionNames[thumbnailIndex != null && thumbnailIndex != 0
-              ? thumbnailIndex
-              : ((g.proUnlocked == true) ? 3 : 2)];
+      if (thumbnailIndex != null) {
+        metadata["thumbnail"] =
+            versionNames[thumbnailIndex != 0
+                ? thumbnailIndex
+                : ((g.proUnlocked == true) ? 3 : 2)];
+      }
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
@@ -346,15 +348,24 @@ class MetadataHelper {
     int docIndex,
     int pageIndex,
     int thumbnailIndexIn, {
+    AppGlobals? gIn,
     bool tmpPro = false,
   }) async {
+    bool isIsolate = false;
+    if (gIn != null) isIsolate = true;
+
     if (thumbnailIndexIn == 0) return;
-    if (thumbnailIndexIn == 3 && !(g.proUnlocked == true) && !tmpPro) {
+    if (thumbnailIndexIn == 3 &&
+        !(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) &&
+        !tmpPro) {
       thumbnailIndexIn = 2;
     }
     bool updateThumbnail = false; // is new
     String newThumbnailName = versionNames[thumbnailIndexIn];
-    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath =
+        await (isIsolate
+            ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
+            : g.filesHelper.getPagePath(docIndex, pageIndex));
     final file = File('$pagePath/metadata.json');
     Map<String, dynamic> metadata = {};
 
@@ -371,18 +382,15 @@ class MetadataHelper {
       }
       if ((metadata["thumbnail"] != null
               ? versionNames.indexOf(metadata["thumbnail"])
-              : ((g.proUnlocked == true) ? 3 : 2)) !=
+              : ((isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true)
+                  ? 3
+                  : 2)) !=
           thumbnailIndexIn) {
         updateThumbnail = true;
       }
 
       // Write + Encrypt
       if (updateThumbnail) {
-        g.imageProcessingManager.applyThumbnail(
-          docIndex,
-          pageIndex,
-          thumbnailIndexIn,
-        );
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
         await file.writeAsString(encrypted);

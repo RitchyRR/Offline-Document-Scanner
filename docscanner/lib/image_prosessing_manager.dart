@@ -2,7 +2,6 @@
 import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'package:docscanner/app_globals.dart';
-import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'
@@ -62,6 +61,8 @@ class ImageProcessingManager {
       throw StateError('thumbnail cant be the picture');
     }
     AppGlobals g = data.$13;
+    int thumbnailIndex =
+        pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
 
     List<String> versionPaths = List.generate(4, (index) => "");
     OpenCVHelper cvHelper = OpenCVHelper(g);
@@ -110,7 +111,7 @@ class ImageProcessingManager {
       pageIndex,
       ratioValue,
       orientationIndex,
-      (g.proUnlocked == true) ? 3 : 2,
+      null,
       cornerPoints,
       gIn: g,
     );
@@ -152,12 +153,23 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
-    await _saveScaledThumbnail(
+    bool newThumbnail = await _scaleAndSaveThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
-      g.filesHelper.screenWidth,
+      docIndex,
+      pageIndex,
+      thumbnailIndex,
+      g,
       overwrite: !isPrimary,
     );
+
+    if (newThumbnail) {
+      await MetadataHelper.writePageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        thumbnailIndex,
+        gIn: g,
+      );
+    }
 
     sendPort.send('done');
   }
@@ -371,11 +383,23 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
-      await _saveScaledThumbnail(
+      int thumbnailIndex =
+          pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
+      bool newThumbnail = await _scaleAndSaveThumbnail(
         sendPort,
-        versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
-        g.filesHelper.screenWidth,
+        docIndex,
+        pageIndex,
+        thumbnailIndex,
+        g,
       );
+      if (newThumbnail) {
+        await MetadataHelper.writePageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          thumbnailIndex,
+          gIn: g,
+        );
+      }
     }
 
     sendPort.send('done');
@@ -670,12 +694,23 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
-    await _saveScaledThumbnail(
+    bool newThumbnail = await _scaleAndSaveThumbnail(
       sendPort,
-      versionPaths[pageThumbnailIndexIn],
-      g.filesHelper.screenWidth,
+      docIndex,
+      pageIndex,
+      pageThumbnailIndexIn,
+      g,
       overwrite: false,
     );
+
+    if (newThumbnail) {
+      await MetadataHelper.writePageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        pageThumbnailIndexIn,
+        gIn: g,
+      );
+    }
 
     sendPort.send('done');
   }
@@ -725,21 +760,29 @@ class ImageProcessingManager {
     await primaryCompleter.future;
   }
 
-  static Future<void> _saveScaledThumbnail(
+  static Future<bool> _scaleAndSaveThumbnail(
     SendPort? sendPort,
-    String pathIn,
-    int screenWidth, {
+    int docIndex,
+    int pageIndex,
+    int thumbnailIndex,
+    AppGlobals gIn, {
     bool overwrite = true,
   }) async {
-    String pagePath = p.dirname(pathIn);
-    String pathOut =
+    int screenWidth = gIn.filesHelper.screenWidth;
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
+    String versionPath = await gIn.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      thumbnailIndex,
+    );
+    String thumbnailPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
-    File fileIn = File(pathIn);
-    File fileOut = File(pathOut);
+    File versionFile = File(versionPath);
+    File thumbnailFile = File(thumbnailPath);
 
-    if (!fileIn.existsSync()) {
-      dev.log("Error, writeScaledThumbnail: $pathIn does not exist");
-      return;
+    if (!versionFile.existsSync()) {
+      dev.log("Error, writeScaledThumbnail: $versionPath does not exist");
+      return false;
     } else {
       for (FileSystemEntity fse in Directory(pagePath).listSync()) {
         if (fse.path.contains("thumbnail")) {
@@ -749,13 +792,13 @@ class ImageProcessingManager {
             File(oldThumbnailPath).deleteSync();
           } else {
             dev.log("Thumbnail already exists, won't overwrite thumbnail.");
-            return;
+            return false;
           }
         }
       }
     }
     // Read
-    Uint8List imageBytes = await fileIn.readAsBytes();
+    Uint8List imageBytes = await versionFile.readAsBytes();
     img.Image? selectedVersion = img.decodeImage(imageBytes);
     if (selectedVersion == null) {
       throw StateError("selectedVersion used for thumbnail does not exist");
@@ -771,7 +814,7 @@ class ImageProcessingManager {
     );
 
     // Save
-    fileOut.writeAsBytesSync(img.encodePng(resized));
+    thumbnailFile.writeAsBytesSync(img.encodePng(resized));
 
     // Update thumbnails:
     if (sendPort == null) {
@@ -781,6 +824,8 @@ class ImageProcessingManager {
       sendPort.send(NotifierEvent.loadPagesThumbnails);
       sendPort.send(NotifierEvent.loadDocsThumbnails);
     }
+
+    return true;
   }
 
   static Future<void> _deleteScaledThumbnail(
@@ -795,13 +840,13 @@ class ImageProcessingManager {
     }
   }
 
-  static Future<void> _applyThumbnailIsolate(
+  static Future<void> _saveNewThumbnailIsolate(
     (
       SendPort sendPort,
       int docIndex,
       int pageIndex,
       int thumbnailIndex,
-      AppGlobals g,
+      AppGlobals gIn,
     )
     data,
   ) async {
@@ -809,26 +854,32 @@ class ImageProcessingManager {
     int docIndex = data.$2;
     int pageIndex = data.$3;
     int thumbnailIndex = data.$4;
-    AppGlobals g = data.$5;
+    AppGlobals gIn = data.$5;
 
-    var imagePaths = await g.filesHelper.getImagePathsForPage(
+    await _scaleAndSaveThumbnail(
+      sendPort,
       docIndex,
       pageIndex,
-    );
-    List<String> versionPaths = imagePaths.$1;
-    await _saveScaledThumbnail(
-      sendPort,
-      versionPaths[thumbnailIndex],
-      g.filesHelper.screenWidth,
+      thumbnailIndex,
+      gIn,
     );
     sendPort.send('done');
   }
 
-  Future<void> applyThumbnail(
+  Future<void> saveNewThumbnail(
     int docIndex,
     int pageIndex,
-    int thumbnailIndex,
-  ) async {
+    int thumbnailIndex, {
+    bool tmpPro = false,
+  }) async {
+    MetadataHelper.writePageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      thumbnailIndex,
+      gIn: g,
+      tmpPro: tmpPro,
+    );
+
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
 
@@ -836,7 +887,7 @@ class ImageProcessingManager {
       await Future.delayed(Duration(milliseconds: 100));
     }
 
-    Isolate isolate = await Isolate.spawn(_applyThumbnailIsolate, (
+    Isolate isolate = await Isolate.spawn(_saveNewThumbnailIsolate, (
       port.sendPort,
       docIndex,
       pageIndex,

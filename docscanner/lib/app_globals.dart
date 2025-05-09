@@ -9,7 +9,9 @@ class AppGlobals {
   factory AppGlobals() {
     return _instance;
   }
-  AppGlobals._internal(); // private constructor
+  AppGlobals._internal() {
+    filesHelper;
+  } // private constructor
 
   bool? proUnlocked;
   final FilesHelper filesHelper = FilesHelper();

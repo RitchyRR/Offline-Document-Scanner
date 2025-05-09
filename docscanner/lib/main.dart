@@ -2347,6 +2347,7 @@ class PagePreviewState extends State<PagePreview> {
         );
       },
     );
+    // Pop after Ad watched:
     //if (selectedUnlock == true) {
     //  // PostFrameCallback necessary for allowPop to register
     //  WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -2373,7 +2374,7 @@ class PagePreviewState extends State<PagePreview> {
           _popOnProFilterPopup(context);
         } else {
           // new thumbnail
-          MetadataHelper.writePageThumbnailIndex(
+          g.imageProcessingManager.saveNewThumbnail(
             widget.docIndex,
             widget.pageIndex,
             _selectedVersion,
