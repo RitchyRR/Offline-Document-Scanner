@@ -222,8 +222,8 @@ class _MyAppState extends State<MyApp> {
             useMaterial3: true,
             appBarTheme: AppBarTheme(
               systemOverlayStyle: SystemUiOverlayStyle(
-                systemNavigationBarColor: Colors.transparent, // Navigation bar
-                statusBarColor: Colors.transparent, // Status bar
+                systemNavigationBarColor: Colors.transparent,
+                statusBarColor: Colors.transparent,
                 statusBarIconBrightness: Brightness.dark,
               ),
             ),
@@ -243,8 +243,8 @@ class _MyAppState extends State<MyApp> {
             useMaterial3: true,
             appBarTheme: AppBarTheme(
               systemOverlayStyle: SystemUiOverlayStyle(
-                systemNavigationBarColor: Colors.transparent, // Navigation bar
-                statusBarColor: Colors.transparent, // Status bar
+                systemNavigationBarColor: Colors.transparent,
+                statusBarColor: Colors.transparent,
                 statusBarIconBrightness: Brightness.light,
               ),
             ),
@@ -4484,6 +4484,7 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isFlashOn = false;
   final List<XFile> _capturedImages = [];
+  final List<Uint8List> _imageBytesList = [];
   double _cameraAspectRatio = 3 / 4;
 
   @override
@@ -4528,6 +4529,12 @@ class _CameraScreenState extends State<CameraScreen> {
     if (mounted && context.mounted) setState(() {});
   }
 
+  Future<void> _setFlash(bool setFlash) async {
+    _isFlashOn = setFlash;
+    await _controller?.setFlashMode(setFlash ? FlashMode.torch : FlashMode.off);
+    if (mounted && context.mounted) setState(() {});
+  }
+
   bool _cameraFlash = false;
   Future<void> _takePicture() async {
     if (_controller == null || _controller!.value.isTakingPicture) {
@@ -4542,12 +4549,14 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _cameraFlash = false;
       });
+      _imageBytesList.add(await image.readAsBytes());
     } catch (e) {
       dev.log("Error taking picture: $e");
     }
   }
 
   void _openPhotosGrid(BuildContext context) {
+    _setFlash(false);
     showModalBottomSheet(
       backgroundColor: ColorScheme.dark().surface,
       showDragHandle: true,
@@ -4559,31 +4568,42 @@ class _CameraScreenState extends State<CameraScreen> {
       builder:
           (_) => StatefulBuilder(
             builder: (context, setStateDialog) {
-              if (_capturedImages.isEmpty) Navigator.pop(context);
+              if (_imageBytesList.isEmpty) Navigator.pop(context);
               return Padding(
-                padding: const EdgeInsets.only(top: 24),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
                 child: GridView.builder(
-                  itemCount: _capturedImages.length,
+                  cacheExtent: 1000,
+                  addRepaintBoundaries: false,
+                  itemCount: _imageBytesList.length + 3,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    crossAxisSpacing: 1,
-                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 3,
+                    mainAxisSpacing: 3,
                   ),
-                  itemBuilder: (_, index) {
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        splashColor: Colors.white,
-                        highlightColor: Colors.white,
-                        onTap: () {
-                          _openFullscreenViewer(index, setStateDialog);
-                          setStateDialog(() {});
-                        },
-                        child: Image.file(
-                          File(_capturedImages[index].path),
-                          fit: BoxFit.cover,
+                  itemBuilder: (context, index) {
+                    if (index >= _capturedImages.length) {
+                      return SizedBox();
+                    }
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.memory(
+                            _imageBytesList[index],
+                            fit: BoxFit.cover,
+                          ),
                         ),
-                      ),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            splashColor: Colors.white30,
+                            highlightColor: Colors.white10,
+                            onTap: () {
+                              _openFullscreenViewer(index, setStateDialog);
+                              setStateDialog(() {});
+                            },
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -4789,57 +4809,90 @@ class _CameraScreenState extends State<CameraScreen> {
   _openFullscreenViewer(
     int initialIndex,
     Function(void Function()) setStateGallery,
-  ) {
+  ) async {
     PageController controller = PageController(initialPage: initialIndex);
 
-    showDialog(
+    await showDialog(
       context: context,
+      barrierColor: Colors.black,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(
+            return Expanded(
+              child: Scaffold(
                 backgroundColor: Colors.transparent,
-                leading: IconButton(
-                  tooltip: 'Back',
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                actions: [
-                  IconButton(
-                    tooltip: 'Delete Photo',
-                    icon: Icon(Icons.delete, color: Colors.white),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      int index = controller.page!.round();
-                      setState(() {
-                        _capturedImages.removeAt(index);
-                      });
-                      setStateGallery(() {});
-                      if (_capturedImages.isEmpty) {
-                        Navigator.pop(context);
-                      } else {
-                        setStateDialog(() {});
-                      }
-                    },
+                appBar: AppBar(
+                  backgroundColor: Colors.black,
+                  leading: IconButton(
+                    tooltip: 'Back',
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                ],
-              ),
-              body: PhotoViewGallery.builder(
-                pageController: controller,
-                scrollPhysics: const PageScrollPhysics(),
-                backgroundDecoration: BoxDecoration(color: Colors.transparent),
-                itemCount: _capturedImages.length,
-                builder: (context, index) {
-                  // Processed Images
-                  return PhotoViewGalleryPageOptions(
-                    imageProvider: FileImage(File(_capturedImages[index].path)),
-                    filterQuality: FilterQuality.high,
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: 1.0,
-                  );
-                },
+                  actions: [
+                    IconButton(
+                      tooltip: 'Delete Photo',
+                      icon: Icon(Icons.delete, color: Colors.white),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        int index = controller.page!.round();
+                        setState(() {
+                          _capturedImages.removeAt(index);
+                        });
+                        setStateGallery(() {});
+                        if (_capturedImages.isEmpty) {
+                          Navigator.pop(context);
+                        } else {
+                          setStateDialog(() {});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                body: PhotoViewGallery.builder(
+                  pageController: controller,
+                  scrollPhysics: const PageScrollPhysics(),
+                  backgroundDecoration: BoxDecoration(
+                    color: Colors.transparent,
+                  ),
+                  itemCount: _capturedImages.length,
+                  builder: (context, index) {
+                    // Processed Images
+                    return PhotoViewGalleryPageOptions(
+                      imageProvider: FileImage(
+                        File(_capturedImages[index].path),
+                      ),
+                      filterQuality: FilterQuality.high,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: 1.0,
+                    );
+                  },
+                ),
+                //floatingActionButton: Padding(
+                //  padding: const EdgeInsets.fromLTRB(0, 0, 20, 100),
+                //  child: Column(
+                //    mainAxisAlignment: MainAxisAlignment.end,
+                //    children: <Widget>[
+                //      FloatingActionButton(
+                //        heroTag: "deletePhoto",
+                //        tooltip: 'Delete Photo',
+                //        onPressed: () {
+                //          HapticFeedback.lightImpact();
+                //          int index = controller.page!.round();
+                //          setState(() {
+                //            _capturedImages.removeAt(index);
+                //          });
+                //          setStateGallery(() {});
+                //          if (_capturedImages.isEmpty) {
+                //            Navigator.pop(context);
+                //          } else {
+                //            setStateDialog(() {});
+                //          }
+                //        },
+                //        child: const Icon(Icons.delete, color: Colors.white),
+                //      ),
+                //    ],
+                //  ),
+                //),
               ),
             );
           },
