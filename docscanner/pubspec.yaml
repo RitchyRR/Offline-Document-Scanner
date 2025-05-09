@@ -43,6 +43,7 @@ dependencies:
   google_mobile_ads:
   encrypt:
   shared_preferences:
+  permission_handler: 
 
 
 dev_dependencies:

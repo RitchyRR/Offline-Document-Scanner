@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import 'package:camera/camera.dart';
 import 'package:camera_android_camerax/camera_android_camerax.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:permission_handler/permission_handler.dart';
 // local:
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 // my packages:
@@ -2384,7 +2385,7 @@ class PagePreviewState extends State<PagePreview> {
             _selectedVersion,
             tmpPro: _pageUnlocked,
           );
-          if (!didPop) Navigator.of(context).pop();
+          if (!didPop) Navigator.pop(context);
         }
       },
       child: Scaffold(
@@ -4488,8 +4489,8 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isFlashOn = false;
   final List<XFile> _capturedImages = [];
-  final List<Uint8List> _imageBytesList = [];
   double _cameraAspectRatio = 3 / 4;
+  PermissionStatus _permissionStatus = PermissionStatus.denied;
 
   @override
   void initState() {
@@ -4498,31 +4499,68 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final backCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.back,
-      orElse: () => cameras.first,
+    _permissionStatus = await Permission.camera.request();
+
+    if (_permissionStatus.isGranted) {
+      final cameras = await availableCameras();
+      final backCamera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      _controller = CameraController(
+        backCamera,
+        ResolutionPreset.max,
+        enableAudio: false,
+      );
+      await _controller!.initialize();
+
+      final size = _controller!.value.previewSize!;
+      _cameraAspectRatio = size.height / size.width;
+
+      if (mounted) setState(() {});
+    } else if (_permissionStatus.isPermanentlyDenied) {
+      await showSettingsRedirectDialog();
+    }
+  }
+
+  Future<void> showSettingsRedirectDialog() async {
+    final bool? settingsOpened = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Camera Permission Needed'),
+            content: Text(
+              'Please enable camera access from your device settings.',
+            ),
+            actions: [
+              TextButton(
+                child: Text('Cancel'),
+                onPressed: () {
+                  Navigator.pop(context, false);
+                },
+              ),
+              ElevatedButton(
+                child: Text('Open Settings'),
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(context, true);
+                },
+              ),
+            ],
+          ),
     );
-
-    _controller = CameraController(
-      backCamera,
-      ResolutionPreset.max,
-      enableAudio: false,
-    );
-
-    await _controller!.initialize();
-
-    final size = _controller!.value.previewSize!;
-    _cameraAspectRatio = size.height / size.width;
-
-    if (mounted) setState(() {});
+    if (settingsOpened != true && mounted && context.mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
-  void dispose() async {
-    super.dispose();
-    await _controller?.setFlashMode(FlashMode.off);
+  void dispose() {
+    _controller?.setFlashMode(FlashMode.off);
     _controller?.dispose();
+    super.dispose();
   }
 
   Future<void> _toggleFlash() async {
@@ -4541,6 +4579,10 @@ class _CameraScreenState extends State<CameraScreen> {
 
   bool _cameraFlash = false;
   Future<void> _takePicture() async {
+    if (_permissionStatus != PermissionStatus.granted) {
+      if (mounted) _initializeCamera();
+    }
+
     if (_controller == null || _controller!.value.isTakingPicture) {
       return;
     }
@@ -4553,7 +4595,6 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _cameraFlash = false;
       });
-      _imageBytesList.add(await image.readAsBytes());
     } catch (e) {
       dev.log("Error taking picture: $e");
     }
@@ -4572,13 +4613,13 @@ class _CameraScreenState extends State<CameraScreen> {
       builder:
           (_) => StatefulBuilder(
             builder: (context, setStateDialog) {
-              if (_imageBytesList.isEmpty) Navigator.pop(context);
+              if (_capturedImages.isEmpty) Navigator.pop(context);
               return Padding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
                 child: GridView.builder(
                   cacheExtent: 1000,
                   addRepaintBoundaries: false,
-                  itemCount: _imageBytesList.length + 3,
+                  itemCount: _capturedImages.length + 3,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     crossAxisSpacing: 3,
@@ -4591,8 +4632,8 @@ class _CameraScreenState extends State<CameraScreen> {
                     return Stack(
                       children: [
                         Positioned.fill(
-                          child: Image.memory(
-                            _imageBytesList[index],
+                          child: Image.file(
+                            File(_capturedImages[index].path),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -4603,7 +4644,6 @@ class _CameraScreenState extends State<CameraScreen> {
                             highlightColor: Colors.white10,
                             onTap: () {
                               _openFullscreenViewer(index, setStateDialog);
-                              setStateDialog(() {});
                             },
                           ),
                         ),
@@ -4645,15 +4685,6 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isPressingCaptureButton = false;
   @override
   Widget build(BuildContext context) {
-    if (_controller == null) {
-      Future.microtask(() async {
-        await Future.delayed(Duration(seconds: 5));
-        if (_controller == null && mounted && context.mounted) {
-          Navigator.pop(context);
-        }
-      });
-    }
-
     bool allowPop = _capturedImages.isEmpty;
     return PopScope(
       canPop: allowPop,
@@ -4662,7 +4693,7 @@ class _CameraScreenState extends State<CameraScreen> {
           HapticFeedback.heavyImpact();
           if (await _leaveConfirmationDialog() && mounted && context.mounted) {
             allowPop = true;
-            Navigator.of(context).pop();
+            Navigator.pop(context);
           }
         }
       },
@@ -4694,14 +4725,21 @@ class _CameraScreenState extends State<CameraScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Camera Preview
-            Stack(
-              children: [
-                _controller != null
-                    ? CameraPreview(_controller!)
-                    : const Center(child: CircularProgressIndicator()),
-                AspectRatio(
-                  aspectRatio: _cameraAspectRatio,
-                  child: Stack(
+            AspectRatio(
+              aspectRatio: _cameraAspectRatio,
+              child: Stack(
+                children: [
+                  _controller != null
+                      ? CameraPreview(_controller!)
+                      : Positioned.fill(
+                        child: Container(
+                          color: ColorScheme.dark().surface,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                  Stack(
                     children: [
                       _cameraFlash
                           ? Positioned.fill(
@@ -4711,8 +4749,8 @@ class _CameraScreenState extends State<CameraScreen> {
                       Center(child: CustomPaint(painter: CrosshairPainter())),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             Row(
@@ -4822,82 +4860,76 @@ class _CameraScreenState extends State<CameraScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return Expanded(
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  backgroundColor: Colors.black,
-                  leading: IconButton(
-                    tooltip: 'Back',
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  actions: [
-                    IconButton(
-                      tooltip: 'Delete Photo',
-                      icon: Icon(Icons.delete, color: Colors.white),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        int index = controller.page!.round();
-                        setState(() {
-                          _capturedImages.removeAt(index);
-                        });
-                        setStateGallery(() {});
-                        if (_capturedImages.isEmpty) {
-                          Navigator.pop(context);
-                        } else {
-                          setStateDialog(() {});
-                        }
-                      },
-                    ),
-                  ],
+            return Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.black,
+                leading: IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                body: PhotoViewGallery.builder(
-                  pageController: controller,
-                  scrollPhysics: const PageScrollPhysics(),
-                  backgroundDecoration: BoxDecoration(
-                    color: Colors.transparent,
+                actions: [
+                  IconButton(
+                    tooltip: 'Delete Photo',
+                    icon: Icon(Icons.delete, color: Colors.white),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      int index = controller.page!.round();
+                      setState(() {
+                        _capturedImages.removeAt(index);
+                      });
+                      setStateGallery(() {});
+                      if (_capturedImages.isEmpty) {
+                        Navigator.pop(context);
+                      } else {
+                        setStateDialog(() {});
+                      }
+                    },
                   ),
-                  itemCount: _capturedImages.length,
-                  builder: (context, index) {
-                    // Processed Images
-                    return PhotoViewGalleryPageOptions(
-                      imageProvider: FileImage(
-                        File(_capturedImages[index].path),
-                      ),
-                      filterQuality: FilterQuality.high,
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: 1.0,
-                    );
-                  },
-                ),
-                //floatingActionButton: Padding(
-                //  padding: const EdgeInsets.fromLTRB(0, 0, 20, 100),
-                //  child: Column(
-                //    mainAxisAlignment: MainAxisAlignment.end,
-                //    children: <Widget>[
-                //      FloatingActionButton(
-                //        heroTag: "deletePhoto",
-                //        tooltip: 'Delete Photo',
-                //        onPressed: () {
-                //          HapticFeedback.lightImpact();
-                //          int index = controller.page!.round();
-                //          setState(() {
-                //            _capturedImages.removeAt(index);
-                //          });
-                //          setStateGallery(() {});
-                //          if (_capturedImages.isEmpty) {
-                //            Navigator.pop(context);
-                //          } else {
-                //            setStateDialog(() {});
-                //          }
-                //        },
-                //        child: const Icon(Icons.delete, color: Colors.white),
-                //      ),
-                //    ],
-                //  ),
-                //),
+                ],
               ),
+              body: PhotoViewGallery.builder(
+                pageController: controller,
+                scrollPhysics: const PageScrollPhysics(),
+                backgroundDecoration: BoxDecoration(color: Colors.transparent),
+                itemCount: _capturedImages.length,
+                builder: (context, index) {
+                  // Processed Images
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: FileImage(File(_capturedImages[index].path)),
+                    filterQuality: FilterQuality.high,
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: 1.0,
+                  );
+                },
+              ),
+              //floatingActionButton: Padding(
+              //  padding: const EdgeInsets.fromLTRB(0, 0, 20, 100),
+              //  child: Column(
+              //    mainAxisAlignment: MainAxisAlignment.end,
+              //    children: <Widget>[
+              //      FloatingActionButton(
+              //        heroTag: "deletePhoto",
+              //        tooltip: 'Delete Photo',
+              //        onPressed: () {
+              //          HapticFeedback.lightImpact();
+              //          int index = controller.page!.round();
+              //          setState(() {
+              //            _capturedImages.removeAt(index);
+              //          });
+              //          setStateGallery(() {});
+              //          if (_capturedImages.isEmpty) {
+              //            Navigator.pop(context);
+              //          } else {
+              //            setStateDialog(() {});
+              //          }
+              //        },
+              //        child: const Icon(Icons.delete, color: Colors.white),
+              //      ),
+              //    ],
+              //  ),
+              //),
             );
           },
         );
