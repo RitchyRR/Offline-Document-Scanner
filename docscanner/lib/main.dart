@@ -661,7 +661,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () => Navigator.of(context).pop(false),
             ),
             ElevatedButton(
-              child: const Text("Update Selection"),
+              child: const Text("Update"),
               onPressed: () => Navigator.of(context).pop(true),
             ),
           ],

@@ -325,7 +325,7 @@ class MetadataHelper {
     return (ratioValue, orientationIndex, cornerPoints);
   }
 
-  static Future<void> writePageThumbnailIndex(
+  static Future<bool> writePageThumbnailIndex(
     int docIndex,
     int pageIndex,
     int thumbnailIndexIn, {
@@ -335,13 +335,14 @@ class MetadataHelper {
     bool isIsolate = false;
     if (gIn != null) isIsolate = true;
 
-    if (thumbnailIndexIn == 0) return;
+    bool isNewIndex = false;
+
+    if (thumbnailIndexIn == 0) return false;
     if (thumbnailIndexIn == 3 &&
         !(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) &&
         !tmpPro) {
       thumbnailIndexIn = 2;
     }
-    bool updateThumbnail = false; // is new
     String newThumbnailName = versionNames[thumbnailIndexIn];
     String pagePath =
         await (isIsolate
@@ -359,7 +360,7 @@ class MetadataHelper {
         dev.log(
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
-        return;
+        return true;
       }
       if ((metadata["thumbnail"] != null
               ? versionNames.indexOf(metadata["thumbnail"])
@@ -367,11 +368,11 @@ class MetadataHelper {
                   ? 3
                   : 2)) !=
           thumbnailIndexIn) {
-        updateThumbnail = true;
+        isNewIndex = true;
       }
 
       // Write + Encrypt
-      if (updateThumbnail) {
+      if (isNewIndex) {
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
         await file.writeAsString(encrypted);
@@ -379,6 +380,7 @@ class MetadataHelper {
     } catch (e) {
       dev.log("Error, writePageThumbnailIndex: $e");
     }
+    return isNewIndex;
   }
 
   static Future<void> writePageCornerPoints(

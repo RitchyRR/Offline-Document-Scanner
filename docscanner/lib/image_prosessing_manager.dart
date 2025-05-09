@@ -864,7 +864,7 @@ class ImageProcessingManager {
     int thumbnailIndex, {
     bool tmpPro = false,
   }) async {
-    MetadataHelper.writePageThumbnailIndex(
+    bool isNewIndex = await MetadataHelper.writePageThumbnailIndex(
       docIndex,
       pageIndex,
       thumbnailIndex,
@@ -879,13 +879,19 @@ class ImageProcessingManager {
       await Future.delayed(Duration(milliseconds: 100));
     }
 
-    Isolate isolate = await Isolate.spawn(_saveNewThumbnailIsolate, (
-      port.sendPort,
-      docIndex,
-      pageIndex,
-      thumbnailIndex,
-      g,
-    ));
+    Isolate isolate;
+    if (isNewIndex) {
+      isolate = await Isolate.spawn(_saveNewThumbnailIsolate, (
+        port.sendPort,
+        docIndex,
+        pageIndex,
+        thumbnailIndex,
+        g,
+      ));
+    } else {
+      port.close();
+      return;
+    }
 
     Capability? cap;
     if (isolates.length + 1 >= maxIsolates) {
