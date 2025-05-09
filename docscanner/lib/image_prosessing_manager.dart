@@ -153,7 +153,7 @@ class ImageProcessingManager {
       sendPort,
       versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
       g.filesHelper.screenWidth,
-      overwrite: true,
+      overwrite: !isPrimary,
     );
 
     sendPort.send('done');
@@ -237,7 +237,7 @@ class ImageProcessingManager {
 
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        capabilities.removeAt(index);
+        if (index != -1) capabilities.removeAt(index);
         isolate.kill();
 
         // Resume next paused isolate
@@ -372,7 +372,6 @@ class ImageProcessingManager {
         sendPort,
         versionPaths[pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2)],
         g.filesHelper.screenWidth,
-        overwrite: true,
       );
     }
 
@@ -560,7 +559,7 @@ class ImageProcessingManager {
 
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        capabilities.removeAt(index);
+        if (index != -1) capabilities.removeAt(index);
         isolate.kill();
 
         // Resume next paused isolate
@@ -666,7 +665,6 @@ class ImageProcessingManager {
       sendPort,
       versionPaths[pageThumbnailIndexIn],
       g.filesHelper.screenWidth,
-      overwrite: true,
     );
 
     sendPort.send('done');
@@ -702,7 +700,7 @@ class ImageProcessingManager {
 
         int index = isolates.values.toList().indexOf(primaryIsolate);
         isolates.removeWhere((key, value) => value == primaryIsolate);
-        capabilities.removeAt(index);
+        if (index != -1) capabilities.removeAt(index);
 
         // Resume next paused isolate
         for (int i = 0; i < isolates.length; i++) {
@@ -721,7 +719,7 @@ class ImageProcessingManager {
     SendPort? sendPort,
     String pathIn,
     int screenWidth, {
-    bool overwrite = false,
+    bool overwrite = true,
   }) async {
     String pagePath = p.dirname(pathIn);
     String pathOut =
@@ -800,7 +798,6 @@ class ImageProcessingManager {
       sendPort,
       versionPaths[thumbnailIndex],
       g.filesHelper.screenWidth,
-      overwrite: true,
     );
     sendPort.send('done');
   }
@@ -841,7 +838,7 @@ class ImageProcessingManager {
 
         int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        capabilities.removeAt(index);
+        if (index != -1) capabilities.removeAt(index);
 
         // Resume next paused isolate
         for (int i = 0; i < isolates.length; i++) {
