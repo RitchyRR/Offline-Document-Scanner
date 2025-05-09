@@ -698,6 +698,7 @@ class _MyHomePageState extends State<MyHomePage> {
               .where(
                 (e) =>
                     e.value == math.sqrt2 || // DIN
+                    e.value == 1 || // Square
                     e.value == 4 / 3 || // 4:3
                     e.value == 16 / 9 || // 16:9
                     e.value == 21 / 9, // 21:9
