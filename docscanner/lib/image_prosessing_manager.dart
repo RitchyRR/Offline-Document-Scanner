@@ -864,6 +864,7 @@ class ImageProcessingManager {
     int thumbnailIndex, {
     bool tmpPro = false,
   }) async {
+    if (thumbnailIndex == 0) return;
     bool isNewIndex = await MetadataHelper.writePageThumbnailIndex(
       docIndex,
       pageIndex,

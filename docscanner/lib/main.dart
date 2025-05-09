@@ -1721,8 +1721,14 @@ class _PagesState extends State<Pages> {
                                               _selectPage(index);
                                             }
                                             : null,
-                                    splashColor: Colors.black26,
-                                    highlightColor: Colors.black26,
+                                    splashColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
+                                    highlightColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
                                   ),
                                 ),
                               ),
@@ -1769,7 +1775,6 @@ class _PagesState extends State<Pages> {
                                         Text(
                                           "${index + 1}/$_pagesCount",
                                           style: TextStyle(
-                                            //color: Colors.black,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
