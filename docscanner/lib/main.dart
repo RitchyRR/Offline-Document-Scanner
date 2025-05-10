@@ -2426,6 +2426,12 @@ class PagePreviewState extends State<PagePreview> {
         );
         setState(() {});
         break;
+      case NotifierEvent.popPageIfDeleted:
+        if (!File(_picturePath).existsSync()) {
+          _allowPop = true;
+          Navigator.pop(context);
+        }
+        break;
       default:
     }
   }
@@ -2587,6 +2593,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   // Page Preview
+  bool _allowPop = true;
   @override
   Widget build(BuildContext context) {
     bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
@@ -2594,12 +2601,11 @@ class PagePreviewState extends State<PagePreview> {
         _selectedVersion == 0
             ? enableFAB0
             : _versionPaths[_selectedVersion].isNotEmpty;
-    bool allowPop =
-        g.proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
+    _allowPop = g.proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
     return PopScope(
-      canPop: allowPop,
+      canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!allowPop) {
+        if (!_allowPop) {
           HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
         } else {

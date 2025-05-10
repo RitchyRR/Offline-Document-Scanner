@@ -67,6 +67,7 @@ enum NotifierEvent {
   processed1Saved,
   processed2Saved,
   setState,
+  popPageIfDeleted,
 }
 
 enum PopUpType { share, save, delete }

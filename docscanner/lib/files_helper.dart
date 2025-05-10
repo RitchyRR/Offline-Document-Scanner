@@ -412,11 +412,10 @@ class FilesHelper {
   }) async {
     if (pageIndexes.isEmpty) {
       deleteDocument(context, docIndex);
+    } else if (pageIndexes.length == 1) {
+      deletePage(context, docIndex, pageIndexes.first);
     } else {
-      pageIndexes = pageIndexes.reversed.toList();
-      for (var pageIndex in pageIndexes) {
-        await deletePage(context, docIndex, pageIndex);
-      }
+      deletePages(context, docIndex, pageIndexes);
     }
   }
 
@@ -603,16 +602,100 @@ class FilesHelper {
         NotifierEvent.loadPagesThumbnails,
       ); // to not show deleted page and to Navigator.pop
     } else {
-      //globalNotifier.triggerEvent(
-      //  NotifierEvent.loadPageVersions,
-      //); // otherwise they show the ones of other pages
       globalNotifier.triggerEvent(
         NotifierEvent.loadPagesThumbnails,
       ); // otherwise they show the ones of other pages
       globalNotifier.triggerEvent(
         NotifierEvent.loadDocsThumbnails,
       ); // for page count
+      globalNotifier.triggerEvent(NotifierEvent.popPageIfDeleted);
     }
+  }
+
+  Future<void> deletePages(
+    BuildContext? context,
+    int docIndex,
+    List<int> pageIndexes, {
+    bool isBroken = false,
+  }) async {
+    pageIndexes.sort();
+    List<int> displayPageIndexes = [];
+    for (var pageIndex in pageIndexes) {
+      displayPageIndexes.add(pageIndex + 1);
+    }
+    pageIndexes = pageIndexes.reversed.toList();
+
+    ScaffoldMessengerState? messenger;
+    SnackBar? snackBar;
+    bool cancelDelete = false;
+    if (context != null) {
+      messenger = ScaffoldMessenger.of(context);
+      snackBar = SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Deleting ${pageIndexes.length} Pages of Document ${docIndex + 1}...',
+            ),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+        action:
+            isBroken
+                ? null
+                : SnackBarAction(
+                  label: 'Cancel',
+                  onPressed: () {
+                    cancelDelete = true;
+                  },
+                ),
+      );
+    }
+    // await later pages processing
+    for (var pageIndex in pageIndexes) {
+      messenger?.showSnackBar(snackBar!);
+      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+        docIndex,
+        pageIndex,
+      );
+      messenger?.hideCurrentSnackBar();
+      if (cancelDelete) return;
+    }
+    // delete
+    for (var pageIndex in pageIndexes) {
+      final pagePath = await getPagePath(docIndex, pageIndex);
+      final pageDir = Directory(pagePath);
+      if (!await pageDir.exists()) {
+        dev.log(
+          "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
+        );
+      } else {
+        dev.log("Deleting page directory: $pagePath");
+        List<FileSystemEntity> files = pageDir.listSync(recursive: true);
+        for (var file in files) {
+          imageCache.evict(FileImage(File(file.path)), includeLive: true);
+        }
+
+        g.imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+        pageDir.deleteSync(recursive: true);
+      }
+    }
+    Fluttertoast.showToast(
+      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
+    );
+    // rename all with higher pageIndex to close the gap
+    // ignore: use_build_context_synchronously
+    await _repairDirectoryStructure(context);
+    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.popPageIfDeleted);
   }
 
   Future<void> deleteProcessedVersionsOfPage(

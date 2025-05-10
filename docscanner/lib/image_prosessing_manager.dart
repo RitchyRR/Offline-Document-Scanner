@@ -183,9 +183,8 @@ class ImageProcessingManager {
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
-    bool isInitial, {
-    Future<dynamic>? priorFuture,
-  }) async {
+    bool isInitial,
+  ) async {
     if (pathIn.isEmpty) return;
     final wrapperCompleter = Completer<void>();
 
@@ -209,12 +208,8 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
 
     // await prior future if too many isolates are running
-    if (priorFuture != null) {
-      bool isPriorDone = false;
-      priorFuture.then((_) => isPriorDone = true);
-      while (!isPriorDone && isolates.length >= maxIsolates) {
-        await Future.delayed(Duration(milliseconds: 95));
-      }
+    while (isolates.length >= maxIsolates) {
+      await Future.delayed(Duration(milliseconds: 95));
     }
 
     RootIsolateToken token = RootIsolateToken.instance!;
@@ -469,7 +464,7 @@ class ImageProcessingManager {
     if (pathsIn.isEmpty) return;
 
     // First page is opened in PagePreview -> more NotifierEvents
-    Future primaryFuture = processPageWrapper(
+    processPageWrapper(
       true,
       docIndex,
       firstPageIndex,
@@ -482,13 +477,11 @@ class ImageProcessingManager {
       true,
     );
 
-    Future priorFuture = primaryFuture;
-
     // Remaining pages
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
       for (var (index, path) in pathsIn.indexed) {
-        Future newFuture = processPageWrapper(
+        processPageWrapper(
           false,
           docIndex,
           firstPageIndex + 1 + index,
@@ -499,9 +492,7 @@ class ImageProcessingManager {
           null,
           0,
           true,
-          priorFuture: priorFuture,
         );
-        priorFuture = newFuture;
         // small delay between starts
         await Future.delayed(Duration(milliseconds: 20));
       }
