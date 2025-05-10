@@ -385,7 +385,7 @@ class FilesHelper {
             }
             if (!photoExists) {
               // ignore: use_build_context_synchronously
-              await deletePage(context, docIndex, pageIndex, isBroken: true);
+              await _deletePage(context, docIndex, pageIndex, isBroken: true);
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
@@ -398,7 +398,7 @@ class FilesHelper {
       } else {
         anyChange = true;
         // ignore: use_build_context_synchronously
-        deleteDocument(context, docIndex, isBroken: true);
+        _deleteDocument(context, docIndex, isBroken: true);
       }
     }
     await Future.wait(repairFutures);
@@ -411,15 +411,15 @@ class FilesHelper {
     List<int> pageIndexes = const [],
   }) async {
     if (pageIndexes.isEmpty) {
-      deleteDocument(context, docIndex);
+      _deleteDocument(context, docIndex);
     } else if (pageIndexes.length == 1) {
-      deletePage(context, docIndex, pageIndexes.first);
+      _deletePage(context, docIndex, pageIndexes.first);
     } else {
-      deletePages(context, docIndex, pageIndexes);
+      _deletePages(context, docIndex, pageIndexes);
     }
   }
 
-  Future<void> deleteDocument(
+  Future<void> _deleteDocument(
     BuildContext? context,
     int docIndex, {
     bool supressInfo = false,
@@ -501,7 +501,7 @@ class FilesHelper {
     ); // to not show deleted document
   }
 
-  Future<void> deletePage(
+  Future<void> _deletePage(
     BuildContext? context,
     int docIndex,
     int pageIndex, {
@@ -591,7 +591,7 @@ class FilesHelper {
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
-      await deleteDocument(
+      await _deleteDocument(
         // ignore: use_build_context_synchronously
         context,
         docIndex,
@@ -612,7 +612,7 @@ class FilesHelper {
     }
   }
 
-  Future<void> deletePages(
+  Future<void> _deletePages(
     BuildContext? context,
     int docIndex,
     List<int> pageIndexes, {
