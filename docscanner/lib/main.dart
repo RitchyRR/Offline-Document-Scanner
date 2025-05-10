@@ -513,6 +513,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _ratingGiven = prefs.getBool("ratingGiven") ?? false;
     // Read date -> reenable ratings
     reenableRatingsAfterTwoWeeks(prefs);
+    //_ratingGiven = false; //todo remove
   }
 
   reenableRatingsAfterTwoWeeks(SharedPreferences prefs) async {
@@ -612,7 +613,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   controller: controller,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    hintText: 'What could be better?',
+                    hintText:
+                        "What would you like to see?\n"
+                        "What is missing?\n"
+                        "What went wrong?\n",
                   ),
                   onChanged: (text) {
                     setState(() {});
