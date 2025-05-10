@@ -22,7 +22,7 @@ class MetadataHelper {
     final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
-        "Error, _writeDoc, $keyIn: Document deos not exist: Document $docIndex",
+        "Error, _writeDoc, $keyIn: Document does not exist: Document $docIndex",
       );
       return;
     }
@@ -53,7 +53,7 @@ class MetadataHelper {
     final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
-        "Error, saveDocName: Document deos not exist: Document $docIndex",
+        "Error, saveDocName: Document does not exist: Document $docIndex",
       );
       return null;
     }
@@ -85,7 +85,7 @@ class MetadataHelper {
     final file = File('$pagePath/metadata.json');
     if (!Directory(pagePath).existsSync()) {
       dev.log(
-        "Error, _writePage, $keyIn: Page deos not exist: Document $docIndex Page $pageIndex",
+        "Error, _writePage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
       );
       return;
     }
@@ -117,7 +117,7 @@ class MetadataHelper {
     final file = File('$pagePath/metadata.json');
     if (!Directory(pagePath).existsSync()) {
       dev.log(
-        "Error, _readPage, $keyIn: Page deos not exist: Document $docIndex Page $pageIndex",
+        "Error, _readPage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
       );
       return;
     }

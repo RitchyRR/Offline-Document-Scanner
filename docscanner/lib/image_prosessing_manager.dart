@@ -776,7 +776,9 @@ class ImageProcessingManager {
       dev.log("Error, writeScaledThumbnail: $versionPath does not exist");
       return false;
     } else {
-      for (FileSystemEntity fse in Directory(pagePath).listSync()) {
+      for (FileSystemEntity fse
+          in Directory(pagePath).listSync()
+            ..sort((a, b) => a.path.compareTo(b.path))) {
         if (fse.path.contains("thumbnail")) {
           String oldThumbnailPath = fse.path;
           if (overwrite) {
@@ -824,7 +826,9 @@ class ImageProcessingManager {
     SendPort? sendPort,
     String pagePath,
   ) async {
-    for (FileSystemEntity fse in Directory(pagePath).listSync()) {
+    for (FileSystemEntity fse
+        in Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.contains("thumbnail")) {
         String oldThumbnailPath = fse.path;
         await File(oldThumbnailPath).delete();

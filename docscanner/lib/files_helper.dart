@@ -124,7 +124,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String versionName = versionNames[versionIndex];
-    for (var fse in Directory(pagePath).listSync()) {
+    for (var fse
+        in Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$versionName.png")) {
         fse.delete();
       }
@@ -167,7 +169,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String fileName = "shape";
-    for (var fse in Directory(pagePath).listSync()) {
+    for (var fse
+        in Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$fileName.png")) {
         fse.delete();
       }
@@ -190,7 +194,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String fileName = "shape";
-    for (var fse in Directory(pagePath).listSync()) {
+    for (var fse
+        in Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$fileName.png")) {
         return fse.path;
       }
@@ -271,7 +277,9 @@ class FilesHelper {
       String? thumbnailPath;
       String? backupPath;
       try {
-        List<FileSystemEntity> versions = Directory(pagePath).listSync();
+        List<FileSystemEntity> versions =
+            Directory(pagePath).listSync()
+              ..sort((a, b) => a.path.compareTo(b.path));
         for (var version in versions) {
           if (!fullSized && version.path.contains(thumbnailName)) {
             thumbnailPath = version.path;
@@ -319,7 +327,8 @@ class FilesHelper {
     List<Future<void>> repairFutures = [];
 
     List<FileSystemEntity> docs =
-        Directory(docsPath).listSync().whereType<Directory>().toList();
+        Directory(docsPath).listSync().whereType<Directory>().toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
     for (var (docIndex, doc) in docs.indexed) {
       // Rename documents to match their index
       String expectedDocPath = await getDocumentPath(
@@ -333,7 +342,8 @@ class FilesHelper {
       }
 
       List<FileSystemEntity> pages =
-          Directory(expectedDocPath).listSync().whereType<Directory>().toList();
+          Directory(expectedDocPath).listSync().whereType<Directory>().toList()
+            ..sort((a, b) => a.path.compareTo(b.path));
       if (pages.isNotEmpty) {
         for (var (pageIndex, pageFse) in pages.indexed) {
           // Reanme pages to match their index
@@ -359,7 +369,9 @@ class FilesHelper {
               dev.log("Deleting empty Doc $docIndex Page $pageIndex");
             } else {
               String photoName = versionNames[0];
-              for (var pageFse in Directory(expectedPagePath).listSync()) {
+              for (var pageFse
+                  in Directory(expectedPagePath).listSync()
+                    ..sort((a, b) => a.path.compareTo(b.path))) {
                 if (pageFse.path.contains(photoName)) {
                   photoExists = true;
                   break;
@@ -401,8 +413,9 @@ class FilesHelper {
     if (pageIndexes.isEmpty) {
       deleteDocument(context, docIndex);
     } else {
+      pageIndexes = pageIndexes.reversed.toList();
       for (var pageIndex in pageIndexes) {
-        deletePage(context, docIndex, pageIndex);
+        await deletePage(context, docIndex, pageIndex);
       }
     }
   }
@@ -504,7 +517,9 @@ class FilesHelper {
         content: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Deleting Document ${docIndex + 1}...'),
+            Text(
+              'Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...',
+            ),
             SizedBox(
               width: 20,
               height: 20,
@@ -613,7 +628,9 @@ class FilesHelper {
     }
     List<String> processedNames = ["thumbnail"];
     processedNames.addAll(versionNames.getRange(1, 4));
-    for (var fse in Directory(pagePath).listSync()) {
+    for (var fse
+        in Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path))) {
       for (var name in processedNames) {
         if (fse.path.endsWith("$name.png")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
@@ -816,8 +833,9 @@ class FilesHelper {
   Future<int> getDocumentsCount() async {
     List<Directory> dirList =
         Directory(
-          await _getDocumentsPath(),
-        ).listSync().whereType<Directory>().toList();
+            await _getDocumentsPath(),
+          ).listSync().whereType<Directory>().toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
     return dirList.length;
   }
 

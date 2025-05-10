@@ -1778,18 +1778,18 @@ class _PagesState extends State<Pages> {
   }
 
   bool _selectMode = false;
-  List<int> selected = [];
+  List<int> _selected = [];
 
   _selectPage(int index) {
-    if (selected.contains(index)) {
-      selected.remove(index);
+    if (_selected.contains(index)) {
+      _selected.remove(index);
     } else {
-      selected.add(index);
+      _selected.add(index);
     }
-    if (selected.isEmpty) {
+    if (_selected.isEmpty) {
       _selectMode = false;
     } else {
-      selected.sort();
+      _selected.sort();
       _selectMode = true;
     }
     Future.microtask(() {
@@ -1798,19 +1798,29 @@ class _PagesState extends State<Pages> {
   }
 
   _selectAll() {
-    selected = List.generate(
+    _selected = List.generate(
       _pageThumbnails.length,
       (int index) => index,
       growable: true,
     );
-    _selectMode = true;
-    Future.microtask(() {
-      setState(() {});
-    });
+
+    //_selected = [];
+    //for (var (index, thumbnbail) in _pageThumbnails.indexed) {
+    //  if (thumbnbail.isNotEmpty) {
+    //    _selected.add(index);
+    //  }
+    //}
+
+    if (_selected.isNotEmpty) {
+      _selectMode = true;
+      Future.microtask(() {
+        setState(() {});
+      });
+    }
   }
 
   _cancelSelectMode() {
-    selected = [];
+    _selected = [];
     _selectMode = false;
     Future.microtask(() {
       setState(() {});
@@ -1836,7 +1846,7 @@ class _PagesState extends State<Pages> {
                 ],
               )
               : AppBar(
-                title: Text("${selected.length} Pages selected"),
+                title: Text("${_selected.length} Pages selected"),
                 leading: IconButton(
                   onPressed: () => _cancelSelectMode(),
                   icon: Icon(Icons.close),
@@ -1921,7 +1931,7 @@ class _PagesState extends State<Pages> {
                               Positioned.fill(
                                 child: Material(
                                   color:
-                                      (_selectMode && selected.contains(index))
+                                      (_selectMode && _selected.contains(index))
                                           ? Theme.of(context)
                                               .colorScheme
                                               .primaryContainer
@@ -1929,17 +1939,14 @@ class _PagesState extends State<Pages> {
                                           : Colors.transparent,
                                   child: InkWell(
                                     onTap:
-                                        (thumbnailPath.isNotEmpty)
-                                            ? !_selectMode
+                                        !_selectMode
+                                            ? (thumbnailPath.isNotEmpty)
                                                 ? () => _openPagePreview(index)
-                                                : () => _selectPage(index)
-                                            : null,
-                                    onLongPress:
-                                        (thumbnailPath.isNotEmpty)
-                                            ? () {
-                                              _selectPage(index);
-                                            }
-                                            : null,
+                                                : null
+                                            : () => _selectPage(index),
+                                    onLongPress: () {
+                                      _selectPage(index);
+                                    },
                                     splashColor: Theme.of(context)
                                         .colorScheme
                                         .primaryContainer
@@ -1972,7 +1979,7 @@ class _PagesState extends State<Pages> {
                                     padding: EdgeInsets.fromLTRB(
                                       12,
                                       6,
-                                      (_selectMode && selected.contains(index))
+                                      (_selectMode && _selected.contains(index))
                                           ? 6
                                           : 12,
                                       6,
@@ -2001,12 +2008,12 @@ class _PagesState extends State<Pages> {
                                         SizedBox(
                                           width:
                                               (_selectMode &&
-                                                      selected.contains(index))
+                                                      _selected.contains(index))
                                                   ? 8
                                                   : 0,
                                         ),
                                         (_selectMode &&
-                                                selected.contains(index))
+                                                _selected.contains(index))
                                             ? Icon(Icons.check, size: 20)
                                             : SizedBox(),
                                       ],
@@ -2089,13 +2096,13 @@ class _PagesState extends State<Pages> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          bool deleted = await _pagesPopup(
+                          _pagesPopup(
                             context,
-                            selected,
+                            _selected,
                             PopUpType.delete,
                             widget.docIndex,
                           );
-                          if (deleted) _cancelSelectMode();
+                          _cancelSelectMode();
                         },
                         tooltip: 'Delete',
                         child: const Icon(Icons.delete),
@@ -2113,7 +2120,7 @@ class _PagesState extends State<Pages> {
                         onPressed: () async {
                           _pagesPopup(
                             context,
-                            selected,
+                            _selected,
                             PopUpType.save,
                             widget.docIndex,
                           );
@@ -2129,7 +2136,7 @@ class _PagesState extends State<Pages> {
                         onPressed: () async {
                           _pagesPopup(
                             context,
-                            selected,
+                            _selected,
                             PopUpType.share,
                             widget.docIndex,
                           );
