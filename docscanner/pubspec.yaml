@@ -44,6 +44,7 @@ dependencies:
   encrypt:
   shared_preferences:
   permission_handler: 
+  url_launcher:
 
 
 dev_dependencies:

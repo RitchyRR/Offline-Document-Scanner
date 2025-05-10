@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 // camera:
 import 'package:camera/camera.dart';
 import 'package:camera_android_camerax/camera_android_camerax.dart';
@@ -127,7 +128,7 @@ class _MyAppState extends State<MyApp> {
       }
     });
     final sStorage = FlutterSecureStorage();
-    final proUnlockedString = await sStorage.read(key: 'g.proUnlocked');
+    final proUnlockedString = await sStorage.read(key: 'proUnlocked');
     setState(() {
       g.proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
     });
@@ -384,6 +385,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
+    _loadRatingGiven();
     _receiveSharing();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
@@ -492,6 +494,189 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var i = 0; i < ratiosShortBy; i++) {
       _thumbnailRatios.add(1.0 / 1.414);
     }
+  }
+
+  bool _ratingGiven = false;
+  Future<void> _saveRatingGiven(int rating) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool("ratingGiven", _ratingGiven);
+    prefs.setInt("rating", rating);
+    // Save date
+    if (_ratingGiven) {
+      String now = DateTime.now().toIso8601String();
+      prefs.setString("ratingGivenDate", now);
+    }
+  }
+
+  Future<void> _loadRatingGiven() async {
+    final prefs = await SharedPreferences.getInstance();
+    _ratingGiven = prefs.getBool("ratingGiven") ?? false;
+    // Read date -> reenable ratings
+    reenableRatingsAfterTwoWeeks(prefs);
+  }
+
+  reenableRatingsAfterTwoWeeks(SharedPreferences prefs) async {
+    bool reactivate = false;
+    int? rating = prefs.getInt("rating");
+    // only reenable if rating was not 5 stars
+    if (_ratingGiven && rating != 5) {
+      final String? ratingGivenDate = prefs.getString("ratingGivenDate");
+      if (ratingGivenDate != null) {
+        final unlockTime = DateTime.tryParse(ratingGivenDate);
+        final now = DateTime.now();
+
+        if (unlockTime != null && now.difference(unlockTime).inDays >= 14) {
+          reactivate = true;
+        }
+      } else {
+        reactivate = true;
+      }
+    }
+    if (reactivate) {
+      _ratingGiven = false;
+      _saveRatingGiven(rating ?? 3);
+    }
+  }
+
+  void _showRatingDialog() {
+    int rating = 0;
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text('Rate our App'),
+                content: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < rating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 36,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          rating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        rating == 0
+                            ? null
+                            : () async {
+                              _ratingGiven = true;
+                              _saveRatingGiven(rating);
+                              Navigator.pop(context);
+                              if (rating == 5) {
+                                _ratingGiven = true;
+                                if (!await _redirectToPlayStore()) {
+                                  Fluttertoast.showToast(
+                                    msg: "Error: No connection :(",
+                                  );
+                                }
+                              } else {
+                                _showFeedbackDialog(rating);
+                              }
+                            },
+                    child: Text('Next'),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  void _showFeedbackDialog(int rating) {
+    final TextEditingController controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text('Give Feedback'),
+                content: TextField(
+                  controller: controller,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'What could be better?',
+                  ),
+                  onChanged: (text) {
+                    setState(() {});
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        controller.text.isEmpty
+                            ? null
+                            : () {
+                              final feedback = controller.text;
+                              dev.log('User feedback: $feedback');
+                              sendFeedbackByEmail(feedback, rating);
+                              Navigator.pop(context);
+                            },
+                    child: Text('Send'),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
+  Future<void> sendFeedbackByEmail(String message, int rating) async {
+    final String subject = Uri.encodeComponent("App Feedback");
+    final String body = Uri.encodeComponent(
+      "User rating:\n\n"
+      "$rating/5\n\n"
+      "User feedback:\n\n"
+      "$message\n\n",
+    );
+    final String email = 'R.R.appdev.public@gmail.com';
+
+    final Uri emailUri = Uri.parse('mailto:$email?subject=$subject&body=$body');
+
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+      Fluttertoast.showToast(msg: "Thank you for your feedback!");
+      dev.log('To $email: $message');
+    } else {
+      Fluttertoast.showToast(msg: "Error: No connection :(");
+      dev.log('Error, sendFeedbackByEmail: No connection :(');
+    }
+  }
+
+  Future<bool> _redirectToPlayStore() async {
+    final url = Uri(
+      scheme: 'https',
+      host: 'play.google.com',
+      path: '/store/apps/details',
+      queryParameters: {'id': 'com.rrapps.docscanner'},
+    );
+    dev.log("Opening URL: $url");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+      return true;
+    }
+    return false;
   }
 
   Future<void> _openDocument(int docIndex) async {
@@ -684,12 +869,12 @@ class _MyHomePageState extends State<MyHomePage> {
     final prefs = await SharedPreferences.getInstance();
     final values =
         g.availableAspectRatios.map((e) => e.value.toString()).toList();
-    await prefs.setStringList("g.availableAspectRatios", values);
+    await prefs.setStringList("availableAspectRatios", values);
   }
 
   Future<void> loadAvailableAspectRatios() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedValues = prefs.getStringList("g.availableAspectRatios");
+    final savedValues = prefs.getStringList("availableAspectRatios");
 
     if (savedValues == null || savedValues.isEmpty) {
       // Default selection
@@ -791,6 +976,32 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
+                  if (!_ratingGiven)
+                    PopupMenuItem(
+                      value: "rate",
+                      child: Row(
+                        children: [
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.star_half,
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "Give Feedback",
+                            style: TextStyle(
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
             onSelected: (String value) async {
               switch (value) {
@@ -805,6 +1016,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   break;
                 case "ratios":
                   _selectAspectRatios(context);
+                  break;
+                case "rate":
+                  _showRatingDialog();
                   break;
               }
             },
@@ -1142,8 +1356,8 @@ Future<void> initStoreInfo() async {
 deactivateProAfterWeekOffline() async {
   final sStorage = FlutterSecureStorage();
 
-  final bool isSaved = 'true' == await sStorage.read(key: 'g.proUnlocked');
-  final String? savedDate = await sStorage.read(key: 'g.proUnlockedDate');
+  final bool isSaved = 'true' == await sStorage.read(key: 'proUnlocked');
+  final String? savedDate = await sStorage.read(key: 'proUnlockedDate');
 
   if (isSaved && savedDate != null) {
     final unlockTime = DateTime.tryParse(savedDate);
@@ -1285,13 +1499,13 @@ setPro(final bool proUnlockedIn) {
 
   final sStorage = FlutterSecureStorage();
   sStorage.write(
-    key: 'g.proUnlocked',
+    key: 'proUnlocked',
     value: proUnlockedIn == true ? 'true' : 'false',
   );
 
   if (proUnlockedIn) {
     final now = DateTime.now().toIso8601String();
-    sStorage.write(key: 'g.proUnlockedDate', value: now);
+    sStorage.write(key: 'proUnlockedDate', value: now);
   }
 
   if (showMessages) {
@@ -5161,5 +5375,120 @@ class AdsHelper {
     }
     await completer.future;
     return watachedAd;
+  }
+}
+
+class RatingDialogFlow extends StatefulWidget {
+  const RatingDialogFlow({super.key});
+
+  @override
+  RatingDialogFlowState createState() => RatingDialogFlowState();
+}
+
+class RatingDialogFlowState extends State<RatingDialogFlow> {
+  void _showRatingDialog() {
+    int rating = 0;
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Rate our App'),
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 36,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      rating = index + 1;
+                    });
+                  },
+                );
+              }),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  if (rating == 5) {
+                    _redirectToPlayStore();
+                  } else if (rating > 0) {
+                    _showFeedbackDialog(rating);
+                  }
+                },
+                child: Text('Next'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showFeedbackDialog(int rating) {
+    final TextEditingController controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Help us improve'),
+            content: TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'What could be better?',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final feedback = controller.text;
+                  // Send feedback to your backend or store it
+                  dev.log('User feedback: $feedback');
+                  Navigator.pop(context);
+                },
+                child: Text('Send'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _redirectToPlayStore() async {
+    final url = Uri(
+      scheme: 'https',
+      host: 'play.google.com',
+      path: '/store/apps/details',
+      queryParameters: {'id': 'com.rrapps.docscanner'},
+    );
+    dev.log("Opening URL: $url");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Document Scanner')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: _showRatingDialog,
+          child: Text('Rate App'),
+        ),
+      ),
+    );
   }
 }
