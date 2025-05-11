@@ -353,21 +353,24 @@ class MetadataHelper {
 
     try {
       // Read + Decrypt
+      String? oldThumbnailName;
       if (await file.exists()) {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        try {
+          final encryptedContent = file.readAsStringSync();
+          metadata = await MetadataCryptoHelper.decryptMetadata(
+            encryptedContent,
+          );
+          oldThumbnailName = metadata["thumbnail"];
+        } catch (e) {
+          dev.log("Error, writePageThumbnailIndex, Read: $e");
+        }
       } else {
         dev.log(
           "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
         return true;
       }
-      if ((metadata["thumbnail"] != null
-              ? versionNames.indexOf(metadata["thumbnail"])
-              : ((isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true)
-                  ? 3
-                  : 2)) !=
-          thumbnailIndexIn) {
+      if (oldThumbnailName == null || oldThumbnailName != newThumbnailName) {
         isNewIndex = true;
       }
 
