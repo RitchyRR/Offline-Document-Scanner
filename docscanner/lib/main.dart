@@ -1798,12 +1798,17 @@ class _PagesState extends State<Pages> {
   }
 
   _selectAll() {
+    int lengthBefore = _selected.length;
+
     _selected = List.generate(
       _pageThumbnails.length,
       (int index) => index,
       growable: true,
     );
 
+    if (lengthBefore != _selected.length) {
+      HapticFeedback.lightImpact();
+    }
     //_selected = [];
     //for (var (index, thumbnbail) in _pageThumbnails.indexed) {
     //  if (thumbnbail.isNotEmpty) {
@@ -1820,6 +1825,7 @@ class _PagesState extends State<Pages> {
   }
 
   _cancelSelectMode() {
+    HapticFeedback.lightImpact();
     _selected = [];
     _selectMode = false;
     Future.microtask(() {
@@ -1837,7 +1843,6 @@ class _PagesState extends State<Pages> {
       canPop: !_selectMode,
       onPopInvokedWithResult: (didPop, _) async {
         if (_selectMode) {
-          HapticFeedback.lightImpact();
           _cancelSelectMode();
         }
       },
@@ -2328,7 +2333,7 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
   bool _isThumbVisible = false;
   bool _isDragging = false;
   Timer? _hideTimer;
-  int _lastPage = -1;
+  int _lastPage = 0;
 
   static const double _thumbSize = 56;
 
@@ -2465,9 +2470,8 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
   bool _atTopOrBottom = true;
   void _maybeTriggerHaptics() {
     final page = _getCurrentPage();
-
     if (page != _lastPage) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.selectionClick();
       _lastPage = page;
     }
 
@@ -2476,7 +2480,7 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
         widget.controller.offset >=
             widget.controller.position.maxScrollExtent)) {
       if (!_atTopOrBottom) {
-        HapticFeedback.heavyImpact();
+        HapticFeedback.mediumImpact();
       }
       _atTopOrBottom = true;
     } else {
