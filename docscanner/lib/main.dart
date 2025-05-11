@@ -772,7 +772,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: () => Navigator.pop(context),
                 child: Text("Cancel"),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () {
                   // Save changes and close
                   setState(() {
@@ -1827,6 +1827,7 @@ class _PagesState extends State<Pages> {
     });
   }
 
+  final ScrollController _scrollController = ScrollController();
   // Pages
   @override
   Widget build(BuildContext context) {
@@ -1872,178 +1873,171 @@ class _PagesState extends State<Pages> {
             _pageThumbnails
                     .isNotEmpty // && isTopOfNavigationStack
                 // Pages
-                ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    interactive: true,
-                    trackVisibility: false,
-                    thickness: 9.0,
-                    radius: Radius.circular(4.0),
-                    child: ListView.builder(
-                      cacheExtent: 1000,
-                      itemCount: _pagesCount,
-                      itemBuilder: (BuildContext context, int index) {
-                        String thumbnailPath = _pageThumbnails[index];
-                        File pageThumbnail = File(thumbnailPath);
-                        return Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                ? CustomScrollbar(
+                  controller: _scrollController,
+                  pageAspectRatios: _thumbnailRatios,
+                  scrollRangeStart: 0.1,
+                  scrollRangeEnd: 0.7,
+                  thumbVisibilityDuration: Duration(milliseconds: 1500),
+
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    cacheExtent: 1000,
+                    itemCount: _pagesCount,
+                    itemBuilder: (BuildContext context, int index) {
+                      String thumbnailPath = _pageThumbnails[index];
+                      File pageThumbnail = File(thumbnailPath);
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 6,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [bigBoxShadow(context)],
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              boxShadow: [bigBoxShadow(context)],
-                            ),
-                            child: Stack(
-                              children: [
-                                // Load image
-                                (thumbnailPath.isNotEmpty)
-                                    ? AnimatedSwitcher(
-                                      duration: Duration(milliseconds: 200),
-                                      child: Image.file(
-                                        pageThumbnail,
-                                        key: ValueKey(thumbnailPath),
-                                        errorBuilder: (
-                                          context,
-                                          error,
-                                          stackTrace,
-                                        ) {
-                                          return AspectRatio(
-                                            aspectRatio:
-                                                _thumbnailRatios[index],
-                                            child: Material(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                              child: const Icon(
-                                                Icons.broken_image,
-                                              ),
+                          child: Stack(
+                            children: [
+                              // Load image
+                              (thumbnailPath.isNotEmpty)
+                                  ? AnimatedSwitcher(
+                                    duration: Duration(milliseconds: 200),
+                                    child: Image.file(
+                                      pageThumbnail,
+                                      key: ValueKey(thumbnailPath),
+                                      errorBuilder: (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) {
+                                        return AspectRatio(
+                                          aspectRatio: _thumbnailRatios[index],
+                                          child: Material(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.surfaceBright,
+                                            child: const Icon(
+                                              Icons.broken_image,
                                             ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                    // Pages Skeleton
-                                    : AspectRatio(
-                                      aspectRatio: _thumbnailRatios[index],
-                                      child: Material(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceBright,
-                                        child: IndicatorProcessingImage(),
-                                      ),
-                                    ),
-                                // InkWell
-                                Positioned.fill(
-                                  child: Material(
-                                    color:
-                                        (_selectMode &&
-                                                _selected.contains(index))
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .primaryContainer
-                                                .withAlpha(150)
-                                            : Colors.transparent,
-                                    child: InkWell(
-                                      onTap:
-                                          !_selectMode
-                                              ? (thumbnailPath.isNotEmpty)
-                                                  ? () =>
-                                                      _openPagePreview(index)
-                                                  : null
-                                              : () {
-                                                HapticFeedback.lightImpact();
-                                                _selectPage(index);
-                                              },
-                                      onLongPress: () {
-                                        _selectPage(index);
+                                          ),
+                                        );
                                       },
-                                      splashColor: Theme.of(context)
-                                          .colorScheme
-                                          .primaryContainer
-                                          .withAlpha(150),
-                                      highlightColor: Theme.of(context)
-                                          .colorScheme
-                                          .primaryContainer
-                                          .withAlpha(150),
+                                    ),
+                                  )
+                                  // Pages Skeleton
+                                  : AspectRatio(
+                                    aspectRatio: _thumbnailRatios[index],
+                                    child: Material(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      child: IndicatorProcessingImage(),
                                     ),
                                   ),
-                                ),
-                                // Page Index Indicator
-                                Positioned(
-                                  top: 18,
-                                  left: 12,
-                                  child: GestureDetector(
-                                    // Move Page Index Dialog
+                              // InkWell
+                              Positioned.fill(
+                                child: Material(
+                                  color:
+                                      (_selectMode && _selected.contains(index))
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withAlpha(150)
+                                          : Colors.transparent,
+                                  child: InkWell(
                                     onTap:
-                                        _selectMode
-                                            ? () => _selectPage(index)
-                                            : () => _openPageEditDialog(
-                                              context,
-                                              index,
-                                            ),
-                                    onLongPress:
-                                        _selectMode
-                                            ? () => _selectPage(index)
-                                            : null,
-                                    child: Container(
-                                      padding: EdgeInsets.fromLTRB(
-                                        12,
-                                        6,
+                                        !_selectMode
+                                            ? (thumbnailPath.isNotEmpty)
+                                                ? () => _openPagePreview(index)
+                                                : null
+                                            : () {
+                                              HapticFeedback.lightImpact();
+                                              _selectPage(index);
+                                            },
+                                    onLongPress: () {
+                                      _selectPage(index);
+                                    },
+                                    splashColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
+                                    highlightColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
+                                  ),
+                                ),
+                              ),
+                              // Page Index Indicator
+                              Positioned(
+                                top: 18,
+                                left: 12,
+                                child: GestureDetector(
+                                  // Move Page Index Dialog
+                                  onTap:
+                                      _selectMode
+                                          ? () => _selectPage(index)
+                                          : () => _openPageEditDialog(
+                                            context,
+                                            index,
+                                          ),
+                                  onLongPress:
+                                      _selectMode
+                                          ? () => _selectPage(index)
+                                          : null,
+                                  child: Container(
+                                    padding: EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      (_selectMode && _selected.contains(index))
+                                          ? 6
+                                          : 12,
+                                      6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [smallBoxShadow(context)],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "${index + 1}/$_pagesCount",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width:
+                                              (_selectMode &&
+                                                      _selected.contains(index))
+                                                  ? 8
+                                                  : 0,
+                                        ),
                                         (_selectMode &&
                                                 _selected.contains(index))
-                                            ? 6
-                                            : 12,
-                                        6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceBright,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [smallBoxShadow(context)],
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            "${index + 1}/$_pagesCount",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width:
-                                                (_selectMode &&
-                                                        _selected.contains(
-                                                          index,
-                                                        ))
-                                                    ? 8
-                                                    : 0,
-                                          ),
-                                          (_selectMode &&
-                                                  _selected.contains(index))
-                                              ? Icon(Icons.check, size: 20)
-                                              : SizedBox(),
-                                        ],
-                                      ),
+                                            ? Icon(Icons.check, size: 20)
+                                            : SizedBox(),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 )
                 : const SizedBox(),
@@ -2300,6 +2294,257 @@ class _PagesState extends State<Pages> {
       );
       _loadPagesThumbnails();
     }
+  }
+}
+
+class CustomScrollbar extends StatefulWidget {
+  final Widget child;
+  final ScrollController controller;
+  final List<double> pageAspectRatios;
+  final Color? backgroundColor;
+  final Color? textColor;
+  final Duration thumbVisibilityDuration;
+  final double scrollRangeStart; // 0.0 to 1.0 (e.g., 0.0)
+  final double scrollRangeEnd; // 0.0 to 1.1 (e.g., 0.7)
+
+  const CustomScrollbar({
+    super.key,
+    required this.child,
+    required this.controller,
+    required this.pageAspectRatios,
+    this.backgroundColor,
+    this.textColor,
+    this.thumbVisibilityDuration = const Duration(milliseconds: 1000),
+    this.scrollRangeStart = 0.0,
+    this.scrollRangeEnd = 1.0,
+  });
+
+  @override
+  State<CustomScrollbar> createState() => _CustomScrollbarState();
+}
+
+class _CustomScrollbarState extends State<CustomScrollbar> {
+  double _thumbTop = 0.0;
+  bool _isThumbVisible = false;
+  bool _isDragging = false;
+  Timer? _hideTimer;
+  int _lastPage = -1;
+
+  static const double _thumbSize = 56;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onScroll);
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isDragging) {
+      return;
+    }
+
+    _updateThumbPosition();
+    _showThumbTemporarily();
+    _maybeTriggerHaptics();
+  }
+
+  void _updateThumbPosition() {
+    if (!widget.controller.hasClients ||
+        !widget.controller.position.hasContentDimensions) {
+      return;
+    }
+
+    final maxScroll = widget.controller.position.maxScrollExtent;
+    final viewportHeight = widget.controller.position.viewportDimension;
+
+    final scrollFraction =
+        maxScroll == 0
+            ? 0
+            : (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
+    final thumbTravelHeight =
+        viewportHeight * (widget.scrollRangeEnd - widget.scrollRangeStart);
+
+    setState(() {
+      _thumbTop =
+          viewportHeight * widget.scrollRangeStart +
+          (thumbTravelHeight - _thumbSize) * scrollFraction;
+    });
+  }
+
+  void _showThumbTemporarily() {
+    _hideTimer?.cancel();
+
+    if (!_isThumbVisible) {
+      setState(() {
+        _isThumbVisible = true;
+      });
+    }
+
+    _hideTimer = Timer(widget.thumbVisibilityDuration, () {
+      if (!_isDragging && mounted) {
+        setState(() {
+          _isThumbVisible = false;
+        });
+      }
+    });
+  }
+
+  void _onDragStart(DragStartDetails details) {
+    _hideTimer?.cancel();
+
+    setState(() {
+      _isDragging = true;
+      _isThumbVisible = true;
+    });
+  }
+
+  void _onDragUpdate(DragUpdateDetails details, double containerHeight) {
+    final maxScroll = widget.controller.position.maxScrollExtent;
+    final scrollAreaHeight =
+        containerHeight * (widget.scrollRangeEnd - widget.scrollRangeStart) -
+        _thumbSize;
+
+    final minTop = containerHeight * widget.scrollRangeStart;
+    final maxTop = containerHeight * widget.scrollRangeEnd - _thumbSize;
+
+    setState(() {
+      _thumbTop = (_thumbTop + details.delta.dy).clamp(minTop, maxTop);
+    });
+
+    final scrollFraction = (_thumbTop - minTop) / scrollAreaHeight;
+    final newScrollOffset = scrollFraction * maxScroll;
+
+    widget.controller.jumpTo(newScrollOffset);
+
+    _maybeTriggerHaptics();
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    setState(() {
+      _isDragging = false;
+    });
+    _showThumbTemporarily();
+  }
+
+  int _getCurrentPage() {
+    if (!widget.controller.hasClients || widget.pageAspectRatios.isEmpty) {
+      return 0;
+    }
+
+    final offset = widget.controller.offset;
+    final maxScrollExtent = widget.controller.position.maxScrollExtent;
+
+    final total = widget.pageAspectRatios.fold<double>(0.0, (a, b) => a + b);
+    final cumulative = <double>[];
+    double sum = 0.0;
+    for (var ratio in widget.pageAspectRatios) {
+      sum += ratio;
+      cumulative.add(sum);
+    }
+
+    final scrolledFraction =
+        maxScrollExtent == 0 ? 0 : offset / maxScrollExtent;
+    final scrollPosition = total * scrolledFraction;
+
+    for (int i = 0; i < cumulative.length; i++) {
+      if (scrollPosition < cumulative[i]) {
+        return i;
+      }
+    }
+
+    return widget.pageAspectRatios.length - 1;
+  }
+
+  bool _atTopOrBottom = true;
+  void _maybeTriggerHaptics() {
+    final page = _getCurrentPage();
+
+    if (page != _lastPage) {
+      HapticFeedback.lightImpact();
+      _lastPage = page;
+    }
+
+    if ((widget.controller.offset <=
+            widget.controller.position.minScrollExtent ||
+        widget.controller.offset >=
+            widget.controller.position.maxScrollExtent)) {
+      if (!_atTopOrBottom) {
+        HapticFeedback.heavyImpact();
+      }
+      _atTopOrBottom = true;
+    } else {
+      _atTopOrBottom = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor =
+        widget.backgroundColor ??
+        Theme.of(context).colorScheme.secondaryContainer;
+    final textColor =
+        widget.textColor ?? Theme.of(context).colorScheme.onSecondaryContainer;
+
+    return LayoutBuilder(
+      builder: (_, constraints) {
+        return Stack(
+          children: [
+            widget.child,
+            if (_isThumbVisible && widget.controller.hasClients)
+              Positioned(
+                right: -16,
+                top: _thumbTop.clamp(
+                  constraints.maxHeight * widget.scrollRangeStart,
+                  constraints.maxHeight * widget.scrollRangeEnd - _thumbSize,
+                ),
+                child: GestureDetector(
+                  onVerticalDragStart: _onDragStart,
+                  onVerticalDragUpdate:
+                      (d) => _onDragUpdate(d, constraints.maxHeight),
+                  onVerticalDragEnd: _onDragEnd,
+                  child: Row(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [tinyBoxShadow(context)],
+                        ),
+                        child: Text(
+                          '${_getCurrentPage() + 1}/${widget.pageAspectRatios.length}',
+                          style: TextStyle(fontSize: 12, color: textColor),
+                        ),
+                      ),
+                      Container(
+                        width: _thumbSize,
+                        height: _thumbSize,
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [tinyBoxShadow(context)],
+                        ),
+                        child: Icon(Icons.drag_indicator, color: textColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -3289,7 +3534,7 @@ class PagePreviewState extends State<PagePreview> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [smallBoxShadow(context)],
+        boxShadow: [tinyBoxShadow(context)],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -3338,7 +3583,7 @@ class PagePreviewState extends State<PagePreview> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [smallBoxShadow(context)],
+        boxShadow: [tinyBoxShadow(context)],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -3631,6 +3876,15 @@ BoxShadow smallBoxShadow(BuildContext context) {
     blurRadius: 3,
     spreadRadius: 0,
     offset: const Offset(0, 2),
+  );
+}
+
+BoxShadow tinyBoxShadow(BuildContext context) {
+  return BoxShadow(
+    color: Theme.of(context).shadowColor.withAlpha(90),
+    blurRadius: 1,
+    spreadRadius: 0,
+    offset: const Offset(0, 1),
   );
 }
 
