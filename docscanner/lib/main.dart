@@ -284,13 +284,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Creation Date
     final now = DateTime.now();
-    _docDates.add("${now.year}-${now.month}-${now.day}");
+    final newDate = "${now.year}-${now.month}-${now.day}";
+    _docDates.add(newDate);
     fixMetadataLengths(docIndex + 1);
-    g.metadataHelper.writeDocDate(
-      docIndex,
-      _docDates[docIndex],
-      supressWarnings: true,
-    );
+    g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
 
     return (docIndex, firstPageIndex);
   }
