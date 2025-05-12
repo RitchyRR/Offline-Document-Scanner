@@ -41,7 +41,7 @@ class OpenCVHelper {
   int cols = 0;
   int height = 0;
   int width = 0;
-  var borderCutIn = List<int>.generate(4, (_) => 0);
+  var borderCutIn = List<int>.generate(8, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
   AppGlobals g;
@@ -816,10 +816,18 @@ class OpenCVHelper {
     bool noBoderCutin = false,
   }) {
     final int borderTolerance = 5 + (K ~/ 9);
-    borderCutIn[borderIndex] =
-        noBoderCutin ? 0 : _percentileValueInt(depths, 0.67);
+    borderCutIn[borderIndex * 2] =
+        noBoderCutin
+            ? 0
+            : _percentileValueInt(depths.sublist(0, depths.length ~/ 2), 0.67);
+    borderCutIn[borderIndex * 2 + 1] =
+        noBoderCutin
+            ? 0
+            : _percentileValueInt(depths.sublist(depths.length ~/ 2), 0.67);
     borderCorrectionDepth[borderIndex] =
-        _percentileValueInt(depths, 0.9) -
+        depths
+            .sublist(depths.length ~/ 10, depths.length * 9 ~/ 10)
+            .reduce(math.max) -
         borderCutIn[borderIndex] +
         borderTolerance;
   }
@@ -828,16 +836,16 @@ class OpenCVHelper {
   cv.Mat _correctedTransformImage(cv.Mat imageMat, List<List<int>> corners) {
     //top
     corners[0][0] += borderCutIn[0];
-    corners[2][0] += borderCutIn[0];
+    corners[2][0] += borderCutIn[1];
     //bottom
-    corners[1][0] -= borderCutIn[1];
-    corners[3][0] -= borderCutIn[1];
+    corners[1][0] -= borderCutIn[2];
+    corners[3][0] -= borderCutIn[3];
     //left
-    corners[0][1] += borderCutIn[2];
-    corners[1][1] += borderCutIn[2];
+    corners[0][1] += borderCutIn[4];
+    corners[1][1] += borderCutIn[5];
     //right
-    corners[2][1] -= borderCutIn[3];
-    corners[3][1] -= borderCutIn[3];
+    corners[2][1] -= borderCutIn[6];
+    corners[3][1] -= borderCutIn[7];
 
     //dev.log("correctedCorners = $corners");
 

@@ -48,7 +48,8 @@ class FeedbackHelper {
   }
 
   getShowRatingInAppbar() {
-    return state == FeedbackState.afterFirstProcessing;
+    return state == FeedbackState.afterFirstExport ||
+        state == FeedbackState.afterFirstProcessing;
   }
 
   updateState() async {
