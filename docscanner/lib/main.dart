@@ -4639,14 +4639,12 @@ class PositionTimestamp {
 }
 
 Future<bool> _pagesPopup(
-  BuildContext context,
+  BuildContext callContext,
   List<int> pageIndexes,
   PopUpType type,
   int docIndex, {
   int? versionIndex,
 }) async {
-  bool showRatingPopupAfterExport =
-      feedbackHelper.getShowRatingPopupAfterExport();
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
@@ -4696,7 +4694,7 @@ Future<bool> _pagesPopup(
 
   showDialog(
     // ignore: use_build_context_synchronously
-    context: context,
+    context: callContext,
     builder: (BuildContext context) {
       return ValueListenableBuilder<NotifierEvent>(
         valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
@@ -4810,7 +4808,7 @@ Future<bool> _pagesPopup(
                                             ? 0
                                             : 4,
                                   ),
-                                  // ImageExport
+                                  // Image Export
                                   child: ElevatedButton.icon(
                                     onPressed:
                                         allPagesLoaded &&
@@ -4843,13 +4841,25 @@ Future<bool> _pagesPopup(
                                                   break;
                                                 default:
                                               }
-                                              if (showRatingPopupAfterExport) {
-                                                await afterExport
-                                                    ? afterExport
-                                                    : Duration.zero;
-                                                feedbackHelper
-                                                // ignore: use_build_context_synchronously
-                                                .showRatingDialog(context);
+                                              if (feedbackHelper
+                                                  .getShowRatingPopupAfterExport()) {
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((
+                                                      _,
+                                                    ) async {
+                                                      await afterExport;
+                                                      if (type ==
+                                                          PopUpType.share) {
+                                                        await Future.delayed(
+                                                          Duration(seconds: 4),
+                                                        );
+                                                      }
+                                                      feedbackHelper
+                                                          .showRatingDialog(
+                                                            // ignore: use_build_context_synchronously
+                                                            callContext,
+                                                          );
+                                                    });
                                               }
                                             }
                                             : null,
@@ -4920,6 +4930,7 @@ Future<bool> _pagesPopup(
                                                                       3 &&
                                                                   isSinglePage))
                                                   ? () async {
+                                                    Navigator.pop(context);
                                                     Future? afterExport;
                                                     switch (type) {
                                                       case PopUpType.share:
@@ -4948,15 +4959,28 @@ Future<bool> _pagesPopup(
                                                         break;
                                                       default:
                                                     }
-                                                    if (showRatingPopupAfterExport) {
-                                                      await afterExport
-                                                          ? afterExport
-                                                          : Duration.zero;
-                                                      feedbackHelper
-                                                          .showRatingDialog(
-                                                            // ignore: use_build_context_synchronously
-                                                            context,
-                                                          );
+                                                    if (feedbackHelper
+                                                        .getShowRatingPopupAfterExport()) {
+                                                      WidgetsBinding.instance
+                                                          .addPostFrameCallback((
+                                                            _,
+                                                          ) async {
+                                                            await afterExport;
+                                                            if (type ==
+                                                                PopUpType
+                                                                    .share) {
+                                                              await Future.delayed(
+                                                                Duration(
+                                                                  seconds: 4,
+                                                                ),
+                                                              );
+                                                            }
+                                                            feedbackHelper
+                                                                .showRatingDialog(
+                                                                  // ignore: use_build_context_synchronously
+                                                                  callContext,
+                                                                );
+                                                          });
                                                     }
                                                   }
                                                   : null,
