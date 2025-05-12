@@ -901,6 +901,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  final ScrollController _scrollController = ScrollController();
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -1032,220 +1033,236 @@ class _MyHomePageState extends State<MyHomePage> {
       body:
           _docThumbnails.isNotEmpty
               // Documents Cards
-              ? ListView.builder(
-                itemCount: _docsCount,
-                itemBuilder: (BuildContext context, int docIndex) {
-                  String docName =
-                      _docNames[docIndex].isNotEmpty
-                          ? _docNames[docIndex]
-                          : "Document ${docIndex + 1}";
-                  String creationDate = _docDates[docIndex];
-                  int pagesCount =
-                      _docPageCounts.isNotEmpty ? _docPageCounts[docIndex] : -1;
-                  return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2.0,
-                      child: SizedBox(
-                        height: 160.0 * 1.414,
-                        child: Row(
-                          children: [
-                            // Document Info + Buttons (Left Side)
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // Document Info
-                                  Flexible(
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(12.0),
-                                      ),
-                                      onTap:
-                                          () => _openDocEditDialog(
-                                            context,
-                                            docIndex,
+              ? CustomScrollbar(
+                controller: _scrollController,
+                pageAspectRatios: _thumbnailRatios,
+                scrollRangeStart: 0.1,
+                scrollRangeEnd: 0.675,
+                noTumb: true,
+
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: _docsCount,
+                  itemBuilder: (BuildContext context, int docIndex) {
+                    String docName =
+                        _docNames[docIndex].isNotEmpty
+                            ? _docNames[docIndex]
+                            : "Document ${docIndex + 1}";
+                    String creationDate = _docDates[docIndex];
+                    int pagesCount =
+                        _docPageCounts.isNotEmpty
+                            ? _docPageCounts[docIndex]
+                            : -1;
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2.0,
+                        child: SizedBox(
+                          height: 160.0 * 1.414,
+                          child: Row(
+                            children: [
+                              // Document Info + Buttons (Left Side)
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Document Info
+                                    Flexible(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(12.0),
+                                        ),
+                                        onTap:
+                                            () => _openDocEditDialog(
+                                              context,
+                                              docIndex,
+                                            ),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(12),
+                                          child: Builder(
+                                            builder: (context) {
+                                              return Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    docName,
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 5,
+                                                  ),
+                                                  SizedBox(height: 6),
+                                                  Text(
+                                                    "Created: $creationDate",
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withAlpha(150),
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    "Pages: $pagesCount",
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withAlpha(150),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
                                           ),
-                                      child: Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: Builder(
-                                          builder: (context) {
-                                            return Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  docName,
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 5,
-                                                ),
-                                                SizedBox(height: 6),
-                                                Text(
-                                                  "Created: $creationDate",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withAlpha(150),
-                                                  ),
-                                                ),
-                                                SizedBox(height: 4),
-                                                Text(
-                                                  "Pages: $pagesCount",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withAlpha(150),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  // Button Column
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      // Save
-                                      IconButton(
-                                        onPressed:
-                                            () => _pagesPopup(
-                                              context,
-                                              [],
-                                              PopUpType.save,
-                                              docIndex,
-                                            ),
-                                        icon: Icon(Icons.save),
-                                      ),
-                                      // Share
-                                      IconButton(
-                                        onPressed:
-                                            () => _pagesPopup(
-                                              context,
-                                              [],
-                                              PopUpType.share,
-                                              docIndex,
-                                            ),
-                                        icon: Icon(Icons.share),
-                                      ),
-                                      // Delete
-                                      IconButton(
-                                        onPressed:
-                                            () => _pagesPopup(
-                                              context,
-                                              [],
-                                              PopUpType.delete,
-                                              docIndex,
-                                            ),
-                                        icon: Icon(Icons.delete),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Thumbnail (Right Side)
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: 184,
-                              ), // space for creation date
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  boxShadow: [bigBoxShadow(context)],
-                                ),
-                                child: Stack(
-                                  children: [
-                                    (_docThumbnails[docIndex].isNotEmpty)
-                                        ? AnimatedSwitcher(
-                                          duration: Duration(milliseconds: 200),
-                                          child: Image.file(
-                                            File(_docThumbnails[docIndex]),
-                                            key: ValueKey(
-                                              _docThumbnails[docIndex],
-                                            ),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (
-                                              context,
-                                              error,
-                                              stackTrace,
-                                            ) {
-                                              return AspectRatio(
-                                                aspectRatio:
-                                                    (_thumbnailRatios.length >
-                                                            docIndex)
-                                                        ? _thumbnailRatios[docIndex]
-                                                        : 1.0 / 1.414,
-                                                child: Builder(
-                                                  builder: (context) {
-                                                    return Material(
-                                                      color:
-                                                          Theme.of(context)
-                                                              .colorScheme
-                                                              .surfaceBright,
-                                                      child: const Icon(
-                                                        Icons.broken_image,
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        )
-                                        : AspectRatio(
-                                          aspectRatio:
-                                              _thumbnailRatios[docIndex],
-                                          child: Builder(
-                                            builder: (context) {
-                                              return Material(
-                                                color:
-                                                    Theme.of(
-                                                      context,
-                                                    ).colorScheme.surfaceBright,
-                                                child:
-                                                    IndicatorProcessingImage(),
-                                              );
-                                            },
-                                          ),
+                                    // Button Column
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        // Save
+                                        IconButton(
+                                          onPressed:
+                                              () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.save,
+                                                docIndex,
+                                              ),
+                                          icon: Icon(Icons.save),
                                         ),
-                                    Positioned.fill(
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () => _openDocument(docIndex),
-                                          splashColor: Colors.black26,
-                                          highlightColor: Colors.black26,
+                                        // Share
+                                        IconButton(
+                                          onPressed:
+                                              () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.share,
+                                                docIndex,
+                                              ),
+                                          icon: Icon(Icons.share),
                                         ),
-                                      ),
+                                        // Delete
+                                        IconButton(
+                                          onPressed:
+                                              () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.delete,
+                                                docIndex,
+                                              ),
+                                          icon: Icon(Icons.delete),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
-                            ), // Pages Skeleton
-                          ],
+                              // Thumbnail (Right Side)
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: 184,
+                                ), // space for creation date
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    boxShadow: [bigBoxShadow(context)],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      (_docThumbnails[docIndex].isNotEmpty)
+                                          ? AnimatedSwitcher(
+                                            duration: Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            child: Image.file(
+                                              File(_docThumbnails[docIndex]),
+                                              key: ValueKey(
+                                                _docThumbnails[docIndex],
+                                              ),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (
+                                                context,
+                                                error,
+                                                stackTrace,
+                                              ) {
+                                                return AspectRatio(
+                                                  aspectRatio:
+                                                      (_thumbnailRatios.length >
+                                                              docIndex)
+                                                          ? _thumbnailRatios[docIndex]
+                                                          : 1.0 / 1.414,
+                                                  child: Builder(
+                                                    builder: (context) {
+                                                      return Material(
+                                                        color:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .surfaceBright,
+                                                        child: const Icon(
+                                                          Icons.broken_image,
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          )
+                                          : AspectRatio(
+                                            aspectRatio:
+                                                _thumbnailRatios[docIndex],
+                                            child: Builder(
+                                              builder: (context) {
+                                                return Material(
+                                                  color:
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .surfaceBright,
+                                                  child:
+                                                      IndicatorProcessingImage(),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap:
+                                                () => _openDocument(docIndex),
+                                            splashColor: Colors.black26,
+                                            highlightColor: Colors.black26,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ), // Pages Skeleton
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               )
               : Column(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -1882,8 +1899,7 @@ class _PagesState extends State<Pages> {
                   controller: _scrollController,
                   pageAspectRatios: _thumbnailRatios,
                   scrollRangeStart: 0.1,
-                  scrollRangeEnd: 0.7,
-                  thumbVisibilityDuration: Duration(milliseconds: 1500),
+                  scrollRangeEnd: 0.675,
 
                   child: ListView.builder(
                     controller: _scrollController,
@@ -2309,8 +2325,10 @@ class CustomScrollbar extends StatefulWidget {
   final Color? backgroundColor;
   final Color? textColor;
   final Duration thumbVisibilityDuration;
-  final double scrollRangeStart; // 0.0 to 1.0 (e.g., 0.0)
-  final double scrollRangeEnd; // 0.0 to 1.1 (e.g., 0.7)
+  final Duration thumbVisibilityFadeDuration;
+  final double scrollRangeStart; // 0.0 to 1.0
+  final double scrollRangeEnd; // 0.0 to 1.0
+  final bool noTumb;
 
   const CustomScrollbar({
     super.key,
@@ -2320,15 +2338,18 @@ class CustomScrollbar extends StatefulWidget {
     this.backgroundColor,
     this.textColor,
     this.thumbVisibilityDuration = const Duration(milliseconds: 1000),
+    this.thumbVisibilityFadeDuration = const Duration(milliseconds: 200),
     this.scrollRangeStart = 0.0,
     this.scrollRangeEnd = 1.0,
+    this.noTumb = false,
   });
 
   @override
   State<CustomScrollbar> createState() => _CustomScrollbarState();
 }
 
-class _CustomScrollbarState extends State<CustomScrollbar> {
+class _CustomScrollbarState extends State<CustomScrollbar>
+    with SingleTickerProviderStateMixin {
   double _thumbTop = 0.0;
   bool _isThumbVisible = false;
   bool _isDragging = false;
@@ -2341,6 +2362,14 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onScroll);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: widget.thumbVisibilityFadeDuration,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(_fadeController);
   }
 
   @override
@@ -2383,7 +2412,10 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
     });
   }
 
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
   void _showThumbTemporarily() {
+    if (widget.noTumb) return;
     _hideTimer?.cancel();
 
     if (!_isThumbVisible) {
@@ -2392,10 +2424,18 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
       });
     }
 
+    // Make sure thumb is fully visible before fade
+    _fadeController.reset();
+
     _hideTimer = Timer(widget.thumbVisibilityDuration, () {
       if (!_isDragging && mounted) {
-        setState(() {
-          _isThumbVisible = false;
+        _fadeController.forward().whenComplete(() {
+          if (mounted) {
+            setState(() {
+              _isThumbVisible = false;
+            });
+            _fadeController.reset(); // Prepare for next show
+          }
         });
       }
     });
@@ -2470,7 +2510,7 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
   bool _atTopOrBottom = true;
   void _maybeTriggerHaptics() {
     final page = _getCurrentPage();
-    if (page != _lastPage) {
+    if (!widget.noTumb && _isDragging && page != _lastPage) {
       HapticFeedback.selectionClick();
       _lastPage = page;
     }
@@ -2480,7 +2520,11 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
         widget.controller.offset >=
             widget.controller.position.maxScrollExtent)) {
       if (!_atTopOrBottom) {
-        HapticFeedback.mediumImpact();
+        if (_isDragging) {
+          HapticFeedback.lightImpact();
+        } else {
+          HapticFeedback.selectionClick();
+        }
       }
       _atTopOrBottom = true;
     } else {
@@ -2508,40 +2552,43 @@ class _CustomScrollbarState extends State<CustomScrollbar> {
                   constraints.maxHeight * widget.scrollRangeStart,
                   constraints.maxHeight * widget.scrollRangeEnd - _thumbSize,
                 ),
-                child: GestureDetector(
-                  onVerticalDragStart: _onDragStart,
-                  onVerticalDragUpdate:
-                      (d) => _onDragUpdate(d, constraints.maxHeight),
-                  onVerticalDragEnd: _onDragEnd,
-                  child: Row(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(right: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: GestureDetector(
+                    onVerticalDragStart: _onDragStart,
+                    onVerticalDragUpdate:
+                        (d) => _onDragUpdate(d, constraints.maxHeight),
+                    onVerticalDragEnd: _onDragEnd,
+                    child: Row(
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: backgroundColor,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [tinyBoxShadow(context)],
+                          ),
+                          child: Text(
+                            '${_getCurrentPage() + 1}/${widget.pageAspectRatios.length}',
+                            style: TextStyle(fontSize: 12, color: textColor),
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: backgroundColor,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [tinyBoxShadow(context)],
+                        Container(
+                          width: _thumbSize,
+                          height: _thumbSize,
+                          decoration: BoxDecoration(
+                            color: backgroundColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [tinyBoxShadow(context)],
+                          ),
+                          child: Icon(Icons.drag_indicator, color: textColor),
                         ),
-                        child: Text(
-                          '${_getCurrentPage() + 1}/${widget.pageAspectRatios.length}',
-                          style: TextStyle(fontSize: 12, color: textColor),
-                        ),
-                      ),
-                      Container(
-                        width: _thumbSize,
-                        height: _thumbSize,
-                        decoration: BoxDecoration(
-                          color: backgroundColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [tinyBoxShadow(context)],
-                        ),
-                        child: Icon(Icons.drag_indicator, color: textColor),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -4015,7 +4062,7 @@ class _WarpState extends State<Warp> {
   static const double _magnifierSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 400;
+  static const int _historyDurationMs = 550;
 
   @override
   void initState() {
@@ -4316,6 +4363,13 @@ class _WarpState extends State<Warp> {
                     _panningDelayed = true;
                   },
                   onPanUpdate: (details) {
+                    DateTime now = DateTime.now();
+                    // Haptic Feedback
+                    if (_positionHistory.isNotEmpty &&
+                        now.difference(_positionHistory.last.timestamp) >
+                            Duration(milliseconds: 25)) {
+                      HapticFeedback.selectionClick();
+                    }
                     final box =
                         _imageAreaKey.currentContext?.findRenderObject()
                             as RenderBox?;
@@ -4331,7 +4385,6 @@ class _WarpState extends State<Warp> {
                     });
                     _scaleImage();
                     // Add current position to history
-                    DateTime now = DateTime.now();
                     _positionHistory.add(
                       PositionTimestamp(
                         position: _scaledPoints[index],
