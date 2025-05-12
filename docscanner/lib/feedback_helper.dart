@@ -30,21 +30,25 @@ class FeedbackHelper {
   }
 
   bool getShowRatingPopupAfterExport() {
-    bool ret = state == FeedbackState.init;
+    bool show = state == FeedbackState.init;
+    if (show) {
+      _prefs!.setBool("firstExportHappendedSinceRatingActive", true);
+    }
     updateState();
-    return ret;
+    return show;
   }
 
   bool showRatingPopupWhileProcessing() {
-    bool ret = state == FeedbackState.afterFirstExport;
+    bool show = state == FeedbackState.afterFirstExport;
+    if (show) {
+      _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", true);
+    }
     updateState();
-    return ret;
+    return show;
   }
 
   getShowRatingInAppbar() {
-    bool ret = state == FeedbackState.afterFirstProcessing;
-    updateState();
-    return ret;
+    return state == FeedbackState.afterFirstProcessing;
   }
 
   updateState() async {
@@ -113,9 +117,9 @@ class FeedbackHelper {
     }
   }
 
-  void showRatingDialog(BuildContext context) {
+  Future<void> showRatingDialog(BuildContext context) async {
     int rating = 0;
-    showDialog(
+    await showDialog(
       context: context,
       builder:
           (context) => StatefulBuilder(

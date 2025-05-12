@@ -722,7 +722,10 @@ class _MyHomePageState extends State<MyHomePage> {
         actions: [
           if (feedbackHelper.getShowRatingInAppbar())
             CustomExpandingButton(
-              onPressed: () => feedbackHelper.showRatingDialog(context),
+              onPressed: () async {
+                await feedbackHelper.showRatingDialog(context);
+                setState(() {});
+              },
               icon: Icons.star_half,
               text: "Give Feedback",
             ),
