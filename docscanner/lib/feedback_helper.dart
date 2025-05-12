@@ -206,7 +206,7 @@ class FeedbackHelper {
                   ),
                   ElevatedButton(
                     onPressed:
-                        controller.text.isEmpty
+                        controller.text.trim().isEmpty
                             ? null
                             : () {
                               final feedback = controller.text;

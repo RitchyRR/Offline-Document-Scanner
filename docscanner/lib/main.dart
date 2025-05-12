@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:share_plus/share_plus.dart' show Share;
 import 'package:shared_preferences/shared_preferences.dart';
 // monetization:
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -712,6 +713,70 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _shareAppDialog(BuildContext context) async {
+    final TextEditingController controller = TextEditingController();
+    controller.text =
+        "Hey, I found this document scanner app that works without uploading your data.\n"
+        "The image processing is really good!\n";
+    final url = Uri(
+      scheme: 'https',
+      host: 'play.google.com',
+      path: '/store/apps/details',
+      queryParameters: {'id': 'com.rrapps.docscanner'},
+    );
+    await showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: Text('Tell a Friend!'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: "Your message here.\n",
+                      ),
+                      onChanged: (text) {
+                        setState(() {});
+                      },
+                    ),
+                    SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => launchUrl(url),
+                      child: Text(url.toString()),
+                    ),
+                  ],
+                ),
+
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel'),
+                  ),
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.share),
+                    onPressed:
+                        controller.text.trim().isEmpty
+                            ? null
+                            : () {
+                              final message = controller.text.trim();
+                              final fullMessage =
+                                  "$message\n\nhttps://play.google.com/store/apps/details?id=com.rrapps.docscanner";
+                              Share.share(fullMessage);
+                            },
+                    label: Text('Share'),
+                  ),
+                ],
+              );
+            },
+          ),
+    );
+  }
+
   final ScrollController _scrollController = ScrollController();
   // Documents
   @override
@@ -744,7 +809,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         SizedBox(width: 10),
                         Text(
-                          g.proUnlocked == true ? "PRO features" : "Unlock PRO",
+                          g.proUnlocked == true ? "PRO Features" : "Unlock PRO",
                           style: TextStyle(
                             color:
                                 Theme.of(
@@ -827,6 +892,29 @@ class _MyHomePageState extends State<MyHomePage> {
                         ],
                       ),
                     ),
+                  PopupMenuItem(
+                    value: "shareApp",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.share,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Tell a Friend!",
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
             onSelected: (String value) async {
               switch (value) {
@@ -844,6 +932,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   break;
                 case "rate":
                   feedbackHelper.showRatingDialog(context);
+                  break;
+                case "shareApp":
+                  _shareAppDialog(context);
                   break;
               }
             },
@@ -1412,8 +1503,8 @@ Future<bool> proPopup(BuildContext context) async {
       return AlertDialog(
         title:
             g.proUnlocked == true
-                ? Text("PRO features:")
-                : Text("Unlock PRO features"),
+                ? Text("PRO Features:")
+                : Text("Unlock PRO Features"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1471,7 +1562,7 @@ setPro(final bool proUnlockedIn) {
 
   if (showMessages) {
     Fluttertoast.showToast(
-      msg: proUnlockedIn ? 'PRO features unlocked!' : 'PRO features disabled!',
+      msg: proUnlockedIn ? 'PRO Features unlocked!' : 'PRO Features disabled!',
     );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
@@ -2804,7 +2895,7 @@ class PagePreviewState extends State<PagePreview> {
           content: Text(
             "You have selected the PRO filter, by selecting it"
             "and then trying to leave this page.\n\n"
-            "To get access, first unlock PRO features.\n\n"
+            "To get access, first unlock PRO Features.\n\n"
             "Alternatively select a different version before leaving.",
           ),
           actions: [
