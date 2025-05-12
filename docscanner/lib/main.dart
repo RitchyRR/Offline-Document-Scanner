@@ -1223,6 +1223,22 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: const Icon(Icons.photo_library),
               ),
             ),
+            SizedBox(height: 18.0),
+            //SizedBox(
+            //  width: 40,
+            //  height: 40,
+            //  child: FloatingActionButton(
+            //    shape: RoundedRectangleBorder(
+            //      borderRadius: BorderRadius.circular(12),
+            //    ),
+            //    heroTag: "pickPdf",
+            //    onPressed: () {
+            //      _openImagePicker(ImageSource.gallery, isMultiImage: true);
+            //    },
+            //    tooltip: 'Pick PDF from Directory',
+            //    child: const Icon(Icons.picture_as_pdf),
+            //  ),
+            //),
             //SizedBox(height: 18.0),
             //SizedBox(
             //  width: 40,
@@ -1239,7 +1255,7 @@ class _MyHomePageState extends State<MyHomePage> {
             //    child: const Icon(Icons.photo),
             //  ),
             //),
-            SizedBox(height: 18.0),
+            //SizedBox(height: 18.0),
             if (_picker.supportsImageSource(ImageSource.camera))
               FloatingActionButton(
                 heroTag: "makePhoto",
