@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
@@ -6,52 +7,77 @@ import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'package:url_launcher/url_launcher.dart' show canLaunchUrl, launchUrl;
 
+enum FeedbackState { init, afterFirstExport, afterFirstProcessing, hidden }
+
 class FeedbackHelper {
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
+  final Completer _initialized = Completer();
+  FeedbackState state = FeedbackState.init;
   FeedbackHelper() {
     initAsync();
   }
   initAsync() async {
     _prefs = await SharedPreferences.getInstance();
+    if (_prefs!.getBool("ratingGiven") ?? false == true) {
+      state = FeedbackState.hidden;
+      _reenableRatingsAfterTwoWeeks(_prefs!);
+    }
+    _initialized.complete();
   }
 
-  bool _ratingGiven = false;
-  bool getRatingGiven() {
-    return _ratingGiven;
+  bool getFeedbackHidden() {
+    return state == FeedbackState.hidden;
   }
 
-  bool showRatingPopupAfterExport() {
-    return !(_prefs.getBool("firstExportHappendedSinceRatingActive") ?? false);
+  bool getShowRatingPopupAfterExport() {
+    bool ret = state == FeedbackState.init;
+    updateState();
+    return ret;
   }
 
   bool showRatingPopupWhileProcessing() {
-    return !(_prefs.getBool("furtherProcessingHappendedSinceRatingActive") ??
-            false) &&
-        !showRatingPopupAfterExport(); // don't show processing popup and export popup right afeter one another
+    bool ret = state == FeedbackState.afterFirstExport;
+    updateState();
+    return ret;
   }
 
-  Future<void> _saveRatingGiven(int rating) async {
-    _prefs.setBool("ratingGiven", _ratingGiven);
-    _prefs.setInt("rating", rating);
-    // Save date
-    if (_ratingGiven) {
-      String now = DateTime.now().toIso8601String();
-      _prefs.setString("ratingGivenDate", now);
+  getShowRatingInAppbar() {
+    bool ret = state == FeedbackState.afterFirstProcessing;
+    updateState();
+    return ret;
+  }
+
+  updateState() async {
+    await _initialized.future;
+    if (state == FeedbackState.hidden) return;
+    state = FeedbackState.init;
+    if (_prefs!.getBool("firstExportHappendedSinceRatingActive") ?? false) {
+      state = FeedbackState.afterFirstExport;
+    }
+    if (_prefs!.getBool("furtherProcessingHappendedSinceRatingActive") ??
+        false) {
+      state = FeedbackState.afterFirstProcessing;
     }
   }
 
-  Future<void> loadRatingGiven() async {
-    _ratingGiven = _prefs.getBool("ratingGiven") ?? false;
-    // Read date -> reenable ratings
-    _reenableRatingsAfterTwoWeeks(_prefs);
-    //_ratingGiven = false; //todo remove
+  Future<void> _saveRatingGiven(bool ratingGivenIn, int ratingIn) async {
+    await _initialized.future;
+    _prefs!.setBool("ratingGiven", ratingGivenIn);
+    _prefs!.setInt("rating", ratingIn);
+    // Save date
+    if (ratingGivenIn) {
+      String now = DateTime.now().toIso8601String();
+      _prefs!.setString("ratingGivenDate", now);
+      _disablePopupFlags();
+    }
+    updateState();
   }
 
   _reenableRatingsAfterTwoWeeks(SharedPreferences prefs) async {
     bool reactivate = false;
     int? rating = prefs.getInt("rating");
     // only reenable if rating was not 5 stars
-    if (_ratingGiven && rating != 5) {
+    if (state == FeedbackState.hidden && rating != 5) {
       final String? ratingGivenDate = prefs.getString("ratingGivenDate");
       if (ratingGivenDate != null) {
         final unlockTime = DateTime.tryParse(ratingGivenDate);
@@ -65,27 +91,29 @@ class FeedbackHelper {
       }
     }
     if (reactivate) {
-      _ratingGiven = false;
-      _saveRatingGiven(rating ?? 0);
-      _activatePopupFlags();
+      _saveRatingGiven(false, rating ?? 0);
+      _resetState();
     }
+    updateState();
   }
 
-  Future<void> _activatePopupFlags() async {
-    _prefs.setBool("firstExportHappendedSinceRatingActive", false);
-    _prefs.setBool("furtherProcessingHappendedSinceRatingActive", false);
+  Future<void> _resetState() async {
+    await _initialized.future;
+    _prefs!.setBool("firstExportHappendedSinceRatingActive", false);
+    _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", false);
+    state = FeedbackState.init;
   }
 
   Future<void> _disablePopupFlags() async {
-    if (showRatingPopupAfterExport()) {
-      _prefs.setBool("firstExportHappendedSinceRatingActive", true);
+    await _initialized.future;
+    if (getShowRatingPopupAfterExport()) {
+      _prefs!.setBool("firstExportHappendedSinceRatingActive", true);
     } else if (showRatingPopupWhileProcessing()) {
-      _prefs.setBool("furtherProcessingHappendedSinceRatingActive", true);
+      _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", true);
     }
   }
 
   void showRatingDialog(BuildContext context) {
-    _disablePopupFlags();
     int rating = 0;
     showDialog(
       context: context,
@@ -123,11 +151,10 @@ class FeedbackHelper {
                         rating == 0
                             ? null
                             : () async {
-                              _ratingGiven = true;
-                              _saveRatingGiven(rating);
+                              state = FeedbackState.hidden;
+                              _saveRatingGiven(true, rating);
                               Navigator.pop(context);
                               if (rating == 5) {
-                                _ratingGiven = true;
                                 if (!await _redirectToPlayStore()) {
                                   Fluttertoast.showToast(
                                     msg: "Error: No connection :(",

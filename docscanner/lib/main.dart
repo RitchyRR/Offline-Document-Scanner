@@ -382,7 +382,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
-    g.feedbackHelper.loadRatingGiven();
     _receiveSharing();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
@@ -397,7 +396,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  void _handleGlobalEvent() {
+  Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
       case NotifierEvent.loadDocsThumbnails:
@@ -719,6 +718,12 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text("Documents"),
         actions: [
+          if (g.feedbackHelper.getShowRatingInAppbar())
+            CustomExpandingButton(
+              onPressed: () => g.feedbackHelper.showRatingDialog(context),
+              icon: Icons.star_half,
+              text: "Give Feedback",
+            ),
           PopupMenuButton(
             itemBuilder:
                 (context) => [
@@ -791,7 +796,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
-                  if (!g.feedbackHelper.getRatingGiven())
+                  if (!g.feedbackHelper.getFeedbackHidden())
                     PopupMenuItem(
                       value: "rate",
                       child: Row(
@@ -1149,6 +1154,126 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: const Icon(Icons.camera_alt),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class CustomExpandingButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String text;
+
+  const CustomExpandingButton({
+    super.key,
+    required this.onPressed,
+    this.icon = Icons.star_half,
+    this.text = "Give Feedback",
+  });
+
+  @override
+  State<CustomExpandingButton> createState() => _CustomExpandingButtonState();
+}
+
+class _CustomExpandingButtonState extends State<CustomExpandingButton>
+    with SingleTickerProviderStateMixin {
+  static const animDuration = Duration(milliseconds: 350);
+
+  bool _expanded = false;
+  late Timer _collapseTimer;
+
+  static const double _collapsedWidth = 48;
+  static const double _expandedWidth = 160;
+  static const double _buttonHeight = 48;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(seconds: 2));
+      _expandTemporarily();
+    });
+  }
+
+  void _expandTemporarily() {
+    setState(() {
+      _expanded = true;
+    });
+
+    _collapseTimer = Timer(
+      animDuration + const Duration(seconds: 2) + animDuration,
+      () {
+        if (mounted) {
+          setState(() {
+            _expanded = false;
+          });
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _collapseTimer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final backgroundColor =
+        _expanded
+            ? colorScheme.primaryContainer
+            : colorScheme.primaryContainer.withAlpha(0);
+    final textColor = colorScheme.onPrimaryContainer;
+
+    return AnimatedContainer(
+      duration: animDuration,
+      width: _expanded ? _expandedWidth : _collapsedWidth,
+      height: _buttonHeight,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: _expanded ? [tinyBoxShadow(context)] : [],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(32),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: widget.onPressed,
+          onLongPress: _expandTemporarily,
+          child: SizedBox.expand(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Icon(widget.icon, color: textColor),
+                  if (_expanded)
+                    Expanded(
+                      child: AnimatedOpacity(
+                        duration: animDuration,
+                        opacity: _expanded ? 1.0 : 0.0,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Text(
+                            widget.text,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                            style: TextStyle(
+                              color: textColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -4425,7 +4550,7 @@ Future<bool> _pagesPopup(
   int? versionIndex,
 }) async {
   bool showRatingPopupAfterExport =
-      g.feedbackHelper.showRatingPopupAfterExport();
+      g.feedbackHelper.getShowRatingPopupAfterExport();
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
