@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'package:docscanner/feedback_helper.dart';
 import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
@@ -19,7 +18,6 @@ class AppGlobals {
   final MetadataHelper metadataHelper = MetadataHelper();
   final ImageProcessingManager imageProcessingManager =
       ImageProcessingManager();
-  final FeedbackHelper feedbackHelper = FeedbackHelper();
 
   final List<AspectRatioInfo> commonAspectRatios = [
     //// International Standard (ISO 216 - A, B, C series)

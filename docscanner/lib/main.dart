@@ -32,8 +32,10 @@ import 'package:docscanner/app_globals.dart';
 import 'package:docscanner/files_helper.dart';
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/feedback_helper.dart';
 
 final AdsHelper adsHelper = AdsHelper();
+final FeedbackHelper feedbackHelper = FeedbackHelper();
 
 final GlobalNotifier globalNotifier = GlobalNotifier();
 
@@ -718,9 +720,9 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text("Documents"),
         actions: [
-          if (g.feedbackHelper.getShowRatingInAppbar())
+          if (feedbackHelper.getShowRatingInAppbar())
             CustomExpandingButton(
-              onPressed: () => g.feedbackHelper.showRatingDialog(context),
+              onPressed: () => feedbackHelper.showRatingDialog(context),
               icon: Icons.star_half,
               text: "Give Feedback",
             ),
@@ -796,7 +798,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
-                  if (!g.feedbackHelper.getFeedbackHidden())
+                  if (!feedbackHelper.getFeedbackHidden())
                     PopupMenuItem(
                       value: "rate",
                       child: Row(
@@ -838,7 +840,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   _selectAspectRatios(context);
                   break;
                 case "rate":
-                  g.feedbackHelper.showRatingDialog(context);
+                  feedbackHelper.showRatingDialog(context);
                   break;
               }
             },
@@ -2620,10 +2622,10 @@ class PagePreviewState extends State<PagePreview> {
     if (_versionPaths.any((element) => element.isEmpty)) {
       // Feedback Popup
       bool showRatingPopupWhileProcessing =
-          g.feedbackHelper.showRatingPopupWhileProcessing();
+          feedbackHelper.showRatingPopupWhileProcessing();
       if (showRatingPopupWhileProcessing) {
         // ignore: use_build_context_synchronously
-        g.feedbackHelper.showRatingDialog(context);
+        feedbackHelper.showRatingDialog(context);
       }
     }
   }
@@ -4550,7 +4552,7 @@ Future<bool> _pagesPopup(
   int? versionIndex,
 }) async {
   bool showRatingPopupAfterExport =
-      g.feedbackHelper.getShowRatingPopupAfterExport();
+      feedbackHelper.getShowRatingPopupAfterExport();
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
@@ -4751,7 +4753,7 @@ Future<bool> _pagesPopup(
                                                 await afterExport
                                                     ? afterExport
                                                     : Duration.zero;
-                                                g.feedbackHelper
+                                                feedbackHelper
                                                 // ignore: use_build_context_synchronously
                                                 .showRatingDialog(context);
                                               }
@@ -4856,7 +4858,7 @@ Future<bool> _pagesPopup(
                                                       await afterExport
                                                           ? afterExport
                                                           : Duration.zero;
-                                                      g.feedbackHelper
+                                                      feedbackHelper
                                                           .showRatingDialog(
                                                             // ignore: use_build_context_synchronously
                                                             context,
