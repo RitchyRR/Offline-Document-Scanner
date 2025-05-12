@@ -4607,7 +4607,7 @@ Future<bool> _pagesPopup(
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
-  late int imagesCount;
+  late int pagesCount;
   // version
   if (versionIndex != null && pageIndexes.length == 1) {
     if (type == PopUpType.delete) {
@@ -4625,7 +4625,7 @@ Future<bool> _pagesPopup(
         ),
       ];
     }
-    imagesCount = 1;
+    pagesCount = 1;
   }
   // single page / multiple pages / document
   else {
@@ -4635,14 +4635,14 @@ Future<bool> _pagesPopup(
       fullSized: false,
     );
     imagePaths = thumbs.$1;
-    imagesCount = thumbs.$2;
+    pagesCount = thumbs.$2;
   }
-  final bool isSinglePage = imagesCount == 1;
+  final bool isSinglePage = pagesCount == 1;
   bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
 
   bool docUnlocked = false;
   bool pageUnlocked = false;
-  if (isDocument) {
+  if (isDocument || !isSinglePage) {
     docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
   } else if (isSinglePage && versionIndex != null) {
     pageUnlocked = await g.metadataHelper.readPageUnlocked(
@@ -4692,7 +4692,7 @@ Future<bool> _pagesPopup(
           String sObject =
               isDocument
                   ? "Document ${docIndex + 1}"
-                  : "${isSinglePage ? "" : "$imagesCount "}"
+                  : "${isSinglePage ? "" : "$pagesCount "}"
                       "Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}"
                               "${versionIndex != null && type != PopUpType.delete ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
           return StatefulBuilder(
@@ -4729,7 +4729,7 @@ Future<bool> _pagesPopup(
                         child: Text(
                           "Are you sure you want to \npermanently delete ${isDocument ? ""
                                   "this document" : ""
-                                  "${isSinglePage ? "this " : "these $imagesCount "}" // ${docIndex + 1}
+                                  "${isSinglePage ? "this " : "these $pagesCount "}" // ${docIndex + 1}
                                   "page${isSinglePage ? "" : "s"}"}?", //${isSinglePage ? " ${pageIndexes.first + 1}" : ""}
                         ),
                       )
@@ -4811,16 +4811,18 @@ Future<bool> _pagesPopup(
                                 SizedBox(
                                   height:
                                       (g.proUnlocked == true ||
-                                              (docUnlocked && isDocument) ||
-                                              imagesCount == 1)
+                                              (docUnlocked && !isSinglePage) ||
+                                              isSinglePage)
                                           ? 0
                                           : 4,
                                 ),
                                 Container(
                                   decoration:
                                       (g.proUnlocked == true ||
-                                              (docUnlocked && isDocument) ||
-                                              imagesCount == 1)
+                                              (docUnlocked &&
+                                                  (isDocument ||
+                                                      !isSinglePage)) ||
+                                              isSinglePage)
                                           ? null
                                           : BoxDecoration(
                                             color:
@@ -4841,10 +4843,11 @@ Future<bool> _pagesPopup(
                                           horizontal:
                                               (g.proUnlocked == true ||
                                                       (docUnlocked &&
-                                                          isDocument) ||
+                                                          (isDocument ||
+                                                              !isSinglePage)) ||
                                                       (pageUnlocked ||
                                                           versionIndex != 3 &&
-                                                              imagesCount == 1))
+                                                              isSinglePage))
                                                   ? 0
                                                   : 4,
                                         ),
@@ -4853,12 +4856,12 @@ Future<bool> _pagesPopup(
                                               allPagesLoaded &&
                                                       (g.proUnlocked == true ||
                                                           (docUnlocked &&
-                                                              isDocument) ||
+                                                              (isDocument ||
+                                                                  !isSinglePage)) ||
                                                           (pageUnlocked ||
                                                               versionIndex !=
                                                                       3 &&
-                                                                  imagesCount ==
-                                                                      1))
+                                                                  isSinglePage))
                                                   ? () async {
                                                     switch (type) {
                                                       case PopUpType.share:
@@ -4900,8 +4903,8 @@ Future<bool> _pagesPopup(
                                         ),
                                       ),
                                       (g.proUnlocked == true ||
-                                              (docUnlocked && isDocument) ||
-                                              imagesCount == 1)
+                                              (docUnlocked && !isSinglePage) ||
+                                              isSinglePage)
                                           ? SizedBox()
                                           : Padding(
                                             padding: const EdgeInsets.fromLTRB(
@@ -4919,7 +4922,7 @@ Future<bool> _pagesPopup(
                                                   icon: Icon(Icons.lock),
                                                   label: Text("Unlock PRO"),
                                                 ),
-                                                (isDocument)
+                                                (isDocument || !isSinglePage)
                                                     ? ElevatedButton.icon(
                                                       onPressed: () async {
                                                         docUnlocked =
