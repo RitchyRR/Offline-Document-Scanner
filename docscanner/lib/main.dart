@@ -382,7 +382,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAsync() async {
-    _loadRatingGiven();
+    g.feedbackHelper.loadRatingGiven();
     _receiveSharing();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
@@ -491,193 +491,6 @@ class _MyHomePageState extends State<MyHomePage> {
     for (var i = 0; i < ratiosShortBy; i++) {
       _thumbnailRatios.add(1.0 / 1.414);
     }
-  }
-
-  bool _ratingGiven = false;
-  Future<void> _saveRatingGiven(int rating) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool("ratingGiven", _ratingGiven);
-    prefs.setInt("rating", rating);
-    // Save date
-    if (_ratingGiven) {
-      String now = DateTime.now().toIso8601String();
-      prefs.setString("ratingGivenDate", now);
-    }
-  }
-
-  Future<void> _loadRatingGiven() async {
-    final prefs = await SharedPreferences.getInstance();
-    _ratingGiven = prefs.getBool("ratingGiven") ?? false;
-    // Read date -> reenable ratings
-    reenableRatingsAfterTwoWeeks(prefs);
-    //_ratingGiven = false; //todo remove
-  }
-
-  reenableRatingsAfterTwoWeeks(SharedPreferences prefs) async {
-    bool reactivate = false;
-    int? rating = prefs.getInt("rating");
-    // only reenable if rating was not 5 stars
-    if (_ratingGiven && rating != 5) {
-      final String? ratingGivenDate = prefs.getString("ratingGivenDate");
-      if (ratingGivenDate != null) {
-        final unlockTime = DateTime.tryParse(ratingGivenDate);
-        final now = DateTime.now();
-
-        if (unlockTime != null && now.difference(unlockTime).inDays >= 14) {
-          reactivate = true;
-        }
-      } else {
-        reactivate = true;
-      }
-    }
-    if (reactivate) {
-      _ratingGiven = false;
-      _saveRatingGiven(rating ?? 3);
-    }
-  }
-
-  void _showRatingDialog() {
-    int rating = 0;
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: Text('Rate our App'),
-                content: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return IconButton(
-                      icon: Icon(
-                        index < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 36,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          rating = index + 1;
-                        });
-                      },
-                    );
-                  }),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed:
-                        rating == 0
-                            ? null
-                            : () async {
-                              _ratingGiven = true;
-                              _saveRatingGiven(rating);
-                              Navigator.pop(context);
-                              if (rating == 5) {
-                                _ratingGiven = true;
-                                if (!await _redirectToPlayStore()) {
-                                  Fluttertoast.showToast(
-                                    msg: "Error: No connection :(",
-                                  );
-                                }
-                              } else {
-                                _showFeedbackDialog(rating);
-                              }
-                            },
-                    child: Text('Next'),
-                  ),
-                ],
-              );
-            },
-          ),
-    );
-  }
-
-  void _showFeedbackDialog(int rating) {
-    final TextEditingController controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: Text('Give Feedback'),
-                content: TextField(
-                  controller: controller,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText:
-                        "What would you like to see?\n"
-                        "What is missing?\n"
-                        "What went wrong?\n",
-                  ),
-                  onChanged: (text) {
-                    setState(() {});
-                  },
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed:
-                        controller.text.isEmpty
-                            ? null
-                            : () {
-                              final feedback = controller.text;
-                              dev.log('User feedback: $feedback');
-                              sendFeedbackByEmail(feedback, rating);
-                              Navigator.pop(context);
-                            },
-                    child: Text('Send'),
-                  ),
-                ],
-              );
-            },
-          ),
-    );
-  }
-
-  Future<void> sendFeedbackByEmail(String message, int rating) async {
-    final String subject = Uri.encodeComponent("App Feedback");
-    final String body = Uri.encodeComponent(
-      "User rating:\n\n"
-      "$rating/5\n\n"
-      "User feedback:\n\n"
-      "$message\n\n",
-    );
-    final String email = 'R.R.appdev.public@gmail.com';
-
-    final Uri emailUri = Uri.parse('mailto:$email?subject=$subject&body=$body');
-
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
-      Fluttertoast.showToast(msg: "Thank you for your feedback!");
-      dev.log('To $email: $message');
-    } else {
-      Fluttertoast.showToast(msg: "Error: No connection :(");
-      dev.log('Error, sendFeedbackByEmail: No connection :(');
-    }
-  }
-
-  Future<bool> _redirectToPlayStore() async {
-    final url = Uri(
-      scheme: 'https',
-      host: 'play.google.com',
-      path: '/store/apps/details',
-      queryParameters: {'id': 'com.rrapps.docscanner'},
-    );
-    dev.log("Opening URL: $url");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-      return true;
-    }
-    return false;
   }
 
   Future<void> _openDocument(int docIndex) async {
@@ -978,7 +791,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
-                  if (!_ratingGiven)
+                  if (!g.feedbackHelper.getRatingGiven())
                     PopupMenuItem(
                       value: "rate",
                       child: Row(
@@ -1020,7 +833,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   _selectAspectRatios(context);
                   break;
                 case "rate":
-                  _showRatingDialog();
+                  g.feedbackHelper.showRatingDialog(context);
                   break;
               }
             },
@@ -2678,6 +2491,16 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
       supressWarnings: true,
     );
+    // if processing on init
+    if (_versionPaths.any((element) => element.isEmpty)) {
+      // Feedback Popup
+      bool showRatingPopupWhileProcessing =
+          g.feedbackHelper.showRatingPopupWhileProcessing();
+      if (showRatingPopupWhileProcessing) {
+        // ignore: use_build_context_synchronously
+        g.feedbackHelper.showRatingDialog(context);
+      }
+    }
   }
 
   @override
@@ -4601,6 +4424,8 @@ Future<bool> _pagesPopup(
   int docIndex, {
   int? versionIndex,
 }) async {
+  bool showRatingPopupAfterExport =
+      g.feedbackHelper.showRatingPopupAfterExport();
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> imagePaths;
@@ -4764,6 +4589,7 @@ Future<bool> _pagesPopup(
                                             ? 0
                                             : 4,
                                   ),
+                                  // ImageExport
                                   child: ElevatedButton.icon(
                                     onPressed:
                                         allPagesLoaded &&
@@ -4772,16 +4598,20 @@ Future<bool> _pagesPopup(
                                                     versionIndex != 3)
                                             ? () async {
                                               Navigator.pop(context);
+                                              Future? afterExport;
                                               switch (type) {
                                                 case PopUpType.share:
-                                                  g.filesHelper.shareImages(
-                                                    docIndex,
-                                                    pageIndexes: pageIndexes,
-                                                    versionIndex: versionIndex,
-                                                  );
+                                                  afterExport = g.filesHelper
+                                                      .shareImages(
+                                                        docIndex,
+                                                        pageIndexes:
+                                                            pageIndexes,
+                                                        versionIndex:
+                                                            versionIndex,
+                                                      );
                                                   break;
                                                 case PopUpType.save:
-                                                  g.filesHelper
+                                                  afterExport = g.filesHelper
                                                       .saveImagesToGallery(
                                                         docIndex,
                                                         pageIndexes:
@@ -4791,6 +4621,14 @@ Future<bool> _pagesPopup(
                                                       );
                                                   break;
                                                 default:
+                                              }
+                                              if (showRatingPopupAfterExport) {
+                                                await afterExport
+                                                    ? afterExport
+                                                    : Duration.zero;
+                                                g.feedbackHelper
+                                                // ignore: use_build_context_synchronously
+                                                .showRatingDialog(context);
                                               }
                                             }
                                             : null,
@@ -4848,6 +4686,7 @@ Future<bool> _pagesPopup(
                                                   ? 0
                                                   : 4,
                                         ),
+                                        // PDF Export
                                         child: ElevatedButton.icon(
                                           onPressed:
                                               allPagesLoaded &&
@@ -4860,9 +4699,11 @@ Future<bool> _pagesPopup(
                                                                       3 &&
                                                                   isSinglePage))
                                                   ? () async {
+                                                    Future? afterExport;
                                                     switch (type) {
                                                       case PopUpType.share:
-                                                        g.filesHelper
+                                                        afterExport = g
+                                                            .filesHelper
                                                             .shareImagesPdf(
                                                               context,
                                                               docIndex,
@@ -4873,7 +4714,8 @@ Future<bool> _pagesPopup(
                                                             );
                                                         break;
                                                       case PopUpType.save:
-                                                        g.filesHelper
+                                                        afterExport = g
+                                                            .filesHelper
                                                             .pickFolderForImagesPdf(
                                                               docIndex,
                                                               context,
@@ -4885,8 +4727,15 @@ Future<bool> _pagesPopup(
                                                         break;
                                                       default:
                                                     }
-                                                    if (context.mounted) {
-                                                      Navigator.pop(context);
+                                                    if (showRatingPopupAfterExport) {
+                                                      await afterExport
+                                                          ? afterExport
+                                                          : Duration.zero;
+                                                      g.feedbackHelper
+                                                          .showRatingDialog(
+                                                            // ignore: use_build_context_synchronously
+                                                            context,
+                                                          );
                                                     }
                                                   }
                                                   : null,
