@@ -803,7 +803,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         SizedBox(width: 8),
                         Icon(
-                          g.proUnlocked == true ? Icons.info : Icons.lock,
+                          g.proUnlocked == true ? Icons.verified : Icons.lock,
                           color:
                               Theme.of(context).colorScheme.onPrimaryContainer,
                         ),
