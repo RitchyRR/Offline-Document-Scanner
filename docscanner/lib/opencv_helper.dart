@@ -815,7 +815,7 @@ class OpenCVHelper {
     List<int> depths, {
     bool noBoderCutin = false,
   }) {
-    final int borderTolerance = 5 + (K ~/ 9);
+    final int borderTolerance = 6 + (K ~/ 9);
     borderCutIn[borderIndex * 2] =
         noBoderCutin
             ? 0
@@ -828,7 +828,7 @@ class OpenCVHelper {
         depths
             .sublist(depths.length ~/ 10, depths.length * 9 ~/ 10)
             .reduce(math.max) -
-        borderCutIn[borderIndex] +
+        (borderCutIn[borderIndex * 2] + borderCutIn[borderIndex * 2 + 1]) ~/ 2 +
         borderTolerance;
   }
 
