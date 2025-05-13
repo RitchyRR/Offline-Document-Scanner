@@ -1722,7 +1722,7 @@ class _PagesState extends State<Pages> {
         setState(() {});
         break;
       case NotifierEvent.imagesDeleted:
-        _deleted = [];
+        deletedPages = [];
         break;
       default:
     }
@@ -1849,19 +1849,19 @@ class _PagesState extends State<Pages> {
   }
 
   bool _selectMode = false;
-  List<int> _selected = [];
-  List<int> _deleted = [];
+  List<int> _selectedPages = [];
+  List<int> deletedPages = [];
 
   _selectPage(int index) {
-    if (_selected.contains(index)) {
-      _selected.remove(index);
+    if (_selectedPages.contains(index)) {
+      _selectedPages.remove(index);
     } else {
-      _selected.add(index);
+      _selectedPages.add(index);
     }
-    if (_selected.isEmpty) {
+    if (_selectedPages.isEmpty) {
       _selectMode = false;
     } else {
-      _selected.sort();
+      _selectedPages.sort();
       _selectMode = true;
     }
     Future.microtask(() {
@@ -1870,15 +1870,15 @@ class _PagesState extends State<Pages> {
   }
 
   _selectAll() {
-    int lengthBefore = _selected.length;
+    int lengthBefore = _selectedPages.length;
 
-    _selected = List.generate(
+    _selectedPages = List.generate(
       _pageThumbnails.length,
       (int index) => index,
       growable: true,
     );
 
-    if (lengthBefore != _selected.length) {
+    if (lengthBefore != _selectedPages.length) {
       HapticFeedback.lightImpact();
     }
     //_selected = [];
@@ -1888,7 +1888,7 @@ class _PagesState extends State<Pages> {
     //  }
     //}
 
-    if (_selected.isNotEmpty) {
+    if (_selectedPages.isNotEmpty) {
       _selectMode = true;
       Future.microtask(() {
         setState(() {});
@@ -1898,7 +1898,7 @@ class _PagesState extends State<Pages> {
 
   _cancelSelectMode() {
     HapticFeedback.lightImpact();
-    _selected = [];
+    _selectedPages = [];
     _selectMode = false;
     Future.microtask(() {
       setState(() {});
@@ -1932,7 +1932,7 @@ class _PagesState extends State<Pages> {
                   ],
                 )
                 : AppBar(
-                  title: Text("${_selected.length} Pages selected"),
+                  title: Text("${_selectedPages.length} Pages selected"),
                   leading: IconButton(
                     onPressed: () => _cancelSelectMode(),
                     icon: Icon(Icons.close),
@@ -2016,16 +2016,17 @@ class _PagesState extends State<Pages> {
                               Positioned.fill(
                                 child: Material(
                                   color:
-                                      (_selectMode && _selected.contains(index))
+                                      (_selectMode &&
+                                              _selectedPages.contains(index))
                                           ? Theme.of(context)
                                               .colorScheme
                                               .primaryContainer
                                               .withAlpha(150)
-                                          : _deleted.contains(index)
+                                          : deletedPages.contains(index)
                                           ? Color.fromRGBO(100, 0, 10, 0.412)
                                           : Colors.transparent,
                                   child:
-                                      !_deleted.contains(index)
+                                      !deletedPages.contains(index)
                                           ? InkWell(
                                             onTap:
                                                 !_selectMode
@@ -2095,7 +2096,7 @@ class _PagesState extends State<Pages> {
                                 child: GestureDetector(
                                   // Move Page Index Dialog
                                   onTap:
-                                      !_deleted.contains(index)
+                                      !deletedPages.contains(index)
                                           ? _selectMode
                                               ? () => _selectPage(index)
                                               : () => _openPageEditDialog(
@@ -2104,14 +2105,15 @@ class _PagesState extends State<Pages> {
                                               )
                                           : null,
                                   onLongPress:
-                                      !_deleted.contains(index)
+                                      !deletedPages.contains(index)
                                           ? () => _selectPage(index)
                                           : null,
                                   child: Container(
                                     padding: EdgeInsets.fromLTRB(
                                       12,
                                       6,
-                                      (_selectMode && _selected.contains(index))
+                                      (_selectMode &&
+                                              _selectedPages.contains(index))
                                           ? 6
                                           : 12,
                                       6,
@@ -2140,12 +2142,14 @@ class _PagesState extends State<Pages> {
                                         SizedBox(
                                           width:
                                               (_selectMode &&
-                                                      _selected.contains(index))
+                                                      _selectedPages.contains(
+                                                        index,
+                                                      ))
                                                   ? 8
                                                   : 0,
                                         ),
                                         (_selectMode &&
-                                                _selected.contains(index))
+                                                _selectedPages.contains(index))
                                             ? Icon(Icons.check, size: 20)
                                             : SizedBox(),
                                       ],
@@ -2227,14 +2231,14 @@ class _PagesState extends State<Pages> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           onPressed: () async {
-                            bool deleted = await _pagesPopup(
+                            bool deletionConfirmed = await _pagesPopup(
                               context,
-                              _selected,
+                              _selectedPages,
                               PopUpType.delete,
                               widget.docIndex,
                             );
-                            if (deleted) {
-                              _deleted = _selected;
+                            if (deletionConfirmed) {
+                              deletedPages = _selectedPages;
                               _cancelSelectMode();
                             }
                           },
@@ -2254,7 +2258,7 @@ class _PagesState extends State<Pages> {
                           onPressed: () async {
                             _pagesPopup(
                               context,
-                              _selected,
+                              _selectedPages,
                               PopUpType.save,
                               widget.docIndex,
                             );
@@ -2270,7 +2274,7 @@ class _PagesState extends State<Pages> {
                           onPressed: () async {
                             _pagesPopup(
                               context,
-                              _selected,
+                              _selectedPages,
                               PopUpType.share,
                               widget.docIndex,
                             );
@@ -3082,14 +3086,14 @@ class PagePreviewState extends State<PagePreview> {
               onSelected: (String value) async {
                 switch (value) {
                   case "del":
-                    bool deleted = await _pagesPopup(
+                    bool deletionConfirmed = await _pagesPopup(
                       context,
                       [widget.pageIndex],
                       PopUpType.delete,
                       widget.docIndex,
                       versionIndex: _selectedVersion,
                     );
-                    if (deleted && mounted && context.mounted) {
+                    if (deletionConfirmed && mounted && context.mounted) {
                       Navigator.pop(context);
                     }
                     break;
