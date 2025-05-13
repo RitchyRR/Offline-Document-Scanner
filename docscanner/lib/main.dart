@@ -2455,7 +2455,7 @@ class CustomScrollbar extends StatefulWidget {
 }
 
 class _CustomScrollbarState extends State<CustomScrollbar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   double _thumbTop = 0.0;
   bool _isThumbVisible = false;
   bool _isDragging = false;
@@ -2476,6 +2476,16 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       begin: 1.0,
       end: 0.0,
     ).animate(_fadeController);
+    _railSlideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _railSlideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(1.5, 0), // slide off to the right
+    ).animate(
+      CurvedAnimation(parent: _railSlideController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -2489,9 +2499,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     if (_isDragging) {
       return;
     }
-
-    _updateThumbPosition();
     _showThumbTemporarily();
+    _updateThumbPosition();
     _maybeTriggerHaptics();
   }
 
@@ -2520,6 +2529,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late AnimationController _railSlideController;
+  late Animation<Offset> _railSlideAnimation;
   void _showThumbTemporarily() {
     if (widget.noTumb) return;
     _hideTimer?.cancel();
@@ -2530,19 +2541,22 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       });
     }
 
-    // Make sure thumb is fully visible before fade
-    _fadeController.reset();
+    _railSlideController.reset(); // Bring rail back into view
+    _fadeController.reset(); // Make thumb is fully visible before fade
 
-    _hideTimer = Timer(widget.thumbVisibilityDuration, () {
+    _hideTimer = Timer(widget.thumbVisibilityDuration, () async {
       if (!_isDragging && mounted) {
-        _fadeController.forward().whenComplete(() {
-          if (mounted) {
-            setState(() {
-              _isThumbVisible = false;
-            });
-            _fadeController.reset(); // Prepare for next show
-          }
-        });
+        List<Future> animations = [];
+        animations.add(_fadeController.forward());
+        animations.add(_railSlideController.forward());
+        await Future.wait(animations);
+        if (mounted) {
+          setState(() {
+            _isThumbVisible = false;
+            _isDragging = false;
+          });
+          _fadeController.reset();
+        }
       }
     });
   }
@@ -2577,7 +2591,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     _maybeTriggerHaptics();
   }
 
-  void _onDragEnd(DragEndDetails details) {
+  void _onDragEnd(DragEndDetails? details) {
+    // details null if drag was cancelled
     setState(() {
       _isDragging = false;
     });
@@ -2646,11 +2661,31 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     final textColor =
         widget.textColor ?? Theme.of(context).colorScheme.onSecondaryContainer;
 
+    final railWidth = 12.0;
+    final railColor = Theme.of(context).colorScheme.onPrimaryContainer;
     return LayoutBuilder(
       builder: (_, constraints) {
         return Stack(
           children: [
             widget.child,
+            if (_isThumbVisible && widget.controller.hasClients)
+              Positioned(
+                right: -railWidth / 2,
+                top: constraints.maxHeight * widget.scrollRangeStart + 4,
+                bottom:
+                    constraints.maxHeight * (1.0 - widget.scrollRangeEnd) + 4,
+                child: SlideTransition(
+                  position: _railSlideAnimation,
+                  child: Container(
+                    width: railWidth,
+                    decoration: BoxDecoration(
+                      color: railColor,
+                      borderRadius: BorderRadius.circular(railWidth / 2),
+                      boxShadow: [tinyBoxShadow(context)],
+                    ),
+                  ),
+                ),
+              ),
             if (_isThumbVisible && widget.controller.hasClients)
               Positioned(
                 right: -16,
@@ -2664,7 +2699,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                     onVerticalDragStart: _onDragStart,
                     onVerticalDragUpdate:
                         (d) => _onDragUpdate(d, constraints.maxHeight),
-                    onVerticalDragEnd: _onDragEnd,
+                    onVerticalDragEnd: (details) => _onDragEnd(details),
+                    onVerticalDragCancel: () => _onDragEnd(null),
                     child: Row(
                       children: [
                         Container(
