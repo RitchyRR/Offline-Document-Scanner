@@ -461,6 +461,8 @@ class ImageProcessingManager {
     pathsIn.removeAt(0);
     if (pathsIn.isNotEmpty) {
       for (var (index, path) in pathsIn.indexed) {
+        // small delay between starts
+        await Future.delayed(Duration(milliseconds: 100));
         processPageWrapper(
           false,
           docIndex,
@@ -473,8 +475,6 @@ class ImageProcessingManager {
           0,
           true,
         );
-        // small delay between starts
-        await Future.delayed(Duration(milliseconds: 20));
       }
     }
   }
