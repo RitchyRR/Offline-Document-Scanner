@@ -78,7 +78,8 @@ class FilesHelper {
   }) async {
     await _initializeDocumentsPath();
 
-    String docPath = '$docsPath/Document $docIndex';
+    String docPath =
+        '$docsPath/Document ${(docIndex).toString().padLeft(4, '0')}';
     if (!Directory(docPath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getDocumentPath: Requested Document $docIndex does not exist.",
@@ -90,11 +91,14 @@ class FilesHelper {
   Future<(String, int)> _reserveNewPage(int docIndex) async {
     String documentPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
-    while (await Directory('$documentPath/Page $pageIndex').exists()) {
+    while (await Directory(
+      '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}',
+    ).exists()) {
       pageIndex++;
     }
 
-    String newPagePath = '$documentPath/Page $pageIndex';
+    String newPagePath =
+        '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
     await Directory(newPagePath).create();
     return (newPagePath, pageIndex);
   }
@@ -105,7 +109,8 @@ class FilesHelper {
     bool supressWarnings = false,
   }) async {
     String documentPath = await getDocumentPath(docIndex);
-    String pagePath = '$documentPath/Page $pageIndex';
+    String pagePath =
+        '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
     if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getPagePath: Requested directory \"$pagePath\" does not exist.",
@@ -306,25 +311,28 @@ class FilesHelper {
   Future<void> repairDirectoryStructure(BuildContext? context) async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
-    var i = 0;
-    for (; i < 5; i++) {
-      try {
-        // ignore: use_build_context_synchronously
-        if (!(await _repairDirectoryStructure(context))) break;
-      } catch (e) {
-        dev.log("Error, repairDirectoryStructure: $e");
-      }
+    //var i = 0;
+    //for (; i < 5; i++) {
+    try {
+      // ignore: use_build_context_synchronously
+      //if (!(
+      // ignore: use_build_context_synchronously
+      _repairDirectoryStructure(context);
+      //  )) break;
+    } catch (e) {
+      dev.log("Error, repairDirectoryStructure: $e");
     }
-    if (i == 5) {
-      dev.log(
-        "Warning, repairDirectoryStructure: Could not repair after $i tries.",
-      );
-    }
+    //}
+    //if (i == 5) {
+    //  dev.log(
+    //    "Warning, repairDirectoryStructure: Could not repair after $i tries.",
+    //  );
+    //}
   }
 
   Future<bool> _repairDirectoryStructure(BuildContext? context) async {
     bool anyChange = false;
-    List<Future<void>> repairFutures = [];
+    List<Future> repairFutures = [];
 
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync().whereType<Directory>().toList()
@@ -389,9 +397,18 @@ class FilesHelper {
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
-              repairFutures.add(
-                g.imageProcessingManager.repairPage(docIndex, pageIndex),
+              final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
+              if (repairFutures.length >= maxIsolates) {
+                await Future.any(repairFutures);
+              }
+              Future future = g.imageProcessingManager.repairPage(
+                docIndex,
+                pageIndex,
               );
+              repairFutures.add(future);
+              future.whenComplete(() {
+                repairFutures.remove(future);
+              });
             }
           }
         }

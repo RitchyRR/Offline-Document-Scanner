@@ -23,7 +23,6 @@ const List<String> versionNames = [
 
 class ImageProcessingManager {
   Map<(int, int), Isolate> isolates = {};
-  List<Capability?> capabilities = [];
 
   static Future<void> _processPageIsolate(
     (
@@ -207,7 +206,6 @@ class ImageProcessingManager {
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
 
-    // await prior future if too many isolates are running
     while (isolates.length >= maxIsolates) {
       await Future.delayed(Duration(milliseconds: 95));
     }
@@ -228,14 +226,7 @@ class ImageProcessingManager {
       isInitial,
       g,
     ));
-
-    Capability? cap;
-    if (isolates.length + 1 >= maxIsolates) {
-      cap = Capability();
-      isolate.pause(cap);
-    }
     isolates[(docIndex, pageIndex)] = isolate;
-    capabilities.add(cap);
 
     port.listen((message) {
       if (message is NotifierEvent) {
@@ -244,19 +235,8 @@ class ImageProcessingManager {
         port.close();
         wrapperCompleter.complete();
 
-        int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        if (index != -1) capabilities.removeAt(index);
         isolate.kill();
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
       }
     });
     await wrapperCompleter.future;
@@ -552,14 +532,7 @@ class ImageProcessingManager {
       cornerPoints,
       g,
     ));
-
-    Capability? cap;
-    if (isolates.length + 1 >= maxIsolates) {
-      cap = Capability();
-      isolate.pause(cap);
-    }
     isolates[(docIndex, pageIndex)] = isolate;
-    capabilities.add(cap);
 
     port.listen((message) async {
       if (message is NotifierEvent) {
@@ -568,19 +541,8 @@ class ImageProcessingManager {
         port.close();
         repairCompleter.complete();
 
-        int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        if (index != -1) capabilities.removeAt(index);
         isolate.kill();
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
       }
     });
     await repairCompleter.future;
@@ -708,7 +670,7 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
     final primaryCompleter = Completer<void>();
 
-    Isolate primaryIsolate = await Isolate.spawn(_rotatePageIsolate, (
+    Isolate isolate = await Isolate.spawn(_rotatePageIsolate, (
       port.sendPort,
       docIndex,
       pageIndex,
@@ -717,27 +679,14 @@ class ImageProcessingManager {
       pageThumbnailIndexIn,
       g,
     ));
-    isolates[(docIndex, pageIndex)] = primaryIsolate;
-    capabilities.add(null);
+    isolates[(docIndex, pageIndex)] = isolate;
 
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
-
-        int index = isolates.values.toList().indexOf(primaryIsolate);
-        isolates.removeWhere((key, value) => value == primaryIsolate);
-        if (index != -1) capabilities.removeAt(index);
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
+        isolates.removeWhere((key, value) => value == isolate);
       }
     });
     await primaryCompleter.future;
@@ -888,33 +837,14 @@ class ImageProcessingManager {
       port.close();
       return;
     }
-
-    Capability? cap;
-    if (isolates.length + 1 >= maxIsolates) {
-      cap = Capability();
-      isolate.pause(cap);
-    }
     isolates[(docIndex, pageIndex)] = isolate;
-    capabilities.add(cap);
 
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
-
-        int index = isolates.values.toList().indexOf(isolate);
         isolates.removeWhere((key, value) => value == isolate);
-        if (index != -1) capabilities.removeAt(index);
-
-        // Resume next paused isolate
-        for (int i = 0; i < isolates.length; i++) {
-          if (capabilities[i] != null) {
-            isolates.values.elementAt(i).resume(capabilities[i]!);
-            capabilities[i] = null;
-            break;
-          }
-        }
       }
     });
   }
