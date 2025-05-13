@@ -4496,6 +4496,76 @@ class _WarpState extends State<Warp> {
                     Offset newPos = localPosition - _touchOffset;
                     double newX = newPos.dx.clamp(0.0, _screenWidth);
                     double newY = newPos.dy.clamp(0.0, _displayHeigth);
+
+                    // limit position
+                    switch (index) {
+                      case 0: // top left
+                        double maxX = [
+                          _scaledPoints[2].dx,
+                          _scaledPoints[3].dx,
+                        ].reduce(math.min);
+                        double maxY = [
+                          _scaledPoints[1].dy,
+                          _scaledPoints[3].dy,
+                        ].reduce(math.min);
+                        if (newX > maxX) {
+                          newX = maxX;
+                        }
+                        if (newY > maxY) {
+                          newY = maxY;
+                        }
+                        break;
+                      case 1: // bottom left
+                        double maxX = [
+                          _scaledPoints[2].dx,
+                          _scaledPoints[3].dx,
+                        ].reduce(math.min);
+                        double minY = [
+                          _scaledPoints[0].dy,
+                          _scaledPoints[2].dy,
+                        ].reduce(math.max);
+                        if (newX > maxX) {
+                          newX = maxX;
+                        }
+                        if (newY < minY) {
+                          newY = minY;
+                        }
+                        break;
+                      case 2: // top right
+                        double minX = [
+                          _scaledPoints[0].dx,
+                          _scaledPoints[1].dx,
+                        ].reduce(math.max);
+                        double maxY = [
+                          _scaledPoints[1].dy,
+                          _scaledPoints[3].dy,
+                        ].reduce(math.min);
+                        if (newX < minX) {
+                          newX = minX;
+                        }
+                        if (newY > maxY) {
+                          newY = maxY;
+                        }
+                        break;
+                      case 3: // bottom right
+                        double minX = [
+                          _scaledPoints[0].dx,
+                          _scaledPoints[1].dx,
+                        ].reduce(math.max);
+                        double minY = [
+                          _scaledPoints[0].dy,
+                          _scaledPoints[2].dy,
+                        ].reduce(math.max);
+                        if (newX < minX) {
+                          newX = minX;
+                        }
+                        if (newY < minY) {
+                          newY = minY;
+                        }
+                        break;
+                      default:
+                    }
+
                     setState(() {
                       _scaledPoints[index] = Offset(newX, newY);
                     });
