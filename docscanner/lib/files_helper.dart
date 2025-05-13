@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -15,9 +14,15 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pdfw;
 import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
+// isolates:
+//import 'package:flutter/services.dart'
+//    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
+import 'dart:isolate' show ReceivePort, SendPort;
+import 'package:docscanner/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/main.dart' show globalNotifier;
+import 'package:docscanner/main.dart'
+    show globalNotifier, imageProcessingManager;
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/opencv_helper.dart';
 
@@ -401,7 +406,7 @@ class FilesHelper {
               if (repairFutures.length >= maxIsolates) {
                 await Future.any(repairFutures);
               }
-              Future future = g.imageProcessingManager.repairPage(
+              Future future = imageProcessingManager.repairPage(
                 docIndex,
                 pageIndex,
               );
@@ -484,13 +489,13 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
         docIndex,
       );
       messenger?.hideCurrentSnackBar();
       if (cancelDelete) return;
 
-      g.imageProcessingManager.killIsolatesOfDocument(docIndex);
+      imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
       Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
     }
@@ -571,14 +576,14 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
         docIndex,
         pageIndex,
       );
       messenger?.hideCurrentSnackBar();
       if (cancelDelete) return;
 
-      g.imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
       Fluttertoast.showToast(
         msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
@@ -678,7 +683,7 @@ class FilesHelper {
     // await later pages processing
     for (var pageIndex in pageIndexes) {
       messenger?.showSnackBar(snackBar!);
-      await g.imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
         docIndex,
         pageIndex,
       );
@@ -700,7 +705,7 @@ class FilesHelper {
           imageCache.evict(FileImage(File(file.path)), includeLive: true);
         }
 
-        g.imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+        imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
         pageDir.deleteSync(recursive: true);
       }
     }
@@ -1010,7 +1015,7 @@ class FilesHelper {
     );
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
-    Isolate isolate = await Isolate.spawn(_pickImageIsolate, (
+    TaskKiller killer = await IsolatesManager().runTask(_pickImageIsolate, (
       port.sendPort,
       token,
       source,
@@ -1034,7 +1039,7 @@ class FilesHelper {
       messenger.hideCurrentSnackBar();
       pickingImage = false;
       port.close();
-      isolate.kill();
+      killer.kill();
     });
     return await completer.future;
   }
@@ -1259,12 +1264,10 @@ class FilesHelper {
       );
 
       // Isolate
-      Isolate isolate = await Isolate.spawn(_writePfdToPathIsolate, (
-        port.sendPort,
-        token,
-        pdfPath,
-        pdf,
-      ));
+      TaskKiller killer = await IsolatesManager().runTask(
+        _writePfdToPathIsolate,
+        (port.sendPort, token, pdfPath, pdf),
+      );
 
       final completer = Completer();
       port.listen((message) {
@@ -1284,7 +1287,7 @@ class FilesHelper {
               toastLength: Toast.LENGTH_LONG,
             );
             port.close();
-            isolate.kill();
+            killer.kill();
           } else {
             messenger?.hideCurrentSnackBar();
             messenger?.showSnackBar(
@@ -1418,12 +1421,10 @@ class FilesHelper {
     );
 
     // Isolate
-    Isolate isolate = await Isolate.spawn(_writePfdToPathIsolate, (
-      port.sendPort,
-      token,
-      pdfPath,
-      pdf,
-    ));
+    TaskKiller killer = await IsolatesManager().runTask(
+      _writePfdToPathIsolate,
+      (port.sendPort, token, pdfPath, pdf),
+    );
 
     final completer = Completer();
     port.listen((message) async {
@@ -1434,7 +1435,7 @@ class FilesHelper {
           completer.complete(message);
           await Share.shareXFiles([XFile(pdfPath)]);
           File(pdfPath).delete();
-          isolate.kill();
+          killer.kill();
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
@@ -1455,7 +1456,7 @@ class FilesHelper {
     final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
 
     if (!File(rotatedFilePath).existsSync()) {
-      Isolate.spawn(_rotateImageInTmpDirIsolate, (
+      IsolatesManager().runTask(_rotateImageInTmpDirIsolate, (
         port.sendPort,
         imagePath,
         rotatedFilePath,

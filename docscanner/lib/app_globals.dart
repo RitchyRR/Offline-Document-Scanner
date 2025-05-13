@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:docscanner/files_helper.dart';
-import 'package:docscanner/image_prosessing_manager.dart';
+//import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
 
 class AppGlobals {
@@ -16,8 +16,8 @@ class AppGlobals {
   bool? proUnlocked;
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();
-  final ImageProcessingManager imageProcessingManager =
-      ImageProcessingManager();
+  //final ImageProcessingManager imageProcessingManager =
+  //    ImageProcessingManager();
 
   final List<AspectRatioInfo> commonAspectRatios = [
     //// International Standard (ISO 216 - A, B, C series)

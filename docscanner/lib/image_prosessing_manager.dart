@@ -1,18 +1,20 @@
 // function:
 import 'dart:developer' as dev;
-import 'dart:isolate';
-import 'package:docscanner/app_globals.dart';
-import 'package:docscanner/metadata_helper.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart'
-    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
+import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'dart:async';
+// isolates:
+import 'package:flutter/services.dart'
+    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
+import 'dart:isolate' show ReceivePort, SendPort;
+import 'package:docscanner/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/opencv_helper.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
+import 'package:docscanner/metadata_helper.dart';
+import 'package:docscanner/app_globals.dart';
 
 const List<String> versionNames = [
   "picture",
@@ -22,9 +24,9 @@ const List<String> versionNames = [
 ];
 
 class ImageProcessingManager {
-  Map<(int, int), Isolate> isolates = {};
+  Map<(int, int), TaskKiller> taskKillers = {};
 
-  static Future<void> _processPageIsolate(
+  static void _processPageIsolate(
     (
       SendPort sendPort,
       RootIsolateToken token,
@@ -67,7 +69,7 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(sendPort, p.dirname(newPicturePath));
+    _deleteScaledThumbnail(sendPort, path.dirname(newPicturePath));
     // Original
     versionPaths[0] = newPicturePath;
     // Re-use Shape
@@ -203,15 +205,10 @@ class ImageProcessingManager {
       null,
     );
 
-    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
-
-    while (isolates.length >= maxIsolates) {
-      await Future.delayed(Duration(milliseconds: 95));
-    }
-
     RootIsolateToken token = RootIsolateToken.instance!;
-    Isolate isolate = await Isolate.spawn(_processPageIsolate, (
+
+    TaskKiller killer = await IsolatesManager().runTask(_processPageIsolate, (
       port.sendPort,
       token,
       isPrimary,
@@ -226,7 +223,6 @@ class ImageProcessingManager {
       isInitial,
       g,
     ));
-    isolates[(docIndex, pageIndex)] = isolate;
 
     port.listen((message) {
       if (message is NotifierEvent) {
@@ -235,8 +231,9 @@ class ImageProcessingManager {
         port.close();
         wrapperCompleter.complete();
 
-        isolates.removeWhere((key, value) => value == isolate);
-        isolate.kill();
+        //taskKillers.removeWhere((key, value) => value == isolate);
+        //isolate.kill();
+        killer.kill();
       }
     });
     await wrapperCompleter.future;
@@ -374,30 +371,30 @@ class ImageProcessingManager {
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
-    if (isolates.containsKey(key)) {
-      (isolates[key]!).kill(priority: Isolate.immediate);
-      isolates.remove(key);
+    if (taskKillers.containsKey(key)) {
+      (taskKillers[key]!).kill();
+      taskKillers.remove(key);
     }
   }
 
   Future<void> killIsolatesOfDocument(int docIndex) async {
     List<(int, int)> secundaryKeys = [];
-    for (var key in isolates.keys) {
+    for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
         secundaryKeys.add(key);
       }
     }
     for (var key in secundaryKeys) {
-      (isolates[key]!).kill(priority: Isolate.immediate);
-      isolates.remove(key);
+      (taskKillers[key]!).kill();
+      taskKillers.remove(key);
     }
   }
 
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
-    while (isolates.isNotEmpty) {
+    while (taskKillers.isNotEmpty) {
       final otherKeys =
-          isolates.keys.where((key) => key.$1 > docIndex).toList();
-      final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
+          taskKillers.keys.where((key) => key.$1 > docIndex).toList();
+      final otherIsolates = otherKeys.map((key) => taskKillers[key]!).toList();
 
       if (otherIsolates.isEmpty) return;
       await Future.delayed(Duration(milliseconds: 200));
@@ -408,12 +405,12 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
   ) async {
-    while (isolates.isNotEmpty) {
+    while (taskKillers.isNotEmpty) {
       final otherKeys =
-          isolates.keys
+          taskKillers.keys
               .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
               .toList();
-      final otherIsolates = otherKeys.map((key) => isolates[key]!).toList();
+      final otherIsolates = otherKeys.map((key) => taskKillers[key]!).toList();
 
       if (otherIsolates.isEmpty) return;
       await Future.delayed(Duration(milliseconds: 200));
@@ -421,9 +418,10 @@ class ImageProcessingManager {
   }
 
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
-    while (isolates.isNotEmpty) {
-      final docKeys = isolates.keys.where((key) => key.$1 == docIndex).toList();
-      final docIsolates = docKeys.map((key) => isolates[key]!).toList();
+    while (taskKillers.isNotEmpty) {
+      final docKeys =
+          taskKillers.keys.where((key) => key.$1 == docIndex).toList();
+      final docIsolates = docKeys.map((key) => taskKillers[key]!).toList();
 
       if (docIsolates.isEmpty) return;
       await Future.delayed(Duration(milliseconds: 200));
@@ -431,7 +429,7 @@ class ImageProcessingManager {
   }
 
   Future<void> awaitAllIsolates() async {
-    while (isolates.isNotEmpty) {
+    while (taskKillers.isNotEmpty) {
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
@@ -517,12 +515,12 @@ class ImageProcessingManager {
     int? orientationIndex = processingMetadata.$2;
     List<List<int>>? cornerPoints = processingMetadata.$3;
 
-    while (isolates.length >= maxIsolates) {
+    while (taskKillers.length >= maxIsolates) {
       await Future.delayed(Duration(milliseconds: 100));
     }
 
     RootIsolateToken token = RootIsolateToken.instance!;
-    Isolate isolate = await Isolate.spawn(_repairPageIsolate, (
+    TaskKiller killer = await IsolatesManager().runTask(_repairPageIsolate, (
       port.sendPort,
       token,
       docIndex,
@@ -532,7 +530,7 @@ class ImageProcessingManager {
       cornerPoints,
       g,
     ));
-    isolates[(docIndex, pageIndex)] = isolate;
+    taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) async {
       if (message is NotifierEvent) {
@@ -541,8 +539,8 @@ class ImageProcessingManager {
         port.close();
         repairCompleter.complete();
 
-        isolates.removeWhere((key, value) => value == isolate);
-        isolate.kill();
+        taskKillers.removeWhere((key, value) => value == killer);
+        killer.kill();
       }
     });
     await repairCompleter.future;
@@ -670,7 +668,7 @@ class ImageProcessingManager {
     ReceivePort port = ReceivePort();
     final primaryCompleter = Completer<void>();
 
-    Isolate isolate = await Isolate.spawn(_rotatePageIsolate, (
+    TaskKiller killer = await IsolatesManager().runTask(_rotatePageIsolate, (
       port.sendPort,
       docIndex,
       pageIndex,
@@ -679,14 +677,14 @@ class ImageProcessingManager {
       pageThumbnailIndexIn,
       g,
     ));
-    isolates[(docIndex, pageIndex)] = isolate;
+    taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
-        isolates.removeWhere((key, value) => value == isolate);
+        taskKillers.removeWhere((key, value) => value == killer);
       }
     });
     await primaryCompleter.future;
@@ -820,13 +818,13 @@ class ImageProcessingManager {
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();
 
-    while (isolates.length >= maxIsolates) {
+    while (taskKillers.length >= maxIsolates) {
       await Future.delayed(Duration(milliseconds: 100));
     }
 
-    Isolate isolate;
+    TaskKiller killer;
     if (isNewIndex) {
-      isolate = await Isolate.spawn(_saveNewThumbnailIsolate, (
+      killer = await IsolatesManager().runTask(_saveNewThumbnailIsolate, (
         port.sendPort,
         docIndex,
         pageIndex,
@@ -837,14 +835,14 @@ class ImageProcessingManager {
       port.close();
       return;
     }
-    isolates[(docIndex, pageIndex)] = isolate;
+    taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == 'done') {
         port.close();
-        isolates.removeWhere((key, value) => value == isolate);
+        taskKillers.removeWhere((key, value) => value == killer);
       }
     });
   }

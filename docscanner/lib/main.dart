@@ -38,6 +38,7 @@ import 'package:docscanner/feedback_helper.dart';
 
 final AdsHelper adsHelper = AdsHelper();
 final FeedbackHelper feedbackHelper = FeedbackHelper();
+final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 
 final GlobalNotifier globalNotifier = GlobalNotifier();
 
@@ -284,7 +285,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
-    g.imageProcessingManager.processPages(docIndex, 0, picturePaths);
+    imageProcessingManager.processPages(docIndex, 0, picturePaths);
 
     // Creation Date
     final now = DateTime.now();
@@ -510,7 +511,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _openDocEditDialog(BuildContext context, int docIndex) async {
-    Future<void> future = g.imageProcessingManager.awaitAllIsolates();
+    Future<void> future = imageProcessingManager.awaitAllIsolates();
     {
       bool allowChangeDocIndex = false;
       int? selectedIndex = await showDialog<int>(
@@ -1826,7 +1827,7 @@ class _PagesState extends State<Pages> {
       picturePaths.length,
     );
 
-    g.imageProcessingManager.processPages(
+    imageProcessingManager.processPages(
       widget.docIndex,
       firstPageIndex,
       picturePaths,
@@ -2291,7 +2292,7 @@ class _PagesState extends State<Pages> {
 
   void _openPageEditDialog(BuildContext context, int pageIndex) async {
     bool allowChangePageIndex = false;
-    Future<void> future = g.imageProcessingManager.awaitAllIsolatesOfDocument(
+    Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
       widget.docIndex,
     );
     int? selectedIndex = await showDialog<int>(
@@ -2603,6 +2604,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     if (!widget.controller.hasClients || widget.pageAspectRatios.isEmpty) {
       return 0;
     }
+    widget.pageAspectRatios[widget.pageAspectRatios.length - 1] = 0.0;
 
     final offset = widget.controller.offset;
     final maxScrollExtent = widget.controller.position.maxScrollExtent;
@@ -2671,9 +2673,12 @@ class _CustomScrollbarState extends State<CustomScrollbar>
             if (_isThumbVisible && widget.controller.hasClients)
               Positioned(
                 right: -railWidth / 2,
-                top: constraints.maxHeight * widget.scrollRangeStart + 4,
+                top:
+                    constraints.maxHeight * widget.scrollRangeStart +
+                    railWidth / 2,
                 bottom:
-                    constraints.maxHeight * (1.0 - widget.scrollRangeEnd) + 4,
+                    constraints.maxHeight * (1.0 - widget.scrollRangeEnd) +
+                    railWidth / 2,
                 child: SlideTransition(
                   position: _railSlideAnimation,
                   child: Container(
@@ -3076,7 +3081,7 @@ class PagePreviewState extends State<PagePreview> {
           _popOnProFilterPopup(context);
         } else {
           // new thumbnail
-          g.imageProcessingManager.saveNewThumbnail(
+          imageProcessingManager.saveNewThumbnail(
             widget.docIndex,
             widget.pageIndex,
             _selectedVersion,
@@ -3625,7 +3630,7 @@ class PagePreviewState extends State<PagePreview> {
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
-    g.imageProcessingManager.killIsolatesOfPage(
+    imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -3668,7 +3673,7 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      g.imageProcessingManager.rotatePage(
+      imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
@@ -3678,7 +3683,7 @@ class PagePreviewState extends State<PagePreview> {
       _totalRotation = 0;
     } else {
       _reprocessingSetup();
-      g.imageProcessingManager.reprocessPage(
+      imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
