@@ -45,6 +45,7 @@ dependencies:
   shared_preferences:
   permission_handler: 
   url_launcher:
+  package_info_plus:
 
 
 dev_dependencies:

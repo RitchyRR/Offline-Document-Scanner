@@ -8,6 +8,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:share_plus/share_plus.dart' show Share;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 // monetization:
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -384,8 +385,10 @@ class _MyHomePageState extends State<MyHomePage> {
     initAsync();
   }
 
+  late PackageInfo _packageInfo;
   Future<void> initAsync() async {
     _receiveSharing();
+    _packageInfo = await PackageInfo.fromPlatform();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -916,7 +919,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ],
-            onSelected: (String value) async {
+            onSelected: (String value) {
               switch (value) {
                 case "pro":
                   proPopup(context);
@@ -924,7 +927,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   showLicensePage(
                     context: context,
                     applicationName: 'Offline Document Scanner',
-                    //applicationVersion: '1.0.0',
+                    applicationVersion:
+                        "${_packageInfo.version}+${_packageInfo.buildNumber} ${_packageInfo.installerStore}",
                   );
                   break;
                 case "ratios":
