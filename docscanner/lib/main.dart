@@ -1717,6 +1717,9 @@ class _PagesState extends State<Pages> {
       case NotifierEvent.setState:
         setState(() {});
         break;
+      case NotifierEvent.imagesDeleted:
+        _deleted = [];
+        break;
       default:
     }
   }
@@ -1843,6 +1846,7 @@ class _PagesState extends State<Pages> {
 
   bool _selectMode = false;
   List<int> _selected = [];
+  List<int> _deleted = [];
 
   _selectPage(int index) {
     if (_selected.contains(index)) {
@@ -2013,29 +2017,71 @@ class _PagesState extends State<Pages> {
                                               .colorScheme
                                               .primaryContainer
                                               .withAlpha(150)
+                                          : _deleted.contains(index)
+                                          ? Color.fromRGBO(100, 0, 10, 0.412)
                                           : Colors.transparent,
-                                  child: InkWell(
-                                    onTap:
-                                        !_selectMode
-                                            ? (thumbnailPath.isNotEmpty)
-                                                ? () => _openPagePreview(index)
-                                                : null
-                                            : () {
-                                              HapticFeedback.lightImpact();
+                                  child:
+                                      !_deleted.contains(index)
+                                          ? InkWell(
+                                            onTap:
+                                                !_selectMode
+                                                    ? (thumbnailPath.isNotEmpty)
+                                                        ? () =>
+                                                            _openPagePreview(
+                                                              index,
+                                                            )
+                                                        : null
+                                                    : () {
+                                                      HapticFeedback.lightImpact();
+                                                      _selectPage(index);
+                                                    },
+                                            onLongPress: () {
                                               _selectPage(index);
                                             },
-                                    onLongPress: () {
-                                      _selectPage(index);
-                                    },
-                                    splashColor: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                        .withAlpha(150),
-                                    highlightColor: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                        .withAlpha(150),
-                                  ),
+                                            splashColor: Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer
+                                                .withAlpha(150),
+                                            highlightColor: Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer
+                                                .withAlpha(150),
+                                          )
+                                          : Center(
+                                            child: Container(
+                                              padding: EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                color: Colors.black45,
+                                              ),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          8.0,
+                                                        ),
+                                                    child: SizedBox(
+                                                      width: 24,
+                                                      height: 24,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    "  Deleting...",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                 ),
                               ),
                               // Page Index Indicator
@@ -2045,14 +2091,16 @@ class _PagesState extends State<Pages> {
                                 child: GestureDetector(
                                   // Move Page Index Dialog
                                   onTap:
-                                      _selectMode
-                                          ? () => _selectPage(index)
-                                          : () => _openPageEditDialog(
-                                            context,
-                                            index,
-                                          ),
+                                      !_deleted.contains(index)
+                                          ? _selectMode
+                                              ? () => _selectPage(index)
+                                              : () => _openPageEditDialog(
+                                                context,
+                                                index,
+                                              )
+                                          : null,
                                   onLongPress:
-                                      _selectMode
+                                      !_deleted.contains(index)
                                           ? () => _selectPage(index)
                                           : null,
                                   child: Container(
@@ -2175,13 +2223,16 @@ class _PagesState extends State<Pages> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           onPressed: () async {
-                            _pagesPopup(
+                            bool deleted = await _pagesPopup(
                               context,
                               _selected,
                               PopUpType.delete,
                               widget.docIndex,
                             );
-                            _cancelSelectMode();
+                            if (deleted) {
+                              _deleted = _selected;
+                              _cancelSelectMode();
+                            }
                           },
                           tooltip: 'Delete',
                           child: const Icon(Icons.delete),
@@ -2797,7 +2848,7 @@ class PagePreviewState extends State<PagePreview> {
         );
         setState(() {});
         break;
-      case NotifierEvent.popPageIfDeleted:
+      case NotifierEvent.imagesDeleted:
         if (!File(_picturePath).existsSync()) {
           _allowPop = true;
           Navigator.pop(context);
@@ -4708,7 +4759,7 @@ Future<bool> _pagesPopup(
     );
   }
 
-  showDialog(
+  await showDialog(
     // ignore: use_build_context_synchronously
     context: callContext,
     builder: (BuildContext context) {

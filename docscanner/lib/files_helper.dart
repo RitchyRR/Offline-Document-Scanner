@@ -308,7 +308,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  Future<void> repairDirectoryStructure(BuildContext? context) async {
+  repairDirectoryStructure(BuildContext? context) async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     //var i = 0;
@@ -428,11 +428,11 @@ class FilesHelper {
     List<int> pageIndexes = const [],
   }) async {
     if (pageIndexes.isEmpty) {
-      _deleteDocument(context, docIndex);
+      await _deleteDocument(context, docIndex);
     } else if (pageIndexes.length == 1) {
-      _deletePage(context, docIndex, pageIndexes.first);
+      await _deletePage(context, docIndex, pageIndexes.first);
     } else {
-      _deletePages(context, docIndex, pageIndexes);
+      await _deletePages(context, docIndex, pageIndexes);
     }
   }
 
@@ -625,7 +625,7 @@ class FilesHelper {
       globalNotifier.triggerEvent(
         NotifierEvent.loadDocsThumbnails,
       ); // for page count
-      globalNotifier.triggerEvent(NotifierEvent.popPageIfDeleted);
+      globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
     }
   }
 
@@ -712,7 +712,7 @@ class FilesHelper {
     await _repairDirectoryStructure(context);
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.popPageIfDeleted);
+    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
   Future<void> deleteProcessedVersionsOfPage(
