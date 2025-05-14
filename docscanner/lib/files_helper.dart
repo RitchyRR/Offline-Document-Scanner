@@ -596,7 +596,7 @@ class FilesHelper {
       }
 
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+      await imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
         pageIndex,
       );
@@ -705,13 +705,13 @@ class FilesHelper {
     List<Future> pagesFutures = [];
     for (var pageIndex in pageIndexes) {
       _addToBeDeletedPage(docIndex, pageIndex);
-      pagesFutures.add(
-        imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
-          docIndex,
-          pageIndex,
-        ),
-      );
     }
+    pagesFutures.add(
+      imageProcessingManager.awaitIsolatesOfHigherIndexPages(
+        docIndex,
+        pageIndexes,
+      ),
+    );
     messenger?.showSnackBar(snackBar!);
     await Future.wait(pagesFutures);
     messenger?.hideCurrentSnackBar();

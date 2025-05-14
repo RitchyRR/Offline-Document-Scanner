@@ -1,5 +1,6 @@
 // function:
 import 'dart:developer' as dev;
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
@@ -401,15 +402,33 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> awaitIsolatesOfHigherIndexedPages(
-    int docIndex,
-    int pageIndex,
-  ) async {
+  Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
       final otherKeys =
           taskKillers.keys
               .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
               .toList();
+      final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
+
+      if (higherTasks.isEmpty) return;
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
+
+  Future<void> awaitIsolatesOfHigherIndexPages(
+    int docIndex,
+    List<int> pageIndexes,
+  ) async {
+    int smallestIndex = pageIndexes.reduce(math.min);
+    pageIndexes.remove(smallestIndex);
+    while (taskKillers.isNotEmpty) {
+      final otherKeys =
+          taskKillers.keys
+              .where((key) => key.$1 == docIndex && key.$2 > smallestIndex)
+              .toList();
+      for (var pageIndex in pageIndexes) {
+        otherKeys.removeWhere((key) => key.$2 == pageIndex);
+      }
       final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
 
       if (higherTasks.isEmpty) return;
