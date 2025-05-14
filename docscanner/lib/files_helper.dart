@@ -31,6 +31,25 @@ import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 class FilesHelper {
   late String docsPath = "";
   int screenWidth;
+  final List<List<int>> _toBeDeletedPages = [];
+
+  _addToBeDeletedPage(int docIndex, int pageIndex) {
+    while (_toBeDeletedPages.length - 1 < docIndex) {
+      _toBeDeletedPages.add([]);
+    }
+    _toBeDeletedPages[docIndex].add(pageIndex);
+  }
+
+  _removeToBeDeletedPage(int docIndex, int pageIndex) {
+    _toBeDeletedPages[docIndex].remove(pageIndex);
+  }
+
+  List<int> getToBeDeletedPages(int docIndex) {
+    while (_toBeDeletedPages.length - 1 < docIndex) {
+      _toBeDeletedPages.add([]);
+    }
+    return _toBeDeletedPages[docIndex];
+  }
 
   FilesHelper() : screenWidth = 1080 {
     _initializeDocumentsPath();
@@ -569,6 +588,7 @@ class FilesHelper {
         "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
       );
     } else {
+      _addToBeDeletedPage(docIndex, pageIndex);
       dev.log("Deleting page directory: $pagePath");
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
@@ -581,6 +601,7 @@ class FilesHelper {
         pageIndex,
       );
       messenger?.hideCurrentSnackBar();
+      _removeToBeDeletedPage(docIndex, pageIndex);
       if (cancelDelete) return;
 
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
@@ -681,15 +702,23 @@ class FilesHelper {
       );
     }
     // await later pages processing
+    List<Future> pagesFutures = [];
     for (var pageIndex in pageIndexes) {
-      messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
-        docIndex,
-        pageIndex,
+      _addToBeDeletedPage(docIndex, pageIndex);
+      pagesFutures.add(
+        imageProcessingManager.awaitIsolatesOfHigherIndexedPages(
+          docIndex,
+          pageIndex,
+        ),
       );
-      messenger?.hideCurrentSnackBar();
-      if (cancelDelete) return;
     }
+    messenger?.showSnackBar(snackBar!);
+    await Future.wait(pagesFutures);
+    messenger?.hideCurrentSnackBar();
+    for (var pageIndex in pageIndexes) {
+      _removeToBeDeletedPage(docIndex, pageIndex);
+    }
+    if (cancelDelete) return;
     // delete
     for (var pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);

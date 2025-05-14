@@ -1714,9 +1714,6 @@ class _PagesState extends State<Pages> {
       case NotifierEvent.setState:
         setState(() {});
         break;
-      case NotifierEvent.imagesDeleted:
-        deletedPages = [];
-        break;
       default:
     }
   }
@@ -1835,7 +1832,6 @@ class _PagesState extends State<Pages> {
 
   bool _selectMode = false;
   List<int> _selectedPages = [];
-  List<int> deletedPages = [];
 
   _selectPage(int index) {
     if (_selectedPages.contains(index)) {
@@ -1896,6 +1892,7 @@ class _PagesState extends State<Pages> {
   Widget build(BuildContext context) {
     //final bool isTopOfNavigationStack =
     //    ModalRoute.of(context)?.isCurrent ?? false;
+    final deletedPages = g.filesHelper.getToBeDeletedPages(widget.docIndex);
     return PopScope(
       canPop: !_selectMode,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2231,7 +2228,6 @@ class _PagesState extends State<Pages> {
                               widget.docIndex,
                             );
                             if (deletionConfirmed) {
-                              deletedPages = _selectedPages;
                               _cancelSelectMode();
                             }
                           },

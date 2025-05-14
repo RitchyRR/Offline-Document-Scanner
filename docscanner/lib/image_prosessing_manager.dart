@@ -223,6 +223,7 @@ class ImageProcessingManager {
       isInitial,
       g,
     ));
+    taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
       if (message is NotifierEvent) {
@@ -409,9 +410,9 @@ class ImageProcessingManager {
           taskKillers.keys
               .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
               .toList();
-      final otherIsolates = otherKeys.map((key) => taskKillers[key]!).toList();
+      final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
 
-      if (otherIsolates.isEmpty) return;
+      if (higherTasks.isEmpty) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
