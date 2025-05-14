@@ -987,10 +987,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                           Radius.circular(12.0),
                                         ),
                                         onTap:
-                                            () => _openDocEditDialog(
-                                              context,
-                                              docIndex,
-                                            ),
+                                            !deletedDocs.contains(docIndex)
+                                                ? () => _openDocEditDialog(
+                                                  context,
+                                                  docIndex,
+                                                )
+                                                : null,
                                         child: Padding(
                                           padding: EdgeInsets.all(12),
                                           child: Builder(
@@ -1042,45 +1044,47 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ),
                                     ),
                                     // Button Column
-                                    Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        // Save
-                                        IconButton(
-                                          onPressed:
-                                              () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.save,
-                                                docIndex,
-                                              ),
-                                          icon: Icon(Icons.save),
-                                        ),
-                                        // Share
-                                        IconButton(
-                                          onPressed:
-                                              () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.share,
-                                                docIndex,
-                                              ),
-                                          icon: Icon(Icons.share),
-                                        ),
-                                        // Delete
-                                        IconButton(
-                                          onPressed:
-                                              () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.delete,
-                                                docIndex,
-                                              ),
-                                          icon: Icon(Icons.delete),
-                                        ),
-                                      ],
-                                    ),
+                                    !deletedDocs.contains(docIndex)
+                                        ? Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            // Save
+                                            IconButton(
+                                              onPressed:
+                                                  () => _pagesPopup(
+                                                    context,
+                                                    [],
+                                                    PopUpType.save,
+                                                    docIndex,
+                                                  ),
+                                              icon: Icon(Icons.save),
+                                            ),
+                                            // Share
+                                            IconButton(
+                                              onPressed:
+                                                  () => _pagesPopup(
+                                                    context,
+                                                    [],
+                                                    PopUpType.share,
+                                                    docIndex,
+                                                  ),
+                                              icon: Icon(Icons.share),
+                                            ),
+                                            // Delete
+                                            IconButton(
+                                              onPressed:
+                                                  () => _pagesPopup(
+                                                    context,
+                                                    [],
+                                                    PopUpType.delete,
+                                                    docIndex,
+                                                  ),
+                                              icon: Icon(Icons.delete),
+                                            ),
+                                          ],
+                                        )
+                                        : SizedBox(),
                                   ],
                                 ),
                               ),
