@@ -231,8 +231,7 @@ class ImageProcessingManager {
         port.close();
         wrapperCompleter.complete();
 
-        //taskKillers.removeWhere((key, value) => value == isolate);
-        //isolate.kill();
+        taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();
       }
     });

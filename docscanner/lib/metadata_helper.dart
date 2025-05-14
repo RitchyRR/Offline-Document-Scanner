@@ -243,6 +243,9 @@ class MetadataHelper {
     List<List<int>>? cornerPoints, {
     AppGlobals? gIn,
   }) async {
+    if (ratioValue == 0.0) {
+      throw StateError("aspectRatio should not be saved as 0");
+    }
     bool isIsolate = false;
     if (gIn != null) isIsolate = true;
     String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
@@ -263,8 +266,10 @@ class MetadataHelper {
     try {
       // Write + Encrypt
       if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
-      metadata["orientation"] =
-          orientationIndex == 0 ? "portrait" : "landscape";
+      if (orientationIndex != null) {
+        metadata["orientation"] =
+            orientationIndex == 0 ? "portrait" : "landscape";
+      }
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
@@ -295,15 +300,15 @@ class MetadataHelper {
       metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       try {
         ratioValue = double.tryParse(metadata["aspectRatio"]);
+        if (ratioValue == 0.0) {
+          throw StateError("aspectRatio should not be saved as 0");
+        }
       } catch (e) {
         dev.log("Error, readPageMetadata, ratioValue: $e");
       }
       try {
         String orientationString = metadata["orientation"];
-        orientationIndex =
-            (orientationString == "portrait" || orientationString == "")
-                ? 0
-                : 1;
+        orientationIndex = (orientationString == "portrait") ? 0 : 1;
       } catch (e) {
         dev.log("Error, readPageMetadata, orientationString: $e");
       }
@@ -406,7 +411,11 @@ class MetadataHelper {
       supressWarnings: supressWarnings,
     );
     if (value is String) {
-      return double.tryParse(value);
+      double? ratioValue = double.tryParse(value);
+      if (ratioValue == 0.0) {
+        throw StateError("aspectRatio should not be saved as 0");
+      }
+      return ratioValue;
     } else {
       return null;
     }
@@ -424,7 +433,7 @@ class MetadataHelper {
       supressWarnings: supressWarnings,
     );
     if (value is String) {
-      return (value == "portrait" || value == "") ? 0 : 1;
+      return (value == "portrait") ? 0 : 1;
     } else {
       return null;
     }
