@@ -186,6 +186,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial,
+    IsolatePriority prio,
   ) async {
     if (pathIn.isEmpty) return;
     final wrapperCompleter = Completer<void>();
@@ -223,7 +224,7 @@ class ImageProcessingManager {
       rotationIn,
       isInitial,
       g,
-    ));
+    ), prio: prio);
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
@@ -378,6 +379,14 @@ class ImageProcessingManager {
     }
   }
 
+  Future<void> killResumeLateIsolatesOfPage(int docIndex, int pageIndex) async {
+    var key = (docIndex, pageIndex);
+    if (taskKillers.containsKey(key)) {
+      (taskKillers[key]!).killResumeLate();
+      taskKillers.remove(key);
+    }
+  }
+
   Future<void> killIsolatesOfDocument(int docIndex) async {
     List<(int, int)> secundaryKeys = [];
     for (var key in taskKillers.keys) {
@@ -472,6 +481,7 @@ class ImageProcessingManager {
       null,
       0,
       true,
+      IsolatePriority.immediate,
     );
 
     // Remaining pages
@@ -491,6 +501,7 @@ class ImageProcessingManager {
           null,
           0,
           true,
+          IsolatePriority.regular,
         );
       }
     }
@@ -517,6 +528,7 @@ class ImageProcessingManager {
       cornerPointsIn,
       rotationIn,
       false,
+      IsolatePriority.immediate,
     );
   }
 
@@ -548,7 +560,7 @@ class ImageProcessingManager {
       orientationIndex,
       cornerPoints,
       g,
-    ));
+    ), prio: IsolatePriority.regular);
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) async {
@@ -695,7 +707,7 @@ class ImageProcessingManager {
       angle,
       pageThumbnailIndexIn,
       g,
-    ));
+    ), prio: IsolatePriority.immediate);
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
@@ -704,6 +716,7 @@ class ImageProcessingManager {
       } else if (message == 'done') {
         port.close();
         taskKillers.removeWhere((key, value) => value == killer);
+        killer.kill();
       }
     });
     await primaryCompleter.future;
@@ -849,7 +862,7 @@ class ImageProcessingManager {
         pageIndex,
         thumbnailIndex,
         g,
-      ));
+      ), prio: IsolatePriority.regular);
     } else {
       port.close();
       return;
@@ -862,6 +875,7 @@ class ImageProcessingManager {
       } else if (message == 'done') {
         port.close();
         taskKillers.removeWhere((key, value) => value == killer);
+        killer.kill();
       }
     });
   }

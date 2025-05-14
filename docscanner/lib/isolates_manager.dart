@@ -25,7 +25,6 @@ class IsolatesManager {
   }
 
   static final int _maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
-  //.clamp(1, 15);
   final Queue<_Worker> _workers = Queue<_Worker>();
   final Queue<_QueuedTask<dynamic>> _taskQueue = Queue<_QueuedTask<dynamic>>();
 
@@ -53,85 +52,24 @@ class IsolatesManager {
         break;
     }
 
-    _tryStartNext<T>(prio);
+    _tryStartNext(prio);
     return completer.future;
   }
 
-  void _tryStartNext<T>(IsolatePriority prio) {
-    bool wasStarted = false;
+  void _tryStartNext(IsolatePriority prio) {
+    bool wasStarted = false; // for prio == IsolatePriority.immediate
     for (final worker in _workers) {
       if (!worker.isBusy && _taskQueue.isNotEmpty) {
         wasStarted = true;
-        final _QueuedTask<T> task = _taskQueue.removeFirst() as _QueuedTask<T>;
+        final task = _taskQueue.removeFirst();
         // move to back
         _workers.remove(worker);
         _workers.addLast(worker);
+
         worker.isBusy = true;
         worker.task = task;
 
-        final receivePort = ReceivePort();
-        final errorPort = ReceivePort();
-        final exitPort = ReceivePort();
-
-        Isolate.spawn<T>(
-              task.entryPoint,
-              task.message,
-              onExit: exitPort.sendPort,
-              onError: errorPort.sendPort,
-            )
-            .then((isolate) {
-              worker.isolate = isolate;
-
-              void cleanup() {
-                receivePort.close();
-                errorPort.close();
-                exitPort.close();
-                worker.isBusy = false;
-                worker.isolate = null;
-                _tryStartNext<T>(IsolatePriority.regular);
-              }
-
-              exitPort.listen((_) => cleanup());
-              errorPort.listen((e) {
-                cleanup();
-                dev.log("Isolate error: $e");
-              });
-
-              final killer = TaskKiller(
-                // kill
-                () {
-                  if (worker.isolate != null) {
-                    worker.isolate!.kill(priority: Isolate.immediate);
-                    cleanup();
-                  } else {
-                    _taskQueue.remove(task);
-                  }
-                },
-                // killResumeLate
-                () {
-                  if (worker.isolate != null) {
-                    bool allBusy = true;
-                    for (final worker in _workers) {
-                      if (!worker.isBusy) allBusy = false;
-                    }
-                    if (allBusy) {
-                      worker.isolate!.kill(priority: Isolate.immediate);
-                    }
-                    _taskQueue.addLast(task);
-                  } else {
-                    _taskQueue.remove(task);
-                    _taskQueue.addLast(task);
-                  }
-                },
-              );
-
-              task.completer.complete(killer);
-            })
-            .catchError((e) {
-              worker.isBusy = false;
-              task.completer.completeError(e);
-              _tryStartNext<T>(IsolatePriority.regular);
-            });
+        task.startIsolate(worker);
 
         break;
       }
@@ -139,14 +77,15 @@ class IsolatesManager {
     if (!wasStarted && prio == IsolatePriority.immediate) {
       // kill newestWorker
       _Worker newestWorker = _workers.last;
-      newestWorker.isolate!.kill();
+      newestWorker.isolate!.kill(priority: Isolate.immediate);
+      newestWorker.isBusy = false;
+      newestWorker.isolate = null;
       // add newestWorker.task behind immediateTask
-      final _QueuedTask<T> immediateTask =
-          _taskQueue.removeFirst() as _QueuedTask<T>;
+      final immediateTask = _taskQueue.removeFirst();
       _taskQueue.addFirst(newestWorker.task!);
       _taskQueue.addFirst(immediateTask);
       // start immediateTask
-      _tryStartNext<T>(IsolatePriority.immediate);
+      _tryStartNext(IsolatePriority.immediate);
     }
   }
 }
@@ -157,6 +96,105 @@ class _QueuedTask<T> {
   final Completer<TaskKiller> completer;
 
   _QueuedTask(this.entryPoint, this.message, this.completer);
+
+  void startIsolate(_Worker worker) {
+    final receivePort = ReceivePort();
+    final errorPort = ReceivePort();
+    final exitPort = ReceivePort();
+
+    Isolate.spawn<T>(
+          entryPoint,
+          message,
+          onExit: exitPort.sendPort,
+          onError: errorPort.sendPort,
+        )
+        .then((isolate) {
+          worker.isolate = isolate;
+
+          bool cleanedUp = false;
+          void cleanup() {
+            if (cleanedUp) return;
+            cleanedUp = true;
+            receivePort.close();
+            errorPort.close();
+            exitPort.close();
+            worker.isBusy = false;
+            worker.isolate = null;
+            worker.task = null;
+            IsolatesManager()._tryStartNext(IsolatePriority.regular);
+          }
+
+          exitPort.listen((_) => cleanup());
+          errorPort.listen((e) {
+            cleanup();
+            dev.log("Isolate error: $e");
+          });
+
+          final killer = TaskKiller(
+            // kill
+            () {
+              if (worker.task != this) {
+                final matchingWorker = _findWorkerForTask(this);
+                if (matchingWorker != null) {
+                  worker = matchingWorker;
+                } else {
+                  dev.log(
+                    "Warning: TaskKiller,kill: Task is already not running.",
+                  );
+                }
+              }
+
+              if (worker.isolate != null) {
+                worker.isolate!.kill(priority: Isolate.immediate);
+                cleanup();
+              } else {
+                IsolatesManager()._taskQueue.remove(this);
+              }
+            },
+            // killResumeLate
+            () {
+              if (worker.task != this) {
+                final matchingWorker = _findWorkerForTask(this);
+                if (matchingWorker != null) {
+                  worker = matchingWorker;
+                } else {
+                  dev.log(
+                    "Warning: TaskKiller,killResumeLate: Task is already not running.",
+                  );
+                }
+              }
+
+              if (worker.isolate != null) {
+                if (IsolatesManager()._workers.every((w) => w.isBusy)) {
+                  worker.isolate!.kill(priority: Isolate.immediate);
+                }
+                IsolatesManager()._taskQueue.addLast(this);
+                cleanup();
+              } else {
+                IsolatesManager()._taskQueue.remove(this);
+                IsolatesManager()._taskQueue.addLast(this);
+              }
+            },
+          );
+
+          completer.complete(killer);
+        })
+        .catchError((e) {
+          worker.isBusy = false;
+          worker.task = null;
+          completer.completeError(e);
+          IsolatesManager()._tryStartNext(IsolatePriority.regular);
+        });
+  }
+
+  _Worker? _findWorkerForTask(_QueuedTask task) {
+    for (final worker in IsolatesManager()._workers) {
+      if (worker.task == task) {
+        return worker;
+      }
+    }
+    return null;
+  }
 }
 
 class _Worker<T> {

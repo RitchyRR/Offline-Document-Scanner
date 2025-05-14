@@ -589,12 +589,9 @@ class FilesHelper {
       );
     } else {
       _addToBeDeletedPage(docIndex, pageIndex);
-      dev.log("Deleting page directory: $pagePath");
-      List<FileSystemEntity> files = pageDir.listSync(recursive: true);
-      for (var file in files) {
-        imageCache.evict(FileImage(File(file.path)), includeLive: true);
-      }
-
+      // free isolates of page
+      imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
+      // await higher pageIndex isolates
       messenger?.showSnackBar(snackBar!);
       await imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
@@ -603,7 +600,12 @@ class FilesHelper {
       messenger?.hideCurrentSnackBar();
       _removeToBeDeletedPage(docIndex, pageIndex);
       if (cancelDelete) return;
-
+      // delete
+      dev.log("Deleting page directory: $pagePath");
+      List<FileSystemEntity> files = pageDir.listSync(recursive: true);
+      for (var file in files) {
+        imageCache.evict(FileImage(File(file.path)), includeLive: true);
+      }
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
       Fluttertoast.showToast(
@@ -705,14 +707,16 @@ class FilesHelper {
     List<Future> pagesFutures = [];
     for (var pageIndex in pageIndexes) {
       _addToBeDeletedPage(docIndex, pageIndex);
+      // free isolates of pages
+      imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
     }
+    messenger?.showSnackBar(snackBar!);
     pagesFutures.add(
       imageProcessingManager.awaitIsolatesOfHigherIndexPages(
         docIndex,
         pageIndexes,
       ),
     );
-    messenger?.showSnackBar(snackBar!);
     await Future.wait(pagesFutures);
     messenger?.hideCurrentSnackBar();
     for (var pageIndex in pageIndexes) {
@@ -1049,7 +1053,7 @@ class FilesHelper {
       token,
       source,
       isMultiImage,
-    ));
+    ), prio: IsolatePriority.immediate);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1000));
@@ -1296,6 +1300,7 @@ class FilesHelper {
       TaskKiller killer = await IsolatesManager().runTask(
         _writePfdToPathIsolate,
         (port.sendPort, token, pdfPath, pdf),
+        prio: IsolatePriority.quick,
       );
 
       final completer = Completer();
@@ -1322,6 +1327,8 @@ class FilesHelper {
             messenger?.showSnackBar(
               SnackBar(content: Text("Error: No PDF available to save.")),
             );
+            port.close();
+            killer.kill();
           }
         }
       });
@@ -1453,6 +1460,7 @@ class FilesHelper {
     TaskKiller killer = await IsolatesManager().runTask(
       _writePfdToPathIsolate,
       (port.sendPort, token, pdfPath, pdf),
+      prio: IsolatePriority.immediate,
     );
 
     final completer = Completer();
@@ -1470,6 +1478,8 @@ class FilesHelper {
           messenger?.showSnackBar(
             SnackBar(content: Text("Error: No PDF available to share.")),
           );
+          port.close();
+          killer.kill();
         }
       }
     });
@@ -1491,7 +1501,7 @@ class FilesHelper {
         rotatedFilePath,
         rotationIn,
         g,
-      ));
+      ), prio: IsolatePriority.quick);
       await port.first;
       port.close();
     }
