@@ -465,15 +465,7 @@ class _MyHomePageState extends State<MyHomePage> {
             supressWarnings: supressWarnings,
           ) ??
           math.sqrt2;
-      int orientationIndex =
-          await MetadataHelper.readPageOrientationIndex(
-            docIndex,
-            0,
-            supressWarnings: supressWarnings,
-          ) ??
-          0;
-      _thumbnailRatios[docIndex] =
-          (orientationIndex == 0) ? 1.0 / ratioValue : ratioValue;
+      _thumbnailRatios[docIndex] = 1.0 / ratioValue;
     }
 
     // Refresh Display
@@ -1765,15 +1757,7 @@ class _PagesState extends State<Pages> {
             supressWarnings: supressWarnings_,
           ) ??
           math.sqrt2;
-      int orientationIndex =
-          await MetadataHelper.readPageOrientationIndex(
-            widget.docIndex,
-            pageIndex,
-            supressWarnings: supressWarnings_,
-          ) ??
-          0;
-      _thumbnailRatios[pageIndex] =
-          orientationIndex == 0 ? 1.0 / ratioValue : ratioValue;
+      _thumbnailRatios[pageIndex] = 1.0 / ratioValue;
     }
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
