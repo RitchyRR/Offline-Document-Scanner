@@ -450,15 +450,16 @@ class ImageProcessingManager {
   }
 
   Future<void> awaitIsolatesOfHigherIndexPages(
-    int docIndex,
-    List<int> pageIndexes,
+    int docIndexIn,
+    List<int> pageIndexesIn,
   ) async {
+    final pageIndexes = List<int>.from(pageIndexesIn);
     int smallestIndex = pageIndexes.reduce(math.min);
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
       final otherKeys =
           taskKillers.keys
-              .where((key) => key.$1 == docIndex && key.$2 > smallestIndex)
+              .where((key) => key.$1 == docIndexIn && key.$2 > smallestIndex)
               .toList();
       for (var pageIndex in pageIndexes) {
         otherKeys.removeWhere((key) => key.$2 == pageIndex);

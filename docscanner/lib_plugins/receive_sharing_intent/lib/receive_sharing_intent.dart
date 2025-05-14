@@ -71,7 +71,7 @@ abstract class ReceiveSharingIntent extends PlatformInterface {
     required Stream<List<SharedMediaFile>> mediaStream,
   }) {
     ReceiveSharingIntent.instance = _ReceiveSharingIntentMock(
-      initialMedia: List.from(initialMedia),
+      initialMedia: List<SharedMediaFile>.from(initialMedia),
       mediaStream: mediaStream,
     );
   }

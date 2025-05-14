@@ -1917,15 +1917,17 @@ class _PagesState extends State<Pages> {
   }
 
   _selectAll() {
-    int lengthBefore = _selectedPages.length;
+    final listBefore = List<int>.from(_selectedPages);
+    final deletedPages = g.filesHelper.getToBeDeletedPages(widget.docIndex);
 
     _selectedPages = List.generate(
       _pageThumbnails.length,
       (int index) => index,
       growable: true,
     );
+    _selectedPages.removeWhere((element) => deletedPages.contains(element));
 
-    if (lengthBefore != _selectedPages.length) {
+    if (listBefore != _selectedPages) {
       HapticFeedback.lightImpact();
     }
     //_selected = [];
@@ -4308,7 +4310,7 @@ class _WarpState extends State<Warp> {
           double y = point[0] * _scale;
           return Offset(x, y);
         }).toList();
-    _initialScaledPoints = List.from(_scaledPoints);
+    _initialScaledPoints = List<Offset>.from(_scaledPoints);
 
     for (var point in _scaledPoints) {
       double maxHeight = 424.0;
