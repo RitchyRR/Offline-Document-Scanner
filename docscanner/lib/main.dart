@@ -3419,7 +3419,7 @@ class PagePreviewState extends State<PagePreview> {
                     enableFABs ? 'Save Image' : 'Waiting for image to load...',
                 backgroundColor:
                     enableFABs ? null : Theme.of(context).disabledColor,
-                elevation: _selectedVersion < _versionPaths.length ? null : 0.0,
+                elevation: enableFABs ? null : 0.0,
                 child: Icon(
                   Icons.save,
                   color: enableFABs ? null : Theme.of(context).disabledColor,
