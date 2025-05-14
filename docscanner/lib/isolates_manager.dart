@@ -20,9 +20,8 @@ class IsolatesManager {
     _initFuture = _init();
   }
 
-  static final int _maxIsolates = math
-      .max(1, Platform.numberOfProcessors - 1)
-      .clamp(1, 7);
+  static final int _maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
+  //.clamp(1, 15);
   final List<_Worker> _workers = [];
   final Queue<_QueuedTask<dynamic>> _taskQueue = Queue<_QueuedTask<dynamic>>();
 

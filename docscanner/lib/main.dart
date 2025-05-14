@@ -2488,6 +2488,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   void dispose() {
     widget.controller.removeListener(_onScroll);
     _hideTimer?.cancel();
+    _fadeController.dispose();
+    _railSlideController.dispose();
     super.dispose();
   }
 
