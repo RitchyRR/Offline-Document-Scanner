@@ -383,7 +383,19 @@ class ImageProcessingManager {
     var key = (docIndex, pageIndex);
     if (taskKillers.containsKey(key)) {
       (taskKillers[key]!).killResumeLate();
-      taskKillers.remove(key);
+    }
+  }
+
+  Future<void> killResumeLateIsolatesOfPages(
+    int docIndex,
+    List<int> pageIndexes,
+  ) async {
+    for (var pageIndex in pageIndexes) {
+      var key = (docIndex, pageIndex);
+      if (taskKillers.containsKey(key)) {
+        (taskKillers[key]!).killResumeLate();
+        await Future.delayed(Duration(milliseconds: 20));
+      }
     }
   }
 
@@ -397,6 +409,19 @@ class ImageProcessingManager {
     for (var key in secundaryKeys) {
       (taskKillers[key]!).kill();
       taskKillers.remove(key);
+    }
+  }
+
+  Future<void> killResumeLateIsolatesOfDocument(int docIndex) async {
+    List<(int, int)> secundaryKeys = [];
+    for (var key in taskKillers.keys) {
+      if (key.$1 == docIndex) {
+        secundaryKeys.add(key);
+      }
+    }
+    for (var key in secundaryKeys) {
+      (taskKillers[key]!).killResumeLate();
+      await Future.delayed(Duration(milliseconds: 20));
     }
   }
 

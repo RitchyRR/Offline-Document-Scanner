@@ -777,6 +777,7 @@ class _MyHomePageState extends State<MyHomePage> {
   // Documents
   @override
   Widget build(BuildContext context) {
+    final deletedDocs = g.filesHelper.getToBeDeletedDocs();
     return Scaffold(
       appBar: AppBar(
         title: Text("Documents"),
@@ -1151,13 +1152,74 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                       Positioned.fill(
                                         child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            onTap:
-                                                () => _openDocument(docIndex),
-                                            splashColor: Colors.black26,
-                                            highlightColor: Colors.black26,
-                                          ),
+                                          color:
+                                              deletedDocs.contains(docIndex)
+                                                  ? Color.fromRGBO(
+                                                    100,
+                                                    0,
+                                                    10,
+                                                    0.412,
+                                                  )
+                                                  : Colors.transparent,
+                                          child:
+                                              !deletedDocs.contains(docIndex)
+                                                  ? InkWell(
+                                                    onTap:
+                                                        () => _openDocument(
+                                                          docIndex,
+                                                        ),
+                                                    onLongPress:
+                                                        () =>
+                                                            _openDocEditDialog(
+                                                              context,
+                                                              docIndex,
+                                                            ),
+                                                    splashColor: Colors.black26,
+                                                    highlightColor:
+                                                        Colors.black26,
+                                                  )
+                                                  : Center(
+                                                    child: Container(
+                                                      padding: EdgeInsets.all(
+                                                        12,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        color: Colors.black45,
+                                                      ),
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  8.0,
+                                                                ),
+                                                            child: SizedBox(
+                                                              width: 24,
+                                                              height: 24,
+                                                              child: CircularProgressIndicator(
+                                                                color:
+                                                                    Colors
+                                                                        .white,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            "  Deleting...",
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
                                         ),
                                       ),
                                     ],

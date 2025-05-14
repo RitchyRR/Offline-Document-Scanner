@@ -32,6 +32,7 @@ class FilesHelper {
   late String docsPath = "";
   int screenWidth;
   final List<List<int>> _toBeDeletedPages = [];
+  final List<int> _toBeDeletedDocs = [];
 
   _addToBeDeletedPage(int docIndex, int pageIndex) {
     while (_toBeDeletedPages.length - 1 < docIndex) {
@@ -49,6 +50,10 @@ class FilesHelper {
       _toBeDeletedPages.add([]);
     }
     return _toBeDeletedPages[docIndex];
+  }
+
+  List<int> getToBeDeletedDocs() {
+    return _toBeDeletedDocs;
   }
 
   FilesHelper() : screenWidth = 1080 {
@@ -469,6 +474,7 @@ class FilesHelper {
     ScaffoldMessengerState? messenger;
     SnackBar? snackBar;
     bool cancelDelete = false;
+    final cancelCompleter = Completer();
     if (context != null) {
       messenger = ScaffoldMessenger.of(context);
       snackBar = SnackBar(
@@ -493,6 +499,7 @@ class FilesHelper {
                   label: 'Cancel',
                   onPressed: () {
                     cancelDelete = true;
+                    cancelCompleter.complete();
                   },
                 ),
       );
@@ -507,11 +514,19 @@ class FilesHelper {
         dev.log("deleteDocument: Deleting document directory: $docPath");
       }
 
+      _toBeDeletedDocs.add(docIndex);
+      imageProcessingManager.killResumeLateIsolatesOfDocument(docIndex);
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(
-        docIndex,
-      );
+      globalNotifier.triggerEvent(NotifierEvent.setState);
+
+      await Future.any([
+        imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(docIndex),
+        cancelCompleter.future,
+      ]);
+
       messenger?.hideCurrentSnackBar();
+      _toBeDeletedDocs.remove(docIndex);
+      globalNotifier.triggerEvent(NotifierEvent.setState);
       if (cancelDelete) return;
 
       imageProcessingManager.killIsolatesOfDocument(docIndex);
@@ -551,6 +566,7 @@ class FilesHelper {
     ScaffoldMessengerState? messenger;
     SnackBar? snackBar;
     bool cancelDelete = false;
+    final cancelCompleter = Completer();
     if (context != null) {
       messenger = ScaffoldMessenger.of(context);
       snackBar = SnackBar(
@@ -577,6 +593,7 @@ class FilesHelper {
                   label: 'Cancel',
                   onPressed: () {
                     cancelDelete = true;
+                    cancelCompleter.complete();
                   },
                 ),
       );
@@ -589,16 +606,21 @@ class FilesHelper {
       );
     } else {
       _addToBeDeletedPage(docIndex, pageIndex);
-      // free isolates of page
       imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
-      // await higher pageIndex isolates
       messenger?.showSnackBar(snackBar!);
-      await imageProcessingManager.awaitIsolatesOfHigherIndexPage(
-        docIndex,
-        pageIndex,
-      );
+      globalNotifier.triggerEvent(NotifierEvent.setState);
+
+      await Future.any([
+        imageProcessingManager.awaitIsolatesOfHigherIndexPage(
+          docIndex,
+          pageIndex,
+        ),
+        cancelCompleter.future,
+      ]);
+
       messenger?.hideCurrentSnackBar();
       _removeToBeDeletedPage(docIndex, pageIndex);
+      globalNotifier.triggerEvent(NotifierEvent.setState);
       if (cancelDelete) return;
       // delete
       dev.log("Deleting page directory: $pagePath");
@@ -673,6 +695,7 @@ class FilesHelper {
     ScaffoldMessengerState? messenger;
     SnackBar? snackBar;
     bool cancelDelete = false;
+    final cancelCompleter = Completer();
     if (context != null) {
       messenger = ScaffoldMessenger.of(context);
       snackBar = SnackBar(
@@ -699,29 +722,32 @@ class FilesHelper {
                   label: 'Cancel',
                   onPressed: () {
                     cancelDelete = true;
+                    cancelCompleter.complete();
                   },
                 ),
       );
     }
     // await later pages processing
-    List<Future> pagesFutures = [];
     for (var pageIndex in pageIndexes) {
       _addToBeDeletedPage(docIndex, pageIndex);
-      // free isolates of pages
-      imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
     }
+    imageProcessingManager.killResumeLateIsolatesOfPages(docIndex, pageIndexes);
     messenger?.showSnackBar(snackBar!);
-    pagesFutures.add(
+    globalNotifier.triggerEvent(NotifierEvent.setState);
+
+    await Future.any([
       imageProcessingManager.awaitIsolatesOfHigherIndexPages(
         docIndex,
         pageIndexes,
       ),
-    );
-    await Future.wait(pagesFutures);
+      cancelCompleter.future,
+    ]);
+
     messenger?.hideCurrentSnackBar();
     for (var pageIndex in pageIndexes) {
       _removeToBeDeletedPage(docIndex, pageIndex);
     }
+    globalNotifier.triggerEvent(NotifierEvent.setState);
     if (cancelDelete) return;
     // delete
     for (var pageIndex in pageIndexes) {
