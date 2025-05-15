@@ -46,7 +46,6 @@ dependencies:
   permission_handler: 
   url_launcher:
   package_info_plus:
-  uuid:
   collection:
 
 
