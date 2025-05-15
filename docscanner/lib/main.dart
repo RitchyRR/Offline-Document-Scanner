@@ -15,7 +15,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // validity:
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:apk_signature_checker/apk_signature_checker.dart';
 // function:
 import 'dart:io';
 import 'dart:async'; // Timer
@@ -1685,40 +1684,42 @@ setPro(final bool proUnlockedIn) async {
 }
 
 Future<bool> _isAppValid() async {
-  final info = await PackageInfo.fromPlatform();
   // check store
-  bool validStore = false;
-  final installer = info.installerStore;
-  if (Platform.isAndroid && installer == 'com.android.vending') {
-    // com.amazon.venezia
-    validStore = true;
-  }
+  final info = await PackageInfo.fromPlatform();
+  final installer = info.installerStore; // Other: com.amazon.venezia
   // check signature
-  bool validSignature = false;
-  if (Platform.isAndroid) {
-    const expectedSHA256_0 = "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:";
-    const expectedSHA256_1 =
-        "EE:FF:1D:13:C1:A1:A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
-    final signature = await ApkSignatureChecker().getApkSignature(); // SHA-256
-    validSignature = signature == "$expectedSHA256_0$expectedSHA256_1";
+  final signature = info.buildSignature; // SHA-256
+
+  bool valid = false;
+  if (Platform.isAndroid && installer == "com.android.vending") {
+    // Play Store signature
+    const expectedSHA256 =
+        "3B:A5:AA:47:96:C9:7E:40:69:35:F2:C9:50:DD:41:B5:B6:8F:32:06:94:2E:3E:CA:F9:B9:6B:25:25:15:6B:5F";
+    valid = signature == expectedSHA256.replaceAll(":", "");
   }
-  // open playstore
-  if (validStore && validSignature) {
-    return true;
-  } else {
-    final url = Uri(
-      scheme: 'https',
-      host: 'play.google.com',
-      path: '/store/apps/details',
-      queryParameters: {'id': 'com.rrapps.docscanner'},
-    );
-    dev.log("Opening URL: $url");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+  //else if (Platform.isAndroid && installer == "com.android.shell") {
+  //  // APK installed signature
+  //  const expectedSHA256 = ""
+  //  valid = signature == expectedSHA256.replaceAll(":", "");
+  //}
+
+  // open store if invalid
+  if (!valid) {
+    if (Platform.isAndroid) {
+      final url = Uri(
+        scheme: 'https',
+        host: 'play.google.com',
+        path: '/store/apps/details',
+        queryParameters: {'id': 'com.rrapps.docscanner'},
+      );
+      dev.log("Opening URL: $url");
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      }
     }
   }
 
-  return false;
+  return valid;
 }
 
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {

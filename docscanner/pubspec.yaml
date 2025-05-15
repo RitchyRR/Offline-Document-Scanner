@@ -48,7 +48,6 @@ dependencies:
   package_info_plus:
   uuid:
   collection:
-  apk_signature_checker:
 
 
 dev_dependencies:

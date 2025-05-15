@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:collection/collection.dart' show HeapPriorityQueue;
 import 'dart:developer' as dev show log;
 import 'dart:isolate';
-import 'dart:math' as math;
 import 'dart:io';
 
 class TaskKiller {
@@ -39,13 +38,14 @@ class IsolatesManager {
     _initFuture = _init();
   }
 
-  final int maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
+  final int maxIsolates = (Platform.numberOfProcessors - 1).clamp(3, 256);
+  final int baseNOfIsolates = (Platform.numberOfProcessors - 2).clamp(2, 256);
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();
 
   Future<void> _init() async {
-    for (int i = 0; i < maxIsolates - 3; i++) {
+    for (int i = 0; i < baseNOfIsolates; i++) {
       _workers.add(_Worker());
     }
   }
