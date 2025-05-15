@@ -60,9 +60,27 @@ class ImageProcessingManager {
     int rotationIn = data.$11;
     bool isInitial = data.$12;
     if (pageThumbnailIndexIn == 0) {
-      throw StateError('thumbnail cant be the picture');
+      throw StateError('Error, _processPageIsolate: picture cant be thumbnail');
     }
     AppGlobals g = data.$13;
+    if (!File(newPicturePath).existsSync()) {
+      if (File(
+        await g.filesHelper.getVersionPath(docIndex, pageIndex, 0),
+      ).existsSync()) {
+        _repairPageIsolate((
+          sendPort,
+          token,
+          docIndex,
+          pageIndex,
+          ratioValueIn,
+          orientationIndexIn,
+          cornerPointsIn,
+          g,
+        ));
+      } else {
+        StateError('Error, _processPageIsolate: no picture');
+      }
+    }
     int thumbnailIndex =
         pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
 
@@ -275,6 +293,10 @@ class ImageProcessingManager {
     List<String> versionPaths = imagePaths.$1;
     String shapePath = imagePaths.$2;
     String thumbnailPath = imagePaths.$3;
+
+    if (!File(versionPaths[0]).existsSync()) {
+      throw StateError('Error, _repairPageIsolate: no picture');
+    }
 
     // Warped
     var warpedRet = cvHelper.warpImage(
