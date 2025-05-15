@@ -9,11 +9,14 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:share_plus/share_plus.dart' show Share;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 // monetization:
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+// validity:
+import 'package:package_info_plus/package_info_plus.dart';
+//import 'package:package_signature/package_signature.dart';
+import 'package:apk_signature_checker/apk_signature_checker.dart';
 // function:
 import 'dart:io';
 import 'dart:async'; // Timer
@@ -58,10 +61,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   CameraPlatform.instance = AndroidCameraCameraX();
   MobileAds.instance.initialize();
-  // Play Test Ads
-  MobileAds.instance.updateRequestConfiguration(
-    RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
-  );
+  //// Play Test Ads
+  //MobileAds.instance.updateRequestConfiguration(
+  //  RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
+  //);
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
@@ -1653,7 +1656,12 @@ Future<bool> proPopup(BuildContext context) async {
   return false;
 }
 
-setPro(final bool proUnlockedIn) {
+setPro(final bool proUnlockedIn) async {
+  if (proUnlockedIn && !await _isAppValid()) {
+    setPro(false);
+    return;
+  }
+
   bool showMessages = true;
   if (g.proUnlocked == proUnlockedIn) showMessages = false;
   g.proUnlocked = proUnlockedIn;
@@ -1675,6 +1683,49 @@ setPro(final bool proUnlockedIn) {
     );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
+}
+
+Future<bool> _isAppValid() async {
+  final info = await PackageInfo.fromPlatform();
+  // check store
+  bool validStore = false;
+  final installer = info.installerStore;
+  // com.amazon.venezia
+  if (Platform.isAndroid && installer == 'com.android.vending') {
+    validStore = true;
+  }
+  // check signature
+  bool validSignature = false;
+  const expectedSHA256 =
+      "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:EE:FF:1D:13:C1:A1:A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
+  //try {
+  //  final signature = await PackageSignature().signature;
+  //  final sha1 = signature?.sha1hex;
+  //
+  //  validSignature = sha1 == expectedSha1;
+  //} catch (e) {
+  //  dev.log("Signature check failed: $e");
+  //  return validSignature = false;
+  //}
+  final signature = await ApkSignatureChecker().getApkSignature();
+  validSignature = signature == expectedSHA256;
+  // open playstore
+  if (validStore && validSignature) {
+    return true;
+  } else {
+    final url = Uri(
+      scheme: 'https',
+      host: 'play.google.com',
+      path: '/store/apps/details',
+      queryParameters: {'id': 'com.rrapps.docscanner'},
+    );
+    dev.log("Opening URL: $url");
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+  }
+
+  return false;
 }
 
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
