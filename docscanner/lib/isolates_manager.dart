@@ -38,17 +38,22 @@ class IsolatesManager {
     void Function(T) entryPoint,
     T message, {
     IsolatePriority prio = IsolatePriority.regular,
+    Duration maxRuntime = const Duration(minutes: 5),
   }) async {
     await _initFuture;
     final completer = Completer<TaskKiller>();
 
     switch (prio) {
       case IsolatePriority.regular:
-        _taskQueue.addLast(_QueuedTask<T>(entryPoint, message, completer));
+        _taskQueue.addLast(
+          _QueuedTask<T>(entryPoint, message, completer, maxRuntime),
+        );
         break;
       case IsolatePriority.quick:
       case IsolatePriority.immediate:
-        _taskQueue.addFirst(_QueuedTask<T>(entryPoint, message, completer));
+        _taskQueue.addFirst(
+          _QueuedTask<T>(entryPoint, message, completer, maxRuntime),
+        );
         break;
     }
 
@@ -95,7 +100,10 @@ class _QueuedTask<T> {
   final T message;
   final Completer<TaskKiller> completer;
 
-  _QueuedTask(this.entryPoint, this.message, this.completer);
+  final Duration maxRuntime;
+  Timer? _runtimeTimer;
+
+  _QueuedTask(this.entryPoint, this.message, this.completer, this.maxRuntime);
 
   void startIsolate(_Worker worker) {
     final receivePort = ReceivePort();
@@ -115,15 +123,24 @@ class _QueuedTask<T> {
           void cleanup() {
             if (cleanedUp) return;
             cleanedUp = true;
+            _runtimeTimer?.cancel();
             receivePort.close();
             errorPort.close();
             exitPort.close();
             worker.isBusy = false;
+            worker.isolate?.kill(priority: Isolate.immediate);
             worker.isolate = null;
             worker.task = null;
             IsolatesManager()._tryStartNext(IsolatePriority.regular);
           }
 
+          // maxRuntime -> kill
+          _runtimeTimer = Timer(maxRuntime, () {
+            dev.log("Killing isolate due to timeout: $maxRuntime");
+            cleanup();
+          });
+
+          // exit / error
           exitPort.listen((_) => cleanup());
           errorPort.listen((e) {
             cleanup();
@@ -134,18 +151,13 @@ class _QueuedTask<T> {
             // kill
             () {
               if (worker.task != this) {
-                final matchingWorker = _findWorkerForTask(this);
-                if (matchingWorker != null) {
-                  worker = matchingWorker;
-                } else {
-                  dev.log(
-                    "Warning: TaskKiller,kill: Task is already not running.",
-                  );
-                }
+                dev.log(
+                  "Warning: TaskKiller,kill: Task is already not running.",
+                );
+                return;
               }
 
               if (worker.isolate != null) {
-                worker.isolate!.kill(priority: Isolate.immediate);
                 cleanup();
               } else {
                 IsolatesManager()._taskQueue.remove(this);
@@ -154,14 +166,10 @@ class _QueuedTask<T> {
             // killResumeLate
             () {
               if (worker.task != this) {
-                final matchingWorker = _findWorkerForTask(this);
-                if (matchingWorker != null) {
-                  worker = matchingWorker;
-                } else {
-                  dev.log(
-                    "Warning: TaskKiller,killResumeLate: Task is already not running.",
-                  );
-                }
+                dev.log(
+                  "Warning: TaskKiller, killResumeLate: Task is already not running.",
+                );
+                return;
               }
 
               if (worker.isolate != null) {
@@ -185,15 +193,6 @@ class _QueuedTask<T> {
           completer.completeError(e);
           IsolatesManager()._tryStartNext(IsolatePriority.regular);
         });
-  }
-
-  _Worker? _findWorkerForTask(_QueuedTask task) {
-    for (final worker in IsolatesManager()._workers) {
-      if (worker.task == task) {
-        return worker;
-      }
-    }
-    return null;
   }
 }
 
