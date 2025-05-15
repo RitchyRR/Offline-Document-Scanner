@@ -165,7 +165,7 @@ class _MyAppState extends State<MyApp> {
           onGenerateRoute: (settings) {
             switch (settings.name) {
               case '/':
-                return MaterialPageRoute(builder: (_) => MyHomePage());
+                return MaterialPageRoute(builder: (_) => DocumentsHome());
 
               case '/pages':
                 final args = settings.arguments as Map<String, dynamic>;
@@ -213,7 +213,7 @@ class _MyAppState extends State<MyApp> {
                 );
 
               default:
-                return MaterialPageRoute(builder: (_) => MyHomePage());
+                return MaterialPageRoute(builder: (_) => DocumentsHome());
             }
           },
           builder: FToastBuilder(),
@@ -260,23 +260,23 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           themeMode: ThemeMode.system, // device controls theme
-          home: const MyHomePage(title: 'Documents'),
+          home: const DocumentsHome(title: 'Documents'),
         );
       },
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, this.title});
+class DocumentsHome extends StatefulWidget {
+  const DocumentsHome({super.key, this.title});
 
   final String? title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<DocumentsHome> createState() => _DocumentsHomeState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _DocumentsHomeState extends State<DocumentsHome> {
   final ImagePicker _picker = ImagePicker();
   List<String> _docThumbnails = [];
 
