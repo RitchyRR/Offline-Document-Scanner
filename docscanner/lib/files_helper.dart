@@ -117,9 +117,15 @@ class FilesHelper {
     for (final docIndex in _markedDeletedDocs) {
       await _deleteDocument(docIndex);
     }
+    List<Future> pagesFutures = [];
     for (var (docIndex, pageIndexes) in _markedDeletedPages.indexed) {
-      _deletePages(docIndex, pageIndexes);
+      pagesFutures.add(_deletePages(docIndex, pageIndexes));
     }
+    await Future.wait(pagesFutures);
+    _markedDeletedDocs.clear;
+    _markedDeletedPages.clear;
+    prefs.setString("markedDeletedDocs", "");
+    prefs.setString("markedDeletedPages", "");
   }
 
   FilesHelper() : screenWidth = 1080 {
