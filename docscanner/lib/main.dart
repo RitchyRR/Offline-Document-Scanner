@@ -960,6 +960,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   controller: _scrollController,
                   itemCount: _docsCount,
                   itemBuilder: (BuildContext context, int docIndex) {
+                    if (deletedDocs.contains(docIndex)) return SizedBox();
                     String docName =
                         _docNames[docIndex].isNotEmpty
                             ? _docNames[docIndex]
@@ -2017,9 +2018,10 @@ class _PagesState extends State<Pages> {
                     controller: _scrollController,
                     cacheExtent: 1000,
                     itemCount: _pagesCount,
-                    itemBuilder: (BuildContext context, int index) {
-                      String thumbnailPath = _pageThumbnails[index];
-                      double thumbnailRatio = _thumbnailRatios[index];
+                    itemBuilder: (BuildContext context, int pageIndex) {
+                      if (deletedPages.contains(pageIndex)) return SizedBox();
+                      String thumbnailPath = _pageThumbnails[pageIndex];
+                      double thumbnailRatio = _thumbnailRatios[pageIndex];
                       if (thumbnailRatio == 0.0) {
                         throw StateError("thumbnailRatio == 0.0");
                       }
@@ -2076,16 +2078,18 @@ class _PagesState extends State<Pages> {
                                   child: Material(
                                     color:
                                         (_selectMode &&
-                                                _selectedPages.contains(index))
+                                                _selectedPages.contains(
+                                                  pageIndex,
+                                                ))
                                             ? Theme.of(context)
                                                 .colorScheme
                                                 .primaryContainer
                                                 .withAlpha(150)
-                                            : deletedPages.contains(index)
+                                            : deletedPages.contains(pageIndex)
                                             ? Color.fromRGBO(100, 0, 10, 0.412)
                                             : Colors.transparent,
                                     child:
-                                        !deletedPages.contains(index)
+                                        !deletedPages.contains(pageIndex)
                                             ? InkWell(
                                               onTap:
                                                   !_selectMode
@@ -2093,15 +2097,15 @@ class _PagesState extends State<Pages> {
                                                               .isNotEmpty)
                                                           ? () =>
                                                               _openPagePreview(
-                                                                index,
+                                                                pageIndex,
                                                               )
                                                           : null
                                                       : () {
                                                         HapticFeedback.lightImpact();
-                                                        _selectPage(index);
+                                                        _selectPage(pageIndex);
                                                       },
                                               onLongPress: () {
-                                                _selectPage(index);
+                                                _selectPage(pageIndex);
                                               },
                                               splashColor: Theme.of(context)
                                                   .colorScheme
@@ -2158,24 +2162,26 @@ class _PagesState extends State<Pages> {
                                   child: GestureDetector(
                                     // Move Page Index Dialog
                                     onTap:
-                                        !deletedPages.contains(index)
+                                        !deletedPages.contains(pageIndex)
                                             ? _selectMode
-                                                ? () => _selectPage(index)
+                                                ? () => _selectPage(pageIndex)
                                                 : () => _openPageEditDialog(
                                                   context,
-                                                  index,
+                                                  pageIndex,
                                                 )
                                             : null,
                                     onLongPress:
-                                        !deletedPages.contains(index)
-                                            ? () => _selectPage(index)
+                                        !deletedPages.contains(pageIndex)
+                                            ? () => _selectPage(pageIndex)
                                             : null,
                                     child: Container(
                                       padding: EdgeInsets.fromLTRB(
                                         12,
                                         6,
                                         (_selectMode &&
-                                                _selectedPages.contains(index))
+                                                _selectedPages.contains(
+                                                  pageIndex,
+                                                ))
                                             ? 6
                                             : 12,
                                         6,
@@ -2195,7 +2201,7 @@ class _PagesState extends State<Pages> {
                                             CrossAxisAlignment.center,
                                         children: [
                                           Text(
-                                            "${index + 1}/$_pagesCount",
+                                            "${pageIndex + 1}/$_pagesCount",
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
@@ -2205,14 +2211,14 @@ class _PagesState extends State<Pages> {
                                             width:
                                                 (_selectMode &&
                                                         _selectedPages.contains(
-                                                          index,
+                                                          pageIndex,
                                                         ))
                                                     ? 8
                                                     : 0,
                                           ),
                                           (_selectMode &&
                                                   _selectedPages.contains(
-                                                    index,
+                                                    pageIndex,
                                                   ))
                                               ? Icon(Icons.check, size: 20)
                                               : SizedBox(),

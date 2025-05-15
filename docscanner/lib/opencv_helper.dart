@@ -182,6 +182,10 @@ class OpenCVHelper {
       shape = _documentMask(bg);
       bg.dispose();
       bg = null;
+    } else {
+      if (shape.type != cv.MatType.CV_8UC1) {
+        shape = cv.split(shape)[0]; //cv.cvtColor(shape, cv.COLOR_BGR2GRAY);
+      }
     }
     if (cornerPointsIn == null) {
       // 3. Corner detection

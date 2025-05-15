@@ -80,7 +80,7 @@ class IsolatesManager {
         break;
       }
     }
-    if (!wasStarted) {
+    if (!wasStarted && _taskQueue.isNotEmpty) {
       final task = _taskQueue.first;
       if (task.prio == IsolatePriority.immediate &&
           _workers.length < maxIsolates + maxImmediateIsolatesSpillover) {
