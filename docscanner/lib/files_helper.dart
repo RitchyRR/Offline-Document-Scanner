@@ -543,39 +543,6 @@ class FilesHelper {
     bool supressInfo = false,
     bool isBroken = false,
   }) async {
-    //ScaffoldMessengerState? messenger;
-    //SnackBar? snackBar;
-    //bool cancelDelete = false;
-    //final cancelCompleter = Completer();
-    //if (context != null) {
-    //  messenger = ScaffoldMessenger.of(context);
-    //  snackBar = SnackBar(
-    //    content: Row(
-    //      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    //      children: [
-    //        Text('Deleting Document ${docIndex + 1}...'),
-    //        SizedBox(
-    //          width: 20,
-    //          height: 20,
-    //          child: CircularProgressIndicator(
-    //            color: Theme.of(context).colorScheme.surface,
-    //          ),
-    //        ),
-    //      ],
-    //    ),
-    //    duration: const Duration(days: 1),
-    //    action:
-    //        isBroken
-    //            ? null
-    //            : SnackBarAction(
-    //              label: 'Cancel',
-    //              onPressed: () {
-    //                cancelDelete = true;
-    //                cancelCompleter.complete();
-    //              },
-    //            ),
-    //  );
-    //}
     String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -585,23 +552,25 @@ class FilesHelper {
       if (!supressInfo) {
         dev.log("deleteDocument: Deleting document directory: $docPath");
       }
-
       _addMarkedDeletedDoc(docIndex);
-      imageProcessingManager.killResumeLateIsolatesOfDocument(docIndex);
-      //messenger?.showSnackBar(snackBar!);
+      imageProcessingManager.killIsolatesOfDocument(docIndex);
 
-      await
-      //Future.any([
-      imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(docIndex)
-      //  , cancelCompleter.future,])
-      ;
+      bool deleted = false;
+      Future future = imageProcessingManager
+          .awaitIsolatesOfHigherIndexedDocuments(docIndex);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!deleted) {
+          Fluttertoast.showToast(msg: "Deleting Document ${docIndex + 1}...");
+        }
+      });
+      await future;
+      deleted = true;
 
-      //messenger?.hideCurrentSnackBar();
       _removeMarkedDeletedDoc(docIndex);
-      //if (cancelDelete) return;
 
       imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
+      Fluttertoast.cancel();
       Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
     }
 
@@ -623,9 +592,7 @@ class FilesHelper {
       );
       toPath = await getDocumentPath(docIndex, supressWarnings: true);
     }
-    globalNotifier.triggerEvent(
-      NotifierEvent.loadDocsThumbnails,
-    ); // to not show deleted document
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 
   Future<void> _deletePage(
@@ -633,41 +600,6 @@ class FilesHelper {
     int pageIndex, {
     bool isBroken = false,
   }) async {
-    //ScaffoldMessengerState? messenger;
-    //SnackBar? snackBar;
-    //bool cancelDelete = false;
-    //final cancelCompleter = Completer();
-    //if (context != null) {
-    //  messenger = ScaffoldMessenger.of(context);
-    //snackBar = SnackBar(
-    //  content: Row(
-    //    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    //    children: [
-    //      Text(
-    //        'Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...',
-    //      ),
-    //      SizedBox(
-    //        width: 20,
-    //        height: 20,
-    //        child: CircularProgressIndicator(
-    //          color: Theme.of(context).colorScheme.surface,
-    //        ),
-    //      ),
-    //    ],
-    //  ),
-    //  duration: const Duration(days: 1),
-    //  action:
-    //      isBroken
-    //          ? null
-    //          : SnackBarAction(
-    //            label: 'Cancel',
-    //            onPressed: () {
-    //              cancelDelete = true;
-    //              cancelCompleter.complete();
-    //            },
-    //          ),
-    //);
-    //}
     final pagePath = await getPagePath(docIndex, pageIndex);
     final pageDir = Directory(pagePath);
     if (!await pageDir.exists()) {
@@ -676,19 +608,25 @@ class FilesHelper {
       );
     } else {
       _addMarkedDeletedPage(docIndex, pageIndex);
-      imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
-      //messenger?.showSnackBar(snackBar!);
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
 
-      await
-      //Future.any([
-      imageProcessingManager.awaitIsolatesOfHigherIndexPage(docIndex, pageIndex)
-      //, cancelCompleter.future,])
-      ;
+      bool deleted = false;
+      Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
+        docIndex,
+        pageIndex,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!deleted) {
+          Fluttertoast.showToast(
+            msg:
+                "Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...",
+          );
+        }
+      });
+      await future;
+      deleted = true;
 
-      //messenger?.hideCurrentSnackBar();
       _removeMarkedDeletedPage(docIndex, pageIndex);
-      //if (cancelDelete) return;
-      // delete
       dev.log("Deleting page directory: $pagePath");
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
@@ -696,6 +634,7 @@ class FilesHelper {
       }
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
+      Fluttertoast.cancel();
       Fluttertoast.showToast(
         msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
       );
@@ -725,16 +664,10 @@ class FilesHelper {
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
       await _deleteDocument(docIndex, supressInfo: true, isBroken: true);
-      globalNotifier.triggerEvent(
-        NotifierEvent.loadPagesThumbnails,
-      ); // to not show deleted page and to Navigator.pop
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     } else {
-      globalNotifier.triggerEvent(
-        NotifierEvent.loadPagesThumbnails,
-      ); // otherwise they show the ones of other pages
-      globalNotifier.triggerEvent(
-        NotifierEvent.loadDocsThumbnails,
-      ); // for page count
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
     }
   }
 
@@ -746,62 +679,30 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
-    //ScaffoldMessengerState? messenger;
-    //SnackBar? snackBar;
-    //bool cancelDelete = false;
-    //final cancelCompleter = Completer();
-    //if (context != null) {
-    //  messenger = ScaffoldMessenger.of(context);
-    //  snackBar = SnackBar(
-    //    content: Row(
-    //      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    //      children: [
-    //        Text(
-    //          'Deleting ${pageIndexes.length} Pages of Document ${docIndex + 1}...',
-    //        ),
-    //        SizedBox(
-    //          width: 20,
-    //          height: 20,
-    //          child: CircularProgressIndicator(
-    //            color: Theme.of(context).colorScheme.surface,
-    //          ),
-    //        ),
-    //      ],
-    //    ),
-    //    duration: const Duration(days: 1),
-    //    action:
-    //        isBroken
-    //            ? null
-    //            : SnackBarAction(
-    //              label: 'Cancel',
-    //              onPressed: () {
-    //                cancelDelete = true;
-    //                cancelCompleter.complete();
-    //              },
-    //            ),
-    //  );
-    //}
-    // await later pages processing
     for (var pageIndex in pageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
     }
-    imageProcessingManager.killResumeLateIsolatesOfPages(docIndex, pageIndexes);
-    //messenger?.showSnackBar(snackBar!);
 
-    await
-    //Future.any([
-    imageProcessingManager.awaitIsolatesOfHigherIndexPages(
+    bool deleted = false;
+    Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
       docIndex,
       pageIndexes,
-    )
-    //, cancelCompleter.future,])
-    ;
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!deleted) {
+        Fluttertoast.showToast(
+          msg:
+              "Deleting Pages $displayPageIndexes of Document ${docIndex + 1}...",
+        );
+      }
+    });
+    await future;
+    deleted = true;
 
-    //messenger?.hideCurrentSnackBar();
     for (var pageIndex in pageIndexes) {
       _removeMarkedDeletedPage(docIndex, pageIndex);
     }
-    //if (cancelDelete) return;
     // delete
     for (var pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
@@ -821,6 +722,7 @@ class FilesHelper {
         pageDir.deleteSync(recursive: true);
       }
     }
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
     );

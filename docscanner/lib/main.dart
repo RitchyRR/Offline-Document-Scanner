@@ -1,6 +1,7 @@
 // design:
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -507,7 +508,11 @@ class _DocumentsHomeState extends State<DocumentsHome> {
     });
   }
 
-  void _openDocEditDialog(BuildContext context, int docIndex) async {
+  void _openDocEditDialog(
+    BuildContext context,
+    int docIndex,
+    int displayDocIndex,
+  ) async {
     Future<void> future = imageProcessingManager.awaitAllIsolates();
     {
       bool allowChangeDocIndex = false;
@@ -520,7 +525,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
           );
 
           return AlertDialog(
-            title: Text("Edit Document ${docIndex + 1}"),
+            title: Text("Edit Document $displayDocIndex"),
             content: StatefulBuilder(
               builder: (context, setState) {
                 future.whenComplete(() {
@@ -535,7 +540,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                       controller: nameController,
                       decoration: InputDecoration(
                         labelText: "Document Name",
-                        hintText: "Document ${docIndex + 1}",
+                        hintText: "Document $displayDocIndex",
                       ),
                       clipBehavior: Clip.hardEdge,
                       onChanged:
@@ -955,7 +960,12 @@ class _DocumentsHomeState extends State<DocumentsHome> {
               // Documents Cards
               ? CustomScrollbar(
                 controller: _scrollController,
-                pageAspectRatios: _thumbnailRatios,
+                pageAspectRatios:
+                    _thumbnailRatios
+                        .whereIndexed(
+                          (index, element) => !_deletedDocs.contains(index),
+                        )
+                        .toList(),
                 scrollRangeStart: 0.1,
                 scrollRangeEnd: 0.675,
                 noTumb: true,
@@ -965,10 +975,16 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                   itemCount: _docsCount,
                   itemBuilder: (BuildContext context, int docIndex) {
                     if (_deletedDocs.contains(docIndex)) return SizedBox();
+                    final displayDocIndex =
+                        1 +
+                        docIndex -
+                        _deletedDocs
+                            .where((element) => element < docIndex)
+                            .length;
                     String docName =
                         _docNames[docIndex].isNotEmpty
                             ? _docNames[docIndex]
-                            : "Document ${docIndex + 1}";
+                            : "Document $displayDocIndex";
                     String creationDate = _docDates[docIndex];
                     int pagesCount =
                         _docPageCounts.isNotEmpty
@@ -1003,6 +1019,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                                                 ? () => _openDocEditDialog(
                                                   context,
                                                   docIndex,
+                                                  displayDocIndex,
                                                 )
                                                 : null,
                                         child: Padding(
@@ -1189,6 +1206,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                                                             _openDocEditDialog(
                                                               context,
                                                               docIndex,
+                                                              displayDocIndex,
                                                             ),
                                                     splashColor: Colors.black26,
                                                     highlightColor:
@@ -1241,7 +1259,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                                     ],
                                   ),
                                 ),
-                              ), // Pages Skeleton
+                              ),
                             ],
                           ),
                         ),
@@ -1783,7 +1801,7 @@ class _PagesState extends State<Pages> {
     super.dispose();
   }
 
-  List<int> deletedPages = [];
+  List<int> _deletedPages = [];
   Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
@@ -1791,7 +1809,7 @@ class _PagesState extends State<Pages> {
         _loadPagesThumbnails();
         break;
       case NotifierEvent.imagesDeleted:
-        deletedPages = await g.filesHelper.getMarkedDeletedPages(
+        _deletedPages = await g.filesHelper.getMarkedDeletedPages(
           widget.docIndex,
         );
         setState(() {});
@@ -1943,7 +1961,7 @@ class _PagesState extends State<Pages> {
       (int index) => index,
       growable: true,
     );
-    _selectedPages.removeWhere((element) => deletedPages.contains(element));
+    _selectedPages.removeWhere((element) => _deletedPages.contains(element));
 
     if (listBefore != _selectedPages) {
       HapticFeedback.lightImpact();
@@ -1978,6 +1996,7 @@ class _PagesState extends State<Pages> {
   Widget build(BuildContext context) {
     //final bool isTopOfNavigationStack =
     //    ModalRoute.of(context)?.isCurrent ?? false;
+    final displayPagesCount = _pagesCount - _deletedPages.length;
     return PopScope(
       canPop: !_selectMode,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2019,7 +2038,12 @@ class _PagesState extends State<Pages> {
                 // Pages
                 ? CustomScrollbar(
                   controller: _scrollController,
-                  pageAspectRatios: _thumbnailRatios,
+                  pageAspectRatios:
+                      _thumbnailRatios
+                          .whereIndexed(
+                            (index, element) => !_deletedPages.contains(index),
+                          )
+                          .toList(),
                   scrollRangeStart: 0.1,
                   scrollRangeEnd: 0.675,
 
@@ -2028,7 +2052,13 @@ class _PagesState extends State<Pages> {
                     cacheExtent: 1000,
                     itemCount: _pagesCount,
                     itemBuilder: (BuildContext context, int pageIndex) {
-                      if (deletedPages.contains(pageIndex)) return SizedBox();
+                      if (_deletedPages.contains(pageIndex)) return SizedBox();
+                      final displayPageIndex =
+                          1 +
+                          pageIndex -
+                          _deletedPages
+                              .where((element) => element < pageIndex)
+                              .length;
                       String thumbnailPath = _pageThumbnails[pageIndex];
                       double thumbnailRatio = _thumbnailRatios[pageIndex];
                       if (thumbnailRatio == 0.0) {
@@ -2094,11 +2124,11 @@ class _PagesState extends State<Pages> {
                                                 .colorScheme
                                                 .primaryContainer
                                                 .withAlpha(150)
-                                            : deletedPages.contains(pageIndex)
+                                            : _deletedPages.contains(pageIndex)
                                             ? Color.fromRGBO(100, 0, 10, 0.412)
                                             : Colors.transparent,
                                     child:
-                                        !deletedPages.contains(pageIndex)
+                                        !_deletedPages.contains(pageIndex)
                                             ? InkWell(
                                               onTap:
                                                   !_selectMode
@@ -2171,16 +2201,17 @@ class _PagesState extends State<Pages> {
                                   child: GestureDetector(
                                     // Move Page Index Dialog
                                     onTap:
-                                        !deletedPages.contains(pageIndex)
+                                        !_deletedPages.contains(pageIndex)
                                             ? _selectMode
                                                 ? () => _selectPage(pageIndex)
                                                 : () => _openPageEditDialog(
                                                   context,
                                                   pageIndex,
+                                                  displayPageIndex,
                                                 )
                                             : null,
                                     onLongPress:
-                                        !deletedPages.contains(pageIndex)
+                                        !_deletedPages.contains(pageIndex)
                                             ? () => _selectPage(pageIndex)
                                             : null,
                                     child: Container(
@@ -2210,7 +2241,7 @@ class _PagesState extends State<Pages> {
                                             CrossAxisAlignment.center,
                                         children: [
                                           Text(
-                                            "${pageIndex + 1}/$_pagesCount",
+                                            "$displayPageIndex/$displayPagesCount",
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 14,
@@ -2368,7 +2399,11 @@ class _PagesState extends State<Pages> {
     );
   }
 
-  void _openPageEditDialog(BuildContext context, int pageIndex) async {
+  void _openPageEditDialog(
+    BuildContext context,
+    int pageIndex,
+    displayPageIndex,
+  ) async {
     bool allowChangePageIndex = false;
     Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
       widget.docIndex,
@@ -2383,7 +2418,7 @@ class _PagesState extends State<Pages> {
               setState(() => allowChangePageIndex = true);
             });
             return AlertDialog(
-              title: Text("Page ${currentIndex + 1}"),
+              title: Text("Page $displayPageIndex"),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -5073,8 +5108,8 @@ Future<bool> _pagesPopup(
                         child: Text(
                           "Are you sure you want to \npermanently delete ${isDocument ? ""
                                   "this document" : ""
-                                  "${isSinglePage ? "this " : "these $pagesCount "}" // ${docIndex + 1}
-                                  "page${isSinglePage ? "" : "s"}"}?", //${isSinglePage ? " ${pageIndexes.first + 1}" : ""}
+                                  "${isSinglePage ? "this " : "these $pagesCount "}"
+                                  "page${isSinglePage ? "" : "s"}"}?",
                         ),
                       )
                       : SizedBox(),
