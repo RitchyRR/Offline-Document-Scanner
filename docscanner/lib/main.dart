@@ -2539,9 +2539,28 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   Timer? _hideTimer;
   int _lastPage = 0;
 
-  static const double _thumbSize = 56;
+  double maxScroll = double.infinity;
+  _setMaxScroll({bool reset = false}) {
+    if (reset) {
+      maxScroll = widget.controller.position.maxScrollExtent;
+    } else {
+      maxScroll = [
+        widget.controller.position.maxScrollExtent,
+        maxScroll,
+      ].reduce(math.min);
+    }
+  }
 
   late List<double> ratios;
+  _setRatios() {
+    final List<double> priorRatios = List<double>.from(ratios);
+    ratios = List<double>.from(widget.pageAspectRatios);
+    ratios[ratios.length - 1] = 0.0;
+    return priorRatios != ratios;
+  }
+
+  static const double _thumbSize = 56;
+
   @override
   void initState() {
     super.initState();
@@ -2564,8 +2583,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     ).animate(
       CurvedAnimation(parent: _railSlideController, curve: Curves.easeInOut),
     );
-    ratios = List<double>.from(widget.pageAspectRatios);
-    ratios[ratios.length - 1] = 0.0;
+    _setRatios();
   }
 
   @override
@@ -2581,6 +2599,9 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     if (_isDragging) {
       return;
     }
+
+    _setMaxScroll();
+
     _showThumbTemporarily();
     _updateThumbPosition();
     _maybeTriggerHaptics();
@@ -2592,7 +2613,6 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       return;
     }
 
-    final maxScroll = widget.controller.position.maxScrollExtent;
     final viewportHeight = widget.controller.position.viewportDimension;
 
     final scrollFraction =
@@ -2653,22 +2673,22 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   void _onDragUpdate(DragUpdateDetails details, double containerHeight) {
-    final maxScroll = widget.controller.position.maxScrollExtent;
-    final scrollAreaHeight =
-        containerHeight * (widget.scrollRangeEnd - widget.scrollRangeStart) -
-        _thumbSize;
+    _setMaxScroll();
 
+    // move thumb
     final minTop = containerHeight * widget.scrollRangeStart;
     final maxTop = containerHeight * widget.scrollRangeEnd - _thumbSize;
+    _thumbTop = (_thumbTop + details.delta.dy).clamp(minTop, maxTop);
+    setState(() {});
 
-    setState(() {
-      _thumbTop = (_thumbTop + details.delta.dy).clamp(minTop, maxTop);
-    });
-
+    // move page
+    final scrollAreaHeight = maxTop - minTop;
     final scrollFraction = (_thumbTop - minTop) / scrollAreaHeight;
-    final newScrollOffset = scrollFraction * maxScroll;
 
-    widget.controller.jumpTo(newScrollOffset);
+    final newScrollOffset = scrollFraction * maxScroll;
+    if (_isDragging) {
+      widget.controller.jumpTo(newScrollOffset);
+    }
 
     _maybeTriggerHaptics();
   }
@@ -2687,7 +2707,6 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     }
 
     final offset = widget.controller.offset;
-    final maxScrollExtent = widget.controller.position.maxScrollExtent;
 
     final total = ratios.fold<double>(0.0, (a, b) => a + b);
     final cumulative = <double>[];
@@ -2697,8 +2716,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       cumulative.add(sum);
     }
 
-    final scrolledFraction =
-        maxScrollExtent == 0 ? 0 : offset / maxScrollExtent;
+    final scrolledFraction = maxScroll == 0 ? 0 : offset / maxScroll;
     final scrollPosition = total * scrolledFraction;
 
     for (int i = 0; i < cumulative.length; i++) {
@@ -2720,8 +2738,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     if ((widget.controller.offset <=
             widget.controller.position.minScrollExtent ||
-        widget.controller.offset >=
-            widget.controller.position.maxScrollExtent)) {
+        widget.controller.offset >= maxScroll)) {
       if (!_atTopOrBottom) {
         if (_isDragging) {
           HapticFeedback.lightImpact();
@@ -2745,11 +2762,19 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     final railWidth = 12.0;
     final railColor = Theme.of(context).colorScheme.onPrimaryContainer;
+
+    final bool newRatios = _setRatios();
+    _setMaxScroll(reset: newRatios);
+
     return LayoutBuilder(
       builder: (_, constraints) {
         return Stack(
           children: [
+            // Child
+            //AbsorbPointer(absorbing: _isDragging, child:
             widget.child,
+            //)
+            // Rail
             if (_isThumbVisible && widget.controller.hasClients)
               Positioned(
                 right: -railWidth / 2,
@@ -2771,6 +2796,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                   ),
                 ),
               ),
+            // Thumb
             if (_isThumbVisible && widget.controller.hasClients)
               Positioned(
                 right: -16,
@@ -2786,6 +2812,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                         (d) => _onDragUpdate(d, constraints.maxHeight),
                     onVerticalDragEnd: (details) => _onDragEnd(details),
                     onVerticalDragCancel: () => _onDragEnd(null),
+                    // Thumb Design
                     child: Row(
                       children: [
                         Container(
