@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:collection' show Queue;
+import 'package:collection/collection.dart' show HeapPriorityQueue;
 import 'dart:developer' as dev show log;
 import 'dart:isolate';
 import 'dart:math' as math;
@@ -7,13 +7,28 @@ import 'dart:io';
 
 class TaskKiller {
   final void Function() _kill;
-  final void Function() _killResumeLate;
-  TaskKiller(this._kill, this._killResumeLate);
+  final void Function() _delay;
+  TaskKiller(this._kill, this._delay);
   void kill() => _kill();
-  void killResumeLate() => _killResumeLate();
+  void delay() => _delay();
 }
 
-enum IsolatePriority { regular, quick, immediate }
+enum IsolatePriority { late, regular, quick, immediate }
+
+extension on IsolatePriority {
+  int get level {
+    switch (this) {
+      case IsolatePriority.immediate:
+        return 4;
+      case IsolatePriority.quick:
+        return 3;
+      case IsolatePriority.regular:
+        return 2;
+      case IsolatePriority.late:
+        return 1;
+    }
+  }
+}
 
 class IsolatesManager {
   static final IsolatesManager _instance = IsolatesManager._internal();
@@ -24,13 +39,16 @@ class IsolatesManager {
     _initFuture = _init();
   }
 
-  static final int _maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
-  final Queue<_Worker> _workers = Queue<_Worker>();
-  final Queue<_QueuedTask<dynamic>> _taskQueue = Queue<_QueuedTask<dynamic>>();
+  final int maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
+  final int maxImmediateIsolatesSpillover = 2;
+  final List<_Worker> _workers = [];
+  final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
+      HeapPriorityQueue<_QueuedTask<dynamic>>();
 
   Future<void> _init() async {
-    for (int i = 0; i < _maxIsolates; i++) {
-      _workers.addLast(_Worker());
+    // -1 because: reserve one for prio immediate
+    for (int i = 0; i < maxIsolates - 1; i++) {
+      _workers.add(_Worker());
     }
   }
 
@@ -42,68 +60,64 @@ class IsolatesManager {
   }) async {
     await _initFuture;
     final completer = Completer<TaskKiller>();
-
-    switch (prio) {
-      case IsolatePriority.regular:
-        _taskQueue.addLast(
-          _QueuedTask<T>(entryPoint, message, completer, maxRuntime),
-        );
-        break;
-      case IsolatePriority.quick:
-      case IsolatePriority.immediate:
-        _taskQueue.addFirst(
-          _QueuedTask<T>(entryPoint, message, completer, maxRuntime),
-        );
-        break;
-    }
-
-    _tryStartNext(prio);
+    _taskQueue.add(
+      _QueuedTask<T>(entryPoint, message, completer, prio, maxRuntime),
+    );
+    _tryStartNext();
     return completer.future;
   }
 
-  void _tryStartNext(IsolatePriority prio) {
+  void _tryStartNext() {
     bool wasStarted = false; // for prio == IsolatePriority.immediate
     for (final worker in _workers) {
       if (!worker.isBusy && _taskQueue.isNotEmpty) {
         wasStarted = true;
         final task = _taskQueue.removeFirst();
-        // move to back
-        _workers.remove(worker);
-        _workers.addLast(worker);
-
         worker.isBusy = true;
         worker.task = task;
 
         task.startIsolate(worker);
-
         break;
       }
     }
-    if (!wasStarted && prio == IsolatePriority.immediate) {
-      // kill newestWorker
-      _Worker newestWorker = _workers.last;
-      newestWorker.isolate!.kill(priority: Isolate.immediate);
-      newestWorker.isBusy = false;
-      newestWorker.isolate = null;
-      // add newestWorker.task behind immediateTask
-      final immediateTask = _taskQueue.removeFirst();
-      _taskQueue.addFirst(newestWorker.task!);
-      _taskQueue.addFirst(immediateTask);
-      // start immediateTask
-      _tryStartNext(IsolatePriority.immediate);
+    if (!wasStarted) {
+      final task = _taskQueue.first;
+      if (task.prio == IsolatePriority.immediate &&
+          _workers.length < maxIsolates + maxImmediateIsolatesSpillover) {
+        _taskQueue.removeFirst();
+        final immediateWorker = _Worker();
+        _workers.add(immediateWorker);
+        immediateWorker.isBusy = true;
+        immediateWorker.task = task;
+        task.startIsolate(immediateWorker);
+        return;
+      }
     }
   }
 }
 
-class _QueuedTask<T> {
+class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final void Function(T) entryPoint;
   final T message;
   final Completer<TaskKiller> completer;
+  IsolatePriority prio;
 
   final Duration maxRuntime;
   Timer? _runtimeTimer;
 
-  _QueuedTask(this.entryPoint, this.message, this.completer, this.maxRuntime);
+  _QueuedTask(
+    this.entryPoint,
+    this.message,
+    this.completer,
+    this.prio,
+    this.maxRuntime,
+  );
+
+  @override
+  int compareTo(_QueuedTask other) {
+    // higher priority comes first
+    return other.prio.level.compareTo(prio.level);
+  }
 
   void startIsolate(_Worker worker) {
     final receivePort = ReceivePort();
@@ -119,6 +133,7 @@ class _QueuedTask<T> {
         .then((isolate) {
           worker.isolate = isolate;
 
+          //final bool runImmediate = prio == IsolatePriority.immediate;
           bool cleanedUp = false;
           void cleanup() {
             if (cleanedUp) return;
@@ -131,7 +146,11 @@ class _QueuedTask<T> {
             worker.isolate?.kill(priority: Isolate.immediate);
             worker.isolate = null;
             worker.task = null;
-            IsolatesManager()._tryStartNext(IsolatePriority.regular);
+            if (IsolatesManager()._workers.length >
+                IsolatesManager().maxIsolates - 1) {
+              IsolatesManager()._workers.remove(worker);
+            }
+            IsolatesManager()._tryStartNext();
           }
 
           // maxRuntime -> kill
@@ -156,14 +175,11 @@ class _QueuedTask<T> {
                 );
                 return;
               }
-
               if (worker.isolate != null) {
                 cleanup();
-              } else {
-                IsolatesManager()._taskQueue.remove(this);
               }
             },
-            // killResumeLate
+            // delay
             () {
               if (worker.task != this) {
                 dev.log(
@@ -171,17 +187,7 @@ class _QueuedTask<T> {
                 );
                 return;
               }
-
-              if (worker.isolate != null) {
-                if (IsolatesManager()._workers.every((w) => w.isBusy)) {
-                  worker.isolate!.kill(priority: Isolate.immediate);
-                }
-                IsolatesManager()._taskQueue.addLast(this);
-                cleanup();
-              } else {
-                IsolatesManager()._taskQueue.remove(this);
-                IsolatesManager()._taskQueue.addLast(this);
-              }
+              prio = IsolatePriority.late;
             },
           );
 
@@ -191,7 +197,7 @@ class _QueuedTask<T> {
           worker.isBusy = false;
           worker.task = null;
           completer.completeError(e);
-          IsolatesManager()._tryStartNext(IsolatePriority.regular);
+          IsolatesManager()._tryStartNext();
         });
   }
 }
