@@ -1696,10 +1696,11 @@ Future<bool> _isAppValid() async {
   // check signature
   bool validSignature = false;
   if (Platform.isAndroid) {
-    const expectedSHA256 =
-        "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:EE:FF:1D:13:C1:A1:A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
+    const expectedSHA256_0 =
+        "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:EE:FF:1D:13:C1:A1";
+    const expectedSHA256_1 = ":A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
     final signature = await ApkSignatureChecker().getApkSignature(); // SHA-256
-    validSignature = signature == expectedSHA256;
+    validSignature = signature == "$expectedSHA256_0$expectedSHA256_1";
   }
   // open playstore
   if (validStore && validSignature) {
