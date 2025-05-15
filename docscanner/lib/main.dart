@@ -393,7 +393,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      g.filesHelper.repairDirectoryStructure(context);
+      g.filesHelper.repairDirectoryStructure();
     });
   }
 
@@ -403,6 +403,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  List<int> _deletedDocs = [];
   Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
@@ -410,6 +411,10 @@ class _MyHomePageState extends State<MyHomePage> {
         _loadDocsDisplay();
         break;
       case NotifierEvent.setState:
+        setState(() {});
+        break;
+      case NotifierEvent.imagesDeleted:
+        _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
         setState(() {});
         break;
       default:
@@ -784,7 +789,6 @@ class _MyHomePageState extends State<MyHomePage> {
   // Documents
   @override
   Widget build(BuildContext context) {
-    final deletedDocs = g.filesHelper.getToBeDeletedDocs();
     return Scaffold(
       appBar: AppBar(
         title: Text("Documents"),
@@ -960,7 +964,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   controller: _scrollController,
                   itemCount: _docsCount,
                   itemBuilder: (BuildContext context, int docIndex) {
-                    if (deletedDocs.contains(docIndex)) return SizedBox();
+                    if (_deletedDocs.contains(docIndex)) return SizedBox();
                     String docName =
                         _docNames[docIndex].isNotEmpty
                             ? _docNames[docIndex]
@@ -995,7 +999,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           Radius.circular(12.0),
                                         ),
                                         onTap:
-                                            !deletedDocs.contains(docIndex)
+                                            !_deletedDocs.contains(docIndex)
                                                 ? () => _openDocEditDialog(
                                                   context,
                                                   docIndex,
@@ -1052,7 +1056,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       ),
                                     ),
                                     // Button Column
-                                    !deletedDocs.contains(docIndex)
+                                    !_deletedDocs.contains(docIndex)
                                         ? Column(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
@@ -1165,7 +1169,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       Positioned.fill(
                                         child: Material(
                                           color:
-                                              deletedDocs.contains(docIndex)
+                                              _deletedDocs.contains(docIndex)
                                                   ? Color.fromRGBO(
                                                     100,
                                                     0,
@@ -1174,7 +1178,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                   )
                                                   : Colors.transparent,
                                           child:
-                                              !deletedDocs.contains(docIndex)
+                                              !_deletedDocs.contains(docIndex)
                                                   ? InkWell(
                                                     onTap:
                                                         () => _openDocument(
@@ -1779,11 +1783,18 @@ class _PagesState extends State<Pages> {
     super.dispose();
   }
 
-  void _handleGlobalEvent() {
+  List<int> deletedPages = [];
+  Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
       case NotifierEvent.loadPagesThumbnails:
         _loadPagesThumbnails();
+        break;
+      case NotifierEvent.imagesDeleted:
+        deletedPages = await g.filesHelper.getMarkedDeletedPages(
+          widget.docIndex,
+        );
+        setState(() {});
         break;
       case NotifierEvent.setState:
         setState(() {});
@@ -1924,9 +1935,8 @@ class _PagesState extends State<Pages> {
     });
   }
 
-  _selectAll() {
+  _selectAll() async {
     final listBefore = List<int>.from(_selectedPages);
-    final deletedPages = g.filesHelper.getToBeDeletedPages(widget.docIndex);
 
     _selectedPages = List.generate(
       _pageThumbnails.length,
@@ -1968,7 +1978,6 @@ class _PagesState extends State<Pages> {
   Widget build(BuildContext context) {
     //final bool isTopOfNavigationStack =
     //    ModalRoute.of(context)?.isCurrent ?? false;
-    final deletedPages = g.filesHelper.getToBeDeletedPages(widget.docIndex);
     return PopScope(
       canPop: !_selectMode,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2541,6 +2550,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
   double maxScroll = double.infinity;
   _setMaxScroll({bool reset = false}) {
+    if (!widget.controller.hasClients) return;
     if (reset) {
       maxScroll = widget.controller.position.maxScrollExtent;
     } else {
@@ -2551,7 +2561,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     }
   }
 
-  late List<double> ratios;
+  List<double> ratios = [];
   _setRatios() {
     final List<double> priorRatios = List<double>.from(ratios);
     ratios = List<double>.from(widget.pageAspectRatios);
@@ -2939,7 +2949,7 @@ class PagePreviewState extends State<PagePreview> {
     if (_versionPaths.any((element) => element.isEmpty)) {
       // Feedback Popup
       bool showRatingPopupWhileProcessing =
-          feedbackHelper.showRatingPopupWhileProcessing();
+          feedbackHelper.getShowRatingPopupWhileProcessing();
       if (showRatingPopupWhileProcessing) {
         // ignore: use_build_context_synchronously
         feedbackHelper.showRatingDialog(context);

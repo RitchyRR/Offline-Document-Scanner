@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -25,35 +26,100 @@ import 'package:docscanner/main.dart'
     show globalNotifier, imageProcessingManager;
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/opencv_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart'
+    show SharedPreferences;
 
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
 class FilesHelper {
   late String docsPath = "";
   int screenWidth;
-  final List<List<int>> _toBeDeletedPages = [];
-  final List<int> _toBeDeletedDocs = [];
+  final List<List<int>> _markedDeletedPages = [];
+  final List<int> _markedDeletedDocs = [];
 
-  _addToBeDeletedPage(int docIndex, int pageIndex) {
-    while (_toBeDeletedPages.length - 1 < docIndex) {
-      _toBeDeletedPages.add([]);
+  Future<List<int>> getMarkedDeletedPages(int docIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString("markedDeletedPages");
+    if (jsonString == null) {
+      return _markedDeletedPages[docIndex];
     }
-    _toBeDeletedPages[docIndex].add(pageIndex);
+    final List<dynamic> decoded = jsonDecode(jsonString);
+    _markedDeletedPages.clear();
+    _markedDeletedPages.addAll(
+      decoded.map<List<int>>((item) => List<int>.from(item)).toList(),
+    );
+    return _markedDeletedPages[docIndex];
   }
 
-  _removeToBeDeletedPage(int docIndex, int pageIndex) {
-    _toBeDeletedPages[docIndex].remove(pageIndex);
-  }
-
-  List<int> getToBeDeletedPages(int docIndex) {
-    while (_toBeDeletedPages.length - 1 < docIndex) {
-      _toBeDeletedPages.add([]);
+  _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    while (_markedDeletedPages.length <= docIndex) {
+      _markedDeletedPages.add([]);
     }
-    return _toBeDeletedPages[docIndex];
+    _markedDeletedPages[docIndex].add(pageIndex);
+    final jsonString = jsonEncode(_markedDeletedPages);
+    prefs.setString("markedDeletedPages", jsonString);
+    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
-  List<int> getToBeDeletedDocs() {
-    return _toBeDeletedDocs;
+  _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    while (_markedDeletedPages.length <= docIndex) {
+      _markedDeletedPages.add([]);
+    }
+    _markedDeletedPages[docIndex].remove(pageIndex);
+    final jsonString = jsonEncode(_markedDeletedPages);
+    prefs.setString("markedDeletedPages", jsonString);
+  }
+
+  Future<List<int>> getMarkedDeletedDocs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString("markedDeletedDocs");
+    List<int> decoded = _markedDeletedDocs;
+    if (jsonString != null) {
+      decoded = jsonDecode(jsonString);
+    }
+    decoded.sort();
+    decoded = decoded.reversed.toList();
+    _markedDeletedDocs.clear();
+    _markedDeletedDocs.addAll(decoded);
+    return _markedDeletedDocs;
+  }
+
+  _addMarkedDeletedDoc(int docIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    _markedDeletedDocs.add(docIndex);
+    final jsonString = jsonEncode(_markedDeletedDocs);
+    prefs.setString("markedDeletedDocs", jsonString);
+    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
+  }
+
+  _removeMarkedDeletedDoc(int docIndex) async {
+    final prefs = await SharedPreferences.getInstance();
+    _markedDeletedDocs.remove(docIndex);
+    final jsonString = jsonEncode(_markedDeletedDocs);
+    prefs.setString("markedDeletedDocs", jsonString);
+  }
+
+  _deleteMarkedDeleted() async {
+    // initialize lists
+    await getMarkedDeletedDocs();
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString("markedDeletedPages");
+    if (jsonString != null) {
+      final List<dynamic> decoded = jsonDecode(jsonString);
+      _markedDeletedPages.clear();
+      _markedDeletedPages.addAll(
+        decoded.map<List<int>>((item) => List<int>.from(item)).toList(),
+      );
+    }
+    // delete
+    for (final docIndex in _markedDeletedDocs) {
+      await _deleteDocument(docIndex);
+    }
+    for (var (docIndex, pageIndexes) in _markedDeletedPages.indexed) {
+      _deletePages(docIndex, pageIndexes);
+    }
   }
 
   FilesHelper() : screenWidth = 1080 {
@@ -337,7 +403,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  repairDirectoryStructure(BuildContext? context) async {
+  repairDirectoryStructure() async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     //var i = 0;
@@ -346,7 +412,8 @@ class FilesHelper {
       // ignore: use_build_context_synchronously
       //if (!(
       // ignore: use_build_context_synchronously
-      _repairDirectoryStructure(context);
+      await _deleteMarkedDeleted();
+      _repairDirectoryStructure();
       //  )) break;
     } catch (e) {
       dev.log("Error, repairDirectoryStructure: $e");
@@ -359,7 +426,7 @@ class FilesHelper {
     //}
   }
 
-  Future<bool> _repairDirectoryStructure(BuildContext? context) async {
+  Future<bool> _repairDirectoryStructure() async {
     bool anyChange = false;
     List<Future> repairFutures = [];
 
@@ -422,7 +489,7 @@ class FilesHelper {
             }
             if (!photoExists) {
               // ignore: use_build_context_synchronously
-              await _deletePage(context, docIndex, pageIndex, isBroken: true);
+              await _deletePage(docIndex, pageIndex, isBroken: true);
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
@@ -444,7 +511,7 @@ class FilesHelper {
       } else {
         anyChange = true;
         // ignore: use_build_context_synchronously
-        _deleteDocument(context, docIndex, isBroken: true);
+        _deleteDocument(docIndex, isBroken: true);
       }
     }
     await Future.wait(repairFutures);
@@ -457,53 +524,52 @@ class FilesHelper {
     List<int> pageIndexes = const [],
   }) async {
     if (pageIndexes.isEmpty) {
-      await _deleteDocument(context, docIndex);
+      await _deleteDocument(docIndex);
     } else if (pageIndexes.length == 1) {
-      await _deletePage(context, docIndex, pageIndexes.first);
+      await _deletePage(docIndex, pageIndexes.first);
     } else {
-      await _deletePages(context, docIndex, pageIndexes);
+      await _deletePages(docIndex, pageIndexes);
     }
   }
 
   Future<void> _deleteDocument(
-    BuildContext? context,
     int docIndex, {
     bool supressInfo = false,
     bool isBroken = false,
   }) async {
-    ScaffoldMessengerState? messenger;
-    SnackBar? snackBar;
-    bool cancelDelete = false;
-    final cancelCompleter = Completer();
-    if (context != null) {
-      messenger = ScaffoldMessenger.of(context);
-      snackBar = SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Deleting Document ${docIndex + 1}...'),
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.surface,
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(days: 1),
-        action:
-            isBroken
-                ? null
-                : SnackBarAction(
-                  label: 'Cancel',
-                  onPressed: () {
-                    cancelDelete = true;
-                    cancelCompleter.complete();
-                  },
-                ),
-      );
-    }
+    //ScaffoldMessengerState? messenger;
+    //SnackBar? snackBar;
+    //bool cancelDelete = false;
+    //final cancelCompleter = Completer();
+    //if (context != null) {
+    //  messenger = ScaffoldMessenger.of(context);
+    //  snackBar = SnackBar(
+    //    content: Row(
+    //      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    //      children: [
+    //        Text('Deleting Document ${docIndex + 1}...'),
+    //        SizedBox(
+    //          width: 20,
+    //          height: 20,
+    //          child: CircularProgressIndicator(
+    //            color: Theme.of(context).colorScheme.surface,
+    //          ),
+    //        ),
+    //      ],
+    //    ),
+    //    duration: const Duration(days: 1),
+    //    action:
+    //        isBroken
+    //            ? null
+    //            : SnackBarAction(
+    //              label: 'Cancel',
+    //              onPressed: () {
+    //                cancelDelete = true;
+    //                cancelCompleter.complete();
+    //              },
+    //            ),
+    //  );
+    //}
     String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -514,20 +580,19 @@ class FilesHelper {
         dev.log("deleteDocument: Deleting document directory: $docPath");
       }
 
-      _toBeDeletedDocs.add(docIndex);
+      _addMarkedDeletedDoc(docIndex);
       imageProcessingManager.killResumeLateIsolatesOfDocument(docIndex);
-      messenger?.showSnackBar(snackBar!);
-      globalNotifier.triggerEvent(NotifierEvent.setState);
+      //messenger?.showSnackBar(snackBar!);
 
-      await Future.any([
-        imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(docIndex),
-        cancelCompleter.future,
-      ]);
+      await
+      //Future.any([
+      imageProcessingManager.awaitIsolatesOfHigherIndexedDocuments(docIndex)
+      //  , cancelCompleter.future,])
+      ;
 
-      messenger?.hideCurrentSnackBar();
-      _toBeDeletedDocs.remove(docIndex);
-      globalNotifier.triggerEvent(NotifierEvent.setState);
-      if (cancelDelete) return;
+      //messenger?.hideCurrentSnackBar();
+      _removeMarkedDeletedDoc(docIndex);
+      //if (cancelDelete) return;
 
       imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
@@ -558,46 +623,45 @@ class FilesHelper {
   }
 
   Future<void> _deletePage(
-    BuildContext? context,
     int docIndex,
     int pageIndex, {
     bool isBroken = false,
   }) async {
-    ScaffoldMessengerState? messenger;
-    SnackBar? snackBar;
-    bool cancelDelete = false;
-    final cancelCompleter = Completer();
-    if (context != null) {
-      messenger = ScaffoldMessenger.of(context);
-      snackBar = SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...',
-            ),
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.surface,
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(days: 1),
-        action:
-            isBroken
-                ? null
-                : SnackBarAction(
-                  label: 'Cancel',
-                  onPressed: () {
-                    cancelDelete = true;
-                    cancelCompleter.complete();
-                  },
-                ),
-      );
-    }
+    //ScaffoldMessengerState? messenger;
+    //SnackBar? snackBar;
+    //bool cancelDelete = false;
+    //final cancelCompleter = Completer();
+    //if (context != null) {
+    //  messenger = ScaffoldMessenger.of(context);
+    //snackBar = SnackBar(
+    //  content: Row(
+    //    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    //    children: [
+    //      Text(
+    //        'Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...',
+    //      ),
+    //      SizedBox(
+    //        width: 20,
+    //        height: 20,
+    //        child: CircularProgressIndicator(
+    //          color: Theme.of(context).colorScheme.surface,
+    //        ),
+    //      ),
+    //    ],
+    //  ),
+    //  duration: const Duration(days: 1),
+    //  action:
+    //      isBroken
+    //          ? null
+    //          : SnackBarAction(
+    //            label: 'Cancel',
+    //            onPressed: () {
+    //              cancelDelete = true;
+    //              cancelCompleter.complete();
+    //            },
+    //          ),
+    //);
+    //}
     final pagePath = await getPagePath(docIndex, pageIndex);
     final pageDir = Directory(pagePath);
     if (!await pageDir.exists()) {
@@ -605,23 +669,19 @@ class FilesHelper {
         "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
       );
     } else {
-      _addToBeDeletedPage(docIndex, pageIndex);
+      _addMarkedDeletedPage(docIndex, pageIndex);
       imageProcessingManager.killResumeLateIsolatesOfPage(docIndex, pageIndex);
-      messenger?.showSnackBar(snackBar!);
-      globalNotifier.triggerEvent(NotifierEvent.setState);
+      //messenger?.showSnackBar(snackBar!);
 
-      await Future.any([
-        imageProcessingManager.awaitIsolatesOfHigherIndexPage(
-          docIndex,
-          pageIndex,
-        ),
-        cancelCompleter.future,
-      ]);
+      await
+      //Future.any([
+      imageProcessingManager.awaitIsolatesOfHigherIndexPage(docIndex, pageIndex)
+      //, cancelCompleter.future,])
+      ;
 
-      messenger?.hideCurrentSnackBar();
-      _removeToBeDeletedPage(docIndex, pageIndex);
-      globalNotifier.triggerEvent(NotifierEvent.setState);
-      if (cancelDelete) return;
+      //messenger?.hideCurrentSnackBar();
+      _removeMarkedDeletedPage(docIndex, pageIndex);
+      //if (cancelDelete) return;
       // delete
       dev.log("Deleting page directory: $pagePath");
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
@@ -658,13 +718,7 @@ class FilesHelper {
     // Check if document is now empty and delete it
     if ((await getPagesCount(docIndex)) == 0) {
       dev.log("Deleting empty Document $docIndex");
-      await _deleteDocument(
-        // ignore: use_build_context_synchronously
-        context,
-        docIndex,
-        supressInfo: true,
-        isBroken: true,
-      );
+      await _deleteDocument(docIndex, supressInfo: true, isBroken: true);
       globalNotifier.triggerEvent(
         NotifierEvent.loadPagesThumbnails,
       ); // to not show deleted page and to Navigator.pop
@@ -675,16 +729,10 @@ class FilesHelper {
       globalNotifier.triggerEvent(
         NotifierEvent.loadDocsThumbnails,
       ); // for page count
-      globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
     }
   }
 
-  Future<void> _deletePages(
-    BuildContext? context,
-    int docIndex,
-    List<int> pageIndexes, {
-    bool isBroken = false,
-  }) async {
+  Future<void> _deletePages(int docIndex, List<int> pageIndexes) async {
     pageIndexes.sort();
     List<int> displayPageIndexes = [];
     for (var pageIndex in pageIndexes) {
@@ -692,63 +740,62 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
-    ScaffoldMessengerState? messenger;
-    SnackBar? snackBar;
-    bool cancelDelete = false;
-    final cancelCompleter = Completer();
-    if (context != null) {
-      messenger = ScaffoldMessenger.of(context);
-      snackBar = SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Deleting ${pageIndexes.length} Pages of Document ${docIndex + 1}...',
-            ),
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.surface,
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(days: 1),
-        action:
-            isBroken
-                ? null
-                : SnackBarAction(
-                  label: 'Cancel',
-                  onPressed: () {
-                    cancelDelete = true;
-                    cancelCompleter.complete();
-                  },
-                ),
-      );
-    }
+    //ScaffoldMessengerState? messenger;
+    //SnackBar? snackBar;
+    //bool cancelDelete = false;
+    //final cancelCompleter = Completer();
+    //if (context != null) {
+    //  messenger = ScaffoldMessenger.of(context);
+    //  snackBar = SnackBar(
+    //    content: Row(
+    //      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    //      children: [
+    //        Text(
+    //          'Deleting ${pageIndexes.length} Pages of Document ${docIndex + 1}...',
+    //        ),
+    //        SizedBox(
+    //          width: 20,
+    //          height: 20,
+    //          child: CircularProgressIndicator(
+    //            color: Theme.of(context).colorScheme.surface,
+    //          ),
+    //        ),
+    //      ],
+    //    ),
+    //    duration: const Duration(days: 1),
+    //    action:
+    //        isBroken
+    //            ? null
+    //            : SnackBarAction(
+    //              label: 'Cancel',
+    //              onPressed: () {
+    //                cancelDelete = true;
+    //                cancelCompleter.complete();
+    //              },
+    //            ),
+    //  );
+    //}
     // await later pages processing
     for (var pageIndex in pageIndexes) {
-      _addToBeDeletedPage(docIndex, pageIndex);
+      _addMarkedDeletedPage(docIndex, pageIndex);
     }
     imageProcessingManager.killResumeLateIsolatesOfPages(docIndex, pageIndexes);
-    messenger?.showSnackBar(snackBar!);
-    globalNotifier.triggerEvent(NotifierEvent.setState);
+    //messenger?.showSnackBar(snackBar!);
 
-    await Future.any([
-      imageProcessingManager.awaitIsolatesOfHigherIndexPages(
-        docIndex,
-        pageIndexes,
-      ),
-      cancelCompleter.future,
-    ]);
+    await
+    //Future.any([
+    imageProcessingManager.awaitIsolatesOfHigherIndexPages(
+      docIndex,
+      pageIndexes,
+    )
+    //, cancelCompleter.future,])
+    ;
 
-    messenger?.hideCurrentSnackBar();
+    //messenger?.hideCurrentSnackBar();
     for (var pageIndex in pageIndexes) {
-      _removeToBeDeletedPage(docIndex, pageIndex);
+      _removeMarkedDeletedPage(docIndex, pageIndex);
     }
-    globalNotifier.triggerEvent(NotifierEvent.setState);
-    if (cancelDelete) return;
+    //if (cancelDelete) return;
     // delete
     for (var pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
@@ -773,10 +820,9 @@ class FilesHelper {
     );
     // rename all with higher pageIndex to close the gap
     // ignore: use_build_context_synchronously
-    await _repairDirectoryStructure(context);
+    await _repairDirectoryStructure();
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
   Future<void> deleteProcessedVersionsOfPage(

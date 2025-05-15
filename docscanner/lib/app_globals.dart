@@ -66,8 +66,8 @@ enum NotifierEvent {
   warpSaved,
   processed1Saved,
   processed2Saved,
-  setState,
   imagesDeleted,
+  setState,
 }
 
 enum PopUpType { share, save, delete }

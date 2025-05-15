@@ -10,19 +10,16 @@ import 'package:url_launcher/url_launcher.dart' show canLaunchUrl, launchUrl;
 enum FeedbackState { init, afterFirstExport, afterFirstProcessing, hidden }
 
 class FeedbackHelper {
-  SharedPreferences? _prefs;
-  final Completer _initialized = Completer();
   FeedbackState state = FeedbackState.init;
   FeedbackHelper() {
     initAsync();
   }
   initAsync() async {
-    _prefs = await SharedPreferences.getInstance();
-    if (_prefs!.getBool("ratingGiven") ?? false == true) {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool("ratingGiven") ?? false == true) {
       state = FeedbackState.hidden;
-      _reenableRatingsAfterTwoWeeks(_prefs!);
+      _reenableRatingsAfterTwoWeeks(prefs);
     }
-    _initialized.complete();
   }
 
   bool getFeedbackHidden() {
@@ -31,20 +28,30 @@ class FeedbackHelper {
 
   bool getShowRatingPopupAfterExport() {
     bool show = state == FeedbackState.init;
-    if (show) {
-      _prefs!.setBool("firstExportHappendedSinceRatingActive", true);
-    }
-    updateState();
+    _getShowRatingPopupAfterExport(show);
     return show;
   }
 
-  bool showRatingPopupWhileProcessing() {
-    bool show = state == FeedbackState.afterFirstExport;
+  _getShowRatingPopupAfterExport(bool show) async {
+    final prefs = await SharedPreferences.getInstance();
     if (show) {
-      _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", true);
+      prefs.setBool("firstExportHappendedSinceRatingActive", true);
     }
     updateState();
+  }
+
+  bool getShowRatingPopupWhileProcessing() {
+    bool show = state == FeedbackState.afterFirstExport;
+    _getShowRatingPopupWhileProcessing(show);
     return show;
+  }
+
+  _getShowRatingPopupWhileProcessing(bool show) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (show) {
+      prefs.setBool("furtherProcessingHappendedSinceRatingActive", true);
+    }
+    updateState();
   }
 
   getShowRatingInAppbar() {
@@ -53,26 +60,25 @@ class FeedbackHelper {
   }
 
   updateState() async {
-    await _initialized.future;
+    final prefs = await SharedPreferences.getInstance();
     if (state == FeedbackState.hidden) return;
     state = FeedbackState.init;
-    if (_prefs!.getBool("firstExportHappendedSinceRatingActive") ?? false) {
+    if (prefs.getBool("firstExportHappendedSinceRatingActive") ?? false) {
       state = FeedbackState.afterFirstExport;
     }
-    if (_prefs!.getBool("furtherProcessingHappendedSinceRatingActive") ??
-        false) {
+    if (prefs.getBool("furtherProcessingHappendedSinceRatingActive") ?? false) {
       state = FeedbackState.afterFirstProcessing;
     }
   }
 
   Future<void> _saveRatingGiven(bool ratingGivenIn, int ratingIn) async {
-    await _initialized.future;
-    _prefs!.setBool("ratingGiven", ratingGivenIn);
-    _prefs!.setInt("rating", ratingIn);
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool("ratingGiven", ratingGivenIn);
+    prefs.setInt("rating", ratingIn);
     // Save date
     if (ratingGivenIn) {
       String now = DateTime.now().toIso8601String();
-      _prefs!.setString("ratingGivenDate", now);
+      prefs.setString("ratingGivenDate", now);
       _disablePopupFlags();
     }
     updateState();
@@ -103,18 +109,18 @@ class FeedbackHelper {
   }
 
   Future<void> _resetState() async {
-    await _initialized.future;
-    _prefs!.setBool("firstExportHappendedSinceRatingActive", false);
-    _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", false);
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool("firstExportHappendedSinceRatingActive", false);
+    prefs.setBool("furtherProcessingHappendedSinceRatingActive", false);
     state = FeedbackState.init;
   }
 
   Future<void> _disablePopupFlags() async {
-    await _initialized.future;
+    final prefs = await SharedPreferences.getInstance();
     if (getShowRatingPopupAfterExport()) {
-      _prefs!.setBool("firstExportHappendedSinceRatingActive", true);
-    } else if (showRatingPopupWhileProcessing()) {
-      _prefs!.setBool("furtherProcessingHappendedSinceRatingActive", true);
+      prefs.setBool("firstExportHappendedSinceRatingActive", true);
+    } else if (getShowRatingPopupWhileProcessing()) {
+      prefs.setBool("furtherProcessingHappendedSinceRatingActive", true);
     }
   }
 
