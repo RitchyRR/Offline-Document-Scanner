@@ -570,6 +570,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                 }
                               }
                               : null,
+                      onTap:
+                          !allowChangeDocIndex
+                              ? () => Fluttertoast.showToast(
+                                msg:
+                                    'Blocked while other Documents are processing...',
+                              )
+                              : null,
                     ),
                   ],
                 );
@@ -2388,6 +2395,13 @@ class _PagesState extends State<Pages> {
                                 setState(() => currentIndex = newValue);
                               }
                             }
+                            : null,
+                    onTap:
+                        !allowChangePageIndex
+                            ? () => Fluttertoast.showToast(
+                              msg:
+                                  'Blocked while other Pages of this Document are processing...',
+                            )
                             : null,
                   ),
                   SizedBox(height: 24),
