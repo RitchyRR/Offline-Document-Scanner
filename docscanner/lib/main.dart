@@ -15,7 +15,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // validity:
 import 'package:package_info_plus/package_info_plus.dart';
-//import 'package:package_signature/package_signature.dart';
 import 'package:apk_signature_checker/apk_signature_checker.dart';
 // function:
 import 'dart:io';
@@ -1277,7 +1276,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                   Center(
                     child: Text(
                       textAlign: TextAlign.center,
-                      'Add a new document',
+                      'Add a new Document',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 24,
@@ -1690,25 +1689,18 @@ Future<bool> _isAppValid() async {
   // check store
   bool validStore = false;
   final installer = info.installerStore;
-  // com.amazon.venezia
   if (Platform.isAndroid && installer == 'com.android.vending') {
+    // com.amazon.venezia
     validStore = true;
   }
   // check signature
   bool validSignature = false;
-  const expectedSHA256 =
-      "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:EE:FF:1D:13:C1:A1:A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
-  //try {
-  //  final signature = await PackageSignature().signature;
-  //  final sha1 = signature?.sha1hex;
-  //
-  //  validSignature = sha1 == expectedSha1;
-  //} catch (e) {
-  //  dev.log("Signature check failed: $e");
-  //  return validSignature = false;
-  //}
-  final signature = await ApkSignatureChecker().getApkSignature();
-  validSignature = signature == expectedSHA256;
+  if (Platform.isAndroid) {
+    const expectedSHA256 =
+        "04:7B:4B:EF:C1:0C:0D:47:2B:72:7B:BA:2F:EE:FF:1D:13:C1:A1:A2:33:42:1E:3C:67:D3:61:96:0C:35:34:03";
+    final signature = await ApkSignatureChecker().getApkSignature(); // SHA-256
+    validSignature = signature == expectedSHA256;
+  }
   // open playstore
   if (validStore && validSignature) {
     return true;

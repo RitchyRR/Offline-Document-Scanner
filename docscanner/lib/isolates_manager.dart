@@ -40,14 +40,12 @@ class IsolatesManager {
   }
 
   final int maxIsolates = math.max(1, Platform.numberOfProcessors - 1);
-  final int maxImmediateIsolatesSpillover = 2;
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();
 
   Future<void> _init() async {
-    // -1 because: reserve one for prio immediate
-    for (int i = 0; i < maxIsolates - 1; i++) {
+    for (int i = 0; i < maxIsolates - 3; i++) {
       _workers.add(_Worker());
     }
   }
@@ -83,7 +81,7 @@ class IsolatesManager {
     if (!wasStarted && _taskQueue.isNotEmpty) {
       final task = _taskQueue.first;
       if (task.prio == IsolatePriority.immediate &&
-          _workers.length < maxIsolates + maxImmediateIsolatesSpillover) {
+          _workers.length < maxIsolates) {
         _taskQueue.removeFirst();
         final immediateWorker = _Worker();
         _workers.add(immediateWorker);
