@@ -16,7 +16,7 @@ import 'package:share_plus/share_plus.dart';
 // pdf:
 import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pdfw;
-//import 'package:pdf_render/pdf_render.dart' as pdfr;
+import 'package:pdf_render/pdf_render.dart' as pdfr;
 // isolates:
 import 'dart:isolate' show ReceivePort, SendPort;
 import 'package:docscanner/isolates_manager.dart';
@@ -261,7 +261,7 @@ class FilesHelper {
     if (sendPort != null) {
       switch (versionIndex) {
         case 0:
-          sendPort.send(NotifierEvent.pictureSaved);
+          sendPort.send(NotifierEvent.photoSaved);
           break;
         case 1:
           sendPort.send(NotifierEvent.warpSaved);
@@ -275,7 +275,7 @@ class FilesHelper {
         default:
       }
     } else if (versionIndex == 0) {
-      globalNotifier.triggerEvent(NotifierEvent.pictureSaved);
+      globalNotifier.triggerEvent(NotifierEvent.photoSaved);
     }
     return versionPath;
   }
@@ -1545,48 +1545,51 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  //pickPdfToDoc() async {
-  //  final int docIndex = await getDocumentsCount();
-  //  // User picks PDF
-  //  final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
-  //  final xFile = await openFile(acceptedTypeGroups: [pdfType]);
-  //  if (xFile == null) {
-  //    dev.log("User-Error, pickPdfToDocument: cancelled");
-  //    return;
-  //  }
-  //  final file = File(xFile.path);
-  //
-  //  // Open and render PDF
-  //  final doc = await pdfr.PdfDocument.openFile(file.path);
-  //  final pageCount = doc.pageCount;
-  //  List<String> imagePaths = [];
-  //  for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-  //    final page = await doc.getPage(pageIndex + 1);
-  //
-  //    // Calculate suitable resolution, limit to max 4048x4048
-  //    final pageSize = page.width > page.height ? page.width : page.height;
-  //    final scale = (4048 / pageSize).clamp(1.0, 4.0); // Avoid scaling down
-  //
-  //    final renderedPage = await page.render(
-  //      fullWidth: (page.width * scale),
-  //      fullHeight: (page.height * scale),
-  //    );
-  //
-  //    // save in pagePath as picture
-  //    final image = await renderedPage.createImageDetached();
-  //    String pagePath = await getPagePath(
-  //      docIndex,
-  //      pageIndex,
-  //      supressWarnings: true,
-  //    );
-  //    final imageFile = File(
-  //      "$pagePath/${DateTime.now().millisecondsSinceEpoch}_${versionNames[0]}.png",
-  //    );
-  //    final bytes = await image.toByteData();
-  //    await imageFile.writeAsBytes(bytes!.buffer.asUint8List());
-  //    imagePaths.add(imageFile.path);
-  //  }
-  //  await doc.dispose();
-  //  dev.log("pickPdfToDoc complete.");
-  //}
+  Future<List<String>> pickPdfToDoc() async {
+    List<String> photoPaths = [];
+    // User picks PDF
+    final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+    final xFile = await openFile(acceptedTypeGroups: [pdfType]);
+    if (xFile == null) {
+      dev.log("User-Error, pickPdfToDocument: cancelled");
+      return photoPaths;
+    }
+    final file = File(xFile.path);
+    // Open and render PDF
+    final doc = await pdfr.PdfDocument.openFile(file.path);
+    final pageCount = doc.pageCount;
+
+    // Create Page directories
+    var newDoc = await g.filesHelper.createNewDocument(pageCount);
+    int docIndex = newDoc.$1;
+    int firstPageIndex = newDoc.$2;
+
+    for (
+      int pageIndex = firstPageIndex;
+      pageIndex < firstPageIndex + pageCount;
+      pageIndex++
+    ) {
+      final page = await doc.getPage(pageIndex + 1);
+
+      // Calculate suitable resolution, limit to max 4048x4048
+      final pageSize = page.width > page.height ? page.width : page.height;
+      final scale = (4048 / pageSize).clamp(1.0, 4.0); // Avoid scaling down
+
+      final renderedPage = await page.render(
+        fullWidth: (page.width * scale),
+        fullHeight: (page.height * scale),
+      );
+
+      // save in pagePath as photo
+      final image = await renderedPage.createImageDetached();
+      final byteData = await image.toByteData();
+      Uint8List photoBytes = byteData!.buffer.asUint8List();
+      photoPaths.add(
+        await savePageVersion(docIndex, pageIndex, 0, photoBytes, null),
+      );
+    }
+    doc.dispose();
+    dev.log("pickPdfToDoc complete.");
+    return photoPaths;
+  }
 }

@@ -114,7 +114,7 @@ class OpenCVHelper {
     // Load image
     cv.Mat imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
     if (imageMat.isEmpty) {
-      throw StateError("Error: Failed to load picture.");
+      throw StateError("Error: Failed to load photo.");
     }
 
     // Compute K based on image dimensions

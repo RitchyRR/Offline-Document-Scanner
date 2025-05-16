@@ -356,14 +356,22 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     }
   }
 
-  Future<(int, int)> _processDocument(List<String> picturePaths) async {
-    var newDoc = await g.filesHelper.createNewDocument(picturePaths.length);
+  Future<(int, int)> _processDocument(
+    List<String> photoPaths, {
+    required bool photosAlreadyInPages,
+  }) async {
+    var newDoc = await g.filesHelper.createNewDocument(photoPaths.length);
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 50));
-      imageProcessingManager.processPages(docIndex, 0, picturePaths);
+      imageProcessingManager.processPages(
+        docIndex,
+        0,
+        photoPaths,
+        photosAlreadyInPages,
+      );
     });
 
     // Creation Date
@@ -380,20 +388,23 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths;
+    List<String> photoPaths;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
-      picturePaths = await _openCamera();
+      photoPaths = await _openCamera();
     } else {
-      picturePaths = await g.filesHelper.pickImage(
+      photoPaths = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
       );
     }
-    if (picturePaths.isEmpty) return;
+    if (photoPaths.isEmpty) return;
 
-    final newIndexes = await _processDocument(picturePaths);
+    final newIndexes = await _processDocument(
+      photoPaths,
+      photosAlreadyInPages: false,
+    );
     int docIndex = newIndexes.$1;
     int firstPageIndex = newIndexes.$2;
     // only open PagePreview for first page
@@ -411,14 +422,14 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   Future<List<String>> _openCamera() async {
     g.filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
-    List<String> picturePaths = [];
+    List<String> photoPaths = [];
     if (result is List<XFile>) {
       for (var xfile in result) {
-        picturePaths.add(xfile.path);
+        photoPaths.add(xfile.path);
       }
     }
     g.filesHelper.pickingImage = false;
-    return picturePaths;
+    return photoPaths;
   }
 
   void _receiveSharing() {
@@ -443,12 +454,15 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     List<SharedMediaFile> sharedFiles,
   ) async {
     if (sharedFiles.isEmpty) return;
-    List<String> picturePaths = [];
+    List<String> photoPaths = [];
     for (var file in sharedFiles) {
-      picturePaths.add(file.path);
+      photoPaths.add(file.path);
     }
 
-    final newIndexes = await _processDocument(picturePaths);
+    final newIndexes = await _processDocument(
+      photoPaths,
+      photosAlreadyInPages: false,
+    );
     int docIndex = newIndexes.$1;
     int firstPageIndex = newIndexes.$2;
     // only open PagePreview for first page
@@ -1352,8 +1366,16 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
             //      borderRadius: BorderRadius.circular(12),
             //    ),
             //    heroTag: "pickPdfDoc",
-            //    onPressed: () {
-            //      g.filesHelper.pickPdfToDoc();
+            //    onPressed: () async {
+            //      final photoPaths = await g.filesHelper.pickPdfToDoc();
+            //      final newIndexes = await _processDocument(
+            //        photoPaths,
+            //        photosAlreadyInPages: true,
+            //      );
+            //      int docIndex = newIndexes.$1;
+            //      int firstPageIndex = newIndexes.$2;
+            //      // only open PagePreview for first page
+            //      _openNewPagePreview(docIndex, firstPageIndex);
             //    },
             //    tooltip: 'Pick PDF from Directory',
             //    child: const Icon(Icons.picture_as_pdf),
@@ -1987,37 +2009,44 @@ class _PagesState extends State<Pages> with RouteAware {
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    List<String> picturePaths;
+    List<String> photoPaths;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
-      picturePaths = await _openCamera();
+      photoPaths = await _openCamera();
     } else {
-      picturePaths = await g.filesHelper.pickImage(
+      photoPaths = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
       );
     }
-    if (picturePaths.isEmpty) return;
+    if (photoPaths.isEmpty) return;
 
-    int firstPageIndex = await _processNewPages(picturePaths);
+    int firstPageIndex = await _processNewPages(
+      photoPaths,
+      photosAlreadyInPages: false,
+    );
 
     // Only open PagePreview for first page
     _openPagePreview(firstPageIndex);
   }
 
-  Future<int> _processNewPages(List<String> picturePaths) async {
+  Future<int> _processNewPages(
+    List<String> photoPaths, {
+    required bool photosAlreadyInPages,
+  }) async {
     g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
     int firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
-      picturePaths.length,
+      photoPaths.length,
     );
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 25));
       imageProcessingManager.processPages(
         widget.docIndex,
         firstPageIndex,
-        picturePaths,
+        photoPaths,
+        photosAlreadyInPages,
       );
     });
 
@@ -2027,14 +2056,14 @@ class _PagesState extends State<Pages> with RouteAware {
   Future<List<String>> _openCamera() async {
     g.filesHelper.pickingImage = true;
     final result = await Navigator.pushNamed(context, '/camera');
-    List<String> picturePaths = [];
+    List<String> photoPaths = [];
     if (result is List<XFile>) {
       for (var xfile in result) {
-        picturePaths.add(xfile.path);
+        photoPaths.add(xfile.path);
       }
     }
     g.filesHelper.pickingImage = false;
-    return picturePaths;
+    return photoPaths;
   }
 
   bool _selectMode = false;
@@ -3035,11 +3064,11 @@ class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
   List<String> _versionPaths = ["", "", "", ""];
-  final List<Future<String>> _rotatedPicturePaths = List.generate(
+  final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
     (_) => Future<String>.value(""),
   );
-  String _picturePath = "";
+  String _photoPath = "";
   int _imageRetryKey = 0; // to refresh brokenImages
   // Reprocessing Parameters
   double? _ratioValue;
@@ -3058,9 +3087,9 @@ class PagePreviewState extends State<PagePreview> {
   // PageView
   final PageController _pageController = PageController();
   final PhotoViewController _photoViewController = PhotoViewController();
-  double _pictureScale = 0.0;
-  double _evenPictureScale = 0.0;
-  double _oddPictureScale = 0.0;
+  double _photoScale = 0.0;
+  double _evenPhotoScale = 0.0;
+  double _oddPhotoScale = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
 
@@ -3084,7 +3113,7 @@ class PagePreviewState extends State<PagePreview> {
       PhotoViewControllerValue value,
     ) {
       setState(() {
-        _pictureScale = value.scale ?? _pictureScale;
+        _photoScale = value.scale ?? _photoScale;
       });
     });
   }
@@ -3095,7 +3124,7 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     _versionPaths = imagePaths.$1;
-    _picturePath = _versionPaths.first;
+    _photoPath = _versionPaths.first;
     _showAllImages();
     _loadPageMeatadata(supressWarnings: true);
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
@@ -3130,13 +3159,13 @@ class PagePreviewState extends State<PagePreview> {
       case NotifierEvent.loadPageMetadata:
         _loadPageMeatadata();
         break;
-      case NotifierEvent.pictureSaved:
+      case NotifierEvent.photoSaved:
         _versionPaths[0] = await g.filesHelper.getVersionPath(
           widget.docIndex,
           widget.pageIndex,
           0,
         );
-        _picturePath = _versionPaths.first;
+        _photoPath = _versionPaths.first;
         setState(() {});
         FilesHelper.deleteCachedRoatedImages();
         _refreshCornersOverlay(supressWarnings: true);
@@ -3173,7 +3202,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.imagesDeleted:
-        if (!File(_picturePath).existsSync()) {
+        if (!File(_photoPath).existsSync()) {
           _allowPop = true;
           Navigator.pop(context);
         }
@@ -3255,8 +3284,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _reprocessingCleanup() {
-    _evenPictureScale = 0.0;
-    _oddPictureScale = 0.0;
+    _evenPhotoScale = 0.0;
+    _oddPhotoScale = 0.0;
     _versionPaths = ["", "", "", ""];
     setState(() {});
   }
@@ -3454,7 +3483,7 @@ class PagePreviewState extends State<PagePreview> {
                     child: IndicatorProcessingImage(),
                   );
                 }
-                // Picture
+                // Photo
                 if (index == 0) {
                   bool isZoomed = false;
                   return PhotoViewGalleryPageOptions.customChild(
@@ -3836,16 +3865,16 @@ class PagePreviewState extends State<PagePreview> {
         int quarterTurns = _totalRotation ~/ 90;
         if (_totalRotation == 0) {
           setState(() {
-            _versionPaths[0] = _picturePath;
+            _versionPaths[0] = _photoPath;
             _rotationOngoing = false;
           });
         } else {
-          _rotatedPicturePaths[quarterTurns - 1] =
-              FilesHelper.rotateImageInTmpDir(_picturePath, _totalRotation);
-          _rotatedPicturePaths[quarterTurns - 1].whenComplete(() async {
+          _rotatedPhotoPaths[quarterTurns -
+              1] = FilesHelper.rotateImageInTmpDir(_photoPath, _totalRotation);
+          _rotatedPhotoPaths[quarterTurns - 1].whenComplete(() async {
             // if image matches current rotation
             if (_totalRotation ~/ 90 == quarterTurns) {
-              _versionPaths[0] = await _rotatedPicturePaths[quarterTurns - 1];
+              _versionPaths[0] = await _rotatedPhotoPaths[quarterTurns - 1];
               if (mounted) {
                 _rotationOngoing = false;
                 setState(() {});
@@ -3881,12 +3910,12 @@ class PagePreviewState extends State<PagePreview> {
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
-        await reprocessPicture();
+        await reprocessPhoto();
       },
     );
   }
 
-  Future<void> reprocessPicture({List<List<int>>? newCornerPoints}) async {
+  Future<void> reprocessPhoto({List<List<int>>? newCornerPoints}) async {
     if (mounted) {
       setState(() {
         _hideOverlayReprocessing = true;
@@ -4105,7 +4134,7 @@ class PagePreviewState extends State<PagePreview> {
 
   Widget _displayCornerOverlay(BuildContext context) {
     if (_cornerPoints.isEmpty ||
-        _pictureScale == 0.0 ||
+        _photoScale == 0.0 ||
         _rotationOngoing ||
         _hideOverlayReprocessing) {
       return SizedBox();
@@ -4115,32 +4144,32 @@ class PagePreviewState extends State<PagePreview> {
     double displayHeight;
     double displayWidth;
     if (quarterTurns.isEven) {
-      if (_evenPictureScale == 0.0 && _pictureScale != _oddPictureScale) {
-        _evenPictureScale = _pictureScale;
-      } else if (_evenPictureScale != 0.0) {
-        _pictureScale = _evenPictureScale;
+      if (_evenPhotoScale == 0.0 && _photoScale != _oddPhotoScale) {
+        _evenPhotoScale = _photoScale;
+      } else if (_evenPhotoScale != 0.0) {
+        _photoScale = _evenPhotoScale;
       } else {
         return SizedBox();
       }
-      displayHeight = _imagePixelHeight * _pictureScale;
-      displayWidth = _imagePixelWidth * _pictureScale;
+      displayHeight = _imagePixelHeight * _photoScale;
+      displayWidth = _imagePixelWidth * _photoScale;
     } else {
-      if (_oddPictureScale == 0.0 && _pictureScale != _evenPictureScale) {
-        _oddPictureScale = _pictureScale;
-      } else if (_oddPictureScale != 0.0) {
-        _pictureScale = _oddPictureScale;
+      if (_oddPhotoScale == 0.0 && _photoScale != _evenPhotoScale) {
+        _oddPhotoScale = _photoScale;
+      } else if (_oddPhotoScale != 0.0) {
+        _photoScale = _oddPhotoScale;
       } else {
         return SizedBox();
       }
-      displayHeight = _imagePixelWidth * _pictureScale;
-      displayWidth = _imagePixelHeight * _pictureScale;
+      displayHeight = _imagePixelWidth * _photoScale;
+      displayWidth = _imagePixelHeight * _photoScale;
     }
 
     // Apply rotation to corner points visually
     List<Offset> scaledPoints =
         _cornerPoints.map((point) {
-          double x = point[1] * _pictureScale;
-          double y = point[0] * _pictureScale;
+          double x = point[1] * _photoScale;
+          double y = point[0] * _photoScale;
           return Offset(x, y);
         }).toList();
 
@@ -4722,7 +4751,7 @@ class _WarpState extends State<Warp> {
                   (scaledPoint.dx / _scale).toInt(),
                 ];
               }
-              widget.pagePreviewState.reprocessPicture(
+              widget.pagePreviewState.reprocessPhoto(
                 newCornerPoints: widget.cornerPoints,
               );
               _allowPop = true;
@@ -5713,7 +5742,7 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   bool _cameraFlash = false;
-  Future<void> _takePicture() async {
+  Future<void> _takePhoto() async {
     if (_permissionStatus != PermissionStatus.granted) {
       if (mounted) _initializeCamera();
     }
@@ -5731,7 +5760,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _cameraFlash = false;
       });
     } catch (e) {
-      dev.log("Error taking picture: $e");
+      dev.log("Error taking photo: $e");
     }
   }
 
@@ -5923,7 +5952,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   onTapUp: (details) {
                     if (!_isPressingCaptureButton) return;
                     HapticFeedback.lightImpact();
-                    _takePicture();
+                    _takePhoto();
                     setState(() {
                       _isPressingCaptureButton = false;
                     });

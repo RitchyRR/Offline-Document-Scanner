@@ -62,7 +62,7 @@ enum NotifierEvent {
   loadPagesThumbnails,
   loadDocsThumbnails,
   loadPageMetadata,
-  pictureSaved,
+  photoSaved,
   warpSaved,
   processed1Saved,
   processed2Saved,

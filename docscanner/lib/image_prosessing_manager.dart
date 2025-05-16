@@ -18,7 +18,7 @@ import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/app_globals.dart';
 
 const List<String> versionNames = [
-  "picture",
+  "photo",
   "warped",
   "processed1",
   "processed2",
@@ -34,7 +34,7 @@ class ImageProcessingManager {
       bool isPrimary,
       int docIndex,
       int pageIndex,
-      String newPicturePath,
+      String newPhotoPath,
       double? ratioValueIn,
       int? orientationIndexIn,
       int? pageThumbnailIndex,
@@ -51,7 +51,7 @@ class ImageProcessingManager {
     bool isPrimary = data.$3;
     int docIndex = data.$4;
     int pageIndex = data.$5;
-    String newPicturePath = data.$6;
+    String newPhotoPath = data.$6;
 
     double? ratioValueIn = data.$7;
     int? orientationIndexIn = data.$8;
@@ -60,10 +60,10 @@ class ImageProcessingManager {
     int rotationIn = data.$11;
     bool isInitial = data.$12;
     if (pageThumbnailIndexIn == 0) {
-      throw StateError('Error, _processPageIsolate: picture cant be thumbnail');
+      throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
     }
     AppGlobals g = data.$13;
-    if (!File(newPicturePath).existsSync()) {
+    if (!File(newPhotoPath).existsSync()) {
       if (File(
         await g.filesHelper.getVersionPath(docIndex, pageIndex, 0),
       ).existsSync()) {
@@ -78,7 +78,7 @@ class ImageProcessingManager {
           g,
         ));
       } else {
-        StateError('Error, _processPageIsolate: no picture');
+        StateError('Error, _processPageIsolate: no photo');
       }
     }
     int thumbnailIndex =
@@ -88,9 +88,9 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(sendPort, path.dirname(newPicturePath));
+    _deleteScaledThumbnail(sendPort, path.dirname(newPhotoPath));
     // Original
-    versionPaths[0] = newPicturePath;
+    versionPaths[0] = newPhotoPath;
     // Re-use Shape
     String shapePath = await g.filesHelper.getPageShape(
       docIndex,
@@ -197,33 +197,36 @@ class ImageProcessingManager {
     bool isPrimary,
     int docIndex,
     int pageIndex,
-    String pathIn,
+    String photoPath,
     double? ratioValueIn,
     int? orientationIndexIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial,
+    bool photosAlreadyInPages,
     IsolatePriority prio,
   ) async {
-    if (pathIn.isEmpty) return;
+    if (photoPath.isEmpty) return;
     final wrapperCompleter = Completer<void>();
 
-    // Save Photo
-    File pictureFile = File(pathIn);
-    Uint8List picture;
-    if (pictureFile.existsSync()) {
-      picture = pictureFile.readAsBytesSync();
-    } else {
-      throw StateError('picture does not exist');
+    if (!photosAlreadyInPages) {
+      // Save Photo
+      File photoFile = File(photoPath);
+      Uint8List photo;
+      if (photoFile.existsSync()) {
+        photo = photoFile.readAsBytesSync();
+      } else {
+        throw StateError('photo does not exist');
+      }
+      photoPath = await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        0,
+        photo,
+        null,
+      );
     }
-    String newPhotoPath = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      picture,
-      null,
-    );
 
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
@@ -234,7 +237,7 @@ class ImageProcessingManager {
       isPrimary,
       docIndex,
       pageIndex,
-      newPhotoPath,
+      photoPath,
       ratioValueIn,
       orientationIndexIn,
       pageThumbnailIndex,
@@ -295,7 +298,7 @@ class ImageProcessingManager {
     String thumbnailPath = imagePaths.$3;
 
     if (!File(versionPaths[0]).existsSync()) {
-      throw StateError('Error, _repairPageIsolate: no picture');
+      throw StateError('Error, _repairPageIsolate: no photo');
     }
 
     // Warped
@@ -500,29 +503,31 @@ class ImageProcessingManager {
   Future<void> processPages(
     int docIndex,
     int firstPageIndex,
-    List<String> pathsIn,
+    List<String> photoPathsIn,
+    bool photosAlreadyInPages,
   ) async {
-    if (pathsIn.isEmpty) return;
+    if (photoPathsIn.isEmpty) return;
 
     // First page is opened in PagePreview -> more NotifierEvents
     processPageWrapper(
       true,
       docIndex,
       firstPageIndex,
-      pathsIn[0],
+      photoPathsIn[0],
       null,
       null,
       null,
       null,
       0,
       true,
+      photosAlreadyInPages,
       IsolatePriority.immediate,
     );
 
     // Remaining pages
-    pathsIn.removeAt(0);
-    if (pathsIn.isNotEmpty) {
-      for (var (index, path) in pathsIn.indexed) {
+    photoPathsIn.removeAt(0);
+    if (photoPathsIn.isNotEmpty) {
+      for (var (index, path) in photoPathsIn.indexed) {
         // small delay between starts
         await Future.delayed(Duration(milliseconds: 100));
         processPageWrapper(
@@ -536,6 +541,7 @@ class ImageProcessingManager {
           null,
           0,
           true,
+          photosAlreadyInPages,
           IsolatePriority.regular,
         );
       }
@@ -562,6 +568,7 @@ class ImageProcessingManager {
       pageThumbnailIndex,
       cornerPointsIn,
       rotationIn,
+      false,
       false,
       IsolatePriority.immediate,
     );
@@ -640,20 +647,20 @@ class ImageProcessingManager {
       await g.filesHelper.getPagePath(docIndex, pageIndex),
     );
 
-    /// 1. save rotated picture
+    /// 1. save rotated photo
 
-    File rotatedPictureFile = File(versionPaths[0]);
-    Uint8List rotatedPicture;
-    if (rotatedPictureFile.existsSync()) {
-      rotatedPicture = rotatedPictureFile.readAsBytesSync();
+    File rotatedPhotoFile = File(versionPaths[0]);
+    Uint8List rotatedPhoto;
+    if (rotatedPhotoFile.existsSync()) {
+      rotatedPhoto = rotatedPhotoFile.readAsBytesSync();
     } else {
-      throw StateError('rotated picture does not exist');
+      throw StateError('rotated photo does not exist');
     }
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       0,
-      rotatedPicture,
+      rotatedPhoto,
       sendPort,
     );
 

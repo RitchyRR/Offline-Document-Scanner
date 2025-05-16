@@ -457,7 +457,7 @@ class MetadataHelper {
     if (value is String) {
       int thumbnailIndex = versionNames.indexOf(value);
       if (thumbnailIndex == 0) {
-        throw StateError('metadata: thumbnail cant be the picture');
+        throw StateError('metadata: thumbnail cant be the photo');
       }
       return thumbnailIndex;
     } else {
