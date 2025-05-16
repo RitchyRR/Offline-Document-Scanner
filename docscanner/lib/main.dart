@@ -361,7 +361,10 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
-    imageProcessingManager.processPages(docIndex, 0, picturePaths);
+    Future.microtask(() async {
+      await Future.delayed(Duration(milliseconds: 50));
+      imageProcessingManager.processPages(docIndex, 0, picturePaths);
+    });
 
     // Creation Date
     final now = DateTime.now();
@@ -2009,12 +2012,14 @@ class _PagesState extends State<Pages> with RouteAware {
       widget.docIndex,
       picturePaths.length,
     );
-
-    imageProcessingManager.processPages(
-      widget.docIndex,
-      firstPageIndex,
-      picturePaths,
-    );
+    Future.microtask(() async {
+      await Future.delayed(Duration(milliseconds: 25));
+      imageProcessingManager.processPages(
+        widget.docIndex,
+        firstPageIndex,
+        picturePaths,
+      );
+    });
 
     return firstPageIndex;
   }
