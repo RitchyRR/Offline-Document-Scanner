@@ -253,6 +253,15 @@ class FeedbackHelper {
   }
 
   Future<bool> _redirectToPlayStore() async {
+    //import 'package:in_app_review/in_app_review.dart';
+    // in app popup
+    //final InAppReview inAppReview = InAppReview.instance;
+    //if (await inAppReview.isAvailable()) {
+    //  inAppReview.requestReview();
+    //  return true;
+    //}
+
+    // open store page
     final url = Uri(
       scheme: 'https',
       host: 'play.google.com',
