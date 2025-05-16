@@ -1539,6 +1539,7 @@ StreamSubscription<List<PurchaseDetails>>? subscription;
 void listenToPurchaseUpdates() {
   subscription = iap.purchaseStream.listen(
     (purchases) async {
+      if (!await _isAppValid()) setPro(false);
       for (var purchase in purchases) {
         switch (purchase.productID) {
           case "pro_upgrade":
