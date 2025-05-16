@@ -814,6 +814,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text("Documents"),
         actions: [
@@ -2087,6 +2088,7 @@ class _PagesState extends State<Pages> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar:
             !_selectMode
                 ? AppBar(
@@ -3343,6 +3345,7 @@ class PagePreviewState extends State<PagePreview> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         // Top Bar
         appBar: AppBar(
           title: Text('Page ${widget.pageIndex + 1}'),
@@ -4622,6 +4625,7 @@ class _WarpState extends State<Warp> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(title: const Text("Adjust Corners")),
         body: OverflowBox(
           alignment: Alignment.topCenter,
@@ -5808,6 +5812,7 @@ class _CameraScreenState extends State<CameraScreen> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -5971,6 +5976,7 @@ class _CameraScreenState extends State<CameraScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return Scaffold(
+              resizeToAvoidBottomInset: false,
               backgroundColor: Colors.transparent,
               appBar: AppBar(
                 backgroundColor: Colors.black,
@@ -6378,6 +6384,7 @@ class RatingDialogFlowState extends State<RatingDialogFlow> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: Text('Document Scanner')),
       body: Center(
         child: ElevatedButton(
