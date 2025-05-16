@@ -11,13 +11,13 @@ import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:developer' as dev;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pdfw;
 import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
+// pdf:
+import 'package:pdf/pdf.dart' as pdf;
+import 'package:pdf/widgets.dart' as pdfw;
+//import 'package:pdf_render/pdf_render.dart' as pdfr;
 // isolates:
-//import 'package:flutter/services.dart'
-//    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'dart:isolate' show ReceivePort, SendPort;
 import 'package:docscanner/isolates_manager.dart';
 // my packages:
@@ -28,7 +28,6 @@ import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
-
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
 class FilesHelper {
@@ -190,16 +189,16 @@ class FilesHelper {
   }
 
   Future<(String, int)> _reserveNewPage(int docIndex) async {
-    String documentPath = await getDocumentPath(docIndex);
+    String docPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
     while (await Directory(
-      '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}',
+      '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}',
     ).exists()) {
       pageIndex++;
     }
 
     String newPagePath =
-        '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
+        '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
     await Directory(newPagePath).create();
     return (newPagePath, pageIndex);
   }
@@ -209,9 +208,11 @@ class FilesHelper {
     int pageIndex, {
     bool supressWarnings = false,
   }) async {
-    String documentPath = await getDocumentPath(docIndex);
-    String pagePath =
-        '$documentPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
+    String docPath = await getDocumentPath(
+      docIndex,
+      supressWarnings: supressWarnings,
+    );
+    String pagePath = '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
     if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getPagePath: Requested directory \"$pagePath\" does not exist.",
@@ -1142,22 +1143,22 @@ class FilesHelper {
 
     try {
       // Select Aspect ratio
-      double width = 21.0 * PdfPageFormat.cm;
+      double width = 21.0 * pdf.PdfPageFormat.cm;
       // 1. Get common width (shared across pages)
       for (double ratioValue in ratioValues) {
         if (ratioValue == math.sqrt2) // DIN A4
         {
-          width = 21.0 * PdfPageFormat.cm;
+          width = 21.0 * pdf.PdfPageFormat.cm;
           break;
         } else if (ratioValue == 11 / 8.5 ||
             ratioValue == 14 / 8.5) // Letter / Legal
         {
-          width = 8.5 * PdfPageFormat.inch;
+          width = 8.5 * pdf.PdfPageFormat.inch;
           break;
         }
       }
       // 2. Set correct aspect ratio
-      List<PdfPageFormat> pageFormats = [];
+      List<pdf.PdfPageFormat> pageFormats = [];
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
@@ -1170,18 +1171,18 @@ class FilesHelper {
           height =
               (orientations[i] == 0) ? width * ratioValue : width / ratioValue;
         }
-        pageFormats.add(PdfPageFormat(width, height));
+        pageFormats.add(pdf.PdfPageFormat(width, height));
       }
 
       // Create PDF
-      final pdf = pdfw.Document();
+      final pdfDoc = pdfw.Document();
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
           final imageBytes = await imageFile.readAsBytes();
           final image = pdfw.MemoryImage(imageBytes);
 
-          pdf.addPage(
+          pdfDoc.addPage(
             pdfw.Page(
               pageFormat: pageFormats[i],
               build: (pdfw.Context context) {
@@ -1194,7 +1195,7 @@ class FilesHelper {
         }
       }
 
-      return pdf;
+      return pdfDoc;
     } catch (e) {
       dev.log("Error, _convertImageToPdf: $e");
     }
@@ -1531,4 +1532,49 @@ class FilesHelper {
     }
     await Future.wait(futures);
   }
+
+  //pickPdfToDoc() async {
+  //  final int docIndex = await getDocumentsCount();
+  //  // User picks PDF
+  //  final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+  //  final xFile = await openFile(acceptedTypeGroups: [pdfType]);
+  //  if (xFile == null) {
+  //    dev.log("User-Error, pickPdfToDocument: cancelled");
+  //    return;
+  //  }
+  //  final file = File(xFile.path);
+  //
+  //  // Open and render PDF
+  //  final doc = await pdfr.PdfDocument.openFile(file.path);
+  //  final pageCount = doc.pageCount;
+  //  List<String> imagePaths = [];
+  //  for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+  //    final page = await doc.getPage(pageIndex + 1);
+  //
+  //    // Calculate suitable resolution, limit to max 4048x4048
+  //    final pageSize = page.width > page.height ? page.width : page.height;
+  //    final scale = (4048 / pageSize).clamp(1.0, 4.0); // Avoid scaling down
+  //
+  //    final renderedPage = await page.render(
+  //      fullWidth: (page.width * scale),
+  //      fullHeight: (page.height * scale),
+  //    );
+  //
+  //    // save in pagePath as picture
+  //    final image = await renderedPage.createImageDetached();
+  //    String pagePath = await getPagePath(
+  //      docIndex,
+  //      pageIndex,
+  //      supressWarnings: true,
+  //    );
+  //    final imageFile = File(
+  //      "$pagePath/${DateTime.now().millisecondsSinceEpoch}_${versionNames[0]}.png",
+  //    );
+  //    final bytes = await image.toByteData();
+  //    await imageFile.writeAsBytes(bytes!.buffer.asUint8List());
+  //    imagePaths.add(imageFile.path);
+  //  }
+  //  await doc.dispose();
+  //  dev.log("pickPdfToDoc complete.");
+  //}
 }

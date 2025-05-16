@@ -1327,7 +1327,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
             //    ),
             //    heroTag: "pickPdf",
             //    onPressed: () {
-            //      _openImagePicker(ImageSource.gallery, isMultiImage: true);
+            //      g.filesHelper.pickPdfToDoc();
             //    },
             //    tooltip: 'Pick PDF from Directory',
             //    child: const Icon(Icons.picture_as_pdf),
