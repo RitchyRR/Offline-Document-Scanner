@@ -120,6 +120,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
+
+  @override
   void initState() {
     super.initState();
     initAsync();
@@ -379,6 +388,15 @@ class _DocumentsHomeState extends State<DocumentsHome> {
     int firstPageIndex = newIndexes.$2;
     // only open PagePreview for first page
     _openNewPagePreview(docIndex, firstPageIndex);
+  }
+
+  @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
   }
 
   @override
@@ -1394,6 +1412,15 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   static const double _buttonHeight = 48;
 
   @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
+
+  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1832,6 +1859,15 @@ class _PagesState extends State<Pages> {
   List<String> _pageThumbnails = [];
   List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
+
+  @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
 
   @override
   void initState() {
@@ -2653,6 +2689,15 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   static const double _thumbSize = 56;
 
   @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
+
+  @override
   void initState() {
     super.initState();
     widget.controller.addListener(_onScroll);
@@ -2995,6 +3040,15 @@ class PagePreviewState extends State<PagePreview> {
   double _oddPictureScale = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
+
+  @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
 
   @override
   void initState() {
@@ -4420,6 +4474,15 @@ class _WarpState extends State<Warp> {
   static const int _historyDurationMs = 550;
 
   @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
+
+  @override
   void initState() {
     super.initState();
     _initAsync();
@@ -5529,6 +5592,15 @@ class _CameraScreenState extends State<CameraScreen> {
   final List<XFile> _capturedImages = [];
   double _cameraAspectRatio = 3 / 4;
   PermissionStatus _permissionStatus = PermissionStatus.denied;
+
+  @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
 
   @override
   void initState() {
