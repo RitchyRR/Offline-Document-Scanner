@@ -939,7 +939,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                     context: context,
                     applicationName: 'Offline Document Scanner',
                     applicationVersion:
-                        "${_packageInfo.version}+${_packageInfo.buildNumber} ${_packageInfo.installerStore}",
+                        "${_packageInfo.version}+${_packageInfo.buildNumber}",
                   );
                   break;
                 case "ratios":
