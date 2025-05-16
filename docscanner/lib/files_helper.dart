@@ -124,8 +124,8 @@ class FilesHelper {
     await Future.wait(pagesFutures);
     _markedDeletedDocs.clear;
     _markedDeletedPages.clear;
-    prefs.setString("markedDeletedDocs", "");
-    prefs.setString("markedDeletedPages", "");
+    prefs.setString("markedDeletedDocs", "[]");
+    prefs.setString("markedDeletedPages", "[]");
   }
 
   FilesHelper() : screenWidth = 1080 {
