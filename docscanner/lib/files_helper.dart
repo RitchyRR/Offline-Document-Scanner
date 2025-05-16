@@ -76,7 +76,7 @@ class FilesHelper {
     final jsonString = prefs.getString("markedDeletedDocs");
     List<int> decoded = _markedDeletedDocs;
     if (jsonString != null) {
-      decoded = jsonDecode(jsonString);
+      decoded = (jsonDecode(jsonString) as List<dynamic>).cast<int>();
     }
     decoded.sort();
     decoded = decoded.reversed.toList();
@@ -106,11 +106,12 @@ class FilesHelper {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
     if (jsonString != null) {
-      final List<dynamic> decoded = jsonDecode(jsonString);
+      final List<List<int>> decoded =
+          (jsonDecode(jsonString) as List<dynamic>)
+              .map<List<int>>((e) => List<int>.from(e as List))
+              .toList();
       _markedDeletedPages.clear();
-      _markedDeletedPages.addAll(
-        decoded.map<List<int>>((item) => List<int>.from(item)).toList(),
-      );
+      _markedDeletedPages.addAll(decoded);
     }
     // delete
     for (final docIndex in _markedDeletedDocs) {
