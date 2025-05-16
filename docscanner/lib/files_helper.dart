@@ -39,23 +39,28 @@ class FilesHelper {
   Future<List<int>> getMarkedDeletedPages(int docIndex) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
-    if (jsonString == null) {
-      return _markedDeletedPages[docIndex];
+    List<List<int>> decoded = _markedDeletedPages;
+    if (jsonString != null && jsonString != "[]") {
+      decoded =
+          (jsonDecode(jsonString) as List<dynamic>)
+              .map<List<int>>((e) => List<int>.from(e as List))
+              .toList();
     }
-    final List<dynamic> decoded = jsonDecode(jsonString);
     _markedDeletedPages.clear();
-    _markedDeletedPages.addAll(
-      decoded.map<List<int>>((item) => List<int>.from(item)).toList(),
-    );
+    _markedDeletedPages.addAll(decoded);
     return _markedDeletedPages[docIndex];
   }
 
   _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+    if (_markedDeletedPages[docIndex].contains(pageIndex)) return;
     final prefs = await SharedPreferences.getInstance();
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
     _markedDeletedPages[docIndex].add(pageIndex);
+    _markedDeletedPages[docIndex].sort();
+    _markedDeletedPages[docIndex] =
+        _markedDeletedPages[docIndex].reversed.toList();
     final jsonString = jsonEncode(_markedDeletedPages);
     prefs.setString("markedDeletedPages", jsonString);
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
@@ -66,7 +71,9 @@ class FilesHelper {
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
+    //while (_markedDeletedPages[docIndex].contains(pageIndex)) {
     _markedDeletedPages[docIndex].remove(pageIndex);
+    //}
     final jsonString = jsonEncode(_markedDeletedPages);
     prefs.setString("markedDeletedPages", jsonString);
   }
@@ -75,19 +82,22 @@ class FilesHelper {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedDocs");
     List<int> decoded = _markedDeletedDocs;
-    if (jsonString != null) {
+    if (jsonString != null && jsonString != "[]") {
       decoded = (jsonDecode(jsonString) as List<dynamic>).cast<int>();
     }
-    decoded.sort();
-    decoded = decoded.reversed.toList();
     _markedDeletedDocs.clear();
     _markedDeletedDocs.addAll(decoded);
     return _markedDeletedDocs;
   }
 
   _addMarkedDeletedDoc(int docIndex) async {
+    if (_markedDeletedDocs.contains(docIndex)) return;
     final prefs = await SharedPreferences.getInstance();
     _markedDeletedDocs.add(docIndex);
+    List<int> tmp = _markedDeletedDocs;
+    tmp.sort();
+    _markedDeletedDocs.clear();
+    _markedDeletedDocs.addAll(tmp.reversed.toList());
     final jsonString = jsonEncode(_markedDeletedDocs);
     prefs.setString("markedDeletedDocs", jsonString);
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
@@ -105,7 +115,7 @@ class FilesHelper {
     await getMarkedDeletedDocs();
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
-    if (jsonString != null) {
+    if (jsonString != null && jsonString != "[]") {
       final List<List<int>> decoded =
           (jsonDecode(jsonString) as List<dynamic>)
               .map<List<int>>((e) => List<int>.from(e as List))
@@ -119,6 +129,7 @@ class FilesHelper {
     }
     List<Future> pagesFutures = [];
     for (var (docIndex, pageIndexes) in _markedDeletedPages.indexed) {
+      if (pageIndexes.isEmpty) continue;
       pagesFutures.add(_deletePages(docIndex, pageIndexes));
     }
     await Future.wait(pagesFutures);
