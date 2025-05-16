@@ -42,6 +42,7 @@ final AdsHelper adsHelper = AdsHelper();
 final FeedbackHelper feedbackHelper = FeedbackHelper();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 final GlobalNotifier globalNotifier = GlobalNotifier();
 
 class GlobalNotifier extends ValueNotifier<NotifierEvent> {
@@ -171,6 +172,7 @@ class _MyAppState extends State<MyApp> {
         }
 
         return MaterialApp(
+          navigatorObservers: [routeObserver],
           title: 'Offline Document Scanner',
           initialRoute: '/',
           onGenerateRoute: (settings) {
@@ -287,9 +289,72 @@ class DocumentsHome extends StatefulWidget {
   State<DocumentsHome> createState() => _DocumentsHomeState();
 }
 
-class _DocumentsHomeState extends State<DocumentsHome> {
+class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   final ImagePicker _picker = ImagePicker();
   List<String> _docThumbnails = [];
+
+  @override
+  void setState(ui.VoidCallback fn) {
+    if (!mounted) {
+      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
+      return;
+    }
+    super.setState(fn);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    globalNotifier.addListener(_handleGlobalEvent);
+    initAsync();
+  }
+
+  late PackageInfo _packageInfo;
+  Future<void> initAsync() async {
+    _receiveSharing();
+    _packageInfo = await PackageInfo.fromPlatform();
+    await _loadDocsDisplay(onInit: true);
+    await loadAvailableAspectRatios();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      g.filesHelper.repairDirectoryStructure();
+    });
+  }
+
+  @override
+  void dispose() {
+    globalNotifier.removeListener(_handleGlobalEvent);
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    _loadDocsDisplay();
+  }
+
+  List<int> _deletedDocs = [];
+  Future<void> _handleGlobalEvent() async {
+    if (!mounted) return;
+    switch (globalNotifier.value) {
+      case NotifierEvent.loadDocsThumbnails:
+        _loadDocsDisplay();
+        break;
+      case NotifierEvent.setState:
+        setState(() {});
+        break;
+      case NotifierEvent.imagesDeleted:
+        _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+        setState(() {});
+        break;
+      default:
+    }
+  }
 
   Future<(int, int)> _processDocument(List<String> picturePaths) async {
     var newDoc = await g.filesHelper.createNewDocument(picturePaths.length);
@@ -333,14 +398,11 @@ class _DocumentsHomeState extends State<DocumentsHome> {
   }
 
   Future<void> _openNewPagePreview(int docIndex, int pageIndex) async {
-    Future<void> future = Navigator.pushNamed(
+    Navigator.pushNamed(
       context,
       '/pages',
       arguments: {'docIndex': docIndex, 'initialPageIndex': pageIndex},
     );
-    future.whenComplete(() async {
-      _loadDocsDisplay();
-    });
   }
 
   Future<List<String>> _openCamera() async {
@@ -388,57 +450,6 @@ class _DocumentsHomeState extends State<DocumentsHome> {
     int firstPageIndex = newIndexes.$2;
     // only open PagePreview for first page
     _openNewPagePreview(docIndex, firstPageIndex);
-  }
-
-  @override
-  void setState(ui.VoidCallback fn) {
-    if (!mounted) {
-      dev.log("Warning, setStateMounted not mounted at: ${StackTrace.current}");
-      return;
-    }
-    super.setState(fn);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
-    initAsync();
-  }
-
-  late PackageInfo _packageInfo;
-  Future<void> initAsync() async {
-    _receiveSharing();
-    _packageInfo = await PackageInfo.fromPlatform();
-    await _loadDocsDisplay(onInit: true);
-    await loadAvailableAspectRatios();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      g.filesHelper.repairDirectoryStructure();
-    });
-  }
-
-  @override
-  void dispose() {
-    globalNotifier.removeListener(_handleGlobalEvent);
-    super.dispose();
-  }
-
-  List<int> _deletedDocs = [];
-  Future<void> _handleGlobalEvent() async {
-    if (!mounted) return;
-    switch (globalNotifier.value) {
-      case NotifierEvent.loadDocsThumbnails:
-        _loadDocsDisplay();
-        break;
-      case NotifierEvent.setState:
-        setState(() {});
-        break;
-      case NotifierEvent.imagesDeleted:
-        _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-        setState(() {});
-        break;
-      default:
-    }
   }
 
   List<int> _docPageCounts = [];
@@ -517,14 +528,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
   }
 
   Future<void> _openDocument(int docIndex) async {
-    Future<void> future = Navigator.pushNamed(
-      context,
-      '/pages',
-      arguments: {'docIndex': docIndex},
-    );
-    future.whenComplete(() async {
-      _loadDocsDisplay();
-    });
+    Navigator.pushNamed(context, '/pages', arguments: {'docIndex': docIndex});
   }
 
   void _openDocEditDialog(
@@ -1328,7 +1332,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                heroTag: "pickImage",
+                heroTag: "pickImagesDoc",
                 onPressed: () {
                   _openImagePicker(ImageSource.gallery, isMultiImage: true);
                 },
@@ -1344,7 +1348,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
             //    shape: RoundedRectangleBorder(
             //      borderRadius: BorderRadius.circular(12),
             //    ),
-            //    heroTag: "pickPdf",
+            //    heroTag: "pickPdfDoc",
             //    onPressed: () {
             //      g.filesHelper.pickPdfToDoc();
             //    },
@@ -1360,7 +1364,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
             //    shape: RoundedRectangleBorder(
             //      borderRadius: BorderRadius.circular(12),
             //    ),
-            //    heroTag: "pickImages",
+            //    heroTag: "pickImageDoc",
             //    onPressed: () {
             //      _openImagePicker(ImageSource.gallery);
             //    },
@@ -1371,7 +1375,7 @@ class _DocumentsHomeState extends State<DocumentsHome> {
             //SizedBox(height: 18.0),
             if (_picker.supportsImageSource(ImageSource.camera))
               FloatingActionButton(
-                heroTag: "makePhoto",
+                heroTag: "takePhotoDoc",
                 onPressed: () {
                   _openImagePicker(ImageSource.camera);
                 },
@@ -1855,7 +1859,7 @@ class Pages extends StatefulWidget {
   State<Pages> createState() => _PagesState();
 }
 
-class _PagesState extends State<Pages> {
+class _PagesState extends State<Pages> with RouteAware {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   List<double> _thumbnailRatios = [];
@@ -1875,12 +1879,13 @@ class _PagesState extends State<Pages> {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true, supressWarnings: true);
-    _initPushPreview();
+    _initPushToPreview();
   }
 
   @override
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
+    routeObserver.unsubscribe(this);
     super.dispose();
   }
 
@@ -1904,12 +1909,23 @@ class _PagesState extends State<Pages> {
     }
   }
 
-  void _initPushPreview() {
+  void _initPushToPreview() {
     if (widget.initialPageIndex != null) {
       Future.microtask(() {
         _openPagePreview(widget.initialPageIndex!);
       });
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    _loadPagesThumbnails();
   }
 
   Future<void> _loadPagesThumbnails({
@@ -2372,7 +2388,7 @@ class _PagesState extends State<Pages> {
                         width: 40,
                         height: 40,
                         child: FloatingActionButton(
-                          heroTag: "pickImage",
+                          heroTag: "pickImagesPage",
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -2391,7 +2407,7 @@ class _PagesState extends State<Pages> {
                       //  width: 40,
                       //  height: 40,
                       //  child: FloatingActionButton(
-                      //    heroTag: "pickImages",
+                      //    heroTag: "pickImagePage",
                       //    shape: RoundedRectangleBorder(
                       //      borderRadius: BorderRadius.circular(12),
                       //    ),
@@ -2405,7 +2421,7 @@ class _PagesState extends State<Pages> {
                       //SizedBox(height: 18.0),
                       if (_picker.supportsImageSource(ImageSource.camera))
                         FloatingActionButton(
-                          heroTag: "makePhoto",
+                          heroTag: "takePhotoPage",
                           onPressed: () {
                             _openImagePicker(ImageSource.camera);
                           },
@@ -2421,7 +2437,7 @@ class _PagesState extends State<Pages> {
                         width: 40,
                         height: 40,
                         child: FloatingActionButton(
-                          heroTag: "selectionDelete",
+                          heroTag: "selectionDeletePage",
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -2445,7 +2461,7 @@ class _PagesState extends State<Pages> {
                         width: 40,
                         height: 40,
                         child: FloatingActionButton(
-                          heroTag: "selectionSave",
+                          heroTag: "selectionSavePage",
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -2464,7 +2480,7 @@ class _PagesState extends State<Pages> {
                       SizedBox(height: 18.0),
                       if (_picker.supportsImageSource(ImageSource.camera))
                         FloatingActionButton(
-                          heroTag: "selectionShare",
+                          heroTag: "selectionSharePage",
                           onPressed: () async {
                             _pagesPopup(
                               context,
