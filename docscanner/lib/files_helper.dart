@@ -467,11 +467,11 @@ class FilesHelper {
         anyChange = true;
       }
 
-      List<FileSystemEntity> pages =
+      List<FileSystemEntity> pagesFseL =
           Directory(expectedDocPath).listSync().whereType<Directory>().toList()
             ..sort((a, b) => a.path.compareTo(b.path));
-      if (pages.isNotEmpty) {
-        for (var (pageIndex, pageFse) in pages.indexed) {
+      if (pagesFseL.isNotEmpty) {
+        for (var (pageIndex, pageFse) in pagesFseL.indexed) {
           // Reanme pages to match their index
           String expectedPagePath = await getPagePath(
             docIndex,
@@ -484,14 +484,29 @@ class FilesHelper {
             anyChange = true;
           }
 
-          // Delete empty pages
-          int versionCount = await getPageImagesCount(docIndex, pageIndex);
+          // Check if page is empty / incomplete
+          List<FileSystemEntity> pageFseL =
+              Directory(expectedPagePath).listSync()
+                ..sort((a, b) => a.path.compareTo(b.path));
+          bool pageIncomplete = pageFseL.isEmpty;
+          int countVersionsAndThumbnail = 0;
+          if (!pageIncomplete) {
+            for (var imageFse in pageFseL) {
+              if (imageFse.path.contains("thumbnail") ||
+                  versionNames.any(
+                    (element) => imageFse.path.contains(element),
+                  )) {
+                countVersionsAndThumbnail++;
+              }
+            }
+            // 4 versions + 1 thumbnail (ignoring shape and metadata)
+            pageIncomplete = countVersionsAndThumbnail < 5;
+          }
 
-          // versions + thumbnail + shape
-          if (versionCount < versionNames.length + 2) {
+          if (pageIncomplete) {
             anyChange = true;
             bool photoExists = false;
-            if (versionCount == 0) {
+            if (countVersionsAndThumbnail == 0) {
               dev.log("Deleting empty Doc $docIndex Page $pageIndex");
             } else {
               String photoName = versionNames[0];
