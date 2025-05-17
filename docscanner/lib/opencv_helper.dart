@@ -673,7 +673,7 @@ class OpenCVHelper {
     double calculatedRatio = 0.0;
     calculatedRatio =
         (ratioIn != null) ? ratioIn : _calculateAspectRatio(corners);
-    final matchedRatio = _matchAspectRatioAndOrientation(
+    final matchedRatio = matchAspectRatioAndOrientation(
       calculatedRatio,
       ratioIn,
       orientationIndexIn,
@@ -819,7 +819,7 @@ class OpenCVHelper {
     return ratio;
   }
 
-  (double, int) _matchAspectRatioAndOrientation(
+  (double, int) matchAspectRatioAndOrientation(
     double calculatedRatioIn,
     double? metadataRatioIn,
     int? orientationIndexIn,

@@ -1433,9 +1433,9 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   bool _expanded = false;
   late Timer _collapseTimer;
 
-  static const double _collapsedWidth = 48;
-  static const double _expandedWidth = 160;
-  static const double _buttonHeight = 48;
+  static const double _collapsedWidth = 40;
+  static const double _expandedWidth = 150;
+  static const double _buttonHeight = 40;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -1523,11 +1523,13 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
           onTap: widget.onPressed,
           onLongPress: _expandTemporarily,
           child: SizedBox.expand(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+            child: Align(
+              alignment: Alignment.centerLeft,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  SizedBox(width: 8),
                   Icon(widget.icon, color: textColor),
                   if (_expanded)
                     Expanded(
@@ -4499,7 +4501,7 @@ class _WarpState extends State<Warp> {
   static const double _magnifierSize = 200;
 
   final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 550;
+  static const int _historyDurationMs = 400;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -4917,36 +4919,8 @@ class _WarpState extends State<Warp> {
                       _positionHistory.removeAt(0);
                     }
                   },
-                  onPanEnd: (details) {
-                    if (!_panning) return;
-                    // Remove positions older than _historyDurationMs
-                    DateTime now = DateTime.now();
-                    while (_positionHistory.isNotEmpty &&
-                        now
-                                .difference(_positionHistory.first.timestamp)
-                                .inMilliseconds >
-                            _historyDurationMs) {
-                      _positionHistory.removeAt(0);
-                    }
-                    // Use oldest position in history
-                    if (_positionHistory.isNotEmpty) {
-                      if ((_positionHistory.first.position -
-                                  _scaledPoints[index])
-                              .distance <
-                          50) {
-                        setState(() {
-                          _scaledPoints[index] =
-                              _positionHistory.first.position;
-                        });
-                      }
-                    }
-                    _positionHistory.clear();
-                    _panning = false;
-                    WidgetsBinding.instance.addPostFrameCallback((_) async {
-                      await Future.delayed(Duration(milliseconds: 600));
-                      _panningDelayed = false;
-                    });
-                  },
+                  onPanEnd: (details) => panOver(index),
+                  onPanCancel: () => panOver(index),
                   child: Container(
                     width: _circleSize / counterScale,
                     height: _circleSize / counterScale,
@@ -4988,6 +4962,33 @@ class _WarpState extends State<Warp> {
         ),
       ),
     );
+  }
+
+  void panOver(int index) {
+    if (!_panning) return;
+    // Remove positions older than _historyDurationMs
+    DateTime now = DateTime.now();
+    while (_positionHistory.isNotEmpty &&
+        now.difference(_positionHistory.first.timestamp).inMilliseconds >
+            _historyDurationMs) {
+      _positionHistory.removeAt(0);
+    }
+    // Use oldest position in history
+    if (_positionHistory.isNotEmpty) {
+      if ((_positionHistory.first.position - _scaledPoints[index]).distance <
+          50) {
+        setState(() {
+          _scaledPoints[index] = _positionHistory.first.position;
+        });
+      }
+    }
+    _positionHistory.clear();
+    _panning = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 600));
+      _panningDelayed = false;
+    });
+    return;
   }
 }
 

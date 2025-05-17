@@ -1183,8 +1183,7 @@ class FilesHelper {
           double photoRatio = image.height.toDouble() / image.width.toDouble();
           height = width * photoRatio;
         } else {
-          height =
-              (orientations[i] == 0) ? width * ratioValue : width / ratioValue;
+          height = width * ratioValue;
         }
         pageFormats.add(pdf.PdfPageFormat(width, height));
       }
@@ -1282,6 +1281,7 @@ class FilesHelper {
         Fluttertoast.showToast(
           msg:
               "Existing $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
+          toastLength: Toast.LENGTH_LONG,
         );
       }
 
@@ -1573,15 +1573,20 @@ class FilesHelper {
     ) {
       final page = await doc.getPage(pageIndex + 1);
 
-      // Calculate suitable resolution, limit to max 4048x4048
+      const targetDpi = 300;
+      const deafaultAddumedDpi = 72;
+      final dpiScale = targetDpi / deafaultAddumedDpi;
+      const maxSize = 4048;
       final pageSize = page.width > page.height ? page.width : page.height;
-      final scale = (4048 / pageSize).clamp(1.0, 4.0); // Avoid scaling down
-
-      final renderedPage = await page.render(
-        fullWidth: (page.width * scale),
-        fullHeight: (page.height * scale),
+      final limitingScale = (maxSize / pageSize * dpiScale).clamp(
+        double.minPositive,
+        1.0,
       );
 
+      final renderedPage = await page.render(
+        width: (page.width * limitingScale * dpiScale).toInt(),
+        height: (page.height * limitingScale * dpiScale).toInt(),
+      );
       // Save in pagePath as photo
       final ui.Image uiImage = await renderedPage.createImageDetached();
       final ByteData? byteData = await uiImage.toByteData(

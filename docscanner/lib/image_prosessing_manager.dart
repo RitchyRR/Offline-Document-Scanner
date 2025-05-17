@@ -2,6 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart' show decodeImageFromList;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'dart:io';
@@ -41,6 +42,7 @@ class ImageProcessingManager {
       List<List<int>>? cornerPointsIn,
       int rotationIn,
       bool isInitial,
+      bool isFromPDF,
       AppGlobals g,
     )
     data,
@@ -62,7 +64,8 @@ class ImageProcessingManager {
     if (pageThumbnailIndexIn == 0) {
       throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
     }
-    AppGlobals g = data.$13;
+    bool isFromPDF = data.$13;
+    AppGlobals g = data.$14;
     if (!File(newPhotoPath).existsSync() ||
         File(newPhotoPath).lengthSync() == 0) {
       final actualPhotoPath = await g.filesHelper.getVersionPath(
@@ -81,7 +84,8 @@ class ImageProcessingManager {
       }
     }
     int thumbnailIndex =
-        pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
+        pageThumbnailIndexIn ??
+        (isFromPDF ? 1 : ((g.proUnlocked == true) ? 3 : 2));
 
     List<String> versionPaths = List.generate(4, (index) => "");
     OpenCVHelper cvHelper = OpenCVHelper(g);
@@ -105,32 +109,41 @@ class ImageProcessingManager {
       );
     }
 
-    // Warped
-    var warpedRet = cvHelper.warpImage(
-      ParamsWarpImage(
-        versionPaths[0],
-        shapePath,
-        ratioValueIn: ratioValueIn,
-        orientation: orientationIndexIn,
-        cornerPoints: cornerPointsIn,
-      ),
-    );
-    Uint8List warped = warpedRet.$1;
-    Uint8List shape = warpedRet.$2;
-    if (shapePath.isEmpty) {
-      g.filesHelper.savePageShape(docIndex, pageIndex, shape);
+    List<List<int>>? cornerPoints;
+    Uint8List warped;
+    List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
+    double? ratioValue;
+    int? orientationIndex;
+    if (isFromPDF) {
+      warped = File(versionPaths[0]).readAsBytesSync();
+    } else {
+      // Warped
+      var warpedRet = cvHelper.warpImage(
+        ParamsWarpImage(
+          versionPaths[0],
+          shapePath,
+          ratioValueIn: ratioValueIn,
+          orientation: orientationIndexIn,
+          cornerPoints: cornerPointsIn,
+        ),
+      );
+      warped = warpedRet.$1;
+      Uint8List shape = warpedRet.$2;
+      if (shapePath.isEmpty) {
+        g.filesHelper.savePageShape(docIndex, pageIndex, shape);
+      }
+      borderCorrectionDepth = warpedRet.$3;
+      // Metadata
+      ratioValue = warpedRet.$4;
+      orientationIndex = warpedRet.$5;
+      cornerPoints = warpedRet.$6;
     }
-    List<int> borderCorrectionDepth = warpedRet.$3;
-    // Metadata
-    double ratioValue = warpedRet.$4;
-    int orientationIndex = warpedRet.$5;
-    List<List<int>> cornerPoints = warpedRet.$6;
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      ratioValue,
-      orientationIndex,
-      cornerPoints,
+      ratioValue ?? ratioValueIn!,
+      orientationIndex ?? orientationIndexIn!,
+      cornerPoints ?? cornerPointsIn!,
       gIn: g,
     );
     if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
@@ -203,13 +216,31 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial,
-    bool photosAlreadyInPages,
+    bool isFromPDF,
     IsolatePriority prio,
   ) async {
     if (photoPath.isEmpty) return;
     final wrapperCompleter = Completer<void>();
 
-    if (!photosAlreadyInPages) {
+    if (isFromPDF) {
+      final image = await decodeImageFromList(
+        (File(photoPath).readAsBytesSync()),
+      );
+      cornerPointsIn ??= [
+        [0, 0],
+        [image.height - 1, 0],
+        [0, image.width - 1],
+        [image.height - 1, image.width - 1],
+      ];
+      orientationIndexIn ??= image.height >= image.width ? 0 : 1;
+      OpenCVHelper cvHelper = OpenCVHelper(g);
+      final data = cvHelper.matchAspectRatioAndOrientation(
+        image.height / image.width,
+        null,
+        orientationIndexIn,
+      );
+      ratioValueIn ??= data.$1;
+    } else {
       // Save Photo
       File photoFile = File(photoPath);
       Uint8List photo;
@@ -243,6 +274,7 @@ class ImageProcessingManager {
       cornerPointsIn,
       rotationIn,
       isInitial,
+      isFromPDF,
       g,
     ), prio: prio);
     taskKillers[(docIndex, pageIndex)] = killer;
