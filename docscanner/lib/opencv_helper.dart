@@ -550,7 +550,7 @@ class OpenCVHelper {
       yOffset: rows ~/ 2,
       xOffset: cols ~/ 2,
     );
-    int fallbacks = 0;
+    List<int> fallbacks = [];
     try {
       outerPoints[0] = xy1.reduce((a, b) {
         int scoreA = -a.y - a.x;
@@ -559,7 +559,7 @@ class OpenCVHelper {
       });
     } catch (e) {
       // fallback in middle if quadrants are empty
-      fallbacks++;
+      fallbacks.add(0);
       outerPoints[0] = cv.Point(cols ~/ 2 - 1, rows ~/ 2 - 1);
     }
     try {
@@ -569,7 +569,7 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      fallbacks++;
+      fallbacks.add(1);
       outerPoints[1] = cv.Point(cols ~/ 2 - 1, rows ~/ 2 + 1);
     }
     try {
@@ -579,7 +579,7 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      fallbacks++;
+      fallbacks.add(2);
       outerPoints[2] = cv.Point(cols ~/ 2 + 1, rows ~/ 2 - 1);
     }
     try {
@@ -589,17 +589,44 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      fallbacks++;
+      fallbacks.add(3);
       outerPoints[3] = cv.Point(cols ~/ 2 + 1, rows ~/ 2 + 1);
     }
     // if all failed -> to image corners
-    if (fallbacks == 4) {
+    if (fallbacks.length == 4) {
       outerPoints = [
         cv.Point(0, 0),
         cv.Point(0, rows - 1),
         cv.Point(cols - 1, 0),
         cv.Point(cols - 1, rows - 1),
       ];
+    } else if (fallbacks.isNotEmpty) {
+      for (var cornerIndex in fallbacks) {
+        int? xRef;
+        int? yRef;
+        switch (cornerIndex) {
+          case 0:
+            xRef = 2;
+            yRef = 1;
+            break;
+          case 1:
+            xRef = 3;
+            yRef = 0;
+            break;
+          case 2:
+            xRef = 0;
+            yRef = 3;
+            break;
+          case 3:
+            xRef = 1;
+            yRef = 2;
+            break;
+        }
+        outerPoints[cornerIndex] = cv.Point(
+          outerPoints[xRef!].x,
+          outerPoints[yRef!].y,
+        );
+      }
     }
 
     // to List
