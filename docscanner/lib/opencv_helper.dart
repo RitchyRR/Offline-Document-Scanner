@@ -120,7 +120,7 @@ class OpenCVHelper {
     // Compute K based on image dimensions
     rows = imageMat.rows;
     cols = imageMat.cols;
-    K = ((rows + cols) ~/ 100.0);
+    K = ((rows + cols) ~/ 100.0).clamp(3, -1 >>> 1);
     //dev.log("rows = $rows");
     //dev.log("cols = $cols");
     //dev.log("K = $K");
@@ -139,7 +139,7 @@ class OpenCVHelper {
     // Compute K based on image dimensions
     height = imageMat.rows;
     width = imageMat.cols;
-    K = ((height + width) ~/ 50.0);
+    K = ((height + width) ~/ 50.0).clamp(3, -1 >>> 1);
     //dev.log("height = $height");
     //dev.log("width = $width");
     //dev.log("K = $K");
@@ -254,10 +254,8 @@ class OpenCVHelper {
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
   cv.Mat _removeTextAndImages(cv.Mat imageMat) {
-    cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (
-      K ~/ 17,
-      K ~/ 17,
-    ));
+    int k1 = (K ~/ 17).clamp(3, -1 >>> 1);
+    cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
     imageMat = cv.morphologyEx(
       imageMat,
       cv.MORPH_OPEN,
@@ -265,7 +263,8 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
 
-    cv.Mat kernelDark = cv.getStructuringElement(cv.MORPH_RECT, (K * 2, K * 2));
+    int k2 = (K * 2).clamp(3, -1 >>> 1);
+    cv.Mat kernelDark = cv.getStructuringElement(cv.MORPH_RECT, (k2, k2));
     imageMat = cv.morphologyEx(
       imageMat,
       cv.MORPH_CLOSE,
@@ -475,7 +474,8 @@ class OpenCVHelper {
         .colRange(pad, pad + edges.cols);
 
     // remove small appendages
-    cv.Mat kernel2 = cv.Mat.ones(K ~/ 16, K ~/ 16, cv.MatType.CV_8UC1);
+    int k1 = (K ~/ 16).clamp(3, -1 >>> 1);
+    cv.Mat kernel2 = cv.Mat.ones(k1, k1, cv.MatType.CV_8UC1);
     shape = cv.erode(shape, kernel2, iterations: 3);
 
     return shape;
@@ -499,7 +499,7 @@ class OpenCVHelper {
     //int cols = paddedShape.cols;
 
     // kernels to detect corners -> kernel1,2,3,4
-    int hitmissTolerance = K ~/ 10;
+    int hitmissTolerance = (K ~/ 10).clamp(1, -1 >>> 1);
     cv.Mat kernel1 = cv.Mat.zeros(hitmissSize, hitmissSize, cv.MatType.CV_8SC1);
     kernel1.set(hitmissSize ~/ 2, hitmissSize ~/ 2, 1);
     kernel1.set(hitmissSize ~/ 2 - 1, hitmissSize ~/ 2 - 1, -1);
@@ -550,6 +550,7 @@ class OpenCVHelper {
       yOffset: rows ~/ 2,
       xOffset: cols ~/ 2,
     );
+    int fallbacks = 0;
     try {
       outerPoints[0] = xy1.reduce((a, b) {
         int scoreA = -a.y - a.x;
@@ -558,7 +559,8 @@ class OpenCVHelper {
       });
     } catch (e) {
       // fallback in middle if quadrants are empty
-      outerPoints[0] = cv.Point(rows ~/ 2 - 1, cols ~/ 2 - 1);
+      fallbacks++;
+      outerPoints[0] = cv.Point(cols ~/ 2 - 1, rows ~/ 2 - 1);
     }
     try {
       outerPoints[1] = xy2.reduce((a, b) {
@@ -567,7 +569,8 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      outerPoints[1] = cv.Point(rows ~/ 2 + 1, cols ~/ 2 - 1);
+      fallbacks++;
+      outerPoints[1] = cv.Point(cols ~/ 2 - 1, rows ~/ 2 + 1);
     }
     try {
       outerPoints[2] = xy3.reduce((a, b) {
@@ -576,7 +579,8 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      outerPoints[2] = cv.Point(rows ~/ 2 - 1, cols ~/ 2 + 1);
+      fallbacks++;
+      outerPoints[2] = cv.Point(cols ~/ 2 + 1, rows ~/ 2 - 1);
     }
     try {
       outerPoints[3] = xy4.reduce((a, b) {
@@ -585,7 +589,17 @@ class OpenCVHelper {
         return scoreA > scoreB ? a : b;
       });
     } catch (e) {
-      outerPoints[3] = cv.Point(rows ~/ 2 + 1, cols ~/ 2 + 1);
+      fallbacks++;
+      outerPoints[3] = cv.Point(cols ~/ 2 + 1, rows ~/ 2 + 1);
+    }
+    // if all failed -> to image corners
+    if (fallbacks == 4) {
+      outerPoints = [
+        cv.Point(0, 0),
+        cv.Point(0, rows - 1),
+        cv.Point(cols - 1, 0),
+        cv.Point(cols - 1, rows - 1),
+      ];
     }
 
     // to List
@@ -654,8 +668,7 @@ class OpenCVHelper {
   }) {
     cv.Mat warpedShape = _transformImage(shape, corners);
 
-    final int maxBorderSize = (K ~/ 2);
-
+    final int maxBorderSize = (K ~/ 2).clamp(1, -1 >>> 1);
     // Top border
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
@@ -731,6 +744,8 @@ class OpenCVHelper {
     } else {
       height = (width * ratio).round();
     }
+    height = height.clamp(10, -1 >>> 1);
+    width = width.clamp(10, -1 >>> 1);
   }
 
   double _calculateAspectRatio(List<List<int>> corners) {
@@ -916,7 +931,7 @@ class OpenCVHelper {
 
     // Median blur color
     try {
-      int k1 = 5; //(K ~/ 35) + 1;
+      int k1 = (K ~/ 70) * 2 + 3;
       cv.VecMat hsv = cv.split(cv.cvtColor(subtracted, cv.COLOR_BGR2HSV));
       //hsv[0] = cv.medianBlur(hsv[0], k1 * 2 + 1);
       hsv[1] = cv.min(cv.medianBlur(hsv[1], k1), hsv[1]);
@@ -930,7 +945,7 @@ class OpenCVHelper {
 
   cv.Mat _warpedBg(cv.Mat warped) {
     // 1. Remove glow (Opening)
-    int k1 = (K ~/ 18) + 1;
+    int k1 = ((K ~/ 18) + 1).clamp(3, -1 >>> 1);
     cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
     cv.Mat bg = cv.morphologyEx(
       warped,
@@ -958,7 +973,7 @@ class OpenCVHelper {
     cv.VecMat bgHsvChannels = cv.split(cv.cvtColor(bg, cv.COLOR_BGR2HSV));
     cv.Mat wpV = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV))[2];
 
-    int k3 = (K ~/ 18) + 1;
+    int k3 = ((K ~/ 18) + 1).clamp(3, -1 >>> 1);
     cv.Mat kernel3 = cv.getStructuringElement(cv.MORPH_CROSS, (k3, k3));
     wpV = cv.morphologyEx(
       wpV,
@@ -976,7 +991,7 @@ class OpenCVHelper {
 
   cv.Mat _warpedBgSimple(cv.Mat warped) {
     // 1. Remove Glow (Opening)
-    int k1 = (K ~/ 18) + 1;
+    int k1 = ((K ~/ 18) + 1).clamp(3, -1 >>> 1);
     cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
     cv.Mat bg = cv.morphologyEx(
       warped,
@@ -1063,33 +1078,33 @@ class OpenCVHelper {
   }
 
   /// Step 9: Sharpen
-  cv.Mat _sharpenImage(cv.Mat warped, {final double sharpeningStrength = 0.8}) {
+  cv.Mat _sharpenImage(cv.Mat warped, {final double sharpeningStrength = 0.6}) {
     cv.Mat sharpenKernel = cv.Mat.fromList(5, 5, cv.MatType.CV_32FC1, [
-      0.0,
-      -0.1,
-      -0.2,
-      -0.1,
-      0.0,
-      -0.1,
-      -0.1,
-      -0.2,
-      -0.1,
-      -0.1,
-      -0.2,
-      -0.2,
-      0.0,
-      -0.2,
-      -0.2,
-      -0.1,
-      -0.1,
-      -0.2,
-      -0.1,
-      -0.1,
-      0.0,
-      -0.1,
-      -0.2,
-      -0.1,
-      0.0,
+      00.00,
+      -0.05,
+      -0.05,
+      -0.05,
+      00.00,
+      -0.05,
+      -0.20,
+      -0.20,
+      -0.20,
+      -0.05,
+      -0.05,
+      -0.20,
+      00.00,
+      -0.20,
+      -0.05,
+      -0.05,
+      -0.20,
+      -0.20,
+      -0.20,
+      -0.05,
+      00.00,
+      -0.05,
+      -0.05,
+      -0.05,
+      00.00,
     ]);
 
     sharpenKernel = sharpenKernel.multiply(sharpeningStrength);
@@ -1120,7 +1135,7 @@ class OpenCVHelper {
     double textFineness = 22,
   }) {
     // find Text or fine lines
-    int k = math.max((K ~/ textFineness) ~/ 2 * 2 + 1, 3);
+    int k = ((K ~/ textFineness) ~/ 2 * 2 + 1).clamp(3, -1 >>> 1);
     cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k, k));
     cv.Mat noText = cv.morphologyEx(
       base,
@@ -1164,7 +1179,12 @@ class OpenCVHelper {
     final double highValue = 230,
     final double? gamma,
   }) {
-    cv.Mat ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
+    cv.Mat ref;
+    if (height > 1000 && width > 1000) {
+      ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
+    } else {
+      ref = mat;
+    }
     ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
     List<int> a = ref.data.toList();
     a.removeWhere((value) => value == 255);

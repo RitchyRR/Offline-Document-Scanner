@@ -63,14 +63,16 @@ class ImageProcessingManager {
       throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
     }
     AppGlobals g = data.$13;
-    if (!File(newPhotoPath).existsSync()) {
-      final photoPath = await g.filesHelper.getVersionPath(
+    if (!File(newPhotoPath).existsSync() ||
+        File(newPhotoPath).lengthSync() == 0) {
+      final actualPhotoPath = await g.filesHelper.getVersionPath(
         docIndex,
         pageIndex,
         0,
       );
-      if (File(photoPath).existsSync()) {
-        newPhotoPath = photoPath;
+      if (File(actualPhotoPath).existsSync() ||
+          File(actualPhotoPath).lengthSync() == 0) {
+        newPhotoPath = actualPhotoPath;
         dev.log(
           "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
         );

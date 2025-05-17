@@ -30,6 +30,9 @@ import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
+import 'package:image/image.dart' as img;
+import 'dart:ui' as ui;
+
 class FilesHelper {
   late String docsPath = "";
   int screenWidth;
@@ -1545,14 +1548,14 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  Future<List<String>> pickPdfToDoc() async {
+  Future<(List<String>, int?, int?)> pickPdfToDoc() async {
     List<String> photoPaths = [];
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
     final xFile = await openFile(acceptedTypeGroups: [pdfType]);
     if (xFile == null) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
-      return photoPaths;
+      return (photoPaths, null, null);
     }
     // Open and render PDF
     final doc = await pdfr.PdfDocument.openFile(xFile.path);
@@ -1580,15 +1583,23 @@ class FilesHelper {
       );
 
       // Save in pagePath as photo
-      final image = await renderedPage.createImageDetached();
-      final byteData = await image.toByteData();
-      Uint8List photoBytes = byteData!.buffer.asUint8List();
+      final ui.Image uiImage = await renderedPage.createImageDetached();
+      final ByteData? byteData = await uiImage.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      final img.Image pngImage = img.Image.fromBytes(
+        width: uiImage.width,
+        height: uiImage.height,
+        bytes: byteData!.buffer,
+        order: img.ChannelOrder.rgba,
+      );
+      final Uint8List photoBytes = img.encodePng(pngImage);
       photoPaths.add(
         await savePageVersion(docIndex, pageIndex, 0, photoBytes, null),
       );
     }
     doc.dispose();
     dev.log("pickPdfToDoc complete.");
-    return photoPaths;
+    return (photoPaths, docIndex, firstPageIndex);
   }
 }
