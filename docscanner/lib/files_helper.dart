@@ -515,10 +515,6 @@ class FilesHelper {
               // Info: If deletePage() results in empty Documents,
               //       deletePage() will delete these Documents
             } else {
-              final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
-              if (repairFutures.length >= maxIsolates) {
-                await Future.any(repairFutures);
-              }
               Future future = imageProcessingManager.repairPage(
                 docIndex,
                 pageIndex,
@@ -1548,14 +1544,13 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  Future<(List<String>, int?, int?)> pickPdfToDoc() async {
-    List<String> photoPaths = [];
+  Future<(int?, int?, bool)> pickPdfToDoc() async {
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
     final xFile = await openFile(acceptedTypeGroups: [pdfType]);
     if (xFile == null) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
-      return (photoPaths, null, null);
+      return (null, null, false);
     }
     // Open and render PDF
     final doc = await pdfr.PdfDocument.openFile(xFile.path);
@@ -1566,13 +1561,32 @@ class FilesHelper {
     int docIndex = newDoc.$1;
     int firstPageIndex = newDoc.$2;
 
+    Future.microtask(() async {
+      await Future.delayed(Duration(milliseconds: 100));
+      _savePdfAsPage(firstPageIndex, pageCount, doc, docIndex);
+      // Creation Date
+      final now = DateTime.now();
+      final newDate = "${now.year}-${now.month}-${now.day}";
+      g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
+    });
+
+    return (docIndex, firstPageIndex, true);
+  }
+
+  Future<void> _savePdfAsPage(
+    int firstPageIndex,
+    int pageCount,
+    pdfr.PdfDocument doc,
+    int docIndex,
+  ) async {
+    int pagesProcessed = 0;
     for (
       int pageIndex = firstPageIndex;
       pageIndex < firstPageIndex + pageCount;
       pageIndex++
     ) {
       final page = await doc.getPage(pageIndex + 1);
-
+      // render Page at 300 DPI (max 4048 pixel)
       const targetDpi = 300;
       const deafaultAddumedDpi = 72;
       final dpiScale = targetDpi / deafaultAddumedDpi;
@@ -1582,12 +1596,11 @@ class FilesHelper {
         double.minPositive,
         1.0,
       );
-
       final renderedPage = await page.render(
         width: (page.width * limitingScale * dpiScale).toInt(),
         height: (page.height * limitingScale * dpiScale).toInt(),
       );
-      // Save in pagePath as photo
+      // -> Uint8List
       final ui.Image uiImage = await renderedPage.createImageDetached();
       final ByteData? byteData = await uiImage.toByteData(
         format: ui.ImageByteFormat.rawRgba,
@@ -1599,12 +1612,70 @@ class FilesHelper {
         order: img.ChannelOrder.rgba,
       );
       final Uint8List photoBytes = img.encodePng(pngImage);
-      photoPaths.add(
-        await savePageVersion(docIndex, pageIndex, 0, photoBytes, null),
+      // Isolate: Save as Photo in Page
+      final port = ReceivePort();
+      final token = RootIsolateToken.instance!;
+      TaskKiller killer = await IsolatesManager().runTask(
+        _savePdfAsPageIsolate,
+        (port.sendPort, token, docIndex, pageIndex, photoBytes),
+        prio: IsolatePriority.regular,
       );
+      imageProcessingManager.taskKillers[(docIndex, pageIndex)] = killer;
+
+      port.listen((message) {
+        if (message is NotifierEvent) {
+          globalNotifier.triggerEvent(message);
+        } else if (message is String) {
+          port.close();
+          imageProcessingManager.taskKillers.removeWhere(
+            (key, value) => value == killer,
+          );
+          killer.kill();
+          // Isolate: process Page
+          imageProcessingManager.processPageWrapper(
+            pageIndex == firstPageIndex,
+            docIndex,
+            pageIndex,
+            message,
+            null,
+            null,
+            null,
+            null,
+            0,
+            true,
+            true,
+            IsolatePriority.regular,
+          );
+
+          pagesProcessed++;
+          if (pagesProcessed == pageCount) {
+            doc.dispose();
+          }
+        }
+      });
     }
-    doc.dispose();
-    dev.log("pickPdfToDoc complete.");
-    return (photoPaths, docIndex, firstPageIndex);
+  }
+
+  Future<void> _savePdfAsPageIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      Uint8List photoBytes,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    Uint8List photoBytes = data.$5;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    // Save in pagePath as photo
+    sendPort.send(
+      await savePageVersion(docIndex, pageIndex, 0, photoBytes, sendPort),
+    );
   }
 }

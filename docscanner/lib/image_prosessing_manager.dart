@@ -220,7 +220,6 @@ class ImageProcessingManager {
     IsolatePriority prio,
   ) async {
     if (photoPath.isEmpty) return;
-    final wrapperCompleter = Completer<void>();
 
     if (isFromPDF) {
       final image = await decodeImageFromList(
@@ -258,8 +257,9 @@ class ImageProcessingManager {
       );
     }
 
-    ReceivePort port = ReceivePort();
-    RootIsolateToken token = RootIsolateToken.instance!;
+    final wrapperCompleter = Completer<void>();
+    final port = ReceivePort();
+    final token = RootIsolateToken.instance!;
 
     TaskKiller killer = await IsolatesManager().runTask(_processPageIsolate, (
       port.sendPort,

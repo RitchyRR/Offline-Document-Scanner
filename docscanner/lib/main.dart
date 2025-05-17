@@ -369,29 +369,9 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     // Creation Date
     final now = DateTime.now();
     final newDate = "${now.year}-${now.month}-${now.day}";
-    _docDates.add(newDate);
-    fixMetadataLengths(docIndex + 1);
     g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
 
     return (docIndex, firstPageIndex);
-  }
-
-  _processDocumentFromPhotos(
-    List<String> photoPaths,
-    int docIndex,
-    int firstPageIndex,
-  ) async {
-    Future.microtask(() async {
-      await Future.delayed(Duration(milliseconds: 50));
-      imageProcessingManager.processPages(docIndex, 0, photoPaths, true);
-    });
-
-    // Creation Date
-    final now = DateTime.now();
-    final newDate = "${now.year}-${now.month}-${now.day}";
-    _docDates.add(newDate);
-    fixMetadataLengths(docIndex + 1);
-    g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
   }
 
   Future<void> _openImagePicker(
@@ -1372,21 +1352,16 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 heroTag: "pickPdfDoc",
                 onPressed: () async {
                   final docData = await g.filesHelper.pickPdfToDoc();
-                  if (docData.$1.isNotEmpty) {
-                    _processDocumentFromPhotos(
-                      docData.$1,
-                      docData.$2!,
-                      docData.$3!,
-                    );
-                    int docIndex = docData.$2!;
-                    int firstPageIndex = docData.$3!;
-                    // only open PagePreview for first page
-                    _openNewPagePreview(docIndex, firstPageIndex);
-                  } else {
-                    dev.log("Error, pickPdfDoc: PDF is empty / broken.");
-                    Fluttertoast.showToast(
-                      msg: "Error, Selected PDF is broken.",
-                    );
+                  if (docData.$3) {
+                    if (docData.$1 != null) {
+                      _openNewPagePreview(docData.$1!, docData.$2!);
+                    } else {
+                      dev.log("Error, pickPdfDoc: PDF is empty / broken.");
+                      Fluttertoast.showToast(
+                        msg: "Error, Selected PDF is broken.",
+                        toastLength: Toast.LENGTH_LONG,
+                      );
+                    }
                   }
                 },
                 tooltip: 'Pick PDF from Directory',
