@@ -1352,8 +1352,8 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 onPressed: () async {
                   final docData = await g.filesHelper.pickPdfToDoc();
                   if (docData.$3) {
-                    if (docData.$2 != null) {
-                      _openNewPagePreview(docData.$1!, docData.$2!);
+                    if (docData.$1 != null) {
+                      _openDocument(docData.$1!);
                     } else {
                       dev.log(
                         "Error, pickPdfDoc: User-Selected PDF is broken.",
@@ -2410,7 +2410,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                   widget.docIndex,
                                   false,
                                 );
-                                _openPagePreview(docData.$2!);
+                                //_openPagePreview(docData.$2!);
                               } else {
                                 dev.log(
                                   "Error, pickPdfDoc: User-Selected PDF is broken.",

@@ -114,7 +114,7 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
     double? ratioValue;
     int? orientationIndex;
-    if (isFromPDF) {
+    if (isFromPDF && isInitial) {
       warped = File(versionPaths[0]).readAsBytesSync();
     } else {
       // Warped
@@ -155,6 +155,26 @@ class ImageProcessingManager {
       warped,
       isPrimary ? sendPort : null,
     );
+    if (isFromPDF && isInitial) {
+      // Thumbnails first
+      await MetadataHelper.writePageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        1,
+        gIn: g,
+      );
+      // Update thumbnails:
+      sendPort.send(NotifierEvent.loadPagesThumbnails);
+      sendPort.send(NotifierEvent.loadDocsThumbnails);
+      _scaleAndSaveThumbnail(
+        sendPort,
+        docIndex,
+        pageIndex,
+        thumbnailIndex,
+        g,
+        overwrite: !isPrimary,
+      );
+    }
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = cvHelper.processImage1(
@@ -183,23 +203,24 @@ class ImageProcessingManager {
     // Update thumbnails:
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
-
-    bool newThumbnail = await _scaleAndSaveThumbnail(
-      sendPort,
-      docIndex,
-      pageIndex,
-      thumbnailIndex,
-      g,
-      overwrite: !isPrimary,
-    );
-
-    if (newThumbnail) {
-      await MetadataHelper.writePageThumbnailIndex(
+    if (!(isFromPDF && isInitial)) {
+      bool newThumbnail = await _scaleAndSaveThumbnail(
+        sendPort,
         docIndex,
         pageIndex,
         thumbnailIndex,
-        gIn: g,
+        g,
+        overwrite: !isPrimary,
       );
+
+      if (newThumbnail) {
+        await MetadataHelper.writePageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          thumbnailIndex,
+          gIn: g,
+        );
+      }
     }
 
     sendPort.send('done');

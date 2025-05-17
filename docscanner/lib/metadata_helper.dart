@@ -371,9 +371,8 @@ class MetadataHelper {
         }
       } else {
         dev.log(
-          "Error, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
+          "Warning, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
-        return true;
       }
       if (oldThumbnailName == null || oldThumbnailName != newThumbnailName) {
         isNewIndex = true;
