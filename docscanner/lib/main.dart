@@ -43,6 +43,7 @@ final FeedbackHelper feedbackHelper = FeedbackHelper();
 final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalNotifier globalNotifier = GlobalNotifier();
 
 class GlobalNotifier extends ValueNotifier<NotifierEvent> {
@@ -172,6 +173,7 @@ class _MyAppState extends State<MyApp> {
         }
 
         return MaterialApp(
+          navigatorKey: navigatorKey, // to pop until homepage from anywhere
           navigatorObservers: [routeObserver],
           title: 'Offline Document Scanner',
           initialRoute: '/',
@@ -311,7 +313,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
 
   late PackageInfo _packageInfo;
   Future<void> initAsync() async {
-    _receiveSharing();
+    _initReceiveSharingIntent();
     _packageInfo = await PackageInfo.fromPlatform();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
@@ -418,38 +420,59 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     return photoPaths;
   }
 
-  void _receiveSharing() {
-    // While App is running
-    ReceiveSharingIntent.instance.getMediaStream().listen(
-      (List<SharedMediaFile> sharedFiles) {
-        processSharedFilesToDocument(sharedFiles);
-      },
-      onError: (err) {
-        dev.log("getMediaStream error: $err");
-      },
-    );
-    // App launched by Sharing images
+  _initReceiveSharingIntent() {
+    // App launched by Opening/Sharing image(s)/pdf
     ReceiveSharingIntent.instance.getInitialMedia().then((
-      List<SharedMediaFile> sharedFiles,
+      List<SharedMediaFile> value,
     ) {
-      processSharedFilesToDocument(sharedFiles);
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleSharedFiles(value);
+      });
+    });
+    // While app is already running
+    ReceiveSharingIntent.instance.getMediaStream().listen((
+      List<SharedMediaFile> value,
+    ) {
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleSharedFiles(value);
+      });
     });
   }
 
-  Future<void> processSharedFilesToDocument(
-    List<SharedMediaFile> sharedFiles,
-  ) async {
-    if (sharedFiles.isEmpty) return;
-    List<String> photoPaths = [];
-    for (var file in sharedFiles) {
-      photoPaths.add(file.path);
-    }
+  Future<void> _handleSharedFiles(List<SharedMediaFile> files) async {
+    if (files.isEmpty) return;
 
-    final newIndexes = await _processDocument(photoPaths);
-    int docIndex = newIndexes.$1;
-    int firstPageIndex = newIndexes.$2;
-    // only open PagePreview for first page
-    _openNewPagePreview(docIndex, firstPageIndex);
+    final pdfs =
+        files.where((f) => f.path.toLowerCase().endsWith(".pdf")).toList();
+    final images = files.where((f) => f.type == SharedMediaType.image).toList();
+
+    // PDFs
+    if (pdfs.isNotEmpty) {
+      for (final pdf in pdfs) {
+        final docData = await g.filesHelper.pdfToDoc(pdf.path);
+        if (docData.$3) {
+          if (docData.$1 != null) {
+            _openDocument(docData.$1!);
+          } else {
+            dev.log("Error, pickPdfDoc: User-Selected PDF is broken.");
+            Fluttertoast.showToast(
+              msg: "Error, Opened PDF is broken.",
+              toastLength: Toast.LENGTH_LONG,
+            );
+          }
+        }
+      }
+    }
+    // Images
+    if (images.isNotEmpty) {
+      final imagePaths = images.map((e) => e.path).toList();
+      final newIndexes = await _processDocument(imagePaths);
+      int docIndex = newIndexes.$1;
+      int firstPageIndex = newIndexes.$2;
+      _openNewPagePreview(docIndex, firstPageIndex);
+    }
   }
 
   List<int> _docPageCounts = [];

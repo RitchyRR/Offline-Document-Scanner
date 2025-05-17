@@ -25,16 +25,37 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!--Receive Shared Images:-->
+            <!--Receive singular shared Images/PDFs:-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
+            <!--Receive multiple shared Images/PDFs:-->
             <intent-filter>
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <!-- Open PDFs -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/pdf" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+            </intent-filter>
+            <!-- Open Images -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="image/*" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

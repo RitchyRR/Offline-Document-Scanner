@@ -1571,8 +1571,16 @@ class FilesHelper {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       return (null, null, false);
     }
+
+    return pdfToDoc(xFile.path, addToDocWithIndex: addToDocWithIndex);
+  }
+
+  Future<(int?, int?, bool)> pdfToDoc(
+    String pdfPath, {
+    int? addToDocWithIndex,
+  }) async {
     // Open and render PDF
-    final doc = await pdfr.PdfDocument.openFile(xFile.path);
+    final doc = await pdfr.PdfDocument.openFile(pdfPath);
     final pageCount = doc.pageCount;
 
     // Create Page directories
