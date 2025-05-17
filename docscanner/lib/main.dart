@@ -362,14 +362,13 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     int firstPageIndex = newDoc.$2;
 
     Future.microtask(() async {
+      // Creation Date
+      final now = DateTime.now();
+      final newDate = "${now.year}-${now.month}-${now.day}";
+      g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
       await Future.delayed(Duration(milliseconds: 50));
       imageProcessingManager.processPages(docIndex, 0, photoPaths, false);
     });
-
-    // Creation Date
-    final now = DateTime.now();
-    final newDate = "${now.year}-${now.month}-${now.day}";
-    g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
 
     return (docIndex, firstPageIndex);
   }
@@ -1990,12 +1989,12 @@ class _PagesState extends State<Pages> with RouteAware {
     List<String> photoPaths, {
     required bool photosAlreadyInPages,
   }) async {
-    g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
     int firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
       widget.docIndex,
       photoPaths.length,
     );
     Future.microtask(() async {
+      g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
       await Future.delayed(Duration(milliseconds: 25));
       imageProcessingManager.processPages(
         widget.docIndex,

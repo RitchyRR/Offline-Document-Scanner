@@ -206,15 +206,15 @@ class FilesHelper {
   Future<(String, int)> _reserveNewPage(int docIndex) async {
     String docPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
-    while (await Directory(
+    while (Directory(
       '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}',
-    ).exists()) {
+    ).existsSync()) {
       pageIndex++;
     }
 
     String newPagePath =
         '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
-    await Directory(newPagePath).create();
+    Directory(newPagePath).createSync();
     return (newPagePath, pageIndex);
   }
 
@@ -803,13 +803,17 @@ class FilesHelper {
 
   Future<int> reserveNewPagesInDocment(int docIndex, int pageCount) async {
     if (pageCount <= 0) return 0;
-    int? firstPageIndex;
-    for (var i = 0; i < pageCount; i++) {
-      final newPage = await _reserveNewPage(docIndex);
-      firstPageIndex ??= newPage.$2;
-    }
 
-    return firstPageIndex!;
+    Completer afterFirst = Completer();
+    Future.microtask(() async {
+      await afterFirst.future;
+      for (var i = 1; i < pageCount; i++) {
+        _reserveNewPage(docIndex);
+      }
+    });
+    int firstPageIndex = (await _reserveNewPage(docIndex)).$2;
+    afterFirst.complete();
+    return firstPageIndex;
   }
 
   Future<(List<String>, String, String)> getImagePathsForPage(
