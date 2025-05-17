@@ -1427,7 +1427,7 @@ class CustomExpandingButton extends StatefulWidget {
 }
 
 class _CustomExpandingButtonState extends State<CustomExpandingButton>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   static const animDuration = Duration(milliseconds: 350);
 
   bool _expanded = false;
@@ -1451,7 +1451,25 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(seconds: 2));
-      _expandTemporarily();
+      if (mounted) {
+        _expandTemporarily();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void didPopNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 1500));
+      if (mounted) {
+        _expandTemporarily();
+      }
     });
   }
 
@@ -1461,7 +1479,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     });
 
     _collapseTimer = Timer(
-      animDuration + const Duration(seconds: 2) + animDuration,
+      animDuration + const Duration(seconds: 4) + animDuration,
       () {
         if (mounted) {
           setState(() {
@@ -1475,6 +1493,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   @override
   void dispose() {
     _collapseTimer.cancel();
+    routeObserver.unsubscribe(this);
     super.dispose();
   }
 
