@@ -597,7 +597,6 @@ class FilesHelper {
 
       imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
-      Fluttertoast.cancel();
       Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
     }
 
@@ -661,7 +660,6 @@ class FilesHelper {
       }
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
-      Fluttertoast.cancel();
       Fluttertoast.showToast(
         msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
       );
@@ -749,7 +747,6 @@ class FilesHelper {
         pageDir.deleteSync(recursive: true);
       }
     }
-    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
     );
