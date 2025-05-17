@@ -400,11 +400,14 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   }
 
   Future<void> _openNewPagePreview(int docIndex, int pageIndex) async {
-    Navigator.pushNamed(
-      context,
-      '/pages',
-      arguments: {'docIndex': docIndex, 'initialPageIndex': pageIndex},
-    );
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushNamed(
+        context,
+        '/pages',
+        arguments: {'docIndex': docIndex, 'initialPageIndex': pageIndex},
+      );
+    });
   }
 
   Future<List<String>> _openCamera() async {
@@ -425,19 +428,13 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     ReceiveSharingIntent.instance.getInitialMedia().then((
       List<SharedMediaFile> value,
     ) {
-      navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleSharedFiles(value);
-      });
+      _handleSharedFiles(value);
     });
     // While app is already running
     ReceiveSharingIntent.instance.getMediaStream().listen((
       List<SharedMediaFile> value,
     ) {
-      navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleSharedFiles(value);
-      });
+      _handleSharedFiles(value);
     });
   }
 
@@ -551,7 +548,10 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   }
 
   Future<void> _openDocument(int docIndex) async {
-    Navigator.pushNamed(context, '/pages', arguments: {'docIndex': docIndex});
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushNamed(context, '/pages', arguments: {'docIndex': docIndex});
+    });
   }
 
   void _openDocEditDialog(
