@@ -1353,10 +1353,12 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 onPressed: () async {
                   final docData = await g.filesHelper.pickPdfToDoc();
                   if (docData.$3) {
-                    if (docData.$1 != null) {
+                    if (docData.$2 != null) {
                       _openNewPagePreview(docData.$1!, docData.$2!);
                     } else {
-                      dev.log("Error, pickPdfDoc: PDF is empty / broken.");
+                      dev.log(
+                        "Error, pickPdfDoc: User-Selected PDF is broken.",
+                      );
                       Fluttertoast.showToast(
                         msg: "Error, Selected PDF is broken.",
                         toastLength: Toast.LENGTH_LONG,
@@ -2370,6 +2372,7 @@ class _PagesState extends State<Pages> with RouteAware {
                   ? Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: <Widget>[
+                      // Add Images
                       SizedBox(
                         width: 40,
                         height: 40,
@@ -2389,22 +2392,43 @@ class _PagesState extends State<Pages> with RouteAware {
                         ),
                       ),
                       SizedBox(height: 18.0),
-                      //SizedBox(
-                      //  width: 40,
-                      //  height: 40,
-                      //  child: FloatingActionButton(
-                      //    heroTag: "pickImagePage",
-                      //    shape: RoundedRectangleBorder(
-                      //      borderRadius: BorderRadius.circular(12),
-                      //    ),
-                      //    onPressed: () {
-                      //      _openImagePicker(ImageSource.gallery);
-                      //    },
-                      //    tooltip: 'Pick an Image from Gallery',
-                      //    child: const Icon(Icons.photo),
-                      //  ),
-                      //),
-                      //SizedBox(height: 18.0),
+                      // Add PDF
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: FloatingActionButton(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          heroTag: "pickPdfPage",
+                          onPressed: () async {
+                            final docData = await g.filesHelper.pickPdfToDoc(
+                              addToDocWithIndex: widget.docIndex,
+                            );
+                            if (docData.$3) {
+                              if (docData.$2 != null) {
+                                g.metadataHelper.writeDocUnlocked(
+                                  widget.docIndex,
+                                  false,
+                                );
+                                _openPagePreview(docData.$2!);
+                              } else {
+                                dev.log(
+                                  "Error, pickPdfDoc: User-Selected PDF is broken.",
+                                );
+                                Fluttertoast.showToast(
+                                  msg: "Error, Selected PDF is broken.",
+                                  toastLength: Toast.LENGTH_LONG,
+                                );
+                              }
+                            }
+                          },
+                          tooltip: 'Pick PDF from Directory',
+                          child: const Icon(Icons.picture_as_pdf),
+                        ),
+                      ),
+                      SizedBox(height: 18.0),
+                      // Take and add Photos
                       if (_picker.supportsImageSource(ImageSource.camera))
                         FloatingActionButton(
                           heroTag: "takePhotoPage",

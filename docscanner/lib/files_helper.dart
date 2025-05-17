@@ -1559,7 +1559,7 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  Future<(int?, int?, bool)> pickPdfToDoc() async {
+  Future<(int?, int?, bool)> pickPdfToDoc({int? addToDocWithIndex}) async {
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
     final xFile = await openFile(acceptedTypeGroups: [pdfType]);
@@ -1572,9 +1572,19 @@ class FilesHelper {
     final pageCount = doc.pageCount;
 
     // Create Page directories
-    var newDoc = await g.filesHelper.createNewDocument(pageCount);
-    int docIndex = newDoc.$1;
-    int firstPageIndex = newDoc.$2;
+    int docIndex;
+    int firstPageIndex;
+    if (addToDocWithIndex != null) {
+      docIndex = addToDocWithIndex;
+      firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
+        docIndex,
+        pageCount,
+      );
+    } else {
+      var newDoc = await g.filesHelper.createNewDocument(pageCount);
+      docIndex = newDoc.$1;
+      firstPageIndex = newDoc.$2;
+    }
 
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 100));
@@ -1595,11 +1605,7 @@ class FilesHelper {
     int docIndex,
   ) async {
     int pagesProcessed = 0;
-    for (
-      int pageIndex = firstPageIndex;
-      pageIndex < firstPageIndex + pageCount;
-      pageIndex++
-    ) {
+    for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       final page = await doc.getPage(pageIndex + 1);
       // render Page at 300 DPI (max 4048 pixel)
       const targetDpi = 300;
@@ -1632,10 +1638,20 @@ class FilesHelper {
       final token = RootIsolateToken.instance!;
       TaskKiller killer = await IsolatesManager().runTask(
         _savePdfAsPageIsolate,
-        (port.sendPort, token, docIndex, pageIndex, photoBytes),
+        (
+          port.sendPort,
+          token,
+          docIndex,
+          pageIndex + firstPageIndex,
+          photoBytes,
+        ),
         prio: IsolatePriority.regular,
       );
-      imageProcessingManager.taskKillers[(docIndex, pageIndex)] = killer;
+      imageProcessingManager.taskKillers[(
+            docIndex,
+            pageIndex + firstPageIndex,
+          )] =
+          killer;
 
       port.listen((message) {
         if (message is NotifierEvent) {
@@ -1648,9 +1664,9 @@ class FilesHelper {
           killer.kill();
           // Isolate: process Page
           imageProcessingManager.processPageWrapper(
-            pageIndex == firstPageIndex,
+            pageIndex + firstPageIndex == firstPageIndex,
             docIndex,
-            pageIndex,
+            pageIndex + firstPageIndex,
             message,
             null,
             null,
