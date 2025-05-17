@@ -284,7 +284,14 @@ class FeedbackHelper {
 
     // calculate to obfuscate
     const int multiplier = 40949411; // prime number
-    final sigBigInt = BigInt.parse(signature, radix: 16);
+    var sigBigInt = BigInt.parse(signature.replaceAll(":", ""), radix: 16);
+    for (var char in signature.characters) {
+      final int? firstInt = int.tryParse(char);
+      if (firstInt != null) {
+        sigBigInt = sigBigInt - BigInt.from(firstInt);
+        break;
+      }
+    }
     final multiplied = sigBigInt * BigInt.from(multiplier);
     final hashed =
         sha256.convert(utf8.encode(multiplied.toString())).toString();
@@ -293,7 +300,7 @@ class FeedbackHelper {
     if (Platform.isAndroid && installer == "com.android.vending") {
       // Play Store signature
       const expectedHash =
-          "8e67a7feae719e3c04c159fc34c485dbb0bb414c5686093aeba11bd588735c79";
+          "9a2176b17a7b4a5bd02bd00645eb16d38dd2343a8723458df3b75be796cb34c4";
       valid = hashed == expectedHash;
     } else if (Platform.isAndroid && installer == "com.android.shell") {
       // Debugging signature

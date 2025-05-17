@@ -1357,30 +1357,30 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 child: const Icon(Icons.photo_library),
               ),
             ),
-            //SizedBox(height: 18.0),
-            //SizedBox(
-            //  width: 40,
-            //  height: 40,
-            //  child: FloatingActionButton(
-            //    shape: RoundedRectangleBorder(
-            //      borderRadius: BorderRadius.circular(12),
-            //    ),
-            //    heroTag: "pickPdfDoc",
-            //    onPressed: () async {
-            //      final photoPaths = await g.filesHelper.pickPdfToDoc();
-            //      final newIndexes = await _processDocument(
-            //        photoPaths,
-            //        photosAlreadyInPages: true,
-            //      );
-            //      int docIndex = newIndexes.$1;
-            //      int firstPageIndex = newIndexes.$2;
-            //      // only open PagePreview for first page
-            //      _openNewPagePreview(docIndex, firstPageIndex);
-            //    },
-            //    tooltip: 'Pick PDF from Directory',
-            //    child: const Icon(Icons.picture_as_pdf),
-            //  ),
-            //),
+            SizedBox(height: 18.0),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: FloatingActionButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                heroTag: "pickPdfDoc",
+                onPressed: () async {
+                  final photoPaths = await g.filesHelper.pickPdfToDoc();
+                  final newIndexes = await _processDocument(
+                    photoPaths,
+                    photosAlreadyInPages: true,
+                  );
+                  int docIndex = newIndexes.$1;
+                  int firstPageIndex = newIndexes.$2;
+                  // only open PagePreview for first page
+                  _openNewPagePreview(docIndex, firstPageIndex);
+                },
+                tooltip: 'Pick PDF from Directory',
+                child: const Icon(Icons.picture_as_pdf),
+              ),
+            ),
             SizedBox(height: 18.0),
             if (_picker.supportsImageSource(ImageSource.camera))
               FloatingActionButton(
