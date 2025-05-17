@@ -1554,9 +1554,8 @@ class FilesHelper {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       return photoPaths;
     }
-    final file = File(xFile.path);
     // Open and render PDF
-    final doc = await pdfr.PdfDocument.openFile(file.path);
+    final doc = await pdfr.PdfDocument.openFile(xFile.path);
     final pageCount = doc.pageCount;
 
     // Create Page directories
@@ -1580,7 +1579,7 @@ class FilesHelper {
         fullHeight: (page.height * scale),
       );
 
-      // save in pagePath as photo
+      // Save in pagePath as photo
       final image = await renderedPage.createImageDetached();
       final byteData = await image.toByteData();
       Uint8List photoBytes = byteData!.buffer.asUint8List();

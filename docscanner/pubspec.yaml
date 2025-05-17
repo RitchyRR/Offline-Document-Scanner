@@ -48,6 +48,7 @@ dependencies:
   package_info_plus:
   collection:
   pdf_render:
+  crypto:
 
 
 dev_dependencies:

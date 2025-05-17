@@ -1357,7 +1357,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 child: const Icon(Icons.photo_library),
               ),
             ),
-            SizedBox(height: 18.0),
+            //SizedBox(height: 18.0),
             //SizedBox(
             //  width: 40,
             //  height: 40,
@@ -1381,23 +1381,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
             //    child: const Icon(Icons.picture_as_pdf),
             //  ),
             //),
-            //SizedBox(height: 18.0),
-            //SizedBox(
-            //  width: 40,
-            //  height: 40,
-            //  child: FloatingActionButton(
-            //    shape: RoundedRectangleBorder(
-            //      borderRadius: BorderRadius.circular(12),
-            //    ),
-            //    heroTag: "pickImageDoc",
-            //    onPressed: () {
-            //      _openImagePicker(ImageSource.gallery);
-            //    },
-            //    tooltip: 'Pick an Image from Gallery',
-            //    child: const Icon(Icons.photo),
-            //  ),
-            //),
-            //SizedBox(height: 18.0),
+            SizedBox(height: 18.0),
             if (_picker.supportsImageSource(ImageSource.camera))
               FloatingActionButton(
                 heroTag: "takePhotoDoc",
@@ -1596,7 +1580,7 @@ StreamSubscription<List<PurchaseDetails>>? subscription;
 void listenToPurchaseUpdates() {
   subscription = iap.purchaseStream.listen(
     (purchases) async {
-      if (!await _isAppValid()) setPro(false);
+      if (!await feedbackHelper.isAppValid()) setPro(false);
       for (var purchase in purchases) {
         switch (purchase.productID) {
           case "pro_upgrade":
@@ -1713,7 +1697,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn && !await _isAppValid()) {
+  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -1739,45 +1723,6 @@ setPro(final bool proUnlockedIn) async {
     );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
-}
-
-Future<bool> _isAppValid() async {
-  // check store
-  final info = await PackageInfo.fromPlatform();
-  final installer = info.installerStore; // Other: com.amazon.venezia
-  // check signature
-  final signature = info.buildSignature; // SHA-256
-
-  bool valid = false;
-  if (Platform.isAndroid && installer == "com.android.vending") {
-    // Play Store signature
-    const expectedSHA256 =
-        "3B:A5:AA:47:96:C9:7E:40:69:35:F2:C9:50:DD:41:B5:B6:8F:32:06:94:2E:3E:CA:F9:B9:6B:25:25:15:6B:5F";
-    valid = signature == expectedSHA256.replaceAll(":", "");
-  }
-  //else if (Platform.isAndroid && installer == "com.android.shell") {
-  //  // APK installed signature
-  //  const expectedSHA256 = ""
-  //  valid = signature == expectedSHA256.replaceAll(":", "");
-  //}
-
-  // open store if invalid
-  if (!valid) {
-    if (Platform.isAndroid) {
-      final url = Uri(
-        scheme: 'https',
-        host: 'play.google.com',
-        path: '/store/apps/details',
-        queryParameters: {'id': 'com.rrapps.docscanner'},
-      );
-      dev.log("Opening URL: $url");
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      }
-    }
-  }
-
-  return valid;
 }
 
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
@@ -6327,121 +6272,5 @@ class AdsHelper {
     }
     await completer.future;
     return watachedAd;
-  }
-}
-
-class RatingDialogFlow extends StatefulWidget {
-  const RatingDialogFlow({super.key});
-
-  @override
-  RatingDialogFlowState createState() => RatingDialogFlowState();
-}
-
-class RatingDialogFlowState extends State<RatingDialogFlow> {
-  void _showRatingDialog() {
-    int rating = 0;
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Rate our App'),
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  icon: Icon(
-                    index < rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 36,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      rating = index + 1;
-                    });
-                  },
-                );
-              }),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  if (rating == 5) {
-                    _redirectToPlayStore();
-                  } else if (rating > 0) {
-                    _showFeedbackDialog(rating);
-                  }
-                },
-                child: Text('Next'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showFeedbackDialog(int rating) {
-    final TextEditingController controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Help us improve'),
-            content: TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'What could be better?',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  final feedback = controller.text;
-                  // Send feedback to your backend or store it
-                  dev.log('User feedback: $feedback');
-                  Navigator.pop(context);
-                },
-                child: Text('Send'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _redirectToPlayStore() async {
-    final url = Uri(
-      scheme: 'https',
-      host: 'play.google.com',
-      path: '/store/apps/details',
-      queryParameters: {'id': 'com.rrapps.docscanner'},
-    );
-    dev.log("Opening URL: $url");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    }
-    if (mounted) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: Text('Document Scanner')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: _showRatingDialog,
-          child: Text('Rate App'),
-        ),
-      ),
-    );
   }
 }

@@ -64,19 +64,16 @@ class ImageProcessingManager {
     }
     AppGlobals g = data.$13;
     if (!File(newPhotoPath).existsSync()) {
-      if (File(
-        await g.filesHelper.getVersionPath(docIndex, pageIndex, 0),
-      ).existsSync()) {
-        _repairPageIsolate((
-          sendPort,
-          token,
-          docIndex,
-          pageIndex,
-          ratioValueIn,
-          orientationIndexIn,
-          cornerPointsIn,
-          g,
-        ));
+      final photoPath = await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        0,
+      );
+      if (File(photoPath).existsSync()) {
+        newPhotoPath = photoPath;
+        dev.log(
+          "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
+        );
       } else {
         StateError('Error, _processPageIsolate: no photo');
       }

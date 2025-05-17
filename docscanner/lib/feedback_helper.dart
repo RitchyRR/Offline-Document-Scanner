@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:developer' as dev;
-
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart' show Fluttertoast;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'package:url_launcher/url_launcher.dart' show canLaunchUrl, launchUrl;
+import 'package:crypto/crypto.dart';
 
 enum FeedbackState { init, afterFirstExport, afterFirstProcessing, hidden }
 
@@ -166,11 +169,7 @@ class FeedbackHelper {
                               _saveRatingGiven(true, rating);
                               Navigator.pop(context);
                               if (rating == 5) {
-                                if (!await _redirectToPlayStore()) {
-                                  Fluttertoast.showToast(
-                                    msg: "Error: No connection :(",
-                                  );
-                                }
+                                _redirectToPlayStore();
                               } else {
                                 _showFeedbackDialog(context, rating);
                               }
@@ -272,7 +271,44 @@ class FeedbackHelper {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
       return true;
+    } else {
+      Fluttertoast.showToast(msg: "Error: Can't launch Play Store.");
     }
     return false;
+  }
+
+  Future<bool> isAppValid() async {
+    final info = await PackageInfo.fromPlatform();
+    final installer = info.installerStore; // Other: com.amazon.venezia
+    final signature = info.buildSignature; // SHA-256
+
+    // calculate to obfuscate
+    const int multiplier = 40949411; // prime number
+    final sigBigInt = BigInt.parse(signature, radix: 16);
+    final multiplied = sigBigInt * BigInt.from(multiplier);
+    final hashed =
+        sha256.convert(utf8.encode(multiplied.toString())).toString();
+
+    bool valid = false;
+    if (Platform.isAndroid && installer == "com.android.vending") {
+      // Play Store signature
+      const expectedHash =
+          "8e67a7feae719e3c04c159fc34c485dbb0bb414c5686093aeba11bd588735c79";
+      valid = hashed == expectedHash;
+    } else if (Platform.isAndroid && installer == "com.android.shell") {
+      // Debugging signature
+      const expectedHash =
+          "301e6db07d6bae3b8cfd4d0a0a5f5ee523e0938bd0cc6dedde5515ef32b90ec2";
+      valid = hashed == expectedHash;
+    }
+
+    // open store if invalid
+    if (!valid) {
+      if (Platform.isAndroid) {
+        _redirectToPlayStore();
+      }
+    }
+
+    return valid;
   }
 }
