@@ -18,83 +18,81 @@ class FeedbackHelper {
     initAsync();
   }
   initAsync() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool("ratingGiven") ?? false == true) {
-      state = FeedbackState.hidden;
-      _reenableRatingsAfterTwoWeeks(prefs);
+    _readFeedbackState();
+    if (state == FeedbackState.init) {
+      _reenableRatingsAfterTwoWeeks();
     }
   }
 
-  bool getFeedbackHidden() {
+  _readFeedbackState() async {
+    final prefs = await SharedPreferences.getInstance();
+    switch (prefs.getString("FeedbackState")) {
+      case "afterFirstExport":
+        state = FeedbackState.afterFirstExport;
+        break;
+      case "afterFirstProcessing":
+        state = FeedbackState.afterFirstProcessing;
+        break;
+      case "hidden":
+        state = FeedbackState.hidden;
+        break;
+      default:
+        state = FeedbackState.init;
+    }
+  }
+
+  _writeFeedbackState() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString("FeedbackState", state.name);
+  }
+
+  bool isHidden() {
     return state == FeedbackState.hidden;
   }
 
-  bool getShowRatingPopupAfterExport() {
-    bool show = state == FeedbackState.init;
-    _getShowRatingPopupAfterExport(show);
-    return show;
+  bool canShowExportPopup() {
+    bool can = state == FeedbackState.init;
+    state = FeedbackState.afterFirstExport;
+    _writeFeedbackState();
+    return can;
   }
 
-  _getShowRatingPopupAfterExport(bool show) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (show) {
-      prefs.setBool("firstExportHappendedSinceRatingActive", true);
-    }
-    updateState();
+  bool canShowProcessingPopup() {
+    bool can = state == FeedbackState.afterFirstExport;
+    state = FeedbackState.afterFirstProcessing;
+    _writeFeedbackState();
+    return can;
   }
 
-  bool getShowRatingPopupWhileProcessing() {
-    bool show = state == FeedbackState.afterFirstExport;
-    _getShowRatingPopupWhileProcessing(show);
-    return show;
-  }
-
-  _getShowRatingPopupWhileProcessing(bool show) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (show) {
-      prefs.setBool("furtherProcessingHappendedSinceRatingActive", true);
-    }
-    updateState();
-  }
-
-  getShowRatingInAppbar() {
+  bool canShowInAppbar() {
     return state == FeedbackState.afterFirstExport ||
         state == FeedbackState.afterFirstProcessing;
   }
 
-  updateState() async {
+  Future<void> _writeRating(int? newRating) async {
     final prefs = await SharedPreferences.getInstance();
-    if (state == FeedbackState.hidden) return;
-    state = FeedbackState.init;
-    if (prefs.getBool("firstExportHappendedSinceRatingActive") ?? false) {
-      state = FeedbackState.afterFirstExport;
-    }
-    if (prefs.getBool("furtherProcessingHappendedSinceRatingActive") ?? false) {
-      state = FeedbackState.afterFirstProcessing;
-    }
-  }
 
-  Future<void> _saveRatingGiven(bool ratingGivenIn, int ratingIn) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool("ratingGiven", ratingGivenIn);
-    prefs.setInt("rating", ratingIn);
     // Save date
-    if (ratingGivenIn) {
+    if (newRating != null) {
+      prefs.setInt("rating", newRating);
       String now = DateTime.now().toIso8601String();
-      prefs.setString("ratingGivenDate", now);
-      _disablePopupFlags();
+      prefs.setString("ratingDate", now);
+      state = FeedbackState.hidden;
+    } else {
+      state = FeedbackState.init;
     }
-    updateState();
+    _writeFeedbackState();
   }
 
-  _reenableRatingsAfterTwoWeeks(SharedPreferences prefs) async {
+  _reenableRatingsAfterTwoWeeks() async {
+    final prefs = await SharedPreferences.getInstance();
     bool reactivate = false;
     int? rating = prefs.getInt("rating");
     // only reenable if rating was not 5 stars
     if (state == FeedbackState.hidden && rating != 5) {
-      final String? ratingGivenDate = prefs.getString("ratingGivenDate");
-      if (ratingGivenDate != null) {
-        final unlockTime = DateTime.tryParse(ratingGivenDate);
+      final String? ratingDate = prefs.getString("ratingDate");
+      if (ratingDate != null) {
+        final unlockTime = DateTime.tryParse(ratingDate);
         final now = DateTime.now();
 
         if (unlockTime != null && now.difference(unlockTime).inDays >= 14) {
@@ -105,26 +103,9 @@ class FeedbackHelper {
       }
     }
     if (reactivate) {
-      _saveRatingGiven(false, rating ?? 0);
-      _resetState();
+      _writeRating(null);
     }
-    updateState();
-  }
-
-  Future<void> _resetState() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool("firstExportHappendedSinceRatingActive", false);
-    prefs.setBool("furtherProcessingHappendedSinceRatingActive", false);
-    state = FeedbackState.init;
-  }
-
-  Future<void> _disablePopupFlags() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (getShowRatingPopupAfterExport()) {
-      prefs.setBool("firstExportHappendedSinceRatingActive", true);
-    } else if (getShowRatingPopupWhileProcessing()) {
-      prefs.setBool("furtherProcessingHappendedSinceRatingActive", true);
-    }
+    _writeFeedbackState();
   }
 
   Future<void> showRatingDialog(BuildContext context) async {
@@ -166,7 +147,7 @@ class FeedbackHelper {
                             ? null
                             : () async {
                               state = FeedbackState.hidden;
-                              _saveRatingGiven(true, rating);
+                              _writeRating(rating);
                               Navigator.pop(context);
                               if (rating == 5) {
                                 _redirectToPlayStore();

@@ -845,7 +845,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
       appBar: AppBar(
         title: Text("Documents"),
         actions: [
-          if (feedbackHelper.getShowRatingInAppbar())
+          if (feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
                 await feedbackHelper.showRatingDialog(context);
@@ -926,7 +926,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                       ],
                     ),
                   ),
-                  if (!feedbackHelper.getFeedbackHidden())
+                  if (!feedbackHelper.isHidden())
                     PopupMenuItem(
                       value: "rate",
                       child: Row(
@@ -3134,7 +3134,7 @@ class PagePreviewState extends State<PagePreview> {
     if (_versionPaths.any((element) => element.isEmpty)) {
       // Feedback Popup
       bool showRatingPopupWhileProcessing =
-          feedbackHelper.getShowRatingPopupWhileProcessing();
+          feedbackHelper.canShowProcessingPopup();
       if (showRatingPopupWhileProcessing) {
         // ignore: use_build_context_synchronously
         feedbackHelper.showRatingDialog(context);
@@ -5340,7 +5340,7 @@ Future<bool> _pagesPopup(
                                                 default:
                                               }
                                               if (feedbackHelper
-                                                  .getShowRatingPopupAfterExport()) {
+                                                  .canShowExportPopup()) {
                                                 WidgetsBinding.instance
                                                     .addPostFrameCallback((
                                                       _,
@@ -5458,7 +5458,7 @@ Future<bool> _pagesPopup(
                                                       default:
                                                     }
                                                     if (feedbackHelper
-                                                        .getShowRatingPopupAfterExport()) {
+                                                        .canShowExportPopup()) {
                                                       WidgetsBinding.instance
                                                           .addPostFrameCallback((
                                                             _,
