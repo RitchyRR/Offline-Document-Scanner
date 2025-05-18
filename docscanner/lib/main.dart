@@ -449,17 +449,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
     if (pdfs.isNotEmpty) {
       for (final pdf in pdfs) {
         final docData = await g.filesHelper.pdfToDoc(pdf.path);
-        if (docData.$3) {
-          if (docData.$1 != null) {
-            _openDocument(docData.$1!);
-          } else {
-            dev.log("Error, pickPdfDoc: User-Selected PDF is broken.");
-            Fluttertoast.showToast(
-              msg: "Error, Opened PDF is broken.",
-              toastLength: Toast.LENGTH_LONG,
-            );
-          }
-        }
+        _openDocument(docData.$1);
       }
     }
     // Images
@@ -1373,20 +1363,8 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
                 ),
                 heroTag: "pickPdfDoc",
                 onPressed: () async {
-                  final docData = await g.filesHelper.pickPdfToDoc();
-                  if (docData.$3) {
-                    if (docData.$1 != null) {
-                      _openDocument(docData.$1!);
-                    } else {
-                      dev.log(
-                        "Error, pickPdfDoc: User-Selected PDF is broken.",
-                      );
-                      Fluttertoast.showToast(
-                        msg: "Error, Selected PDF is broken.",
-                        toastLength: Toast.LENGTH_LONG,
-                      );
-                    }
-                  }
+                  final indexPairsList = await g.filesHelper.pickPdfToDoc();
+                  _openDocument(indexPairsList.first.$1!);
                 },
                 tooltip: 'Pick PDF from Directory',
                 child: const Icon(Icons.picture_as_pdf),
@@ -2412,25 +2390,50 @@ class _PagesState extends State<Pages> with RouteAware {
                           ),
                           heroTag: "pickPdfPage",
                           onPressed: () async {
-                            final docData = await g.filesHelper.pickPdfToDoc(
-                              addToDocWithIndex: widget.docIndex,
-                            );
-                            if (docData.$3) {
-                              if (docData.$2 != null) {
-                                g.metadataHelper.writeDocUnlocked(
-                                  widget.docIndex,
-                                  false,
+                            final indexPairsList = await g.filesHelper
+                                .pickPdfToDoc(
+                                  addToDocWithIndex: widget.docIndex,
                                 );
-                                //_openPagePreview(docData.$2!);
-                              } else {
-                                dev.log(
-                                  "Error, pickPdfDoc: User-Selected PDF is broken.",
-                                );
-                                Fluttertoast.showToast(
-                                  msg: "Error, Selected PDF is broken.",
-                                  toastLength: Toast.LENGTH_LONG,
-                                );
+                            int pdfsCount = indexPairsList.length;
+                            if (pdfsCount != 0 && context.mounted) {
+                              ScaffoldMessengerState messenger =
+                                  ScaffoldMessenger.of(context);
+                              SnackBar snackBar = SnackBar(
+                                content: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Importing PDF${(pdfsCount > 1) ? "s" : ""}...",
+                                    ),
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.surface,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                duration: const Duration(days: 1),
+                              );
+                              messenger.showSnackBar(snackBar);
+                              hideSnackbarOnPageReload() {
+                                if (globalNotifier.value ==
+                                    NotifierEvent.loadPagesThumbnails) {
+                                  messenger.hideCurrentSnackBar();
+                                  globalNotifier.removeListener(
+                                    hideSnackbarOnPageReload,
+                                  );
+                                }
                               }
+
+                              globalNotifier.addListener(
+                                hideSnackbarOnPageReload,
+                              );
                             }
                           },
                           tooltip: 'Pick PDF from Directory',

@@ -1557,27 +1557,32 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  Future<(int?, int?, bool)> pickPdfToDoc({int? addToDocWithIndex}) async {
+  Future<List<(int?, int?)>> pickPdfToDoc({int? addToDocWithIndex}) async {
+    final List<(int?, int?)> indexPairsList = [];
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
     final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
     if (xFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
-      return (null, null, false);
+      return indexPairsList;
     }
-
-    //todo return multiple
-    return pdfToDoc(xFiles.first.path, addToDocWithIndex: addToDocWithIndex);
+    // Process multiple PDFs
+    for (var xFile in xFiles) {
+      final docData = await pdfToDoc(
+        xFile.path,
+        addToDocWithIndex: addToDocWithIndex,
+      );
+      addToDocWithIndex =
+          (addToDocWithIndex != null) ? addToDocWithIndex++ : null;
+      indexPairsList.add((docData.$1, docData.$2));
+    }
+    return indexPairsList;
   }
 
-  Future<(int?, int?, bool)> pdfToDoc(
-    String pdfPath, {
-    int? addToDocWithIndex,
-  }) async {
+  Future<(int, int)> pdfToDoc(String pdfPath, {int? addToDocWithIndex}) async {
     // Open and render PDF
     final doc = await pdfr.PdfDocument.openFile(pdfPath);
     final pageCount = doc.pageCount;
-
     // Create Page directories
     int docIndex;
     int firstPageIndex;
@@ -1592,7 +1597,7 @@ class FilesHelper {
       docIndex = newDoc.$1;
       firstPageIndex = newDoc.$2;
     }
-
+    // Process delayed
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 100));
       _savePdfAsPage(firstPageIndex, pageCount, doc, docIndex);
@@ -1601,8 +1606,7 @@ class FilesHelper {
       final newDate = "${now.year}-${now.month}-${now.day}";
       g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
     });
-
-    return (docIndex, firstPageIndex, true);
+    return (docIndex, firstPageIndex);
   }
 
   Future<void> _savePdfAsPage(
