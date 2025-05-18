@@ -4601,7 +4601,7 @@ class _WarpState extends State<Warp> {
 
   Future<void> _initZoom() async {
     final file = File(widget.imagePath);
-    final bytes = await file.readAsBytes();
+    final bytes = file.readAsBytesSync();
     final codec = await ui.instantiateImageCodec(bytes);
     final frameInfo = await codec.getNextFrame();
     if (mounted) {

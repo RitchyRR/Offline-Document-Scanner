@@ -833,31 +833,51 @@ class ImageProcessingManager {
       }
     }
     // Read
-    Uint8List imageBytes = await versionFile.readAsBytes();
-    img.Image? selectedVersion = img.decodeImage(imageBytes);
+    img.Image? selectedVersion;
+    try {
+      Uint8List imageBytes = versionFile.readAsBytesSync();
+      selectedVersion = img.decodeNamedImage(versionPath, imageBytes);
+    } catch (e) {
+      dev.log("Error, writeScaledThumbnail, decode: :$e");
+    }
     if (selectedVersion == null) {
       throw StateError("selectedVersion used for thumbnail does not exist");
     }
-    // Resize
-    img.Image resized = img.copyResize(
-      selectedVersion,
-      width:
-          (screenWidth.toDouble() * 0.927083333)
-              .toInt(), // thumbnail width in Pages Widget
-      maintainAspect: true,
-      interpolation: img.Interpolation.linear,
-    );
 
-    // Save
-    thumbnailFile.writeAsBytesSync(img.encodePng(resized));
+    img.Image resized;
+    try {
+      // Resize
+      resized = img.copyResize(
+        selectedVersion,
+        width:
+            (screenWidth.toDouble() * 0.927083333)
+                .toInt(), // thumbnail width in Pages Widget
+        maintainAspect: true,
+        interpolation: img.Interpolation.linear,
+      );
+    } catch (e) {
+      dev.log("Error, writeScaledThumbnail, resize: :$e");
+      throw StateError("$e");
+    }
 
-    // Update thumbnails:
-    if (sendPort == null) {
-      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-    } else {
-      sendPort.send(NotifierEvent.loadPagesThumbnails);
-      sendPort.send(NotifierEvent.loadDocsThumbnails);
+    try {
+      // Save
+      thumbnailFile.writeAsBytesSync(img.encodePng(resized));
+    } catch (e) {
+      dev.log("Error, writeScaledThumbnail, write: :$e");
+    }
+
+    try {
+      // Update thumbnails:
+      if (sendPort == null) {
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+      } else {
+        sendPort.send(NotifierEvent.loadPagesThumbnails);
+        sendPort.send(NotifierEvent.loadDocsThumbnails);
+      }
+    } catch (e) {
+      dev.log("Error, writeScaledThumbnail, notify: :$e");
     }
 
     return true;

@@ -1185,7 +1185,7 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          final imageBytes = await imageFile.readAsBytes();
+          final imageBytes = imageFile.readAsBytesSync();
           final image = pdfw.MemoryImage(imageBytes);
 
           pdfDoc.addPage(
@@ -1543,13 +1543,14 @@ class FilesHelper {
   Future<(int?, int?, bool)> pickPdfToDoc({int? addToDocWithIndex}) async {
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
-    final xFile = await openFile(acceptedTypeGroups: [pdfType]);
-    if (xFile == null) {
+    final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
+    if (xFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       return (null, null, false);
     }
 
-    return pdfToDoc(xFile.path, addToDocWithIndex: addToDocWithIndex);
+    //todo return multiple
+    return pdfToDoc(xFiles.first.path, addToDocWithIndex: addToDocWithIndex);
   }
 
   Future<(int?, int?, bool)> pdfToDoc(
