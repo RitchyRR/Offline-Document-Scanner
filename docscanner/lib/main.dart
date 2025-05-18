@@ -2243,12 +2243,9 @@ class _PagesState extends State<Pages> with RouteAware {
                                             ? InkWell(
                                               onTap:
                                                   !_selectMode
-                                                      //? (thumbnailPath
-                                                      //        .isNotEmpty)
                                                       ? () => _openPagePreview(
                                                         pageIndex,
                                                       )
-                                                      // : null
                                                       : () {
                                                         HapticFeedback.lightImpact();
                                                         _selectPage(pageIndex);
@@ -3070,9 +3067,9 @@ class PagePreviewState extends State<PagePreview> {
   int _imageRetryKey = 0; // to refresh brokenImages
   // Reprocessing Parameters
   double? _ratioValue;
-  double? _newRatioValue;
+  double? _guiRatioValue;
   int? _orientation;
-  int? _newOrientationIndex;
+  int? _guiOrientationIndex;
   int _totalRotation = 0;
   // Corner Points
   List<List<int>> _cornerPoints = [];
@@ -3105,6 +3102,7 @@ class PagePreviewState extends State<PagePreview> {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
+    _pollForImagesAndMetadata();
     _initAsync();
 
     _photoViewController.outputStateStream.listen((
@@ -3154,44 +3152,6 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _handleGlobalEvent() async {
     if (!mounted) return;
     switch (globalNotifier.value) {
-      case NotifierEvent.loadPageMetadata:
-        _loadPageMeatadata();
-        break;
-      case NotifierEvent.photoSaved:
-        _versionPaths[0] = await g.filesHelper.getVersionPath(
-          widget.docIndex,
-          widget.pageIndex,
-          0,
-        );
-        _photoPath = _versionPaths.first;
-        setState(() {});
-        FilesHelper.deleteCachedRoatedImages();
-        _refreshCornersOverlay(supressWarnings: true);
-        break;
-      case NotifierEvent.warpSaved:
-        _versionPaths[1] = await g.filesHelper.getVersionPath(
-          widget.docIndex,
-          widget.pageIndex,
-          1,
-        );
-        setState(() {});
-        break;
-      case NotifierEvent.processed1Saved:
-        _versionPaths[2] = await g.filesHelper.getVersionPath(
-          widget.docIndex,
-          widget.pageIndex,
-          2,
-        );
-        setState(() {});
-        break;
-      case NotifierEvent.processed2Saved:
-        _versionPaths[3] = await g.filesHelper.getVersionPath(
-          widget.docIndex,
-          widget.pageIndex,
-          3,
-        );
-        setState(() {});
-        break;
       case NotifierEvent.setState:
         _pageUnlocked = await g.metadataHelper.readPageUnlocked(
           widget.docIndex,
@@ -3209,6 +3169,51 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
+  void _pollForImagesAndMetadata() {
+    // Poll Metadtata
+    _pollWhile(
+      condition: () => _ratioValue == null || _orientation == null,
+      onTick: () => _loadPageMeatadata(),
+    );
+    // Poll Images
+    for (int i = 0; i <= 3; i++) {
+      _pollWhile(
+        condition: () => _versionPaths[i].isEmpty,
+        onTick: () async {
+          _versionPaths[i] = await g.filesHelper.getVersionPath(
+            widget.docIndex,
+            widget.pageIndex,
+            i,
+          );
+        },
+        onComplete: () {
+          if (i == 0) {
+            // Photo
+            _photoPath = _versionPaths.first;
+            FilesHelper.deleteCachedRoatedImages();
+            _refreshCornersOverlay(supressWarnings: true);
+          }
+          setState(() {});
+        },
+      );
+    }
+  }
+
+  void _pollWhile({
+    required bool Function() condition,
+    required FutureOr<void> Function() onTick,
+    FutureOr<void> Function()? onComplete,
+    Duration delay = const Duration(milliseconds: 250),
+  }) async {
+    while (condition()) {
+      await onTick();
+      await Future.delayed(delay);
+    }
+    if (onComplete != null) {
+      await onComplete();
+    }
+  }
+
   _showAllImages() async {
     if (!mounted || _versionPaths.isEmpty) return;
     for (var versionPath in _versionPaths) {
@@ -3223,13 +3228,13 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _loadPageMeatadata({bool supressWarnings = false}) async {
-    _newRatioValue =
+    _guiRatioValue =
         _ratioValue = await MetadataHelper.readPageRatioValue(
           widget.docIndex,
           widget.pageIndex,
           supressWarnings: supressWarnings,
         );
-    _newOrientationIndex =
+    _guiOrientationIndex =
         _orientation = await MetadataHelper.readPageOrientationIndex(
           widget.docIndex,
           widget.pageIndex,
@@ -3237,8 +3242,8 @@ class PagePreviewState extends State<PagePreview> {
         );
     if (mounted) {
       setState(() {
-        _newRatioValue;
-        _newOrientationIndex;
+        _guiRatioValue;
+        _guiOrientationIndex;
       });
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
@@ -3279,6 +3284,7 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
+    _pollForImagesAndMetadata();
   }
 
   void _reprocessingCleanup() {
@@ -3856,8 +3862,8 @@ class PagePreviewState extends State<PagePreview> {
       onTap: () async {
         setState(() {
           _rotationOngoing = true;
-          _newOrientationIndex =
-              ((_newOrientationIndex ?? 0) - 1) * (-1); // toggle
+          _guiOrientationIndex =
+              ((_guiOrientationIndex ?? 0) - 1) * (-1); // toggle
         });
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
@@ -3901,10 +3907,10 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
-          ((_newRatioValue != null &&
-                  (_ratioValue == _newRatioValue ||
-                      _ratioValue == 1.0 / _newRatioValue!)) &&
-              (_orientation == _newOrientationIndex) &&
+          ((_guiRatioValue != null &&
+                  (_ratioValue == _guiRatioValue ||
+                      _ratioValue == 1.0 / _guiRatioValue!)) &&
+              (_orientation == _guiOrientationIndex) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
@@ -3951,17 +3957,17 @@ class PagePreviewState extends State<PagePreview> {
     await MetadataHelper.writePageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
-      _newRatioValue,
-      _newOrientationIndex,
+      _guiRatioValue,
+      _guiOrientationIndex,
       newCornerPoints,
     );
 
     // Compare old and new metadata -> only rotation?
 
-    if (ratioValue != _newRatioValue) onlyRotation = false;
+    if (ratioValue != _guiRatioValue) onlyRotation = false;
     int quarterTurns = (_totalRotation ~/ 90) % 4;
-    if (quarterTurns.isEven && orientationIndex != _newOrientationIndex ||
-        quarterTurns.isOdd && orientationIndex == _newOrientationIndex) {
+    if (quarterTurns.isEven && orientationIndex != _guiOrientationIndex ||
+        quarterTurns.isOdd && orientationIndex == _guiOrientationIndex) {
       onlyRotation = false;
     }
 
@@ -3990,8 +3996,8 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
-        customCorners ? null : _newRatioValue,
-        customCorners ? null : _newOrientationIndex,
+        customCorners ? null : _guiRatioValue,
+        customCorners ? null : _guiOrientationIndex,
         (g.proUnlocked == true ? 3 : 2),
         newCornerPoints,
         _totalRotation,
@@ -4034,9 +4040,9 @@ class PagePreviewState extends State<PagePreview> {
     const double height = 30;
     int? initialIndex = g.availableAspectRatios.indexWhere(
       (element) =>
-          _newRatioValue != null &&
-          (element.value == _newRatioValue ||
-              element.value == 1.0 / _newRatioValue!),
+          _guiRatioValue != null &&
+          (element.value == _guiRatioValue ||
+              element.value == 1.0 / _guiRatioValue!),
     );
     initialIndex = initialIndex != -1 ? initialIndex : null;
     return Container(
@@ -4072,10 +4078,10 @@ class PagePreviewState extends State<PagePreview> {
               _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
-                    if (newValue != null && newValue != _newRatioValue) {
+                    if (newValue != null && newValue != _guiRatioValue) {
                       setState(
                         () =>
-                            _newRatioValue =
+                            _guiRatioValue =
                                 g.availableAspectRatios[newValue].value,
                       );
                     }
@@ -4105,7 +4111,7 @@ class PagePreviewState extends State<PagePreview> {
           alignment: Alignment.center,
           icon:
               SizedBox.shrink(), //Icon((_orientation ?? 0 == 0)? Icons.crop_portrait: Icons.crop_landscape,),
-          value: _newOrientationIndex,
+          value: _guiOrientationIndex,
           items: List.generate(
             orientationsList.length,
             (i) => DropdownMenuItem(
@@ -4121,8 +4127,8 @@ class PagePreviewState extends State<PagePreview> {
               _versionPaths.first.isEmpty || _metadataBlocked
                   ? null
                   : (int? newValue) {
-                    if (newValue != null && newValue != _newOrientationIndex) {
-                      setState(() => _newOrientationIndex = newValue);
+                    if (newValue != null && newValue != _guiOrientationIndex) {
+                      setState(() => _guiOrientationIndex = newValue);
                     }
                   },
         ),

@@ -61,11 +61,6 @@ class AspectRatioInfo {
 enum NotifierEvent {
   loadPagesThumbnails,
   loadDocsThumbnails,
-  loadPageMetadata,
-  photoSaved,
-  warpSaved,
-  processed1Saved,
-  processed2Saved,
   imagesDeleted,
   setState,
 }

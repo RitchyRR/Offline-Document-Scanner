@@ -7,7 +7,6 @@ import 'package:flutter/services.dart'
 // my packages:
 import 'package:docscanner/app_globals.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/main.dart' show globalNotifier;
 // encryption:
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart';
@@ -273,9 +272,6 @@ class MetadataHelper {
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
-      if (!isIsolate) {
-        globalNotifier.triggerEvent(NotifierEvent.loadPageMetadata);
-      }
     } catch (e) {
       dev.log("Error, writePageMetadata: $e");
     }

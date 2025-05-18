@@ -241,7 +241,6 @@ class FilesHelper {
     int pageIndex,
     int versionIndex,
     Uint8List imageBytes,
-    SendPort? sendPort,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -261,25 +260,6 @@ class FilesHelper {
       return "";
     }
     //dev.log("Image saved at: $toImagePath");
-    if (sendPort != null) {
-      switch (versionIndex) {
-        case 0:
-          sendPort.send(NotifierEvent.photoSaved);
-          break;
-        case 1:
-          sendPort.send(NotifierEvent.warpSaved);
-          break;
-        case 2:
-          sendPort.send(NotifierEvent.processed1Saved);
-          break;
-        case 3:
-          sendPort.send(NotifierEvent.processed2Saved);
-          break;
-        default:
-      }
-    } else if (versionIndex == 0) {
-      globalNotifier.triggerEvent(NotifierEvent.photoSaved);
-    }
     return versionPath;
   }
 
@@ -1673,7 +1653,6 @@ class FilesHelper {
           killer.kill();
           // Isolate: process Page
           imageProcessingManager.processPageWrapper(
-            pageIndex + firstPageIndex == firstPageIndex,
             docIndex,
             pageIndex + firstPageIndex,
             message,
@@ -1714,8 +1693,6 @@ class FilesHelper {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     // Save in pagePath as photo
-    sendPort.send(
-      await savePageVersion(docIndex, pageIndex, 0, photoBytes, sendPort),
-    );
+    sendPort.send(await savePageVersion(docIndex, pageIndex, 0, photoBytes));
   }
 }

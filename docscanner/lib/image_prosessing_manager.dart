@@ -32,7 +32,6 @@ class ImageProcessingManager {
     (
       SendPort sendPort,
       RootIsolateToken token,
-      bool isPrimary,
       int docIndex,
       int pageIndex,
       String newPhotoPath,
@@ -50,22 +49,22 @@ class ImageProcessingManager {
     SendPort sendPort = data.$1;
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-    bool isPrimary = data.$3;
-    int docIndex = data.$4;
-    int pageIndex = data.$5;
-    String newPhotoPath = data.$6;
 
-    double? ratioValueIn = data.$7;
-    int? orientationIndexIn = data.$8;
-    int? pageThumbnailIndexIn = data.$9;
-    List<List<int>>? cornerPointsIn = data.$10;
-    int rotationIn = data.$11;
-    bool isInitial = data.$12;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    String newPhotoPath = data.$5;
+
+    double? ratioValueIn = data.$6;
+    int? orientationIndexIn = data.$7;
+    int? pageThumbnailIndexIn = data.$8;
+    List<List<int>>? cornerPointsIn = data.$9;
+    int rotationIn = data.$10;
+    bool isInitial = data.$11;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
     }
-    bool isFromPDF = data.$13;
-    AppGlobals g = data.$14;
+    bool isFromPDF = data.$12;
+    AppGlobals g = data.$13;
     if (!File(newPhotoPath).existsSync() ||
         File(newPhotoPath).lengthSync() == 0) {
       final actualPhotoPath = await g.filesHelper.getVersionPath(
@@ -146,14 +145,12 @@ class ImageProcessingManager {
       cornerPoints ?? cornerPointsIn!,
       gIn: g,
     );
-    if (isPrimary) sendPort.send(NotifierEvent.loadPageMetadata);
 
     versionPaths[1] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       1,
       warped,
-      isPrimary ? sendPort : null,
     );
     if (isFromPDF && isInitial) {
       // Thumbnails first
@@ -172,7 +169,7 @@ class ImageProcessingManager {
         pageIndex,
         thumbnailIndex,
         g,
-        overwrite: !isPrimary,
+        overwrite: !isInitial,
       );
     }
 
@@ -185,7 +182,6 @@ class ImageProcessingManager {
       pageIndex,
       2,
       processed1,
-      isPrimary ? sendPort : null,
     );
 
     // Processed2 basierend auf dem Warped-Bild
@@ -197,7 +193,6 @@ class ImageProcessingManager {
       pageIndex,
       3,
       processed2,
-      isPrimary ? sendPort : null,
     );
 
     // Update thumbnails:
@@ -210,7 +205,7 @@ class ImageProcessingManager {
         pageIndex,
         thumbnailIndex,
         g,
-        overwrite: !isPrimary,
+        overwrite: !isInitial,
       );
 
       if (newThumbnail) {
@@ -227,7 +222,6 @@ class ImageProcessingManager {
   }
 
   Future<void> processPageWrapper(
-    bool isPrimary,
     int docIndex,
     int pageIndex,
     String photoPath,
@@ -274,7 +268,6 @@ class ImageProcessingManager {
         pageIndex,
         0,
         photo,
-        null,
       );
     }
 
@@ -285,7 +278,6 @@ class ImageProcessingManager {
     TaskKiller killer = await IsolatesManager().runTask(_processPageIsolate, (
       port.sendPort,
       token,
-      isPrimary,
       docIndex,
       pageIndex,
       photoPath,
@@ -389,7 +381,6 @@ class ImageProcessingManager {
         pageIndex,
         1,
         warped,
-        null,
       );
     }
 
@@ -403,7 +394,6 @@ class ImageProcessingManager {
         pageIndex,
         2,
         processed1,
-        null,
       );
     }
 
@@ -417,7 +407,6 @@ class ImageProcessingManager {
         pageIndex,
         3,
         processed2,
-        null,
       );
     }
 
@@ -562,7 +551,6 @@ class ImageProcessingManager {
 
     // First page is opened in PagePreview -> more NotifierEvents
     processPageWrapper(
-      true,
       docIndex,
       firstPageIndex,
       photoPathsIn[0],
@@ -583,7 +571,6 @@ class ImageProcessingManager {
         // small delay between starts
         await Future.delayed(Duration(milliseconds: 100));
         processPageWrapper(
-          false,
           docIndex,
           firstPageIndex + 1 + index,
           path,
@@ -611,7 +598,6 @@ class ImageProcessingManager {
     int rotationIn,
   ) async {
     processPageWrapper(
-      true,
       docIndex,
       pageIndex,
       pathIn,
@@ -708,13 +694,7 @@ class ImageProcessingManager {
     } else {
       throw StateError('rotated photo does not exist');
     }
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      rotatedPhoto,
-      sendPort,
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, rotatedPhoto);
 
     /// 2. rotate processed -> save
 
@@ -736,7 +716,6 @@ class ImageProcessingManager {
       pageIndex,
       1,
       rotatedWarped,
-      sendPort,
     );
 
     // Processed1
@@ -746,7 +725,6 @@ class ImageProcessingManager {
       pageIndex,
       2,
       rotatedP1,
-      sendPort,
     );
 
     // Processed2
@@ -756,7 +734,6 @@ class ImageProcessingManager {
       pageIndex,
       3,
       rotatedP2,
-      sendPort,
     );
 
     // Updates
