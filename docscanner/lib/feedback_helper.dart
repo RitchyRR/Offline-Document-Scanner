@@ -266,11 +266,11 @@ class FeedbackHelper {
     // calculate to obfuscate
     const int multiplier = 40949411; // prime number
     var sigBigInt = BigInt.parse(signature.replaceAll(":", ""), radix: 16);
+    // add integers from signature
     for (var char in signature.characters) {
-      final int? firstInt = int.tryParse(char);
-      if (firstInt != null) {
-        sigBigInt = sigBigInt - BigInt.from(firstInt);
-        break;
+      final int? anInt = int.tryParse(char);
+      if (anInt != null) {
+        sigBigInt = sigBigInt + BigInt.from(anInt);
       }
     }
     final multiplied = sigBigInt * BigInt.from(multiplier);
@@ -281,13 +281,16 @@ class FeedbackHelper {
     if (Platform.isAndroid && installer == "com.android.vending") {
       // Play Store signature
       const expectedHash =
-          "9a2176b17a7b4a5bd02bd00645eb16d38dd2343a8723458df3b75be796cb34c4";
+          "9e440b786b5307cc4cbf6747b4371100d575c78ea338047741a432d65eb7b49a";
       valid = hashed == expectedHash;
     } else if (Platform.isAndroid && installer == "com.android.shell") {
       // Debugging signature
-      const expectedHash =
-          "301e6db07d6bae3b8cfd4d0a0a5f5ee523e0938bd0cc6dedde5515ef32b90ec2";
-      valid = hashed == expectedHash;
+      const debuggingHash =
+          "fd88070c8836e7d47bffcf6ac66e6480d0b590cf0f151cece83e0a0701570585";
+      // APK signature
+      const apkHash =
+          "56de66521c56319ace6f42464131d97819f693744ef19e11002a2ef9a2019eaf";
+      valid = hashed == debuggingHash || hashed == apkHash;
     }
 
     // open store if invalid
