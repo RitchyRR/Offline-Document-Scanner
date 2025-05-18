@@ -2064,7 +2064,7 @@ class _PagesState extends State<Pages> with RouteAware {
   }
 
   _selectAll() async {
-    final listBefore = List<int>.from(_selectedPages);
+    final lengthBefore = _selectedPages.length;
 
     _selectedPages = List.generate(
       _pageThumbnails.length,
@@ -2073,20 +2073,11 @@ class _PagesState extends State<Pages> with RouteAware {
     );
     _selectedPages.removeWhere((element) => _deletedPages.contains(element));
 
-    if (listBefore != _selectedPages) {
+    if (lengthBefore != _selectedPages.length && _selectedPages.isNotEmpty) {
       HapticFeedback.lightImpact();
-    }
-    //_selected = [];
-    //for (var (index, thumbnbail) in _pageThumbnails.indexed) {
-    //  if (thumbnbail.isNotEmpty) {
-    //    _selected.add(index);
-    //  }
-    //}
-
-    if (_selectedPages.isNotEmpty) {
       _selectMode = true;
       Future.microtask(() {
-        setState(() {});
+        if (mounted) setState(() {});
       });
     }
   }
@@ -2596,7 +2587,10 @@ class _PagesState extends State<Pages> with RouteAware {
                               if (context.mounted) Navigator.pop(context);
                               _loadPagesThumbnails();
                             }
-                            : null,
+                            : () => Fluttertoast.showToast(
+                              msg:
+                                  'Blocked while Pages of this Document are processing...',
+                            ),
                     label: Text("Reverse Order"),
                     icon: Icon(Icons.swap_vert),
                   ),
