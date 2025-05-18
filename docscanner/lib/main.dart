@@ -2551,6 +2551,7 @@ class _PagesState extends State<Pages> with RouteAware {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Move Page to new Index - Dropdown
                   DropdownButtonFormField<int>(
                     decoration: InputDecoration(
                       labelText: "Move Page to new Index",
@@ -2584,7 +2585,22 @@ class _PagesState extends State<Pages> with RouteAware {
                             : null,
                   ),
                   SizedBox(height: 24),
-
+                  // Reverse Order - Button
+                  ElevatedButton.icon(
+                    onPressed:
+                        allowChangePageIndex
+                            ? () async {
+                              await g.filesHelper.reversePagesOrder(
+                                widget.docIndex,
+                              );
+                              if (context.mounted) Navigator.pop(context);
+                              _loadPagesThumbnails();
+                            }
+                            : null,
+                    label: Text("Reverse Order"),
+                    icon: Icon(Icons.swap_vert),
+                  ),
+                  //SizedBox(height: 24),
                   //// Save, Share, Delete
                   //Align(
                   //  alignment: Alignment.centerLeft,

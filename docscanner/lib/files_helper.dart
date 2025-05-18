@@ -928,6 +928,23 @@ class FilesHelper {
     await Directory(tmpPath).rename(newPath);
   }
 
+  Future<void> reversePagesOrder(int docIndex) async {
+    int pagesCount = await getPagesCount(docIndex);
+    String pathTmp = await getPagePath(
+      docIndex,
+      pagesCount,
+      supressWarnings: true,
+    );
+    for (int pageIndex = 0; pageIndex < pagesCount ~/ 2; pageIndex++) {
+      String path1 = await getPagePath(docIndex, pageIndex);
+      String path2 = await getPagePath(docIndex, pagesCount - 1 - pageIndex);
+
+      await Directory(path1).rename(pathTmp);
+      await Directory(path2).rename(path1);
+      await Directory(pathTmp).rename(path2);
+    }
+  }
+
   Future<int> getPageImagesCount(int docIndex, int pageIndex) async {
     final pageDir = Directory(await getPagePath(docIndex, pageIndex));
     int versionsCount = 0;
