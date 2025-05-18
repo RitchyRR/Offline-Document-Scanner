@@ -768,7 +768,7 @@ class ImageProcessingManager {
     int pageThumbnailIndexIn,
   ) async {
     ReceivePort port = ReceivePort();
-    final primaryCompleter = Completer<void>();
+    final rotatePageCompleter = Completer<void>();
 
     TaskKiller killer = await IsolatesManager().runTask(_rotatePageIsolate, (
       port.sendPort,
@@ -790,7 +790,7 @@ class ImageProcessingManager {
         killer.kill();
       }
     });
-    await primaryCompleter.future;
+    await rotatePageCompleter.future;
   }
 
   static Future<bool> _scaleAndSaveThumbnail(
