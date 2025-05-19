@@ -194,7 +194,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String newPhotoPath,
+      Uint8List photoBytes,
       double ratioValueIn,
       int orientationIndexIn,
       List<List<int>> cornerPointsIn,
@@ -207,29 +207,14 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String newPhotoPath = data.$5;
+    Uint8List photoBytes = data.$5;
     double ratioValueIn = data.$6;
     int orientationIndexIn = data.$7;
     List<List<int>> cornerPointsIn = data.$8;
     AppGlobals g = data.$9;
 
-    if (!File(newPhotoPath).existsSync() ||
-        File(newPhotoPath).lengthSync() == 0) {
-      final actualPhotoPath = await g.filesHelper.getVersionPath(
-        docIndex,
-        pageIndex,
-        0,
-      );
-      if (File(actualPhotoPath).existsSync() ||
-          File(actualPhotoPath).lengthSync() == 0) {
-        newPhotoPath = actualPhotoPath;
-        dev.log(
-          "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
-        );
-      } else {
-        StateError('Error, _processPageIsolate: no photo');
-      }
-    }
+    // Save photoBytes
+    g.filesHelper.savePageVersion(docIndex, pageIndex, 0, photoBytes);
 
     int thumbnailIndex = 1;
 
@@ -243,12 +228,7 @@ class ImageProcessingManager {
       gIn: g,
     );
     // Warped
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      1,
-      (File(newPhotoPath).readAsBytesSync()),
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, photoBytes);
     // Thumbnail
     await MetadataHelper.writePageThumbnailIndex(
       docIndex,
@@ -385,13 +365,6 @@ class ImageProcessingManager {
     Uint8List photoBytes,
   ) async {
     if (photoBytes.isEmpty) return;
-    // Save photoBytes
-    String photoPath = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      photoBytes,
-    );
 
     final image = await decodeImageFromList(photoBytes);
     List<List<int>> cornerPoints = [
@@ -420,7 +393,7 @@ class ImageProcessingManager {
         token,
         docIndex,
         pageIndex,
-        photoPath,
+        photoBytes,
         ratioValue,
         orientationIndex,
         cornerPoints,
@@ -446,11 +419,17 @@ class ImageProcessingManager {
     });
     await wrapperCompleter.future;
 
+    String warpedPath = await g.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      1,
+    );
+
     final wrapperCompleter2 = Completer<void>();
     final port2 = ReceivePort();
     killer = await IsolatesManager().runTask(
       _processPdfPageIsolateFilters,
-      (port2.sendPort, token, docIndex, pageIndex, photoPath, g),
+      (port2.sendPort, token, docIndex, pageIndex, warpedPath, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
@@ -581,7 +560,11 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
-      int thumbnailIndex = ((g.proUnlocked == true) ? 3 : 2);
+      int thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        gIn: g,
+      );
       bool newThumbnail = await _scaleAndSaveThumbnail(
         sendPort,
         docIndex,

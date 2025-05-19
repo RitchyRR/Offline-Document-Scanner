@@ -111,8 +111,14 @@ class MetadataHelper {
     int pageIndex,
     String keyIn, {
     bool supressWarnings = false,
+    AppGlobals? gIn,
   }) async {
-    final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    bool isIsolate = false;
+    if (gIn != null) isIsolate = true;
+    final pagePath =
+        await (isIsolate
+            ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
+            : g.filesHelper.getPagePath(docIndex, pageIndex));
     final file = File('$pagePath/metadata.json');
     if (!Directory(pagePath).existsSync()) {
       dev.log(
@@ -448,6 +454,7 @@ class MetadataHelper {
       pageIndex,
       "thumbnail",
       supressWarnings: supressWarnings,
+      gIn: gIn,
     );
     if (value is String) {
       int thumbnailIndex = versionNames.indexOf(value);

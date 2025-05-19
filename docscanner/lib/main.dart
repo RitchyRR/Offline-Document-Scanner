@@ -3202,7 +3202,7 @@ class PagePreviewState extends State<PagePreview> {
     // Poll Metadtata
     _pollWhile(
       condition: () => _ratioValue == null || _orientation == null,
-      onTick: () => _loadPageMeatadata(),
+      onTick: () => _loadPageMeatadata(supressWarnings: true),
     );
     // Poll Images
     for (int i = 0; i <= 3; i++) {
@@ -3213,6 +3213,7 @@ class PagePreviewState extends State<PagePreview> {
             widget.docIndex,
             widget.pageIndex,
             i,
+            supressWarnings: true,
           );
         },
         onComplete: () {
@@ -3234,10 +3235,10 @@ class PagePreviewState extends State<PagePreview> {
     FutureOr<void> Function()? onComplete,
     Duration delay = const Duration(milliseconds: 250),
   }) async {
-    while (condition()) {
+    do {
       await onTick();
       await Future.delayed(delay);
-    }
+    } while (condition());
     if (onComplete != null) {
       await onComplete();
     }

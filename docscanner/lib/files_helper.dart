@@ -824,9 +824,14 @@ class FilesHelper {
   Future<String> getVersionPath(
     int docIndex,
     int pageIndex,
-    int versionIndex,
-  ) async {
-    String pagePath = await getPagePath(docIndex, pageIndex);
+    int versionIndex, {
+    bool supressWarnings = false,
+  }) async {
+    String pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: supressWarnings,
+    );
 
     List<FileSystemEntity> versionsFSE =
         (Directory(pagePath).listSync()
@@ -1656,6 +1661,7 @@ class FilesHelper {
       if (pagesProcessed == pageCount) {
         doc.dispose();
       }
+      await Future.delayed(Duration(milliseconds: 250));
     }
   }
 }
