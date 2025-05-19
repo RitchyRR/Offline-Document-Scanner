@@ -316,7 +316,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (IsolatesManager().getIsolatesCount() == 0) {
+    if (IsolatesManager().getIsolatesCount() == 0 &&
+        state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         g.filesHelper.repairDirectoryStructure();
       });
