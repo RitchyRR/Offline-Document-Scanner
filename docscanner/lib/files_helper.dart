@@ -405,7 +405,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  repairDirectoryStructure() async {
+  repairDirectoryStructure({deleteEmptyPages = true}) async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     //var i = 0;
@@ -415,7 +415,7 @@ class FilesHelper {
       //if (!(
       // ignore: use_build_context_synchronously
       await _deleteMarkedDeleted();
-      _repairDirectoryStructure();
+      _repairDirectoryStructure(deleteEmptyPages: deleteEmptyPages);
       //  )) break;
     } catch (e) {
       dev.log("Error, repairDirectoryStructure: $e");
@@ -428,7 +428,7 @@ class FilesHelper {
     //}
   }
 
-  Future<bool> _repairDirectoryStructure() async {
+  Future<bool> _repairDirectoryStructure({deleteEmptyPages = true}) async {
     bool anyChange = false;
     List<Future> repairFutures = [];
 
@@ -485,9 +485,12 @@ class FilesHelper {
 
           if (pageIncomplete) {
             anyChange = true;
-            bool photoExists = false;
+            bool photoExists = true;
             if (countVersionsAndThumbnail == 0) {
-              dev.log("Deleting empty Doc $docIndex Page $pageIndex");
+              if (deleteEmptyPages) {
+                dev.log("Deleting empty Doc $docIndex Page $pageIndex");
+                await _deletePage(docIndex, pageIndex, isBroken: true);
+              }
             } else {
               String photoName = versionNames[0];
               for (var pageFse
@@ -500,24 +503,18 @@ class FilesHelper {
               }
               if (photoExists) {
                 dev.log("Repairing Doc $docIndex Page $pageIndex");
+                Future future = imageProcessingManager.repairPage(
+                  docIndex,
+                  pageIndex,
+                );
+                repairFutures.add(future);
+                future.whenComplete(() {
+                  repairFutures.remove(future);
+                });
               } else {
                 dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
+                await _deletePage(docIndex, pageIndex, isBroken: true);
               }
-            }
-            if (!photoExists) {
-              // ignore: use_build_context_synchronously
-              await _deletePage(docIndex, pageIndex, isBroken: true);
-              // Info: If deletePage() results in empty Documents,
-              //       deletePage() will delete these Documents
-            } else {
-              Future future = imageProcessingManager.repairPage(
-                docIndex,
-                pageIndex,
-              );
-              repairFutures.add(future);
-              future.whenComplete(() {
-                repairFutures.remove(future);
-              });
             }
           }
         }

@@ -2,7 +2,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
-import 'package:docscanner/isolates_manager.dart';
+import 'package:docscanner/isolates_manager.dart' show IsolatesManager;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -316,10 +316,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        IsolatesManager().getIsolatesCount() == 0) {
+    if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        g.filesHelper.repairDirectoryStructure();
+        //await Future.delayed(Duration(milliseconds: 1500));
+        if (IsolatesManager().getIsolatesCount() == 0) {
+          g.filesHelper.repairDirectoryStructure(deleteEmptyPages: false);
+        }
       });
     }
   }
