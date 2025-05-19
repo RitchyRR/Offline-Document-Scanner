@@ -275,21 +275,28 @@ class ImageProcessingManager {
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
 
-    TaskKiller killer = await IsolatesManager().runTask(_processPageIsolate, (
-      port.sendPort,
-      token,
-      docIndex,
-      pageIndex,
-      photoPath,
-      ratioValueIn,
-      orientationIndexIn,
-      pageThumbnailIndex,
-      cornerPointsIn,
-      rotationIn,
-      isInitial,
-      isFromPDF,
-      g,
-    ), prio: prio);
+    TaskKiller killer = await IsolatesManager().runTask(
+      _processPageIsolate,
+      (
+        port.sendPort,
+        token,
+        docIndex,
+        pageIndex,
+        photoPath,
+        ratioValueIn,
+        orientationIndexIn,
+        pageThumbnailIndex,
+        cornerPointsIn,
+        rotationIn,
+        isInitial,
+        isFromPDF,
+        g,
+      ),
+      prio: prio,
+      onErrorFunction: (error, stack) async {
+        repairPage(docIndex, pageIndex);
+      },
+    );
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
@@ -631,16 +638,24 @@ class ImageProcessingManager {
     }
 
     RootIsolateToken token = RootIsolateToken.instance!;
-    TaskKiller killer = await IsolatesManager().runTask(_repairPageIsolate, (
-      port.sendPort,
-      token,
-      docIndex,
-      pageIndex,
-      ratioValue,
-      orientationIndex,
-      cornerPoints,
-      g,
-    ), prio: IsolatePriority.regular);
+    TaskKiller killer = await IsolatesManager().runTask(
+      _repairPageIsolate,
+      (
+        port.sendPort,
+        token,
+        docIndex,
+        pageIndex,
+        ratioValue,
+        orientationIndex,
+        cornerPoints,
+        g,
+      ),
+      prio: IsolatePriority.regular,
+      onErrorFunction: (error, stack) {
+        dev.log("Error, _repairPageIsolate -> deleting page: $error $stack");
+        g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
+      },
+    );
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) async {

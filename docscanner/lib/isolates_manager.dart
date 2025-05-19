@@ -55,11 +55,19 @@ class IsolatesManager {
     T message, {
     IsolatePriority prio = IsolatePriority.regular,
     Duration maxRuntime = const Duration(minutes: 5),
+    void Function(Object error, StackTrace stack)? onErrorFunction,
   }) async {
     await _initFuture;
     final completer = Completer<TaskKiller>();
     _taskQueue.add(
-      _QueuedTask<T>(entryPoint, message, completer, prio, maxRuntime),
+      _QueuedTask<T>(
+        entryPoint,
+        message,
+        completer,
+        prio,
+        maxRuntime,
+        onErrorFunction,
+      ),
     );
     _tryStartNext();
     return completer.future;
@@ -100,6 +108,8 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final Completer<TaskKiller> completer;
   IsolatePriority prio;
 
+  final void Function(Object error, StackTrace stack)? onErrorFunction;
+
   final Duration maxRuntime;
   Timer? _runtimeTimer;
 
@@ -109,6 +119,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
     this.completer,
     this.prio,
     this.maxRuntime,
+    this.onErrorFunction,
   );
 
   @override
@@ -161,7 +172,20 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           exitPort.listen((_) => cleanup());
           errorPort.listen((e) {
             cleanup();
-            dev.log("Isolate error: $e");
+            dev.log("Error in Isolate: $e");
+
+            Object error = e;
+            StackTrace? stack = StackTrace.current;
+            if (e is List && e.length == 2) {
+              error = e[0];
+              if (e[1] is String) {
+                stack = StackTrace.fromString(e[1]);
+              }
+            }
+
+            if (onErrorFunction != null) {
+              onErrorFunction!(error, stack);
+            }
           });
 
           final killer = TaskKiller(

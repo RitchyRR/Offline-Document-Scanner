@@ -1325,17 +1325,15 @@ class FilesHelper {
               msg: "PDF saved at: $readablePath",
               toastLength: Toast.LENGTH_LONG,
             );
-            port.close();
-            killer.kill();
           } else {
             messenger?.hideCurrentSnackBar();
             messenger?.showSnackBar(
               SnackBar(content: Text("Error: No PDF available to save.")),
             );
-            port.close();
-            killer.kill();
           }
         }
+        port.close();
+        killer.kill();
       });
       return await completer.future;
     } catch (e) {
@@ -1472,21 +1470,19 @@ class FilesHelper {
     port.listen((message) async {
       if (message is bool) {
         if (message) {
-          port.close();
           messenger?.hideCurrentSnackBar();
           completer.complete(message);
           await Share.shareXFiles([XFile(pdfPath)]);
           File(pdfPath).delete();
-          killer.kill();
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
             SnackBar(content: Text("Error: No PDF available to share.")),
           );
-          port.close();
-          killer.kill();
         }
       }
+      port.close();
+      killer.kill();
     });
     return await completer.future;
   }
