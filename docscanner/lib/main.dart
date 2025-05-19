@@ -3151,7 +3151,7 @@ class PagePreviewState extends State<PagePreview> {
     _versionPaths = imagePaths.$1;
     _photoPath = _versionPaths.first;
     _showAllImages();
-    _loadPageMeatadata(supressWarnings: true);
+    _loadPageMetadata(supressWarnings: true);
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
@@ -3202,7 +3202,7 @@ class PagePreviewState extends State<PagePreview> {
     // Poll Metadtata
     _pollWhile(
       condition: () => _ratioValue == null || _orientation == null,
-      onTick: () => _loadPageMeatadata(supressWarnings: true),
+      onTick: () => _loadPageMetadata(supressWarnings: true),
     );
     // Poll Images
     for (int i = 0; i <= 3; i++) {
@@ -3257,7 +3257,7 @@ class PagePreviewState extends State<PagePreview> {
     _pageController.jumpToPage(_selectedVersion);
   }
 
-  Future<void> _loadPageMeatadata({bool supressWarnings = false}) async {
+  Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
     _guiRatioValue =
         _ratioValue = await MetadataHelper.readPageRatioValue(
           widget.docIndex,
@@ -3298,9 +3298,11 @@ class PagePreviewState extends State<PagePreview> {
     // Image pixel size
     final imageFile = File(_versionPaths[0]);
     if (_versionPaths[0].isEmpty || !imageFile.existsSync()) return;
-    final imageInfo = AppGlobals.getImageInfo(imageFile.readAsBytesSync());
-    _imagePixelWidth = imageInfo!.width;
-    _imagePixelHeight = imageInfo.height;
+    final ui.Image image = await decodeImageFromList(
+      imageFile.readAsBytesSync(),
+    );
+    _imagePixelWidth = image.width;
+    _imagePixelHeight = image.height;
     if (mounted) setState(() {});
   }
 
@@ -4577,11 +4579,11 @@ class _WarpState extends State<Warp> {
   }
 
   void _initAsync() async {
-    final imageInfo = AppGlobals.getImageInfo(
+    ui.Image image = await decodeImageFromList(
       File(widget.imagePath).readAsBytesSync(),
     );
-    _imagePixelWidth = imageInfo!.width;
-    _imagePixelHeight = imageInfo.height;
+    _imagePixelWidth = image.width;
+    _imagePixelHeight = image.height;
     if (mounted) {
       _screenWidth = MediaQuery.of(context).size.width;
     }

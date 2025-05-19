@@ -56,10 +56,7 @@ class AppGlobals {
     String filePath = ".png",
   }) {
     final decoder = img.findDecoderForNamedImage(filePath);
-    if (decoder != null) {
-      return decoder.startDecode(bytes);
-    }
-    return null;
+    return decoder!.startDecode(bytes);
   }
 }
 
