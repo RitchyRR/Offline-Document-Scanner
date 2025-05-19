@@ -1,7 +1,11 @@
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 import 'package:docscanner/files_helper.dart';
 //import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
+import 'package:image/image.dart'
+    as img
+    show DecodeInfo, findDecoderForNamedImage;
 
 class AppGlobals {
   // singleton setup:
@@ -46,6 +50,17 @@ class AppGlobals {
     AspectRatioInfo("21:9", "21:9 (Ultrawide, Cinema)", 21 / 9), // ~2.333
   ];
   List<AspectRatioInfo> availableAspectRatios = [];
+
+  static img.DecodeInfo? getImageInfo(
+    Uint8List bytes, {
+    String filePath = ".png",
+  }) {
+    final decoder = img.findDecoderForNamedImage(filePath);
+    if (decoder != null) {
+      return decoder.startDecode(bytes);
+    }
+    return null;
+  }
 }
 
 final g = AppGlobals();

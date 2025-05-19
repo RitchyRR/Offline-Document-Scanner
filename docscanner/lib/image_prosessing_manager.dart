@@ -2,7 +2,6 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart' show decodeImageFromList;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'dart:io';
@@ -195,9 +194,6 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       Uint8List photoBytes,
-      double ratioValueIn,
-      int orientationIndexIn,
-      List<List<int>> cornerPointsIn,
       AppGlobals g,
     )
     data,
@@ -208,17 +204,32 @@ class ImageProcessingManager {
     int docIndex = data.$3;
     int pageIndex = data.$4;
     Uint8List photoBytes = data.$5;
-    double ratioValueIn = data.$6;
-    int orientationIndexIn = data.$7;
-    List<List<int>> cornerPointsIn = data.$8;
-    AppGlobals g = data.$9;
+    AppGlobals g = data.$6;
 
-    // Save photoBytes
-    g.filesHelper.savePageVersion(docIndex, pageIndex, 0, photoBytes);
+    // Save Photo
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, photoBytes);
 
-    int thumbnailIndex = 1;
+    // Generate Metadata
+    final imgInfo = AppGlobals.getImageInfo(photoBytes);
+    if (imgInfo == null) {
+      throw StateError("Error, processPdfPage: can't decode Image.");
+    }
+    List<List<int>> cornerPointsIn = [
+      [0, 0],
+      [imgInfo.height - 1, 0],
+      [0, imgInfo.width - 1],
+      [imgInfo.height - 1, imgInfo.width - 1],
+    ];
+    int orientationIndexIn = imgInfo.height >= imgInfo.width ? 0 : 1;
+    OpenCVHelper cvHelper = OpenCVHelper(g);
+    final ratioData = cvHelper.matchAspectRatioAndOrientation(
+      imgInfo.height / imgInfo.width,
+      null,
+      orientationIndexIn,
+    );
+    double ratioValueIn = ratioData.$1;
 
-    // Metadata
+    // Write Metadata
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
@@ -227,8 +238,6 @@ class ImageProcessingManager {
       cornerPointsIn,
       gIn: g,
     );
-    // Warped
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, photoBytes);
     // Thumbnail
     await MetadataHelper.writePageThumbnailIndex(
       docIndex,
@@ -238,13 +247,7 @@ class ImageProcessingManager {
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
-    await _scaleAndSaveThumbnail(
-      sendPort,
-      docIndex,
-      pageIndex,
-      thumbnailIndex,
-      g,
-    );
+    await _scaleAndSaveThumbnail(sendPort, docIndex, pageIndex, 0, g);
 
     sendPort.send('done');
   }
@@ -255,7 +258,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String warpedPath,
+      Uint8List photoBytes,
       AppGlobals g,
     )
     data,
@@ -265,8 +268,16 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String warpedPath = data.$5;
+    Uint8List photoBytes = data.$5;
     AppGlobals g = data.$6;
+
+    // Warped
+    String warpedPath = await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      1,
+      photoBytes,
+    );
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
@@ -366,40 +377,14 @@ class ImageProcessingManager {
   ) async {
     if (photoBytes.isEmpty) return;
 
-    final image = await decodeImageFromList(photoBytes);
-    List<List<int>> cornerPoints = [
-      [0, 0],
-      [image.height - 1, 0],
-      [0, image.width - 1],
-      [image.height - 1, image.width - 1],
-    ];
-    int orientationIndex = image.height >= image.width ? 0 : 1;
-    OpenCVHelper cvHelper = OpenCVHelper(g);
-    final data = cvHelper.matchAspectRatioAndOrientation(
-      image.height / image.width,
-      null,
-      orientationIndex,
-    );
-    double ratioValue = data.$1;
-
     final wrapperCompleter = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
 
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolateThumbnail,
-      (
-        port.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        photoBytes,
-        ratioValue,
-        orientationIndex,
-        cornerPoints,
-        g,
-      ),
-      prio: IsolatePriority.regular,
+      (port.sendPort, token, docIndex, pageIndex, photoBytes, g),
+      prio: IsolatePriority.immediate,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
       },
@@ -419,17 +404,12 @@ class ImageProcessingManager {
     });
     await wrapperCompleter.future;
 
-    String warpedPath = await g.filesHelper.getVersionPath(
-      docIndex,
-      pageIndex,
-      1,
-    );
-
     final wrapperCompleter2 = Completer<void>();
     final port2 = ReceivePort();
+
     killer = await IsolatesManager().runTask(
       _processPdfPageIsolateFilters,
-      (port2.sendPort, token, docIndex, pageIndex, warpedPath, g),
+      (port2.sendPort, token, docIndex, pageIndex, photoBytes, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
@@ -486,7 +466,8 @@ class ImageProcessingManager {
     String shapePath = imagePaths.$2;
     String thumbnailPath = imagePaths.$3;
 
-    if (!File(versionPaths[0]).existsSync()) {
+    final photoFile = File(versionPaths[0]);
+    if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
       throw StateError('Error, _repairPageIsolate: no photo');
     }
 

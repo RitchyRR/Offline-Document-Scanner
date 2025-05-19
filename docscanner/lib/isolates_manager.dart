@@ -46,8 +46,8 @@ class IsolatesManager {
     return busyCount;
   }
 
-  final int maxIsolates = (Platform.numberOfProcessors - 2).clamp(3, 256);
-  final int baseNOfIsolates = (Platform.numberOfProcessors - 3).clamp(2, 256);
+  final int maxIsolates = (Platform.numberOfProcessors - 1).clamp(3, 256);
+  final int baseNOfIsolates = (Platform.numberOfProcessors - 2).clamp(2, 256);
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();

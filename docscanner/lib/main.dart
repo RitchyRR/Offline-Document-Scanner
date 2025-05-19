@@ -3296,12 +3296,11 @@ class PagePreviewState extends State<PagePreview> {
       supressWarnings: supressWarnings,
     );
     // Image pixel size
-    if (_versionPaths[0].isEmpty) return;
-    final image = await decodeImageFromList(
-      (File(_versionPaths[0]).readAsBytesSync()),
-    );
-    _imagePixelWidth = image.width;
-    _imagePixelHeight = image.height;
+    final imageFile = File(_versionPaths[0]);
+    if (_versionPaths[0].isEmpty || !imageFile.existsSync()) return;
+    final imageInfo = AppGlobals.getImageInfo(imageFile.readAsBytesSync());
+    _imagePixelWidth = imageInfo!.width;
+    _imagePixelHeight = imageInfo.height;
     if (mounted) setState(() {});
   }
 
@@ -3889,6 +3888,7 @@ class PagePreviewState extends State<PagePreview> {
     String tooltip,
   ) {
     return CustomIconButton(
+      isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
       onTap: () async {
         setState(() {
           _rotationOngoing = true;
@@ -4577,11 +4577,11 @@ class _WarpState extends State<Warp> {
   }
 
   void _initAsync() async {
-    final image = await decodeImageFromList(
-      (File(widget.imagePath).readAsBytesSync()),
+    final imageInfo = AppGlobals.getImageInfo(
+      File(widget.imagePath).readAsBytesSync(),
     );
-    _imagePixelWidth = image.width;
-    _imagePixelHeight = image.height;
+    _imagePixelWidth = imageInfo!.width;
+    _imagePixelHeight = imageInfo.height;
     if (mounted) {
       _screenWidth = MediaQuery.of(context).size.width;
     }

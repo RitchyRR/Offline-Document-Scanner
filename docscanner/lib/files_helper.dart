@@ -1186,10 +1186,11 @@ class FilesHelper {
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
-          final image = await decodeImageFromList(
-            (File(imagePaths[i]).readAsBytesSync()),
+          final imgInfo = AppGlobals.getImageInfo(
+            File(imagePaths[i]).readAsBytesSync(),
           );
-          double photoRatio = image.height.toDouble() / image.width.toDouble();
+          double photoRatio =
+              imgInfo!.height.toDouble() / imgInfo.width.toDouble();
           height = width * photoRatio;
         } else {
           height = width * ratioValue;
@@ -1626,8 +1627,8 @@ class FilesHelper {
       final page = await doc.getPage(pageIndex + 1);
       // render Page at 300 DPI (max 4048 pixel)
       const targetDpi = 300;
-      const deafaultAddumedDpi = 72;
-      final dpiScale = targetDpi / deafaultAddumedDpi;
+      const deafaultAssumedDpi = 72;
+      final dpiScale = targetDpi / deafaultAssumedDpi;
       const maxSize = 4048;
       final pageSize = page.width > page.height ? page.width : page.height;
       final limitingScale = (maxSize / pageSize * dpiScale).clamp(
