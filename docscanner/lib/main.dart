@@ -2,6 +2,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
+import 'package:docscanner/isolates_manager.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
@@ -291,7 +292,8 @@ class DocumentsHome extends StatefulWidget {
   State<DocumentsHome> createState() => _DocumentsHomeState();
 }
 
-class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
+class _DocumentsHomeState extends State<DocumentsHome>
+    with RouteAware, WidgetsBindingObserver {
   final ImagePicker _picker = ImagePicker();
   List<String> _docThumbnails = [];
 
@@ -308,7 +310,17 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   void initState() {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
+    WidgetsBinding.instance.addObserver(this);
     initAsync();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (IsolatesManager().getIsolatesCount() == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        g.filesHelper.repairDirectoryStructure();
+      });
+    }
   }
 
   late PackageInfo _packageInfo;
@@ -326,6 +338,7 @@ class _DocumentsHomeState extends State<DocumentsHome> with RouteAware {
   void dispose() {
     globalNotifier.removeListener(_handleGlobalEvent);
     routeObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

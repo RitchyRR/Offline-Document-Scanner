@@ -38,6 +38,14 @@ class IsolatesManager {
     _initFuture = _init();
   }
 
+  int getIsolatesCount() {
+    int busyCount = 0;
+    for (var worker in _workers) {
+      if (worker.isBusy) busyCount++;
+    }
+    return busyCount;
+  }
+
   final int maxIsolates = (Platform.numberOfProcessors - 2).clamp(3, 256);
   final int baseNOfIsolates = (Platform.numberOfProcessors - 3).clamp(2, 256);
   final List<_Worker> _workers = [];
