@@ -318,7 +318,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        //await Future.delayed(Duration(milliseconds: 1500));
+        await Future.delayed(Duration(milliseconds: 500));
         if (IsolatesManager().getIsolatesCount() == 0) {
           g.filesHelper.repairDirectoryStructure(deleteEmptyPages: false);
         }
