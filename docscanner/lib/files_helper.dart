@@ -23,7 +23,7 @@ import 'package:docscanner/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/main.dart'
-    show globalNotifier, imageProcessingManager;
+    show globalNotifier, imageProcessingManager, isTmpExternal;
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/opencv_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart'
@@ -405,7 +405,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  repairDirectoryStructure({deleteEmptyPages = true}) async {
+  repairDirectoryStructure() async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     //var i = 0;
@@ -415,7 +415,7 @@ class FilesHelper {
       //if (!(
       // ignore: use_build_context_synchronously
       await _deleteMarkedDeleted();
-      _repairDirectoryStructure(deleteEmptyPages: deleteEmptyPages);
+      _repairDirectoryStructure();
       //  )) break;
     } catch (e) {
       dev.log("Error, repairDirectoryStructure: $e");
@@ -428,7 +428,7 @@ class FilesHelper {
     //}
   }
 
-  Future<bool> _repairDirectoryStructure({deleteEmptyPages = true}) async {
+  Future<bool> _repairDirectoryStructure() async {
     bool anyChange = false;
     List<Future> repairFutures = [];
 
@@ -487,10 +487,8 @@ class FilesHelper {
             anyChange = true;
             bool photoExists = true;
             if (countVersionsAndThumbnail == 0) {
-              if (deleteEmptyPages) {
-                dev.log("Deleting empty Doc $docIndex Page $pageIndex");
-                await _deletePage(docIndex, pageIndex, isBroken: true);
-              }
+              dev.log("Deleting empty Doc $docIndex Page $pageIndex");
+              await _deletePage(docIndex, pageIndex, isBroken: true);
             } else {
               String photoName = versionNames[0];
               for (var pageFse
@@ -1228,6 +1226,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
+    if (isTmpExternal) return;
     ReceivePort port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
 
@@ -1255,9 +1254,13 @@ class FilesHelper {
 
     try {
       // Ask user to pick a folder
+      isTmpExternal = true;
       String? selectedDirectory = await getDirectoryPath(
         confirmButtonText: "Select a Folder to Save PDF",
       );
+      Future.delayed(Duration(seconds: 1), () {
+        isTmpExternal = false;
+      });
       if (selectedDirectory == null) {
         throw StateError('User-Action, pickFolderForDocumentPdf: cancelled');
       }
@@ -1359,7 +1362,7 @@ class FilesHelper {
         await pdfFile.writeAsBytes(await pdf.save());
         sendPort.send(true);
       } catch (e) {
-        dev.log("Error, _pickFolderForDocumentPdfIsolate: $e");
+        dev.log("Error, _writePfdToPathIsolate: $e");
       }
     } else {
       sendPort.send(false);
@@ -1552,9 +1555,14 @@ class FilesHelper {
 
   Future<List<(int?, int?)>> pickPdfToDoc({int? addToDocWithIndex}) async {
     final List<(int?, int?)> indexPairsList = [];
+    if (isTmpExternal) return indexPairsList;
     // User picks PDF
     final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+    isTmpExternal = true;
     final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
+    Future.delayed(Duration(seconds: 1), () {
+      isTmpExternal = false;
+    });
     if (xFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       return indexPairsList;

@@ -46,6 +46,7 @@ final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalNotifier globalNotifier = GlobalNotifier();
+bool isTmpExternal = false;
 
 class GlobalNotifier extends ValueNotifier<NotifierEvent> {
   GlobalNotifier() : super(NotifierEvent.loadPagesThumbnails);
@@ -316,11 +317,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && !isTmpExternal) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await Future.delayed(Duration(milliseconds: 500));
         if (IsolatesManager().getIsolatesCount() == 0) {
-          g.filesHelper.repairDirectoryStructure(deleteEmptyPages: false);
+          g.filesHelper.repairDirectoryStructure();
         }
       });
     }
