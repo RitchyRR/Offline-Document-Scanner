@@ -1645,77 +1645,17 @@ class FilesHelper {
         order: img.ChannelOrder.rgba,
       );
       final Uint8List photoBytes = img.encodePng(pngImage);
-      // Isolate: Save as Photo in Page
-      final port = ReceivePort();
-      final token = RootIsolateToken.instance!;
-      TaskKiller killer = await IsolatesManager().runTask(
-        _savePdfAsPageIsolate,
-        (
-          port.sendPort,
-          token,
-          docIndex,
-          pageIndex + firstPageIndex,
-          photoBytes,
-        ),
-        prio: IsolatePriority.regular,
+
+      imageProcessingManager.processPdfPage(
+        docIndex,
+        pageIndex + firstPageIndex,
+        photoBytes,
       );
-      imageProcessingManager.taskKillers[(
-            docIndex,
-            pageIndex + firstPageIndex,
-          )] =
-          killer;
 
-      port.listen((message) {
-        if (message is NotifierEvent) {
-          globalNotifier.triggerEvent(message);
-        } else if (message is String) {
-          port.close();
-          imageProcessingManager.taskKillers.removeWhere(
-            (key, value) => value == killer,
-          );
-          killer.kill();
-          // Isolate: process Page
-          imageProcessingManager.processPageWrapper(
-            docIndex,
-            pageIndex + firstPageIndex,
-            message,
-            null,
-            null,
-            null,
-            null,
-            0,
-            true,
-            true,
-            IsolatePriority.regular,
-          );
-
-          pagesProcessed++;
-          if (pagesProcessed == pageCount) {
-            doc.dispose();
-          }
-        }
-      });
+      pagesProcessed++;
+      if (pagesProcessed == pageCount) {
+        doc.dispose();
+      }
     }
-  }
-
-  Future<void> _savePdfAsPageIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      int docIndex,
-      int pageIndex,
-      Uint8List photoBytes,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    RootIsolateToken token = data.$2;
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    Uint8List photoBytes = data.$5;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    // Save in pagePath as photo
-    sendPort.send(await savePageVersion(docIndex, pageIndex, 0, photoBytes));
   }
 }
