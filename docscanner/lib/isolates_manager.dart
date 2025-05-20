@@ -46,8 +46,14 @@ class IsolatesManager {
     return busyCount;
   }
 
-  final int maxIsolates = (Platform.numberOfProcessors - 1).clamp(3, 256);
-  final int baseNOfIsolates = (Platform.numberOfProcessors - 2).clamp(2, 256);
+  final int maxIsolates = (Platform.numberOfProcessors - 2).clamp(
+    3,
+    Platform.numberOfProcessors - 2,
+  );
+  final int baseNOfIsolates = (Platform.numberOfProcessors ~/ 2).clamp(
+    2,
+    Platform.numberOfProcessors - 2,
+  );
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();
@@ -56,6 +62,67 @@ class IsolatesManager {
     for (int i = 0; i < baseNOfIsolates; i++) {
       _workers.add(_Worker());
     }
+    _startPinger();
+  }
+
+  _startPinger() async {
+    Timer? pingCheckTimer;
+    final pingPort = ReceivePort();
+    var lastPing = DateTime.now();
+
+    Isolate pinger = await Isolate.spawn(_isolatePinger, pingPort.sendPort);
+
+    // receive ping
+    pingPort.listen((message) {
+      lastPing = DateTime.now();
+    });
+    // check if ping is outdated
+    Future.delayed(Duration(seconds: 5), () {
+      var lastCheckedTime = DateTime.now();
+      pingCheckTimer = Timer.periodic(Duration(seconds: 1), (_) {
+        final now = DateTime.now();
+        final pingDelay = now.difference(lastPing);
+        final freezeDuration = now.difference(lastCheckedTime);
+        final toleratedDelay = Duration(seconds: 4);
+        if (pingDelay > (toleratedDelay + freezeDuration)) {
+          pinger.kill();
+          pingCheckTimer?.cancel();
+          pingPort.close();
+          //todo cleanup all isolates and trigger _onBadExit
+          for (var task in _taskQueue.toList()) {
+            Future.delayed(Duration(seconds: 1), () {
+              task.onBadExit(
+                null,
+                Exception(
+                  "Isolate missed ping. Likely killed by System, restarting all isolates.",
+                ),
+              );
+              _taskQueue.remove(task);
+            });
+          }
+          for (var worker in _workers) {
+            Future.delayed(Duration(seconds: 1), () {
+              worker.isolate?.kill(priority: Isolate.immediate);
+              worker.task?.onBadExit(
+                null,
+                Exception(
+                  "Isolate missed ping. Likely killed by System, restarting all isolates.",
+                ),
+              );
+              worker.reset();
+            });
+          }
+          _startPinger();
+        }
+        lastCheckedTime = now;
+      });
+    });
+  }
+
+  static _isolatePinger<T>(SendPort sendPing) async {
+    Timer.periodic(Duration(seconds: 1), (timer) {
+      sendPing.send(true);
+    });
   }
 
   Future<TaskKiller> runTask<T>(
@@ -150,7 +217,6 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         .then((isolate) {
           worker.isolate = isolate;
 
-          //final bool runImmediate = prio == IsolatePriority.immediate;
           bool cleanedUp = false;
           void cleanup() {
             if (cleanedUp) return;
@@ -161,8 +227,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
             exitPort.close();
             worker.isBusy = false;
             worker.isolate?.kill(priority: Isolate.immediate);
-            worker.isolate = null;
-            worker.task = null;
+            worker.reset();
             if (IsolatesManager()._workers.length >
                 IsolatesManager().maxIsolates - 1) {
               IsolatesManager()._workers.remove(worker);
@@ -179,21 +244,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           // exit / error
           exitPort.listen((_) => cleanup());
           errorPort.listen((e) {
-            cleanup();
-            dev.log("Error in Isolate: $e");
-
-            Object error = e;
-            StackTrace? stack = StackTrace.current;
-            if (e is List && e.length == 2) {
-              error = e[0];
-              if (e[1] is String) {
-                stack = StackTrace.fromString(e[1]);
-              }
-            }
-
-            if (onErrorFunction != null) {
-              onErrorFunction!(error, stack);
-            }
+            onBadExit(cleanup, e);
           });
 
           final killer = TaskKiller(
@@ -224,11 +275,26 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           completer.complete(killer);
         })
         .catchError((e) {
-          worker.isBusy = false;
-          worker.task = null;
+          worker.reset();
           completer.completeError(e);
           IsolatesManager()._tryStartNext();
         });
+  }
+
+  void onBadExit(void Function()? cleanup, e) {
+    if (cleanup != null) cleanup();
+    Object error = e;
+    StackTrace stack = StackTrace.current;
+    dev.log("Error in Isolate: $e");
+    if (e is List && e.length == 2) {
+      error = e[0];
+      if (e[1] is String) {
+        stack = StackTrace.fromString(e[1]);
+      }
+    }
+    if (onErrorFunction != null) {
+      onErrorFunction!(error, stack);
+    }
   }
 }
 
@@ -236,4 +302,9 @@ class _Worker<T> {
   Isolate? isolate;
   _QueuedTask<T>? task;
   bool isBusy = false;
+  reset() {
+    isolate = null;
+    task = null;
+    isBusy = false;
+  }
 }

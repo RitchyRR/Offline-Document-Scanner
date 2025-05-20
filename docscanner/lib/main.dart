@@ -3223,7 +3223,7 @@ class PagePreviewState extends State<PagePreview> {
             FilesHelper.deleteCachedRoatedImages();
             _refreshCornersOverlay(supressWarnings: true);
           }
-          setState(() {});
+          if (mounted) setState(() {});
         },
       );
     }
@@ -3238,7 +3238,7 @@ class PagePreviewState extends State<PagePreview> {
     do {
       await onTick();
       await Future.delayed(delay);
-    } while (condition());
+    } while (mounted && condition());
     if (onComplete != null) {
       await onComplete();
     }
