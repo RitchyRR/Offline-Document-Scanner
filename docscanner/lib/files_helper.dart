@@ -1507,7 +1507,7 @@ class FilesHelper {
         rotatedFilePath,
         rotationIn,
         g,
-      ), prio: IsolatePriority.quick);
+      ), prio: IsolatePriority.immediate);
       await port.first;
       port.close();
     }

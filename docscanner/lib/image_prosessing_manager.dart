@@ -384,7 +384,7 @@ class ImageProcessingManager {
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolateThumbnail,
       (port.sendPort, token, docIndex, pageIndex, photoBytes, g),
-      prio: IsolatePriority.immediate,
+      prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
       },

@@ -4723,7 +4723,7 @@ class _WarpState extends State<Warp> {
               icon: Icons.check,
               tooltip: 'Save adjusted Corners',
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 12),
           ],
         ),
         body: OverflowBox(
