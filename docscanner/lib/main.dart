@@ -4480,7 +4480,10 @@ class CustomIconButton extends StatelessWidget {
                         color:
                             isDisabled
                                 ? Theme.of(context).disabledColor
-                                : color,
+                                : color ??
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(radius),
                         boxShadow:
                             isDisabled ? null : [smallBoxShadow(context)],
@@ -4615,7 +4618,7 @@ class _WarpState extends State<Warp> {
   void _scaleImage() {
     double newMoveUpBy = 0.0;
     for (var point in _scaledPoints) {
-      double maxHeight = 424.0;
+      double maxHeight = MediaQuery.of(context).size.height - 450;
       double pointMoveUpBy = point.dy - maxHeight;
       if (pointMoveUpBy > newMoveUpBy) {
         newMoveUpBy = pointMoveUpBy;
@@ -4712,7 +4715,17 @@ class _WarpState extends State<Warp> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        appBar: AppBar(title: const Text("Adjust Corners")),
+        appBar: AppBar(
+          title: const Text("Adjust Corners"),
+          actions: [
+            CustomIconButton(
+              onTap: () => _saveCorners(),
+              icon: Icons.check,
+              tooltip: 'Save adjusted Corners',
+            ),
+            SizedBox(width: 8),
+          ],
+        ),
         body: OverflowBox(
           alignment: Alignment.topCenter,
           minHeight: 24.0,
@@ -4776,29 +4789,22 @@ class _WarpState extends State<Warp> {
             ],
           ),
         ),
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: FloatingActionButton(
-            heroTag: "saveCorners",
-            onPressed: () {
-              for (var (i, scaledPoint) in _scaledPoints.indexed) {
-                widget.cornerPoints[i] = [
-                  (scaledPoint.dy / _scale).toInt(),
-                  (scaledPoint.dx / _scale).toInt(),
-                ];
-              }
-              widget.pagePreviewState.reprocessPhoto(
-                newCornerPoints: widget.cornerPoints,
-              );
-              _allowPop = true;
-              Navigator.pop(context);
-            },
-            tooltip: 'Save adjusted Corners',
-            child: Icon(Icons.check),
-          ),
-        ),
       ),
     );
+  }
+
+  _saveCorners() {
+    for (var (i, scaledPoint) in _scaledPoints.indexed) {
+      widget.cornerPoints[i] = [
+        (scaledPoint.dy / _scale).toInt(),
+        (scaledPoint.dx / _scale).toInt(),
+      ];
+    }
+    widget.pagePreviewState.reprocessPhoto(
+      newCornerPoints: widget.cornerPoints,
+    );
+    _allowPop = true;
+    Navigator.pop(context);
   }
 
   @override
