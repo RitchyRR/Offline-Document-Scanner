@@ -3,6 +3,9 @@ import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -10,7 +13,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:developer' as dev;
 import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
 // pdf:
@@ -29,9 +31,6 @@ import 'package:docscanner/opencv_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
-
-import 'package:image/image.dart' as img;
-import 'dart:ui' as ui;
 
 class FilesHelper {
   late String docsPath = "";
@@ -1642,27 +1641,20 @@ class FilesHelper {
       // -> Uint8List
       final ui.Image uiImage = await renderedPage.createImageDetached();
       final ByteData? byteData = await uiImage.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
+        format: ui.ImageByteFormat.png,
       );
-      final img.Image pngImage = img.Image.fromBytes(
-        width: uiImage.width,
-        height: uiImage.height,
-        bytes: byteData!.buffer,
-        order: img.ChannelOrder.rgba,
-      );
-      final Uint8List photoBytes = img.encodePng(pngImage);
-
+      final Uint8List pngBytes = byteData!.buffer.asUint8List();
+      // Processing
       imageProcessingManager.processPdfPage(
         docIndex,
         pageIndex + firstPageIndex,
-        photoBytes,
+        pngBytes,
       );
-
+      // Cleanup
       pagesProcessed++;
       if (pagesProcessed == pageCount) {
         doc.dispose();
       }
-      await Future.delayed(Duration(milliseconds: 250));
     }
   }
 }

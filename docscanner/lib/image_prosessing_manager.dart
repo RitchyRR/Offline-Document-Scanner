@@ -165,7 +165,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
     if (isInitial) {
-      bool newThumbnail = await _scaleAndSaveThumbnail(
+      bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
         sendPort,
         docIndex,
         pageIndex,
@@ -247,7 +247,7 @@ class ImageProcessingManager {
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
-    await _scaleAndSaveThumbnail(sendPort, docIndex, pageIndex, 0, g);
+    await _scaleAndSaveThumbnailIsolate(sendPort, docIndex, pageIndex, 0, g);
 
     sendPort.send('done');
   }
@@ -384,7 +384,7 @@ class ImageProcessingManager {
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolateThumbnail,
       (port.sendPort, token, docIndex, pageIndex, photoBytes, g),
-      prio: IsolatePriority.quick,
+      prio: IsolatePriority.immediate,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
       },
@@ -546,7 +546,7 @@ class ImageProcessingManager {
         pageIndex,
         gIn: g,
       );
-      bool newThumbnail = await _scaleAndSaveThumbnail(
+      bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
         sendPort,
         docIndex,
         pageIndex,
@@ -878,7 +878,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
-    bool newThumbnail = await _scaleAndSaveThumbnail(
+    bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
       sendPort,
       docIndex,
       pageIndex,
@@ -931,7 +931,7 @@ class ImageProcessingManager {
     await rotatePageCompleter.future;
   }
 
-  static Future<bool> _scaleAndSaveThumbnail(
+  static Future<bool> _scaleAndSaveThumbnailIsolate(
     SendPort? sendPort,
     int docIndex,
     int pageIndex,
@@ -1060,7 +1060,7 @@ class ImageProcessingManager {
     int thumbnailIndex = data.$4;
     AppGlobals gIn = data.$5;
 
-    await _scaleAndSaveThumbnail(
+    await _scaleAndSaveThumbnailIsolate(
       sendPort,
       docIndex,
       pageIndex,
