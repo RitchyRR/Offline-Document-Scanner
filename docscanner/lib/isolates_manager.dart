@@ -47,12 +47,12 @@ class IsolatesManager {
   }
 
   final int maxIsolates = (Platform.numberOfProcessors - 1).clamp(
-    3,
+    1,
     Platform.numberOfProcessors - 1,
   );
-  final int baseNOfIsolates = (Platform.numberOfProcessors ~/ 8 * 5).clamp(
-    2,
-    Platform.numberOfProcessors - 2,
+  final int baseNOfIsolates = (Platform.numberOfProcessors ~/ 2).clamp(
+    1,
+    Platform.numberOfProcessors - 1,
   );
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
