@@ -4609,6 +4609,7 @@ class _WarpState extends State<Warp> {
   List<Offset> _initialScaledPoints = [];
   List<Offset> _scaledPoints = [];
   double _screenWidth = 0;
+  double _screenHeight = 0;
   double _displayHeigth = 0;
   double _scale = 1.0;
   int _imagePixelWidth = 0;
@@ -4649,6 +4650,7 @@ class _WarpState extends State<Warp> {
     _imagePixelHeight = image.height;
     if (mounted) {
       _screenWidth = MediaQuery.of(context).size.width;
+      _screenHeight = MediaQuery.of(context).size.height - 450;
     }
     _scale = _screenWidth / _imagePixelWidth;
     _displayHeigth = _imagePixelHeight * _scale;
@@ -4666,8 +4668,7 @@ class _WarpState extends State<Warp> {
     _initialScaledPoints = List<Offset>.from(_scaledPoints);
 
     for (var point in _scaledPoints) {
-      double maxHeight = 424.0;
-      double pointMoveUpBy = point.dy - maxHeight;
+      double pointMoveUpBy = point.dy - _screenHeight;
       if (pointMoveUpBy > _moveUpBy) {
         _moveUpBy = pointMoveUpBy;
       }
@@ -4678,8 +4679,7 @@ class _WarpState extends State<Warp> {
   void _scaleImage() {
     double newMoveUpBy = 0.0;
     for (var point in _scaledPoints) {
-      double maxHeight = MediaQuery.of(context).size.height - 450;
-      double pointMoveUpBy = point.dy - maxHeight;
+      double pointMoveUpBy = point.dy - _screenHeight;
       if (pointMoveUpBy > newMoveUpBy) {
         newMoveUpBy = pointMoveUpBy;
       }
