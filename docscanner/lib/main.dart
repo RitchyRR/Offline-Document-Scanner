@@ -3279,7 +3279,9 @@ class PagePreviewState extends State<PagePreview> {
           widget.pageIndex,
           supressWarnings: supressWarnings,
         );
-    _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
+    if (_ratioValue != null) {
+      _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
+    }
     if (mounted) {
       setState(() {
         _guiRatioValue;

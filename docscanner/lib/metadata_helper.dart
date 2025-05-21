@@ -332,7 +332,6 @@ class MetadataHelper {
 
     bool isNewIndex = false;
 
-    if (thumbnailIndexIn == 0) return false;
     if (thumbnailIndexIn == 3 &&
         !(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) &&
         !tmpPro) {
@@ -428,9 +427,6 @@ class MetadataHelper {
     );
     if (value is String) {
       int thumbnailIndex = versionNames.indexOf(value);
-      if (thumbnailIndex == 0) {
-        throw StateError('metadata: thumbnail cant be the photo');
-      }
       return thumbnailIndex;
     } else {
       return (isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true)

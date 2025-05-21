@@ -233,7 +233,7 @@ class ImageProcessingManager {
     await MetadataHelper.writePageThumbnailIndex(
       docIndex,
       pageIndex,
-      1,
+      0,
       gIn: g,
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);

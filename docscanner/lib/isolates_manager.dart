@@ -50,10 +50,9 @@ class IsolatesManager {
     1,
     Platform.numberOfProcessors - 1,
   );
-  final int baseNOfIsolates = (Platform.numberOfProcessors ~/ 2).clamp(
-    1,
-    Platform.numberOfProcessors - 1,
-  );
+  final int baseNOfIsolates = ((Platform.numberOfProcessors - 1) * 5 / 7)
+      .toInt()
+      .clamp(1, Platform.numberOfProcessors - 1);
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();
@@ -83,7 +82,7 @@ class IsolatesManager {
         final now = DateTime.now();
         final pingDelay = now.difference(lastPing);
         final freezeDuration = now.difference(lastCheckedTime);
-        final toleratedDelay = Duration(seconds: 4);
+        final toleratedDelay = Duration(seconds: 8);
         if (pingDelay > (toleratedDelay + freezeDuration)) {
           pinger.kill();
           pingCheckTimer?.cancel();
