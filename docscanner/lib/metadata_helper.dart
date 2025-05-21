@@ -244,7 +244,6 @@ class MetadataHelper {
     int docIndex,
     int pageIndex,
     double? ratioValue,
-    int? orientationIndex,
     List<List<int>>? cornerPoints, {
     AppGlobals? gIn,
   }) async {
@@ -271,10 +270,6 @@ class MetadataHelper {
     try {
       // Write + Encrypt
       if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
-      if (orientationIndex != null) {
-        metadata["orientation"] =
-            orientationIndex == 0 ? "portrait" : "landscape";
-      }
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
@@ -283,13 +278,12 @@ class MetadataHelper {
     }
   }
 
-  Future<(double?, int?, List<List<int>>?)> readPageProcessingMetadata(
+  Future<(double?, List<List<int>>?)> readPageProcessingMetadata(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
   }) async {
     double? ratioValue;
-    int? orientationIndex;
     List<List<int>>? cornerPoints;
 
     String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
@@ -309,12 +303,6 @@ class MetadataHelper {
         dev.log("Error, readPageMetadata, ratioValue: $e");
       }
       try {
-        String orientationString = metadata["orientation"];
-        orientationIndex = (orientationString == "portrait") ? 0 : 1;
-      } catch (e) {
-        dev.log("Error, readPageMetadata, orientationString: $e");
-      }
-      try {
         cornerPoints =
             (metadata["corners"] as List)
                 .map<List<int>>(
@@ -329,7 +317,7 @@ class MetadataHelper {
         "Warning, readPageMetadata: Metadata does not exist for $pagePath",
       );
     }
-    return (ratioValue, orientationIndex, cornerPoints);
+    return (ratioValue, cornerPoints);
   }
 
   static Future<bool> writePageThumbnailIndex(
@@ -417,24 +405,6 @@ class MetadataHelper {
         throw StateError("aspectRatio should not be saved as 0");
       }
       return ratioValue;
-    } else {
-      return null;
-    }
-  }
-
-  static Future<int?> readPageOrientationIndex(
-    int docIndex,
-    int pageIndex, {
-    bool supressWarnings = false,
-  }) async {
-    dynamic value = await _readPage(
-      docIndex,
-      pageIndex,
-      "orientation",
-      supressWarnings: supressWarnings,
-    );
-    if (value is String) {
-      return (value == "portrait") ? 0 : 1;
     } else {
       return null;
     }

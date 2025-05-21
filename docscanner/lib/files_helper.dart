@@ -1149,7 +1149,6 @@ class FilesHelper {
 
     // Metadata
     List<double> ratioValues = [];
-    List<int> orientations = [];
     if (pageIndexes.isEmpty) {
       pageIndexes = List.generate(imagePaths.length, (index) => index);
     }
@@ -1158,9 +1157,6 @@ class FilesHelper {
       ratioValues.add(
         await MetadataHelper.readPageRatioValue(docIndex, pageIndex) ??
             math.sqrt2,
-      );
-      orientations.add(
-        await MetadataHelper.readPageOrientationIndex(docIndex, pageIndex) ?? 0,
       );
     }
 

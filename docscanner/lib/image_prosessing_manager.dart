@@ -35,7 +35,6 @@ class ImageProcessingManager {
       int pageIndex,
       String newPhotoPath,
       double? ratioValueIn,
-      int? orientationIndexIn,
       int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -53,15 +52,14 @@ class ImageProcessingManager {
     String newPhotoPath = data.$5;
 
     double? ratioValueIn = data.$6;
-    int? orientationIndexIn = data.$7;
-    int? pageThumbnailIndexIn = data.$8;
-    List<List<int>>? cornerPointsIn = data.$9;
-    int rotationIn = data.$10;
-    bool isInitial = data.$11;
+    int? pageThumbnailIndexIn = data.$7;
+    List<List<int>>? cornerPointsIn = data.$8;
+    int rotationIn = data.$9;
+    bool isInitial = data.$10;
     if (pageThumbnailIndexIn == 0) {
       throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
     }
-    AppGlobals g = data.$12;
+    AppGlobals g = data.$11;
     if (!File(newPhotoPath).existsSync() ||
         File(newPhotoPath).lengthSync() == 0) {
       final actualPhotoPath = await g.filesHelper.getVersionPath(
@@ -110,7 +108,6 @@ class ImageProcessingManager {
         versionPaths[0],
         shapePath,
         ratioValueIn: ratioValueIn,
-        orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
       ),
     );
@@ -121,14 +118,12 @@ class ImageProcessingManager {
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     double? ratioValue = warpedRet.$4;
-    int? orientationIndex = warpedRet.$5;
-    List<List<int>>? cornerPoints = warpedRet.$6;
+    List<List<int>>? cornerPoints = warpedRet.$5;
 
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
       ratioValue,
-      orientationIndex,
       cornerPoints,
       gIn: g,
     );
@@ -220,21 +215,17 @@ class ImageProcessingManager {
       [0, imgInfo.width - 1],
       [imgInfo.height - 1, imgInfo.width - 1],
     ];
-    int orientationIndexIn = imgInfo.height >= imgInfo.width ? 0 : 1;
     OpenCVHelper cvHelper = OpenCVHelper(g);
-    final ratioData = cvHelper.matchAspectRatioAndOrientation(
+    final matchingValue = cvHelper.matchAspectRatioAndOrientation(
       imgInfo.height / imgInfo.width,
-      null,
-      orientationIndexIn,
     );
-    double ratioValueIn = ratioData.$1;
+    double ratioValueIn = matchingValue;
 
     // Write Metadata
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
       ratioValueIn,
-      orientationIndexIn,
       cornerPointsIn,
       gIn: g,
     );
@@ -302,7 +293,6 @@ class ImageProcessingManager {
     int pageIndex,
     String photoPath,
     double? ratioValueIn,
-    int? orientationIndexIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
@@ -342,7 +332,6 @@ class ImageProcessingManager {
         pageIndex,
         photoPath,
         ratioValueIn,
-        orientationIndexIn,
         pageThumbnailIndex,
         cornerPointsIn,
         rotationIn,
@@ -438,7 +427,6 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       double? ratioValueIn,
-      int? orientationIndexIn,
       List<List<int>>? cornerPointsIn,
       AppGlobals g,
     )
@@ -451,9 +439,8 @@ class ImageProcessingManager {
     int pageIndex = data.$4;
 
     double? ratioValueIn = data.$5;
-    int? orientationIndexIn = data.$6;
-    List<List<int>>? cornerPointsIn = data.$7;
-    AppGlobals g = data.$8;
+    List<List<int>>? cornerPointsIn = data.$6;
+    AppGlobals g = data.$7;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
@@ -477,7 +464,6 @@ class ImageProcessingManager {
         versionPaths[0],
         shapePath,
         ratioValueIn: ratioValueIn,
-        orientation: orientationIndexIn,
         cornerPoints: cornerPointsIn,
         onlyCalculateBorder: versionPaths[1].isNotEmpty,
       ),
@@ -490,13 +476,11 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
     double ratioValue = warpedRet.$4;
-    int orientationIndex = warpedRet.$5;
-    List<List<int>> cornerPoints = warpedRet.$6;
+    List<List<int>> cornerPoints = warpedRet.$5;
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
       ratioValue,
-      orientationIndex,
       cornerPoints,
       gIn: g,
     );
@@ -687,7 +671,6 @@ class ImageProcessingManager {
       null,
       null,
       null,
-      null,
       0,
       true,
       photosAlreadyInPages,
@@ -707,7 +690,6 @@ class ImageProcessingManager {
           null,
           null,
           null,
-          null,
           0,
           true,
           photosAlreadyInPages,
@@ -722,7 +704,6 @@ class ImageProcessingManager {
     int pageIndex,
     String pathIn,
     double? ratioValueIn,
-    int? orientationIn,
     int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
@@ -732,7 +713,6 @@ class ImageProcessingManager {
       pageIndex,
       pathIn,
       ratioValueIn,
-      orientationIn,
       pageThumbnailIndex,
       cornerPointsIn,
       rotationIn,
@@ -753,8 +733,7 @@ class ImageProcessingManager {
       pageIndex,
     );
     double? ratioValue = processingMetadata.$1;
-    int? orientationIndex = processingMetadata.$2;
-    List<List<int>>? cornerPoints = processingMetadata.$3;
+    List<List<int>>? cornerPoints = processingMetadata.$2;
 
     while (taskKillers.length >= maxIsolates) {
       await Future.delayed(Duration(milliseconds: 100));
@@ -763,16 +742,7 @@ class ImageProcessingManager {
     RootIsolateToken token = RootIsolateToken.instance!;
     TaskKiller killer = await IsolatesManager().runTask(
       _repairPageIsolate,
-      (
-        port.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        ratioValue,
-        orientationIndex,
-        cornerPoints,
-        g,
-      ),
+      (port.sendPort, token, docIndex, pageIndex, ratioValue, cornerPoints, g),
       prio: IsolatePriority.regular,
       onErrorFunction: (error, stack) {
         dev.log("Error, _repairPageIsolate -> deleting page: $error $stack");

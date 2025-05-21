@@ -481,7 +481,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   List<int> _docPageCounts = [];
   List<String> _docNames = [];
   List<String> _docDates = [];
-  List<double> _thumbnailRatios = [];
+  final List<double> _thumbnailRatios = [];
   int _docsCount = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
     // Thumbnails
@@ -507,7 +507,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // Document Metadata (Names, Dates, AspectRatios)
     _docNames = List.generate(_docsCount, (_) => "");
     _docDates = List.generate(_docsCount, (_) => "");
-    _thumbnailRatios = List.generate(_docsCount, (_) => 1.0 / math.sqrt2);
+    while (_thumbnailRatios.length < _docsCount) {
+      _thumbnailRatios.add(1.0 / math.sqrt2);
+    }
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docDates[docIndex] =
           (await g.metadataHelper.readDocDate(docIndex)) ?? "";
@@ -2757,7 +2759,11 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   List<double> ratios = [];
   _setRatios() {
     final List<double> priorRatios = List<double>.from(ratios);
-    ratios = List<double>.from(widget.pageAspectRatios);
+    ratios = List<double>.generate(
+      widget.pageAspectRatios.length,
+      (index) => 1.0 / widget.pageAspectRatios[index],
+    );
+    ratios[0] = 0.01;
     ratios[ratios.length - 1] = 0.0;
     return priorRatios != ratios;
   }
@@ -3097,7 +3103,7 @@ class PagePreviewState extends State<PagePreview> {
   // Reprocessing Parameters
   double? _ratioValue;
   double? _guiRatioValue;
-  int? _orientation;
+  int? _orientationIndex;
   int? _guiOrientationIndex;
   int _totalRotation = 0;
   // Corner Points
@@ -3201,13 +3207,22 @@ class PagePreviewState extends State<PagePreview> {
   void _pollForImagesAndMetadata() {
     // Poll Metadtata
     _pollWhile(
-      condition: () => _ratioValue == null || _orientation == null,
-      onTick: () => _loadPageMetadata(supressWarnings: true),
+      condition: () {
+        return _ratioValue == null;
+      },
+      onTick: () {
+        _loadPageMetadata(supressWarnings: true);
+      },
+      onComplete: () {
+        _loadPageMetadata(supressWarnings: true);
+      },
     );
     // Poll Images
     for (int i = 0; i <= 3; i++) {
       _pollWhile(
-        condition: () => _versionPaths[i].isEmpty,
+        condition: () {
+          return _versionPaths[i].isEmpty;
+        },
         onTick: () async {
           _versionPaths[i] = await g.filesHelper.getVersionPath(
             widget.docIndex,
@@ -3264,12 +3279,7 @@ class PagePreviewState extends State<PagePreview> {
           widget.pageIndex,
           supressWarnings: supressWarnings,
         );
-    _guiOrientationIndex =
-        _orientation = await MetadataHelper.readPageOrientationIndex(
-          widget.docIndex,
-          widget.pageIndex,
-          supressWarnings: supressWarnings,
-        );
+    _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
     if (mounted) {
       setState(() {
         _guiRatioValue;
@@ -3309,7 +3319,7 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _reprocessingSetup() async {
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
-    _orientation = null;
+    _orientationIndex = null;
     _totalRotation = 0;
     g.filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
@@ -3489,10 +3499,7 @@ class PagePreviewState extends State<PagePreview> {
             Align(
               alignment: Alignment.center,
               child: AspectRatio(
-                aspectRatio:
-                    (((_orientation ?? 0) == 0)
-                        ? 1.0 / (_ratioValue ?? math.sqrt2)
-                        : (_ratioValue ?? math.sqrt2)),
+                aspectRatio: 1.0 / (_ratioValue ?? math.sqrt2),
                 child: Container(
                   decoration: BoxDecoration(
                     boxShadow: [
@@ -3896,6 +3903,7 @@ class PagePreviewState extends State<PagePreview> {
           _rotationOngoing = true;
           _guiOrientationIndex =
               ((_guiOrientationIndex ?? 0) - 1) * (-1); // toggle
+          _guiRatioValue = 1.0 / _guiRatioValue!;
         });
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
@@ -3939,10 +3947,8 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
-          ((_guiRatioValue != null &&
-                  (_ratioValue == _guiRatioValue ||
-                      _ratioValue == 1.0 / _guiRatioValue!)) &&
-              (_orientation == _guiOrientationIndex) &&
+          ((_guiRatioValue != null && (_ratioValue == _guiRatioValue)) &&
+              (_orientationIndex == _guiOrientationIndex) &&
               _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
@@ -3967,7 +3973,6 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     double? ratioValue = metadata.$1;
-    int? orientationIndex = metadata.$2;
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
@@ -3990,7 +3995,6 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
       _guiRatioValue,
-      _guiOrientationIndex,
       newCornerPoints,
     );
 
@@ -3998,8 +4002,8 @@ class PagePreviewState extends State<PagePreview> {
 
     if (ratioValue != _guiRatioValue) onlyRotation = false;
     int quarterTurns = (_totalRotation ~/ 90) % 4;
-    if (quarterTurns.isEven && orientationIndex != _guiOrientationIndex ||
-        quarterTurns.isOdd && orientationIndex == _guiOrientationIndex) {
+    if (quarterTurns.isEven && _orientationIndex != _guiOrientationIndex ||
+        quarterTurns.isOdd && _orientationIndex == _guiOrientationIndex) {
       onlyRotation = false;
     }
 
@@ -4029,7 +4033,6 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
         customCorners ? null : _guiRatioValue,
-        customCorners ? null : _guiOrientationIndex,
         (g.proUnlocked == true ? 3 : 2),
         newCornerPoints,
         _totalRotation,
@@ -4111,11 +4114,14 @@ class PagePreviewState extends State<PagePreview> {
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _guiRatioValue) {
-                      setState(
-                        () =>
-                            _guiRatioValue =
-                                g.availableAspectRatios[newValue].value,
-                      );
+                      setState(() {
+                        final newPortraitValue =
+                            g.availableAspectRatios[newValue].value;
+                        _guiRatioValue =
+                            (_guiOrientationIndex ?? 0) == 0
+                                ? newPortraitValue
+                                : 1 / newPortraitValue;
+                      });
                     }
                   },
         ),
@@ -4160,7 +4166,12 @@ class PagePreviewState extends State<PagePreview> {
                   ? null
                   : (int? newValue) {
                     if (newValue != null && newValue != _guiOrientationIndex) {
-                      setState(() => _guiOrientationIndex = newValue);
+                      _guiOrientationIndex = newValue;
+                      if (_guiRatioValue! > 1.0 && _guiOrientationIndex != 0 ||
+                          _guiRatioValue! < 1.0 && _guiOrientationIndex != 1) {
+                        _guiRatioValue = 1.0 / _guiRatioValue!;
+                      }
+                      setState(() {});
                     }
                   },
         ),
