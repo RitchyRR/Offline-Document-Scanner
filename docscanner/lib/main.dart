@@ -604,43 +604,45 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ),
                     SizedBox(height: 16),
                     // Dropdown for changing the index
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(
-                        labelText: "Move Document to new Index",
-                      ),
-                      value: currentIndex,
-                      isExpanded: true,
-                      items: List.generate(
-                        _docThumbnails.length,
-                        (i) => DropdownMenuItem(
-                          value: i,
-                          child: Text(
-                            overflow: TextOverflow.ellipsis,
-                            (i == docIndex)
-                                ? (nameController.text.trim().isNotEmpty)
-                                    ? nameController.text.trim()
-                                    : "Document ${i + 1}"
-                                : _docNames[i].isNotEmpty
-                                ? _docNames[i]
-                                : "Document ${i + 1}",
-                          ),
-                        ),
-                      ),
-                      onChanged:
-                          allowChangeDocIndex
-                              ? (int? newValue) {
-                                if (newValue != null) {
-                                  setState(() => currentIndex = newValue);
-                                }
-                              }
-                              : null,
-                      onTap:
+                    TextButton(
+                      onPressed:
                           !allowChangeDocIndex
                               ? () => Fluttertoast.showToast(
                                 msg:
                                     'Blocked while other Documents are processing...',
                               )
                               : null,
+                      child: DropdownButtonFormField<int>(
+                        decoration: InputDecoration(
+                          labelText: "Move Document to new Index",
+                        ),
+                        value: currentIndex,
+                        isExpanded: true,
+                        items: List.generate(
+                          _docThumbnails.length,
+                          (i) => DropdownMenuItem(
+                            value: i,
+                            child: Text(
+                              overflow: TextOverflow.ellipsis,
+                              (i == docIndex)
+                                  ? (nameController.text.trim().isNotEmpty)
+                                      ? nameController.text.trim()
+                                      : "Document ${i + 1}"
+                                  : _docNames[i].isNotEmpty
+                                  ? _docNames[i]
+                                  : "Document ${i + 1}",
+                            ),
+                          ),
+                        ),
+                        onChanged:
+                            allowChangeDocIndex
+                                ? (int? newValue) {
+                                  if (newValue != null) {
+                                    setState(() => currentIndex = newValue);
+                                  }
+                                }
+                                : null,
+                      ),
                     ),
                   ],
                 );
@@ -2587,38 +2589,41 @@ class _PagesState extends State<Pages> with RouteAware {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Move Page to new Index - Dropdown
-                  DropdownButtonFormField<int>(
-                    decoration: InputDecoration(
-                      labelText: "Move Page to new Index",
-                    ),
-                    value: currentIndex,
-                    isExpanded: true,
-                    items: List.generate(
-                      _pageThumbnails.length,
-                      (i) => DropdownMenuItem(
-                        value: i,
-                        child: Text(
-                          overflow: TextOverflow.ellipsis,
-                          "Page ${i + 1}",
-                        ),
-                      ),
-                    ),
-                    onChanged:
-                        allowChangePageIndex
-                            ? (int? newValue) {
-                              if (newValue != null) {
-                                setState(() => currentIndex = newValue);
-                              }
-                            }
-                            : null,
-                    onTap:
+                  TextButton(
+                    onPressed:
                         !allowChangePageIndex
                             ? () => Fluttertoast.showToast(
                               msg:
                                   'Blocked while other Pages of this Document are processing...',
                             )
                             : null,
+                    child: DropdownButtonFormField<int>(
+                      decoration: InputDecoration(
+                        labelText: "Move Page to new Index",
+                      ),
+                      value: currentIndex,
+                      isExpanded: true,
+                      items: List.generate(
+                        _pageThumbnails.length,
+                        (i) => DropdownMenuItem(
+                          value: i,
+                          child: Text(
+                            overflow: TextOverflow.ellipsis,
+                            "Page ${i + 1}",
+                          ),
+                        ),
+                      ),
+                      onChanged:
+                          allowChangePageIndex
+                              ? (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() => currentIndex = newValue);
+                                }
+                              }
+                              : null,
+                    ),
                   ),
+
                   SizedBox(height: 24),
                   // Reverse Order - Button
                   ElevatedButton.icon(
