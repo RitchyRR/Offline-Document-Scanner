@@ -3885,14 +3885,6 @@ class PagePreviewState extends State<PagePreview> {
                               child: CustomIconButton(
                                 onTap: null,
                                 icon: Icons.lock,
-                                iconColor:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.onPrimaryContainer,
-                                buttonColor:
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer,
                               ),
                             ),
                       ],
@@ -3922,9 +3914,10 @@ class PagePreviewState extends State<PagePreview> {
         },
         isFlat: true,
         icon: Icons.keyboard_arrow_left,
+        iconColor: Theme.of(context).colorScheme.onSurface,
         buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         constraints: BoxConstraints(maxHeight: 46, maxWidth: 60),
-        child: Icon(Icons.edit),
+        child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
   }
@@ -3982,6 +3975,7 @@ class PagePreviewState extends State<PagePreview> {
       isFlat: true,
       //isDisabled: _rotationOngoing,
       icon: icon,
+      iconColor: Theme.of(context).colorScheme.onSurface,
       buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       tooltip: tooltip,
     );
@@ -5986,9 +5980,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 allowPop = true;
                 Navigator.pop(context, _capturedImages);
               },
-              buttonColor: Theme.of(context).colorScheme.primaryContainer,
               icon: Icons.check,
-              iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
             ),
             SizedBox(width: 12),
           ],
