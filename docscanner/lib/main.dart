@@ -1182,7 +1182,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                     boxShadow: [bigBoxShadow(context)],
                                   ),
                                   child:
-                                      _docThumbnails.length < docIndex
+                                      _docThumbnails.length <= docIndex
                                           ? SizedBox()
                                           : Stack(
                                             children: [
@@ -2635,8 +2635,30 @@ class _PagesState extends State<Pages> with RouteAware {
                               msg:
                                   'Blocked while Pages of this Document are processing...',
                             ),
-                    label: Text("Reverse Order"),
-                    icon: Icon(Icons.swap_vert),
+                    label: Text(
+                      "Reverse Order",
+                      style: TextStyle(
+                        color:
+                            allowChangePageIndex
+                                ? null
+                                : Theme.of(context).disabledColor,
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.swap_vert,
+                      color:
+                          allowChangePageIndex
+                              ? null
+                              : Theme.of(context).disabledColor,
+                    ),
+                    style: ButtonStyle(
+                      backgroundColor:
+                          allowChangePageIndex
+                              ? null
+                              : WidgetStateProperty.all(
+                                Theme.of(context).disabledColor,
+                              ),
+                    ),
                   ),
                   //SizedBox(height: 24),
                   //// Save, Share, Delete
