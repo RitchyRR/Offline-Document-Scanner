@@ -1860,7 +1860,7 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> with RouteAware {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
-  List<double> _thumbnailRatios = [];
+  final List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
 
   @override
@@ -1938,7 +1938,9 @@ class _PagesState extends State<Pages> with RouteAware {
     if (_pagesCount != _pageThumbnails.length) {
       newThumbnails = true;
     }
-    _thumbnailRatios = List.generate(_pagesCount, (_) => 1.0 / math.sqrt2);
+    while (_thumbnailRatios.length < _pagesCount) {
+      _thumbnailRatios.add(1.0 / math.sqrt2);
+    }
     for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
       if (!newThumbnails &&
           (_pageThumbnails.length <= pageIndex ||
