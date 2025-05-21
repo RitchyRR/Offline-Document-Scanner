@@ -269,8 +269,8 @@ class MetadataHelper {
 
     try {
       // Write + Encrypt
-      if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
-      if (cornerPoints != null) metadata["corners"] = cornerPoints;
+      metadata["aspectRatio"] = (ratioValue).toString();
+      metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
     } catch (e) {

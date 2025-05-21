@@ -3889,7 +3889,7 @@ class PagePreviewState extends State<PagePreview> {
                                     Theme.of(
                                       context,
                                     ).colorScheme.onPrimaryContainer,
-                                color:
+                                buttonColor:
                                     Theme.of(
                                       context,
                                     ).colorScheme.primaryContainer,
@@ -3922,7 +3922,7 @@ class PagePreviewState extends State<PagePreview> {
         },
         isFlat: true,
         icon: Icons.keyboard_arrow_left,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         constraints: BoxConstraints(maxHeight: 46, maxWidth: 60),
         child: Icon(Icons.edit),
       ),
@@ -3982,7 +3982,7 @@ class PagePreviewState extends State<PagePreview> {
       isFlat: true,
       //isDisabled: _rotationOngoing,
       icon: icon,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       tooltip: tooltip,
     );
   }
@@ -3990,7 +3990,7 @@ class PagePreviewState extends State<PagePreview> {
   CustomIconButton _confirmReProcessingButton(BuildContext context) {
     return CustomIconButton(
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
-      color: Theme.of(context).colorScheme.primaryContainer,
+      buttonColor: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
       iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
       isDisabled:
@@ -4046,7 +4046,7 @@ class PagePreviewState extends State<PagePreview> {
     await MetadataHelper.writePageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
-      _guiRatioValue,
+      customCorners ? null : _guiRatioValue,
       newCornerPoints,
     );
 
@@ -4503,7 +4503,7 @@ BoxShadow tinyBoxShadow(BuildContext context) {
 class CustomIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final BoxConstraints constraints;
-  final Color? color;
+  final Color? buttonColor;
   final IconData icon;
   final Color? iconColor;
   final double radius;
@@ -4517,7 +4517,7 @@ class CustomIconButton extends StatelessWidget {
     super.key,
     required this.onTap,
     this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
-    this.color,
+    this.buttonColor,
     this.icon = Icons.check,
     this.iconColor,
     this.radius = 20,
@@ -4543,7 +4543,7 @@ class CustomIconButton extends StatelessWidget {
                         color:
                             isDisabled
                                 ? Theme.of(context).disabledColor
-                                : color ??
+                                : buttonColor ??
                                     Theme.of(
                                       context,
                                     ).colorScheme.primaryContainer,
@@ -4572,7 +4572,10 @@ class CustomIconButton extends StatelessWidget {
                           color:
                               isDisabled
                                   ? Theme.of(context).disabledColor
-                                  : iconColor,
+                                  : iconColor ??
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimaryContainer,
                         ),
                         child,
                       ],
@@ -5983,7 +5986,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 allowPop = true;
                 Navigator.pop(context, _capturedImages);
               },
-              color: Theme.of(context).colorScheme.primaryContainer,
+              buttonColor: Theme.of(context).colorScheme.primaryContainer,
               icon: Icons.check,
               iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
             ),
