@@ -1181,138 +1181,159 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   decoration: BoxDecoration(
                                     boxShadow: [bigBoxShadow(context)],
                                   ),
-                                  child: Stack(
-                                    children: [
-                                      (_docThumbnails[docIndex].isNotEmpty)
-                                          ? AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            child: Image.file(
-                                              File(_docThumbnails[docIndex]),
-                                              key: ValueKey(
-                                                _docThumbnails[docIndex],
-                                              ),
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (
-                                                context,
-                                                error,
-                                                stackTrace,
-                                              ) {
-                                                return AspectRatio(
-                                                  aspectRatio:
-                                                      (_thumbnailRatios.length >
-                                                              docIndex)
-                                                          ? _thumbnailRatios[docIndex]
-                                                          : 1.0 / math.sqrt2,
-                                                  child: Builder(
-                                                    builder: (context) {
-                                                      return Material(
-                                                        color:
-                                                            Theme.of(context)
-                                                                .colorScheme
-                                                                .surfaceBright,
-                                                        child: const Icon(
-                                                          Icons.broken_image,
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          )
-                                          : AspectRatio(
-                                            aspectRatio:
-                                                _thumbnailRatios[docIndex],
-                                            child: Builder(
-                                              builder: (context) {
-                                                return Material(
-                                                  color:
-                                                      Theme.of(context)
-                                                          .colorScheme
-                                                          .surfaceBright,
-                                                  child:
-                                                      IndicatorProcessingImage(),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                      Positioned.fill(
-                                        child: Material(
-                                          color:
-                                              _deletedDocs.contains(docIndex)
-                                                  ? Color.fromRGBO(
-                                                    100,
-                                                    0,
-                                                    10,
-                                                    0.412,
-                                                  )
-                                                  : Colors.transparent,
-                                          child:
-                                              !_deletedDocs.contains(docIndex)
-                                                  ? InkWell(
-                                                    onTap:
-                                                        () => _openDocument(
-                                                          docIndex,
-                                                        ),
-                                                    onLongPress:
-                                                        () =>
-                                                            _openDocEditDialog(
-                                                              context,
-                                                              docIndex,
-                                                              displayDocIndex,
-                                                            ),
-                                                    splashColor: Colors.black26,
-                                                    highlightColor:
-                                                        Colors.black26,
-                                                  )
-                                                  : Center(
-                                                    child: Container(
-                                                      padding: EdgeInsets.all(
-                                                        12,
+                                  child:
+                                      _docThumbnails.length < docIndex
+                                          ? SizedBox()
+                                          : Stack(
+                                            children: [
+                                              (_docThumbnails[docIndex]
+                                                      .isNotEmpty)
+                                                  ? AnimatedSwitcher(
+                                                    duration: Duration(
+                                                      milliseconds: 200,
+                                                    ),
+                                                    child: Image.file(
+                                                      File(
+                                                        _docThumbnails[docIndex],
                                                       ),
-                                                      decoration: BoxDecoration(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
-                                                        color: Colors.black45,
+                                                      key: ValueKey(
+                                                        _docThumbnails[docIndex],
                                                       ),
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Padding(
-                                                            padding:
-                                                                const EdgeInsets.all(
-                                                                  8.0,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (
+                                                        context,
+                                                        error,
+                                                        stackTrace,
+                                                      ) {
+                                                        return AspectRatio(
+                                                          aspectRatio:
+                                                              (_thumbnailRatios
+                                                                          .length >
+                                                                      docIndex)
+                                                                  ? _thumbnailRatios[docIndex]
+                                                                  : 1.0 /
+                                                                      math.sqrt2,
+                                                          child: Builder(
+                                                            builder: (context) {
+                                                              return Material(
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .surfaceBright,
+                                                                child: const Icon(
+                                                                  Icons
+                                                                      .broken_image,
                                                                 ),
-                                                            child: SizedBox(
-                                                              width: 24,
-                                                              height: 24,
-                                                              child: CircularProgressIndicator(
+                                                              );
+                                                            },
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                  )
+                                                  : AspectRatio(
+                                                    aspectRatio:
+                                                        _thumbnailRatios[docIndex],
+                                                    child: Builder(
+                                                      builder: (context) {
+                                                        return Material(
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .surfaceBright,
+                                                          child:
+                                                              IndicatorProcessingImage(),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                              Positioned.fill(
+                                                child: Material(
+                                                  color:
+                                                      _deletedDocs.contains(
+                                                            docIndex,
+                                                          )
+                                                          ? Color.fromRGBO(
+                                                            100,
+                                                            0,
+                                                            10,
+                                                            0.412,
+                                                          )
+                                                          : Colors.transparent,
+                                                  child:
+                                                      !_deletedDocs.contains(
+                                                            docIndex,
+                                                          )
+                                                          ? InkWell(
+                                                            onTap:
+                                                                () =>
+                                                                    _openDocument(
+                                                                      docIndex,
+                                                                    ),
+                                                            onLongPress:
+                                                                () => _openDocEditDialog(
+                                                                  context,
+                                                                  docIndex,
+                                                                  displayDocIndex,
+                                                                ),
+                                                            splashColor:
+                                                                Colors.black26,
+                                                            highlightColor:
+                                                                Colors.black26,
+                                                          )
+                                                          : Center(
+                                                            child: Container(
+                                                              padding:
+                                                                  EdgeInsets.all(
+                                                                    12,
+                                                                  ),
+                                                              decoration: BoxDecoration(
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      8,
+                                                                    ),
                                                                 color:
                                                                     Colors
-                                                                        .white,
+                                                                        .black45,
+                                                              ),
+                                                              child: Column(
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  Padding(
+                                                                    padding:
+                                                                        const EdgeInsets.all(
+                                                                          8.0,
+                                                                        ),
+                                                                    child: SizedBox(
+                                                                      width: 24,
+                                                                      height:
+                                                                          24,
+                                                                      child: CircularProgressIndicator(
+                                                                        color:
+                                                                            Colors.white,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                  Text(
+                                                                    "  Deleting...",
+                                                                    style: TextStyle(
+                                                                      color:
+                                                                          Colors
+                                                                              .white,
+                                                                    ),
+                                                                  ),
+                                                                ],
                                                               ),
                                                             ),
                                                           ),
-                                                          Text(
-                                                            "  Deleting...",
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                 ),
                               ),
                             ],
