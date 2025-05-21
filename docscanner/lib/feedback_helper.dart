@@ -18,13 +18,11 @@ class FeedbackHelper {
     initAsync();
   }
   initAsync() async {
-    _readFeedbackState();
-    if (state == FeedbackState.init) {
-      _reenableRatingsAfterTwoWeeks();
-    }
+    await _readFeedbackState();
+    _reenableRatingsAfterTwoWeeks();
   }
 
-  _readFeedbackState() async {
+  Future<void> _readFeedbackState() async {
     final prefs = await SharedPreferences.getInstance();
     switch (prefs.getString("FeedbackState")) {
       case "afterFirstExport":
@@ -51,6 +49,7 @@ class FeedbackHelper {
   }
 
   bool canShowExportPopup() {
+    if (state == FeedbackState.hidden) return false;
     bool can = state == FeedbackState.init;
     state = FeedbackState.afterFirstExport;
     _writeFeedbackState();
@@ -58,6 +57,7 @@ class FeedbackHelper {
   }
 
   bool canShowProcessingPopup() {
+    if (state == FeedbackState.hidden) return false;
     bool can = state == FeedbackState.afterFirstExport;
     state = FeedbackState.afterFirstProcessing;
     _writeFeedbackState();
@@ -65,46 +65,43 @@ class FeedbackHelper {
   }
 
   bool canShowInAppbar() {
+    if (state == FeedbackState.hidden) return false;
     return state == FeedbackState.afterFirstExport ||
         state == FeedbackState.afterFirstProcessing;
   }
 
-  Future<void> _writeRating(int? newRating) async {
+  Future<void> _writeRating(int newRating) async {
     final prefs = await SharedPreferences.getInstance();
+    prefs.setInt("rating", newRating);
+    String now = DateTime.now().toIso8601String();
+    prefs.setString("ratingDate", now);
+    state = FeedbackState.hidden;
 
-    // Save date
-    if (newRating != null) {
-      prefs.setInt("rating", newRating);
-      String now = DateTime.now().toIso8601String();
-      prefs.setString("ratingDate", now);
-      state = FeedbackState.hidden;
-    } else {
-      state = FeedbackState.init;
-    }
     _writeFeedbackState();
   }
 
   _reenableRatingsAfterTwoWeeks() async {
+    if (state != FeedbackState.hidden) return;
     final prefs = await SharedPreferences.getInstance();
-    bool reactivate = false;
     int? rating = prefs.getInt("rating");
-    // only reenable if rating was not 5 stars
-    if (state == FeedbackState.hidden && rating != 5) {
-      final String? ratingDate = prefs.getString("ratingDate");
-      if (ratingDate != null) {
-        final unlockTime = DateTime.tryParse(ratingDate);
-        final now = DateTime.now();
+    if (rating == 5) return; // only reenable if rating was not 5 stars
 
-        if (unlockTime != null && now.difference(unlockTime).inDays >= 14) {
-          reactivate = true;
-        }
-      } else {
-        reactivate = true;
+    final String? ratingDateString = prefs.getString("ratingDate");
+    final now = DateTime.now();
+    if (ratingDateString != null) {
+      final ratingDate = DateTime.tryParse(ratingDateString);
+
+      if (ratingDate != null && now.difference(ratingDate).inDays < 14) {
+        return;
       }
+    } else {
+      dev.log(
+        "Warning, _reenableRatingsAfterTwoWeeks: ratingDate was unknown, setting to now.",
+      );
+      prefs.setString("ratingDate", now.toIso8601String());
     }
-    if (reactivate) {
-      _writeRating(null);
-    }
+
+    state = FeedbackState.init;
     _writeFeedbackState();
   }
 
