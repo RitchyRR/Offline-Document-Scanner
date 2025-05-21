@@ -1641,12 +1641,15 @@ void listenToPurchaseUpdates() {
                 if (purchase.pendingCompletePurchase) {
                   await iap.completePurchase(purchase);
                 }
-                setPro(true);
+                if (purchase.verificationData.source == "google_play") {
+                  setPro(true);
+                }
                 break;
               case PurchaseStatus.error:
                 if (purchase.error != null) {
                   if (purchase.error!.message ==
-                      "BillingResponse.itemAlreadyOwned") {
+                          "BillingResponse.itemAlreadyOwned" &&
+                      purchase.verificationData.source == "google_play") {
                     setPro(true);
                   } else {
                     setPro(false);
@@ -1664,7 +1667,8 @@ void listenToPurchaseUpdates() {
               case PurchaseStatus.error:
                 if (purchase.error != null) {
                   if (purchase.error!.message ==
-                      "BillingResponse.itemAlreadyOwned") {
+                          "BillingResponse.itemAlreadyOwned" &&
+                      purchase.verificationData.source == "google_play") {
                     setPro(true);
                   }
                 }
