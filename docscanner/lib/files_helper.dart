@@ -1381,7 +1381,7 @@ class FilesHelper {
       shareImages(docIndex);
     } else {
       messenger?.showSnackBar(
-        SnackBar(content: Text("No images available to share.")),
+        SnackBar(content: Text("No images available to SharePlus.")),
       );
     }
   }
@@ -1413,7 +1413,7 @@ class FilesHelper {
       xFiles.add(XFile(imagePath));
     }
 
-    await Share.shareXFiles(xFiles);
+    await SharePlus.instance.share(ShareParams(files: xFiles));
   }
 
   Future<void> shareImagesPdf(
@@ -1473,12 +1473,12 @@ class FilesHelper {
         if (message) {
           messenger?.hideCurrentSnackBar();
           completer.complete(message);
-          await Share.shareXFiles([XFile(pdfPath)]);
+          await SharePlus.instance.share(ShareParams(files: [XFile(pdfPath)]));
           File(pdfPath).delete();
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
-            SnackBar(content: Text("Error: No PDF available to share.")),
+            SnackBar(content: Text("Error: No PDF available to SharePlus.")),
           );
         }
       }

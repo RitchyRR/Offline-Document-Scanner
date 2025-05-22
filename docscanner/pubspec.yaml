@@ -9,7 +9,7 @@ version: 1.5.0+34 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werde
 
 
 environment:
-  sdk: ^3.7.0
+  sdk: ^3.8.0
 
 
 dependencies:
@@ -36,7 +36,6 @@ dependencies:
   in_app_purchase:
   flutter_secure_storage: # proUnlocked
   receive_sharing_intent:
-    path: lib_plugins/receive_sharing_intent
   camera: 
   camera_android_camerax: 
   camera_platform_interface: 

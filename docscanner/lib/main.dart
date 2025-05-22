@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:share_plus/share_plus.dart' show Share;
+import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus;
 import 'package:shared_preferences/shared_preferences.dart';
 // monetization:
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -244,7 +244,7 @@ class _MyAppState extends State<MyApp> {
             ),
             colorScheme: lightTheme,
             useMaterial3: true,
-            //cardTheme: CardTheme(color: lightTheme.surfaceContainerHigh),
+            //cardTheme: CardThemeData(color: lightTheme.surfaceContainerHigh),
             popupMenuTheme: PopupMenuThemeData(
               color: lightTheme.primaryContainer,
             ),
@@ -258,7 +258,7 @@ class _MyAppState extends State<MyApp> {
             ),
             colorScheme: darkTheme,
             useMaterial3: true,
-            cardTheme: CardTheme(color: darkTheme.surfaceContainerHigh),
+            cardTheme: CardThemeData(color: darkTheme.surfaceContainerHigh),
             popupMenuTheme: PopupMenuThemeData(
               color: darkTheme.primaryContainer,
             ),
@@ -822,7 +822,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                               final message = controller.text.trim();
                               final fullMessage =
                                   "$message\n\nhttps://play.google.com/store/apps/details?id=com.rrapps.docscanner";
-                              Share.share(fullMessage);
+                              SharePlus.instance.share(
+                                ShareParams(text: fullMessage),
+                              );
                             },
                     label: Text('Share'),
                   ),
