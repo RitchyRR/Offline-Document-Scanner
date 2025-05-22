@@ -4508,7 +4508,7 @@ class _WarpState extends State<Warp> {
   void initState() {
     super.initState();
     _initAsync();
-    _initZoom();
+    _initMagnifier();
   }
 
   void _initAsync() async {
@@ -4519,7 +4519,7 @@ class _WarpState extends State<Warp> {
     _imagePixelHeight = image.height;
     if (mounted) {
       _screenWidth = MediaQuery.of(context).size.width;
-      _screenHeight = MediaQuery.of(context).size.height - 450;
+      _screenHeight = MediaQuery.of(context).size.height - 430;
     }
     _pointsScale = _screenWidth / _imagePixelWidth;
     _displayHeigth = _imagePixelHeight * _pointsScale;
@@ -4535,6 +4535,10 @@ class _WarpState extends State<Warp> {
     }).toList();
     _initialScaledPoints = List<Offset>.from(_scaledPoints);
 
+    _scaleImage(init: true);
+  }
+
+  void _scaleImage({bool init = false}) {
     double scaleDownY = 0.0;
     for (var point in _scaledPoints) {
       double pointScaleDownY = point.dy - _screenHeight;
@@ -4542,30 +4546,33 @@ class _WarpState extends State<Warp> {
         scaleDownY = pointScaleDownY;
       }
     }
-    _imageScale = (_displayHeigth - scaleDownY) / _displayHeigth;
+    double scaleDownX = 0.0;
+    for (var point in _scaledPoints) {
+      double pointScaleDownX1 = point.dx - (_screenWidth - _magnifierSize / 4);
+      double pointScaleDownX2 = (_magnifierSize / 4) - point.dx;
+      double pointScaleDownX = math.max(pointScaleDownX1, pointScaleDownX2);
+      if (pointScaleDownX > scaleDownX) {
+        scaleDownX = pointScaleDownX;
+      }
+    }
+    double imageScaleY = (_displayHeigth - scaleDownY) / _displayHeigth;
+    double imageScaleX = (_screenWidth - scaleDownX) / _screenWidth;
+    double newImageScale = math.min(imageScaleY, imageScaleX);
+    if (init) {
+      _imageScale = newImageScale;
+    } else {
+      if (mounted) {
+        double scaleDiff = newImageScale - _imageScale;
+        if (!scaleDiff.isNegative || scaleDiff < 0.1) {
+          _imageScale += scaleDiff / 40.0;
+          setState(() {});
+        }
+      }
+    }
     setState(() {});
   }
 
-  void _scaleImage() {
-    double newScaleDownY = 0.0;
-    for (var point in _scaledPoints) {
-      double pointMoveUpBy = point.dy - _screenHeight;
-      if (pointMoveUpBy > newScaleDownY) {
-        newScaleDownY = pointMoveUpBy;
-      }
-    }
-
-    double newImageScale = (_displayHeigth - newScaleDownY) / _displayHeigth;
-    double scaleDiff = newImageScale - _imageScale;
-    if (mounted) {
-      if (scaleDiff.isNegative || scaleDiff > 0.1) {
-        _imageScale += scaleDiff / 60.0;
-        setState(() {});
-      }
-    }
-  }
-
-  Future<void> _initZoom() async {
+  Future<void> _initMagnifier() async {
     final file = File(widget.imagePath);
     final bytes = file.readAsBytesSync();
     final codec = await ui.instantiateImageCodec(bytes);
@@ -4744,7 +4751,7 @@ class _WarpState extends State<Warp> {
         _magnifierImageLoading = true;
         _magnifierImage = null;
       });
-      _initZoom();
+      _initMagnifier();
     }
   }
 
