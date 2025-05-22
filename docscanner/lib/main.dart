@@ -4486,7 +4486,6 @@ class _WarpState extends State<Warp> {
   int? _currentCorner;
   Offset _touchOffset = Offset(0, 0);
   bool _panning = false;
-  double _moveUpBy = 0;
   double _imageScale = 0;
 
   ui.Image? _magnifierImage;
@@ -4536,30 +4535,31 @@ class _WarpState extends State<Warp> {
     }).toList();
     _initialScaledPoints = List<Offset>.from(_scaledPoints);
 
+    double scaleDownY = 0.0;
     for (var point in _scaledPoints) {
-      double pointMoveUpBy = point.dy - _screenHeight;
-      if (pointMoveUpBy > _moveUpBy) {
-        _moveUpBy = pointMoveUpBy;
+      double pointScaleDownY = point.dy - _screenHeight;
+      if (pointScaleDownY > scaleDownY) {
+        scaleDownY = pointScaleDownY;
       }
     }
-    _imageScale = (_displayHeigth - _moveUpBy) / _displayHeigth;
+    _imageScale = (_displayHeigth - scaleDownY) / _displayHeigth;
     setState(() {});
   }
 
   void _scaleImage() {
-    double newMoveUpBy = 0.0;
+    double newScaleDownY = 0.0;
     for (var point in _scaledPoints) {
       double pointMoveUpBy = point.dy - _screenHeight;
-      if (pointMoveUpBy > newMoveUpBy) {
-        newMoveUpBy = pointMoveUpBy;
+      if (pointMoveUpBy > newScaleDownY) {
+        newScaleDownY = pointMoveUpBy;
       }
     }
 
-    double changeUp = newMoveUpBy - _moveUpBy;
+    double newImageScale = (_displayHeigth - newScaleDownY) / _displayHeigth;
+    double scaleDiff = newImageScale - _imageScale;
     if (mounted) {
-      if (changeUp.isNegative || changeUp > 25) {
-        _moveUpBy += changeUp / 60;
-        _imageScale = (_displayHeigth - _moveUpBy) / _displayHeigth;
+      if (scaleDiff.isNegative || scaleDiff > 0.1) {
+        _imageScale += scaleDiff / 60.0;
         setState(() {});
       }
     }
