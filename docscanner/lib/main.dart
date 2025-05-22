@@ -188,46 +188,42 @@ class _MyAppState extends State<MyApp> {
               case '/pages':
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
-                  builder:
-                      (_) => Pages(
-                        docIndex: args['docIndex'],
-                        initialPageIndex: args['initialPageIndex'],
-                      ),
+                  builder: (_) => Pages(
+                    docIndex: args['docIndex'],
+                    initialPageIndex: args['initialPageIndex'],
+                  ),
                 );
 
               case '/preview':
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
-                  builder:
-                      (_) => PagePreview(
-                        docIndex: args['docIndex'],
-                        pageIndex: args['pageIndex'],
-                      ),
+                  builder: (_) => PagePreview(
+                    docIndex: args['docIndex'],
+                    pageIndex: args['pageIndex'],
+                  ),
                 );
 
               case '/camera':
                 return MaterialPageRoute(
-                  builder:
-                      (context) => Theme(
-                        data: Theme.of(context).copyWith(
-                          brightness: Brightness.dark,
-                        ), //for tooltips and splash effects
-                        child: CameraScreen(),
-                      ),
+                  builder: (context) => Theme(
+                    data: Theme.of(context).copyWith(
+                      brightness: Brightness.dark,
+                    ), //for tooltips and splash effects
+                    child: CameraScreen(),
+                  ),
                 );
 
               case '/warp':
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
-                  builder:
-                      (_) => Warp(
-                        pagePreviewState: args['pagePreviewState'],
-                        docIndex: args['docIndex'],
-                        pageIndex: args['pageIndex'],
-                        imagePath: args['imagePath'],
-                        cornerPoints: args['cornerPoints'],
-                        rotation: args['rotation'],
-                      ),
+                  builder: (_) => Warp(
+                    pagePreviewState: args['pagePreviewState'],
+                    docIndex: args['docIndex'],
+                    pageIndex: args['pageIndex'],
+                    imagePath: args['imagePath'],
+                    cornerPoints: args['cornerPoints'],
+                    rotation: args['rotation'],
+                  ),
                 );
 
               default:
@@ -444,8 +440,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
   Future<void> _handleSharedFiles(List<SharedMediaFile> files) async {
     if (files.isEmpty) return;
 
-    final pdfs =
-        files.where((f) => f.path.toLowerCase().endsWith(".pdf")).toList();
+    final pdfs = files
+        .where((f) => f.path.toLowerCase().endsWith(".pdf"))
+        .toList();
     final images = files.where((f) => f.type == SharedMediaType.image).toList();
 
     // PDFs
@@ -584,21 +581,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         hintText: "Document $displayDocIndex",
                       ),
                       clipBehavior: Clip.hardEdge,
-                      onChanged:
-                          (value) => setState(() {
-                            nameController.text = value;
-                          }),
+                      onChanged: (value) => setState(() {
+                        nameController.text = value;
+                      }),
                     ),
                     SizedBox(height: 16),
                     // Dropdown for changing the index
                     TextButton(
-                      onPressed:
-                          !allowChangeDocIndex
-                              ? () => Fluttertoast.showToast(
-                                msg:
-                                    'Blocked while other Documents are processing...',
-                              )
-                              : null,
+                      onPressed: !allowChangeDocIndex
+                          ? () => Fluttertoast.showToast(
+                              msg:
+                                  'Blocked while other Documents are processing...',
+                            )
+                          : null,
                       child: DropdownButtonFormField<int>(
                         decoration: InputDecoration(
                           labelText: "Move Document to new Index",
@@ -613,22 +608,21 @@ class _DocumentsHomeState extends State<DocumentsHome>
                               overflow: TextOverflow.ellipsis,
                               (i == docIndex)
                                   ? (nameController.text.trim().isNotEmpty)
-                                      ? nameController.text.trim()
-                                      : "Document ${i + 1}"
+                                        ? nameController.text.trim()
+                                        : "Document ${i + 1}"
                                   : _docNames[i].isNotEmpty
                                   ? _docNames[i]
                                   : "Document ${i + 1}",
                             ),
                           ),
                         ),
-                        onChanged:
-                            allowChangeDocIndex
-                                ? (int? newValue) {
-                                  if (newValue != null) {
-                                    setState(() => currentIndex = newValue);
-                                  }
+                        onChanged: allowChangeDocIndex
+                            ? (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() => currentIndex = newValue);
                                 }
-                                : null,
+                              }
+                            : null,
                       ),
                     ),
                   ],
@@ -666,10 +660,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _selectAspectRatios(BuildContext context) async {
     // bool List for selected Ratios
-    List<bool> selectedStates =
-        g.commonAspectRatios
-            .map((aspect) => g.availableAspectRatios.contains(aspect))
-            .toList();
+    List<bool> selectedStates = g.commonAspectRatios
+        .map((aspect) => g.availableAspectRatios.contains(aspect))
+        .toList();
 
     bool? selectionConfirmed = await showDialog<bool>(
       context: context,
@@ -739,8 +732,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> saveAvailableAspectRatios() async {
     final prefs = await SharedPreferences.getInstance();
-    final values =
-        g.availableAspectRatios.map((e) => e.value.toString()).toList();
+    final values = g.availableAspectRatios
+        .map((e) => e.value.toString())
+        .toList();
     await prefs.setStringList("availableAspectRatios", values);
   }
 
@@ -750,22 +744,20 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
     if (savedValues == null || savedValues.isEmpty) {
       // Default selection
-      g.availableAspectRatios =
-          g.commonAspectRatios
-              .where(
-                (e) =>
-                    e.value == math.sqrt2 || // DIN
-                    e.value == 1 || // Square
-                    e.value == 4 / 3 || // 4:3
-                    e.value == 16 / 9 || // 16:9
-                    e.value == 21 / 9, // 21:9
-              )
-              .toList();
+      g.availableAspectRatios = g.commonAspectRatios
+          .where(
+            (e) =>
+                e.value == math.sqrt2 || // DIN
+                e.value == 1 || // Square
+                e.value == 4 / 3 || // 4:3
+                e.value == 16 / 9 || // 16:9
+                e.value == 21 / 9, // 21:9
+          )
+          .toList();
     } else {
-      g.availableAspectRatios =
-          g.commonAspectRatios
-              .where((e) => savedValues.contains(e.value.toString()))
-              .toList();
+      g.availableAspectRatios = g.commonAspectRatios
+          .where((e) => savedValues.contains(e.value.toString()))
+          .toList();
     }
   }
 
@@ -782,56 +774,52 @@ class _DocumentsHomeState extends State<DocumentsHome>
     );
     await showDialog(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: Text('Tell a Friend!'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: controller,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: "Your message here.\n",
-                      ),
-                      onChanged: (text) {
-                        setState(() {});
-                      },
-                    ),
-                    SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => launchUrl(url),
-                      child: Text(url.toString()),
-                    ),
-                  ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Tell a Friend!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  maxLines: 4,
+                  decoration: InputDecoration(hintText: "Your message here.\n"),
+                  onChanged: (text) {
+                    setState(() {});
+                  },
                 ),
+                SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => launchUrl(url),
+                  child: Text(url.toString()),
+                ),
+              ],
+            ),
 
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.share),
-                    onPressed:
-                        controller.text.trim().isEmpty
-                            ? null
-                            : () {
-                              final message = controller.text.trim();
-                              final fullMessage =
-                                  "$message\n\nhttps://play.google.com/store/apps/details?id=com.rrapps.docscanner";
-                              SharePlus.instance.share(
-                                ShareParams(text: fullMessage),
-                              );
-                            },
-                    label: Text('Share'),
-                  ),
-                ],
-              );
-            },
-          ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                icon: Icon(Icons.share),
+                onPressed: controller.text.trim().isEmpty
+                    ? null
+                    : () {
+                        final message = controller.text.trim();
+                        final fullMessage =
+                            "$message\n\nhttps://play.google.com/store/apps/details?id=com.rrapps.docscanner";
+                        SharePlus.instance.share(
+                          ShareParams(text: fullMessage),
+                        );
+                      },
+                label: Text('Share'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -854,127 +842,106 @@ class _DocumentsHomeState extends State<DocumentsHome>
               text: "Give Feedback",
             ),
           PopupMenuButton(
-            itemBuilder:
-                (context) => [
-                  PopupMenuItem(
-                    value: "pro",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 8),
-                        Icon(
-                          g.proUnlocked == true ? Icons.verified : Icons.lock,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          g.proUnlocked == true ? "PRO Features" : "Unlock PRO",
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: "pro",
+                child: Row(
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(
+                      g.proUnlocked == true ? Icons.verified : Icons.lock,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: "licenses",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.info,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          "Licenses",
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: "ratios",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.crop,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          "Aspect Ratios",
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!feedbackHelper.isHidden())
-                    PopupMenuItem(
-                      value: "rate",
-                      child: Row(
-                        children: [
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.star_half,
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Give Feedback",
-                            style: TextStyle(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
+                    SizedBox(width: 10),
+                    Text(
+                      g.proUnlocked == true ? "PRO Features" : "Unlock PRO",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
-                  PopupMenuItem(
-                    value: "shareApp",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.share,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          "Tell a Friend!",
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "licenses",
+                child: Row(
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(
+                      Icons.info,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
+                    SizedBox(width: 10),
+                    Text(
+                      "Licenses",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "ratios",
+                child: Row(
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(
+                      Icons.crop,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      "Aspect Ratios",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!feedbackHelper.isHidden())
+                PopupMenuItem(
+                  value: "rate",
+                  child: Row(
+                    children: [
+                      SizedBox(width: 8),
+                      Icon(
+                        Icons.star_half,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "Give Feedback",
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              PopupMenuItem(
+                value: "shareApp",
+                child: Row(
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(
+                      Icons.share,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      "Tell a Friend!",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             onSelected: (String value) {
               switch (value) {
                 case "pro":
@@ -1001,367 +968,340 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ),
         ],
       ),
-      body:
-          _docThumbnails.isNotEmpty
-              // Documents Cards
-              ? CustomScrollbar(
-                controller: _scrollController,
-                pageAspectRatios:
-                    _thumbnailRatios
-                        .whereIndexed(
-                          (index, element) => !_deletedDocs.contains(index),
-                        )
-                        .toList(),
-                scrollRangeStart: 0.1,
-                scrollRangeEnd: 0.675,
-                noTumb: true,
+      body: _docThumbnails.isNotEmpty
+          // Documents Cards
+          ? CustomScrollbar(
+              controller: _scrollController,
+              pageAspectRatios: _thumbnailRatios
+                  .whereIndexed(
+                    (index, element) => !_deletedDocs.contains(index),
+                  )
+                  .toList(),
+              scrollRangeStart: 0.1,
+              scrollRangeEnd: 0.675,
+              noTumb: true,
 
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _docsCount,
-                  itemBuilder: (BuildContext context, int docIndex) {
-                    if (_deletedDocs.contains(docIndex)) return SizedBox();
-                    final displayDocIndex =
-                        1 +
-                        docIndex -
-                        _deletedDocs
-                            .where((element) => element < docIndex)
-                            .length;
-                    String docName =
-                        _docNames[docIndex].isNotEmpty
-                            ? _docNames[docIndex]
-                            : "Document $displayDocIndex";
-                    String creationDate = _docDates[docIndex];
-                    int pagesCount =
-                        _docPageCounts.isNotEmpty
-                            ? _docPageCounts[docIndex]
-                            : -1;
-                    return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2.0,
-                        child: SizedBox(
-                          height: 160.0 * math.sqrt2,
-                          child: Row(
-                            children: [
-                              // Document Info + Buttons (Left Side)
-                              Expanded(
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    // Document Info
-                                    Flexible(
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(12.0),
-                                        ),
-                                        onTap:
-                                            !_deletedDocs.contains(docIndex)
-                                                ? () => _openDocEditDialog(
-                                                  context,
-                                                  docIndex,
-                                                  displayDocIndex,
-                                                )
-                                                : null,
-                                        child: Padding(
-                                          padding: EdgeInsets.all(12),
-                                          child: Builder(
-                                            builder: (context) {
-                                              return Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Text(
-                                                    docName,
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 5,
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _docsCount,
+                itemBuilder: (BuildContext context, int docIndex) {
+                  if (_deletedDocs.contains(docIndex)) return SizedBox();
+                  final displayDocIndex =
+                      1 +
+                      docIndex -
+                      _deletedDocs
+                          .where((element) => element < docIndex)
+                          .length;
+                  String docName = _docNames[docIndex].isNotEmpty
+                      ? _docNames[docIndex]
+                      : "Document $displayDocIndex";
+                  String creationDate = _docDates[docIndex];
+                  int pagesCount = _docPageCounts.isNotEmpty
+                      ? _docPageCounts[docIndex]
+                      : -1;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2.0,
+                      child: SizedBox(
+                        height: 160.0 * math.sqrt2,
+                        child: Row(
+                          children: [
+                            // Document Info + Buttons (Left Side)
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Document Info
+                                  Flexible(
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(12.0),
+                                      ),
+                                      onTap: !_deletedDocs.contains(docIndex)
+                                          ? () => _openDocEditDialog(
+                                              context,
+                                              docIndex,
+                                              displayDocIndex,
+                                            )
+                                          : null,
+                                      child: Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Builder(
+                                          builder: (context) {
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  docName,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
-                                                  SizedBox(height: 6),
-                                                  Text(
-                                                    "Created: $creationDate",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withAlpha(150),
-                                                    ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  maxLines: 5,
+                                                ),
+                                                SizedBox(height: 6),
+                                                Text(
+                                                  "Created: $creationDate",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withAlpha(150),
                                                   ),
-                                                  SizedBox(height: 4),
-                                                  Text(
-                                                    "Pages: $pagesCount",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withAlpha(150),
-                                                    ),
+                                                ),
+                                                SizedBox(height: 4),
+                                                Text(
+                                                  "Pages: $pagesCount",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withAlpha(150),
                                                   ),
-                                                ],
-                                              );
-                                            },
-                                          ),
+                                                ),
+                                              ],
+                                            );
+                                          },
                                         ),
                                       ),
                                     ),
-                                    // Button Column
-                                    !_deletedDocs.contains(docIndex)
-                                        ? Column(
+                                  ),
+                                  // Button Column
+                                  !_deletedDocs.contains(docIndex)
+                                      ? Column(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
                                             // Save
                                             IconButton(
-                                              onPressed:
-                                                  () => _pagesPopup(
-                                                    context,
-                                                    [],
-                                                    PopUpType.save,
-                                                    docIndex,
-                                                  ),
+                                              onPressed: () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.save,
+                                                docIndex,
+                                              ),
                                               icon: Icon(Icons.save),
                                             ),
                                             // Share
                                             IconButton(
-                                              onPressed:
-                                                  () => _pagesPopup(
-                                                    context,
-                                                    [],
-                                                    PopUpType.share,
-                                                    docIndex,
-                                                  ),
+                                              onPressed: () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.share,
+                                                docIndex,
+                                              ),
                                               icon: Icon(Icons.share),
                                             ),
                                             // Delete
                                             IconButton(
-                                              onPressed:
-                                                  () => _pagesPopup(
-                                                    context,
-                                                    [],
-                                                    PopUpType.delete,
-                                                    docIndex,
-                                                  ),
+                                              onPressed: () => _pagesPopup(
+                                                context,
+                                                [],
+                                                PopUpType.delete,
+                                                docIndex,
+                                              ),
                                               icon: Icon(Icons.delete),
                                             ),
                                           ],
                                         )
-                                        : SizedBox(),
-                                  ],
-                                ),
+                                      : SizedBox(),
+                                ],
                               ),
-                              // Thumbnail (Right Side)
-                              ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: 184,
-                                ), // space for creation date
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    boxShadow: [bigBoxShadow(context)],
-                                  ),
-                                  child:
-                                      _docThumbnails.length <= docIndex
-                                          ? SizedBox()
-                                          : Stack(
-                                            children: [
-                                              (_docThumbnails[docIndex]
-                                                      .isNotEmpty)
-                                                  ? AnimatedSwitcher(
-                                                    duration: Duration(
-                                                      milliseconds: 200,
+                            ),
+                            // Thumbnail (Right Side)
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: 184,
+                              ), // space for creation date
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  boxShadow: [bigBoxShadow(context)],
+                                ),
+                                child: _docThumbnails.length <= docIndex
+                                    ? SizedBox()
+                                    : Stack(
+                                        children: [
+                                          (_docThumbnails[docIndex].isNotEmpty)
+                                              ? AnimatedSwitcher(
+                                                  duration: Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  child: Image.file(
+                                                    File(
+                                                      _docThumbnails[docIndex],
                                                     ),
-                                                    child: Image.file(
-                                                      File(
-                                                        _docThumbnails[docIndex],
-                                                      ),
-                                                      key: ValueKey(
-                                                        _docThumbnails[docIndex],
-                                                      ),
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) {
-                                                        return AspectRatio(
-                                                          aspectRatio:
-                                                              (_thumbnailRatios
-                                                                          .length >
-                                                                      docIndex)
-                                                                  ? _thumbnailRatios[docIndex]
-                                                                  : 1.0 /
-                                                                      math.sqrt2,
-                                                          child: Builder(
-                                                            builder: (context) {
-                                                              return Material(
-                                                                color:
-                                                                    Theme.of(
-                                                                          context,
-                                                                        )
-                                                                        .colorScheme
-                                                                        .surfaceBright,
-                                                                child: const Icon(
-                                                                  Icons
-                                                                      .broken_image,
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        );
-                                                      },
+                                                    key: ValueKey(
+                                                      _docThumbnails[docIndex],
                                                     ),
-                                                  )
-                                                  : AspectRatio(
-                                                    aspectRatio:
-                                                        _thumbnailRatios[docIndex],
-                                                    child: Builder(
-                                                      builder: (context) {
-                                                        return Material(
-                                                          color:
-                                                              Theme.of(context)
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context, error, stackTrace) {
+                                                      return AspectRatio(
+                                                        aspectRatio:
+                                                            (_thumbnailRatios
+                                                                    .length >
+                                                                docIndex)
+                                                            ? _thumbnailRatios[docIndex]
+                                                            : 1.0 / math.sqrt2,
+                                                        child: Builder(
+                                                          builder: (context) {
+                                                            return Material(
+                                                              color: Theme.of(context)
                                                                   .colorScheme
                                                                   .surfaceBright,
-                                                          child:
-                                                              IndicatorProcessingImage(),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
-                                              Positioned.fill(
-                                                child: Material(
-                                                  color:
-                                                      _deletedDocs.contains(
-                                                            docIndex,
-                                                          )
-                                                          ? Color.fromRGBO(
-                                                            100,
-                                                            0,
-                                                            10,
-                                                            0.412,
-                                                          )
-                                                          : Colors.transparent,
-                                                  child:
-                                                      !_deletedDocs.contains(
-                                                            docIndex,
-                                                          )
-                                                          ? InkWell(
-                                                            onTap:
-                                                                () =>
-                                                                    _openDocument(
-                                                                      docIndex,
-                                                                    ),
-                                                            onLongPress:
-                                                                () => _openDocEditDialog(
-                                                                  context,
-                                                                  docIndex,
-                                                                  displayDocIndex,
-                                                                ),
-                                                            splashColor:
-                                                                Colors.black26,
-                                                            highlightColor:
-                                                                Colors.black26,
-                                                          )
-                                                          : Center(
-                                                            child: Container(
-                                                              padding:
-                                                                  EdgeInsets.all(
-                                                                    12,
-                                                                  ),
-                                                              decoration: BoxDecoration(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      8,
-                                                                    ),
-                                                                color:
-                                                                    Colors
-                                                                        .black45,
+                                                              child: const Icon(
+                                                                Icons
+                                                                    .broken_image,
                                                               ),
-                                                              child: Column(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  Padding(
-                                                                    padding:
-                                                                        const EdgeInsets.all(
-                                                                          8.0,
-                                                                        ),
-                                                                    child: SizedBox(
-                                                                      width: 24,
-                                                                      height:
-                                                                          24,
-                                                                      child: CircularProgressIndicator(
-                                                                        color:
-                                                                            Colors.white,
-                                                                      ),
-                                                                    ),
+                                                            );
+                                                          },
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                )
+                                              : AspectRatio(
+                                                  aspectRatio:
+                                                      _thumbnailRatios[docIndex],
+                                                  child: Builder(
+                                                    builder: (context) {
+                                                      return Material(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .surfaceBright,
+                                                        child:
+                                                            IndicatorProcessingImage(),
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                          Positioned.fill(
+                                            child: Material(
+                                              color:
+                                                  _deletedDocs.contains(
+                                                    docIndex,
+                                                  )
+                                                  ? Color.fromRGBO(
+                                                      100,
+                                                      0,
+                                                      10,
+                                                      0.412,
+                                                    )
+                                                  : Colors.transparent,
+                                              child:
+                                                  !_deletedDocs.contains(
+                                                    docIndex,
+                                                  )
+                                                  ? InkWell(
+                                                      onTap: () =>
+                                                          _openDocument(
+                                                            docIndex,
+                                                          ),
+                                                      onLongPress: () =>
+                                                          _openDocEditDialog(
+                                                            context,
+                                                            docIndex,
+                                                            displayDocIndex,
+                                                          ),
+                                                      splashColor:
+                                                          Colors.black26,
+                                                      highlightColor:
+                                                          Colors.black26,
+                                                    )
+                                                  : Center(
+                                                      child: Container(
+                                                        padding: EdgeInsets.all(
+                                                          12,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                          color: Colors.black45,
+                                                        ),
+                                                        child: Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets.all(
+                                                                    8.0,
                                                                   ),
-                                                                  Text(
-                                                                    "  Deleting...",
-                                                                    style: TextStyle(
-                                                                      color:
-                                                                          Colors
-                                                                              .white,
-                                                                    ),
-                                                                  ),
-                                                                ],
+                                                              child: SizedBox(
+                                                                width: 24,
+                                                                height: 24,
+                                                                child: CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
                                                               ),
                                                             ),
-                                                          ),
-                                                ),
-                                              ),
-                                            ],
+                                                            Text(
+                                                              "  Deleting...",
+                                                              style: TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                            ),
                                           ),
-                                ),
+                                        ],
+                                      ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                ),
-              )
-              : Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Center(
-                    child: Text(
-                      textAlign: TextAlign.center,
-                      'Add a new Document',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                        color: Theme.of(context).hintColor,
-                      ),
                     ),
-                  ),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 32, 0, 95),
-                      child: Image.asset(
-                        'assets/arrow.png',
-                        height: 360,
-                        color: Theme.of(context).splashColor, // optional tint
-                        fit: BoxFit.contain, // or BoxFit.cover, etc.
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Center(
+                  child: Text(
+                    textAlign: TextAlign.center,
+                    'Add a new Document',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 32, 0, 95),
+                    child: Image.asset(
+                      'assets/arrow.png',
+                      height: 360,
+                      color: Theme.of(context).splashColor, // optional tint
+                      fit: BoxFit.contain, // or BoxFit.cover, etc.
+                    ),
+                  ),
+                ),
+              ],
+            ),
       // Floating Action Buttons
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -1507,10 +1447,9 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final backgroundColor =
-        _expanded
-            ? colorScheme.primaryContainer
-            : colorScheme.primaryContainer.withAlpha(0);
+    final backgroundColor = _expanded
+        ? colorScheme.primaryContainer
+        : colorScheme.primaryContainer.withAlpha(0);
     final textColor = colorScheme.onPrimaryContainer;
 
     return AnimatedContainer(
@@ -1697,10 +1636,9 @@ Future<bool> proPopup(BuildContext context) async {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title:
-            g.proUnlocked == true
-                ? Text("PRO Features:")
-                : Text("Unlock PRO Features"),
+        title: g.proUnlocked == true
+            ? Text("PRO Features:")
+            : Text("Unlock PRO Features"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1717,19 +1655,22 @@ Future<bool> proPopup(BuildContext context) async {
         actions: [
           g.proUnlocked == true
               ? ElevatedButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text("OK", style: TextStyle(color: Colors.green)),
-              )
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text("OK", style: TextStyle(color: Colors.green)),
+                )
               : TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text("Cancel"),
-              ),
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text("Cancel"),
+                ),
           g.proUnlocked == true
               ? SizedBox()
               : ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text("Purchase", style: TextStyle(color: Colors.green)),
-              ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(
+                    "Purchase",
+                    style: TextStyle(color: Colors.green),
+                  ),
+                ),
         ],
       );
     },
@@ -1802,59 +1743,54 @@ class ImagesScrollPreview extends StatelessWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children:
-                  pagePaths.map((path) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        8.0,
-                        4.0,
-                        8.0,
-                        12.0,
-                      ), // Spacing between images
-                      child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [smallBoxShadow(context)],
-                        ),
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxHeight: 160.0 * math.sqrt2,
-                            maxWidth: 160.0,
-                          ),
-                          child:
-                              path.isNotEmpty
-                                  ? Image.file(
-                                    File(path),
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return AspectRatio(
-                                        aspectRatio: 1 / math.sqrt2,
-                                        child: Material(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.surfaceBright,
-                                          child: const Icon(Icons.broken_image),
-                                        ),
-                                      );
-                                    },
-                                  )
-                                  : AspectRatio(
-                                    aspectRatio: 1 / math.sqrt2,
-                                    child: Material(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.surfaceBright,
-                                      child: Center(
-                                        child:
-                                            const CircularProgressIndicator(),
-                                      ),
-                                    ),
-                                  ),
-                        ),
+              children: pagePaths.map((path) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    8.0,
+                    4.0,
+                    8.0,
+                    12.0,
+                  ), // Spacing between images
+                  child: Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [smallBoxShadow(context)],
+                    ),
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: 160.0 * math.sqrt2,
+                        maxWidth: 160.0,
                       ),
-                    );
-                  }).toList(),
+                      child: path.isNotEmpty
+                          ? Image.file(
+                              File(path),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return AspectRatio(
+                                  aspectRatio: 1 / math.sqrt2,
+                                  child: Material(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceBright,
+                                    child: const Icon(Icons.broken_image),
+                                  ),
+                                );
+                              },
+                            )
+                          : AspectRatio(
+                              aspectRatio: 1 / math.sqrt2,
+                              child: Material(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceBright,
+                                child: Center(
+                                  child: const CircularProgressIndicator(),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         );
@@ -2121,438 +2057,417 @@ class _PagesState extends State<Pages> with RouteAware {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        appBar:
-            !_selectMode
-                ? AppBar(
-                  title: Text("Document ${widget.docIndex + 1}"),
-                  actions: [
-                    IconButton(
-                      onPressed: () => _selectAll(),
-                      icon: Icon(Icons.select_all),
-                      tooltip: "Select all",
-                    ),
-                  ],
-                )
-                : AppBar(
-                  title: Text("${_selectedPages.length} Pages selected"),
-                  leading: IconButton(
-                    onPressed: () => _cancelSelectMode(),
-                    icon: Icon(Icons.close),
-                    tooltip: "Cancel Selection",
+        appBar: !_selectMode
+            ? AppBar(
+                title: Text("Document ${widget.docIndex + 1}"),
+                actions: [
+                  IconButton(
+                    onPressed: () => _selectAll(),
+                    icon: Icon(Icons.select_all),
+                    tooltip: "Select all",
                   ),
-                  actions: [
-                    IconButton(
-                      onPressed: () => _selectAll(),
-                      icon: Icon(Icons.select_all),
-                      tooltip: "Select all",
-                    ),
-                  ],
+                ],
+              )
+            : AppBar(
+                title: Text("${_selectedPages.length} Pages selected"),
+                leading: IconButton(
+                  onPressed: () => _cancelSelectMode(),
+                  icon: Icon(Icons.close),
+                  tooltip: "Cancel Selection",
                 ),
+                actions: [
+                  IconButton(
+                    onPressed: () => _selectAll(),
+                    icon: Icon(Icons.select_all),
+                    tooltip: "Select all",
+                  ),
+                ],
+              ),
         body:
             _pageThumbnails
-                    .isNotEmpty // && isTopOfNavigationStack
-                // Pages
-                ? CustomScrollbar(
-                  controller: _scrollController,
-                  pageAspectRatios:
-                      _thumbnailRatios
-                          .whereIndexed(
-                            (index, element) => !_deletedPages.contains(index),
-                          )
-                          .toList(),
-                  scrollRangeStart: 0.1,
-                  scrollRangeEnd: 0.675,
+                .isNotEmpty // && isTopOfNavigationStack
+            // Pages
+            ? CustomScrollbar(
+                controller: _scrollController,
+                pageAspectRatios: _thumbnailRatios
+                    .whereIndexed(
+                      (index, element) => !_deletedPages.contains(index),
+                    )
+                    .toList(),
+                scrollRangeStart: 0.1,
+                scrollRangeEnd: 0.675,
 
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    cacheExtent: 1000,
-                    itemCount: _pagesCount,
-                    itemBuilder: (BuildContext context, int pageIndex) {
-                      if (_deletedPages.contains(pageIndex)) return SizedBox();
-                      final displayPageIndex =
-                          1 +
-                          pageIndex -
-                          _deletedPages
-                              .where((element) => element < pageIndex)
-                              .length;
-                      String thumbnailPath = _pageThumbnails[pageIndex];
-                      double thumbnailRatio = _thumbnailRatios[pageIndex];
-                      if (thumbnailRatio == 0.0) {
-                        throw StateError("thumbnailRatio == 0.0");
-                      }
-                      File pageThumbnail = File(thumbnailPath);
-                      return Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 6,
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: thumbnailRatio,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              boxShadow: [bigBoxShadow(context)],
-                            ),
-                            child: Stack(
-                              children: [
-                                // Load image
-                                (thumbnailPath.isNotEmpty)
-                                    ? AnimatedSwitcher(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  cacheExtent: 1000,
+                  itemCount: _pagesCount,
+                  itemBuilder: (BuildContext context, int pageIndex) {
+                    if (_deletedPages.contains(pageIndex)) return SizedBox();
+                    final displayPageIndex =
+                        1 +
+                        pageIndex -
+                        _deletedPages
+                            .where((element) => element < pageIndex)
+                            .length;
+                    String thumbnailPath = _pageThumbnails[pageIndex];
+                    double thumbnailRatio = _thumbnailRatios[pageIndex];
+                    if (thumbnailRatio == 0.0) {
+                      throw StateError("thumbnailRatio == 0.0");
+                    }
+                    File pageThumbnail = File(thumbnailPath);
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 6,
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: thumbnailRatio,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [bigBoxShadow(context)],
+                          ),
+                          child: Stack(
+                            children: [
+                              // Load image
+                              (thumbnailPath.isNotEmpty)
+                                  ? AnimatedSwitcher(
                                       duration: Duration(milliseconds: 200),
                                       child: Image.file(
                                         pageThumbnail,
                                         key: ValueKey(thumbnailPath),
-                                        errorBuilder: (
-                                          context,
-                                          error,
-                                          stackTrace,
-                                        ) {
-                                          return Material(
-                                            color:
-                                                Theme.of(
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Material(
+                                                color: Theme.of(
                                                   context,
                                                 ).colorScheme.surfaceBright,
-                                            child: const Icon(
-                                              Icons.broken_image,
-                                            ),
-                                          );
-                                        },
+                                                child: const Icon(
+                                                  Icons.broken_image,
+                                                ),
+                                              );
+                                            },
                                       ),
                                     )
-                                    // Skeleton
-                                    : Positioned.fill(
+                                  // Skeleton
+                                  : Positioned.fill(
                                       child: Material(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceBright,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceBright,
                                         child: IndicatorProcessingImage(),
                                       ),
                                     ),
-                                // InkWell
-                                Positioned.fill(
-                                  child: Material(
-                                    color:
-                                        (_selectMode &&
-                                                _selectedPages.contains(
-                                                  pageIndex,
-                                                ))
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .primaryContainer
-                                                .withAlpha(150)
-                                            : _deletedPages.contains(pageIndex)
-                                            ? Color.fromRGBO(100, 0, 10, 0.412)
-                                            : Colors.transparent,
-                                    child:
-                                        !_deletedPages.contains(pageIndex)
-                                            ? InkWell(
-                                              onTap:
-                                                  !_selectMode
-                                                      ? () => _openPagePreview(
-                                                        pageIndex,
-                                                      )
-                                                      : () {
-                                                        HapticFeedback.lightImpact();
-                                                        _selectPage(pageIndex);
-                                                      },
-                                              onLongPress: () {
-                                                _selectPage(pageIndex);
-                                              },
-                                              splashColor: Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer
-                                                  .withAlpha(150),
-                                              highlightColor: Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer
-                                                  .withAlpha(150),
-                                            )
-                                            : Center(
-                                              child: Container(
-                                                padding: EdgeInsets.all(12),
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  color: Colors.black45,
-                                                ),
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            8.0,
-                                                          ),
-                                                      child: SizedBox(
-                                                        width: 24,
-                                                        height: 24,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              color:
-                                                                  Colors.white,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      "  Deleting...",
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
+                              // InkWell
+                              Positioned.fill(
+                                child: Material(
+                                  color:
+                                      (_selectMode &&
+                                          _selectedPages.contains(pageIndex))
+                                      ? Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withAlpha(150)
+                                      : _deletedPages.contains(pageIndex)
+                                      ? Color.fromRGBO(100, 0, 10, 0.412)
+                                      : Colors.transparent,
+                                  child: !_deletedPages.contains(pageIndex)
+                                      ? InkWell(
+                                          onTap: !_selectMode
+                                              ? () =>
+                                                    _openPagePreview(pageIndex)
+                                              : () {
+                                                  HapticFeedback.lightImpact();
+                                                  _selectPage(pageIndex);
+                                                },
+                                          onLongPress: () {
+                                            _selectPage(pageIndex);
+                                          },
+                                          splashColor: Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withAlpha(150),
+                                          highlightColor: Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer
+                                              .withAlpha(150),
+                                        )
+                                      : Center(
+                                          child: Container(
+                                            padding: EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              color: Colors.black45,
                                             ),
-                                  ),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    8.0,
+                                                  ),
+                                                  child: SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                        ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "  Deleting...",
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                 ),
-                                // Page Index Indicator
-                                Positioned(
-                                  top: 18,
-                                  left: 12,
-                                  child: GestureDetector(
-                                    // Move Page Index Dialog
-                                    onTap:
-                                        !_deletedPages.contains(pageIndex)
-                                            ? _selectMode
-                                                ? () => _selectPage(pageIndex)
-                                                : () => _openPageEditDialog(
-                                                  context,
-                                                  pageIndex,
-                                                  displayPageIndex,
-                                                )
-                                            : null,
-                                    onLongPress:
-                                        !_deletedPages.contains(pageIndex)
+                              ),
+                              // Page Index Indicator
+                              Positioned(
+                                top: 18,
+                                left: 12,
+                                child: GestureDetector(
+                                  // Move Page Index Dialog
+                                  onTap: !_deletedPages.contains(pageIndex)
+                                      ? _selectMode
                                             ? () => _selectPage(pageIndex)
-                                            : null,
-                                    child: Container(
-                                      padding: EdgeInsets.fromLTRB(
-                                        12,
-                                        6,
-                                        (_selectMode &&
-                                                _selectedPages.contains(
-                                                  pageIndex,
-                                                ))
-                                            ? 6
-                                            : 12,
-                                        6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceBright,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [smallBoxShadow(context)],
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            "$displayPageIndex/$displayPagesCount",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
+                                            : () => _openPageEditDialog(
+                                                context,
+                                                pageIndex,
+                                                displayPageIndex,
+                                              )
+                                      : null,
+                                  onLongPress:
+                                      !_deletedPages.contains(pageIndex)
+                                      ? () => _selectPage(pageIndex)
+                                      : null,
+                                  child: Container(
+                                    padding: EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      (_selectMode &&
+                                              _selectedPages.contains(
+                                                pageIndex,
+                                              ))
+                                          ? 6
+                                          : 12,
+                                      6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceBright,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [smallBoxShadow(context)],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "$displayPageIndex/$displayPagesCount",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
                                           ),
-                                          SizedBox(
-                                            width:
-                                                (_selectMode &&
-                                                        _selectedPages.contains(
-                                                          pageIndex,
-                                                        ))
-                                                    ? 8
-                                                    : 0,
-                                          ),
-                                          (_selectMode &&
+                                        ),
+                                        SizedBox(
+                                          width:
+                                              (_selectMode &&
                                                   _selectedPages.contains(
                                                     pageIndex,
                                                   ))
-                                              ? Icon(Icons.check, size: 20)
-                                              : SizedBox(),
-                                        ],
-                                      ),
+                                              ? 8
+                                              : 0,
+                                        ),
+                                        (_selectMode &&
+                                                _selectedPages.contains(
+                                                  pageIndex,
+                                                ))
+                                            ? Icon(Icons.check, size: 20)
+                                            : SizedBox(),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-                )
-                : const SizedBox(),
+                      ),
+                    );
+                  },
+                ),
+              )
+            : const SizedBox(),
         // Floating Action Buttons
         floatingActionButton: Padding(
           padding: const EdgeInsets.all(20.0),
-          child:
-              !_selectMode
-                  ? Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: <Widget>[
-                      // Add Images
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: FloatingActionButton(
-                          heroTag: "pickImagesPage",
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          onPressed: () {
-                            _openImagePicker(
-                              ImageSource.gallery,
-                              isMultiImage: true,
-                            );
-                          },
-                          tooltip: 'Pick Images from Gallery',
-                          child: const Icon(Icons.photo_library),
+          child: !_selectMode
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    // Add Images
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "pickImagesPage",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        onPressed: () {
+                          _openImagePicker(
+                            ImageSource.gallery,
+                            isMultiImage: true,
+                          );
+                        },
+                        tooltip: 'Pick Images from Gallery',
+                        child: const Icon(Icons.photo_library),
                       ),
-                      SizedBox(height: 18.0),
-                      // Add PDF
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: FloatingActionButton(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          heroTag: "pickPdfPage",
-                          onPressed: () async {
-                            final indexPairsList = await g.filesHelper
-                                .pickPdfToDoc(
-                                  addToDocWithIndex: widget.docIndex,
+                    ),
+                    SizedBox(height: 18.0),
+                    // Add PDF
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        heroTag: "pickPdfPage",
+                        onPressed: () async {
+                          final indexPairsList = await g.filesHelper
+                              .pickPdfToDoc(addToDocWithIndex: widget.docIndex);
+                          int pdfsCount = indexPairsList.length;
+                          if (pdfsCount != 0 && context.mounted) {
+                            ScaffoldMessengerState messenger =
+                                ScaffoldMessenger.of(context);
+                            SnackBar snackBar = SnackBar(
+                              content: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Importing PDF${(pdfsCount > 1) ? "s" : ""}...",
+                                  ),
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              duration: const Duration(days: 1),
+                            );
+                            messenger.showSnackBar(snackBar);
+                            hideSnackbarOnPageReload() {
+                              if (globalNotifier.value ==
+                                  NotifierEvent.loadPagesThumbnails) {
+                                messenger.hideCurrentSnackBar();
+                                globalNotifier.removeListener(
+                                  hideSnackbarOnPageReload,
                                 );
-                            int pdfsCount = indexPairsList.length;
-                            if (pdfsCount != 0 && context.mounted) {
-                              ScaffoldMessengerState messenger =
-                                  ScaffoldMessenger.of(context);
-                              SnackBar snackBar = SnackBar(
-                                content: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      "Importing PDF${(pdfsCount > 1) ? "s" : ""}...",
-                                    ),
-                                    SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                duration: const Duration(days: 1),
-                              );
-                              messenger.showSnackBar(snackBar);
-                              hideSnackbarOnPageReload() {
-                                if (globalNotifier.value ==
-                                    NotifierEvent.loadPagesThumbnails) {
-                                  messenger.hideCurrentSnackBar();
-                                  globalNotifier.removeListener(
-                                    hideSnackbarOnPageReload,
-                                  );
-                                }
                               }
+                            }
 
-                              globalNotifier.addListener(
-                                hideSnackbarOnPageReload,
-                              );
-                            }
-                          },
-                          tooltip: 'Pick PDF from Directory',
-                          child: const Icon(Icons.picture_as_pdf),
-                        ),
-                      ),
-                      SizedBox(height: 18.0),
-                      // Take and add Photos
-                      if (_picker.supportsImageSource(ImageSource.camera))
-                        FloatingActionButton(
-                          heroTag: "takePhotoPage",
-                          onPressed: () {
-                            _openImagePicker(ImageSource.camera);
-                          },
-                          tooltip: 'Take a Photo',
-                          child: const Icon(Icons.camera_alt),
-                        ),
-                    ],
-                  )
-                  : Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: <Widget>[
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: FloatingActionButton(
-                          heroTag: "selectionDeletePage",
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          onPressed: () async {
-                            bool deletionConfirmed = await _pagesPopup(
-                              context,
-                              _selectedPages,
-                              PopUpType.delete,
-                              widget.docIndex,
+                            globalNotifier.addListener(
+                              hideSnackbarOnPageReload,
                             );
-                            if (deletionConfirmed) {
-                              _cancelSelectMode();
-                            }
-                          },
-                          tooltip: 'Delete',
-                          child: const Icon(Icons.delete),
-                        ),
+                          }
+                        },
+                        tooltip: 'Pick PDF from Directory',
+                        child: const Icon(Icons.picture_as_pdf),
                       ),
-                      SizedBox(height: 18.0),
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: FloatingActionButton(
-                          heroTag: "selectionSavePage",
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          onPressed: () async {
-                            _pagesPopup(
-                              context,
-                              _selectedPages,
-                              PopUpType.save,
-                              widget.docIndex,
-                            );
-                          },
-                          tooltip: 'Save',
-                          child: const Icon(Icons.save),
-                        ),
+                    ),
+                    SizedBox(height: 18.0),
+                    // Take and add Photos
+                    if (_picker.supportsImageSource(ImageSource.camera))
+                      FloatingActionButton(
+                        heroTag: "takePhotoPage",
+                        onPressed: () {
+                          _openImagePicker(ImageSource.camera);
+                        },
+                        tooltip: 'Take a Photo',
+                        child: const Icon(Icons.camera_alt),
                       ),
-                      SizedBox(height: 18.0),
-                      if (_picker.supportsImageSource(ImageSource.camera))
-                        FloatingActionButton(
-                          heroTag: "selectionSharePage",
-                          onPressed: () async {
-                            _pagesPopup(
-                              context,
-                              _selectedPages,
-                              PopUpType.share,
-                              widget.docIndex,
-                            );
-                          },
-                          tooltip: 'Share',
-                          child: const Icon(Icons.share),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "selectionDeletePage",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                    ],
-                  ),
+                        onPressed: () async {
+                          bool deletionConfirmed = await _pagesPopup(
+                            context,
+                            _selectedPages,
+                            PopUpType.delete,
+                            widget.docIndex,
+                          );
+                          if (deletionConfirmed) {
+                            _cancelSelectMode();
+                          }
+                        },
+                        tooltip: 'Delete',
+                        child: const Icon(Icons.delete),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        heroTag: "selectionSavePage",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () async {
+                          _pagesPopup(
+                            context,
+                            _selectedPages,
+                            PopUpType.save,
+                            widget.docIndex,
+                          );
+                        },
+                        tooltip: 'Save',
+                        child: const Icon(Icons.save),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    if (_picker.supportsImageSource(ImageSource.camera))
+                      FloatingActionButton(
+                        heroTag: "selectionSharePage",
+                        onPressed: () async {
+                          _pagesPopup(
+                            context,
+                            _selectedPages,
+                            PopUpType.share,
+                            widget.docIndex,
+                          );
+                        },
+                        tooltip: 'Share',
+                        child: const Icon(Icons.share),
+                      ),
+                  ],
+                ),
         ),
       ),
     );
@@ -2583,13 +2498,12 @@ class _PagesState extends State<Pages> with RouteAware {
                 children: [
                   // Move Page to new Index - Dropdown
                   TextButton(
-                    onPressed:
-                        !allowChangePageIndex
-                            ? () => Fluttertoast.showToast(
-                              msg:
-                                  'Blocked while other Pages of this Document are processing...',
-                            )
-                            : null,
+                    onPressed: !allowChangePageIndex
+                        ? () => Fluttertoast.showToast(
+                            msg:
+                                'Blocked while other Pages of this Document are processing...',
+                          )
+                        : null,
                     child: DropdownButtonFormField<int>(
                       decoration: InputDecoration(
                         labelText: "Move Page to new Index",
@@ -2606,56 +2520,51 @@ class _PagesState extends State<Pages> with RouteAware {
                           ),
                         ),
                       ),
-                      onChanged:
-                          allowChangePageIndex
-                              ? (int? newValue) {
-                                if (newValue != null) {
-                                  setState(() => currentIndex = newValue);
-                                }
+                      onChanged: allowChangePageIndex
+                          ? (int? newValue) {
+                              if (newValue != null) {
+                                setState(() => currentIndex = newValue);
                               }
-                              : null,
+                            }
+                          : null,
                     ),
                   ),
 
                   SizedBox(height: 24),
                   // Reverse Order - Button
                   ElevatedButton.icon(
-                    onPressed:
-                        allowChangePageIndex
-                            ? () async {
-                              await g.filesHelper.reversePagesOrder(
-                                widget.docIndex,
-                              );
-                              if (context.mounted) Navigator.pop(context);
-                              _loadPagesThumbnails();
-                            }
-                            : () => Fluttertoast.showToast(
-                              msg:
-                                  'Blocked while Pages of this Document are processing...',
-                            ),
+                    onPressed: allowChangePageIndex
+                        ? () async {
+                            await g.filesHelper.reversePagesOrder(
+                              widget.docIndex,
+                            );
+                            if (context.mounted) Navigator.pop(context);
+                            _loadPagesThumbnails();
+                          }
+                        : () => Fluttertoast.showToast(
+                            msg:
+                                'Blocked while Pages of this Document are processing...',
+                          ),
                     label: Text(
                       "Reverse Order",
                       style: TextStyle(
-                        color:
-                            allowChangePageIndex
-                                ? null
-                                : Theme.of(context).disabledColor,
+                        color: allowChangePageIndex
+                            ? null
+                            : Theme.of(context).disabledColor,
                       ),
                     ),
                     icon: Icon(
                       Icons.swap_vert,
-                      color:
-                          allowChangePageIndex
-                              ? null
-                              : Theme.of(context).disabledColor,
+                      color: allowChangePageIndex
+                          ? null
+                          : Theme.of(context).disabledColor,
                     ),
                     style: ButtonStyle(
-                      backgroundColor:
-                          allowChangePageIndex
-                              ? null
-                              : WidgetStateProperty.all(
-                                Theme.of(context).disabledColor,
-                              ),
+                      backgroundColor: allowChangePageIndex
+                          ? null
+                          : WidgetStateProperty.all(
+                              Theme.of(context).disabledColor,
+                            ),
                     ),
                   ),
                   //SizedBox(height: 24),
@@ -2835,12 +2744,16 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _railSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(1.5, 0), // slide off to the right
-    ).animate(
-      CurvedAnimation(parent: _railSlideController, curve: Curves.easeInOut),
-    );
+    _railSlideAnimation =
+        Tween<Offset>(
+          begin: Offset.zero,
+          end: const Offset(1.5, 0), // slide off to the right
+        ).animate(
+          CurvedAnimation(
+            parent: _railSlideController,
+            curve: Curves.easeInOut,
+          ),
+        );
     _setRatios();
   }
 
@@ -2873,10 +2786,9 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     final viewportHeight = widget.controller.position.viewportDimension;
 
-    final scrollFraction =
-        maxScroll == 0
-            ? 0
-            : (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
+    final scrollFraction = maxScroll == 0
+        ? 0
+        : (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
     final thumbTravelHeight =
         viewportHeight * (widget.scrollRangeEnd - widget.scrollRangeStart);
 
@@ -3066,8 +2978,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                   opacity: _fadeAnimation,
                   child: GestureDetector(
                     onVerticalDragStart: _onDragStart,
-                    onVerticalDragUpdate:
-                        (d) => _onDragUpdate(d, constraints.maxHeight),
+                    onVerticalDragUpdate: (d) =>
+                        _onDragUpdate(d, constraints.maxHeight),
                     onVerticalDragEnd: (details) => _onDragEnd(details),
                     onVerticalDragCancel: () => _onDragEnd(null),
                     // Thumb Design
@@ -3206,8 +3118,8 @@ class PagePreviewState extends State<PagePreview> {
     // if processing on init
     if (_versionPaths.any((element) => element.isEmpty)) {
       // Feedback Popup
-      bool showRatingPopupWhileProcessing =
-          feedbackHelper.canShowProcessingPopup();
+      bool showRatingPopupWhileProcessing = feedbackHelper
+          .canShowProcessingPopup();
       if (showRatingPopupWhileProcessing) {
         // ignore: use_build_context_synchronously
         feedbackHelper.showRatingDialog(context);
@@ -3313,12 +3225,11 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
-    _guiRatioValue =
-        _ratioValue = await MetadataHelper.readPageRatioValue(
-          widget.docIndex,
-          widget.pageIndex,
-          supressWarnings: supressWarnings,
-        );
+    _guiRatioValue = _ratioValue = await MetadataHelper.readPageRatioValue(
+      widget.docIndex,
+      widget.pageIndex,
+      supressWarnings: supressWarnings,
+    );
     if (_ratioValue != null) {
       _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
     }
@@ -3459,10 +3370,9 @@ class PagePreviewState extends State<PagePreview> {
   @override
   Widget build(BuildContext context) {
     bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
-    bool enableFABs =
-        _selectedVersion == 0
-            ? enableFAB0
-            : _versionPaths[_selectedVersion].isNotEmpty;
+    bool enableFABs = _selectedVersion == 0
+        ? enableFAB0
+        : _versionPaths[_selectedVersion].isNotEmpty;
     _allowPop = g.proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
     return PopScope(
       canPop: _allowPop,
@@ -3488,34 +3398,29 @@ class PagePreviewState extends State<PagePreview> {
           title: Text('Page ${widget.pageIndex + 1}'),
           actions: [
             PopupMenuButton(
-              itemBuilder:
-                  (context) => [
-                    PopupMenuItem(
-                      value: "del",
-                      child: Row(
-                        children: [
-                          SizedBox(width: 12),
-                          Icon(
-                            Icons.delete,
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimaryContainer,
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            "Delete Page",
-                            style: TextStyle(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ],
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: "del",
+                  child: Row(
+                    children: [
+                      SizedBox(width: 12),
+                      Icon(
+                        Icons.delete,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
-                    ),
-                  ],
+                      SizedBox(width: 10),
+                      Text(
+                        "Delete Page",
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               onSelected: (String value) async {
                 switch (value) {
                   case "del":
@@ -3628,10 +3533,9 @@ class PagePreviewState extends State<PagePreview> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Align(
-                alignment:
-                    _selectedVersion == 0
-                        ? Alignment.topCenter
-                        : Alignment.topLeft,
+                alignment: _selectedVersion == 0
+                    ? Alignment.topCenter
+                    : Alignment.topLeft,
 
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 10),
@@ -3641,35 +3545,34 @@ class PagePreviewState extends State<PagePreview> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [smallBoxShadow(context)],
                   ),
-                  child:
-                      _selectedVersion == 0
-                          ? Row(
-                            spacing: 12,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                spacing: 12,
-                                children: [
-                                  _aspectRatioDropDown(context),
-                                  _orientationDropDown(context),
-                                  _rotateButton(
-                                    context,
-                                    -90,
-                                    Icons.rotate_left,
-                                    "Rotate 90° left",
-                                  ),
-                                  _rotateButton(
-                                    context,
-                                    90,
-                                    Icons.rotate_right,
-                                    "Rotate 90° right",
-                                  ),
-                                ],
-                              ),
-                              _confirmReProcessingButton(context),
-                            ],
-                          )
-                          : _toEditingButton(context),
+                  child: _selectedVersion == 0
+                      ? Row(
+                          spacing: 12,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              spacing: 12,
+                              children: [
+                                _aspectRatioDropDown(context),
+                                _orientationDropDown(context),
+                                _rotateButton(
+                                  context,
+                                  -90,
+                                  Icons.rotate_left,
+                                  "Rotate 90° left",
+                                ),
+                                _rotateButton(
+                                  context,
+                                  90,
+                                  Icons.rotate_right,
+                                  "Rotate 90° right",
+                                ),
+                              ],
+                            ),
+                            _confirmReProcessingButton(context),
+                          ],
+                        )
+                      : _toEditingButton(context),
                 ),
               ),
             ),
@@ -3681,51 +3584,47 @@ class PagePreviewState extends State<PagePreview> {
           children: [
             _selectedVersion == 0
                 ? SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: FloatingActionButton(
-                    heroTag: "adjustCorners",
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    onPressed:
-                        enableFAB0 && !_metadataBlocked
-                            ? () => _openWarpManuallyPage()
-                            : null,
-                    tooltip:
-                        enableFAB0 && !_metadataBlocked
-                            ? 'Adjust Corner Points'
-                            : 'Waiting for image to load...',
-                    backgroundColor:
-                        enableFAB0 && !_metadataBlocked
-                            ? null
-                            : Theme.of(context).disabledColor,
-                    elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
-                    child: Transform.scale(
-                      scaleY: 0.8,
-                      scaleX: 0.85,
-                      filterQuality: FilterQuality.high,
-                      child: Transform.translate(
-                        offset: Offset(0, -1.8),
+                    width: 40,
+                    height: 40,
+                    child: FloatingActionButton(
+                      heroTag: "adjustCorners",
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onPressed: enableFAB0 && !_metadataBlocked
+                          ? () => _openWarpManuallyPage()
+                          : null,
+                      tooltip: enableFAB0 && !_metadataBlocked
+                          ? 'Adjust Corner Points'
+                          : 'Waiting for image to load...',
+                      backgroundColor: enableFAB0 && !_metadataBlocked
+                          ? null
+                          : Theme.of(context).disabledColor,
+                      elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
+                      child: Transform.scale(
+                        scaleY: 0.8,
+                        scaleX: 0.85,
                         filterQuality: FilterQuality.high,
-                        child: Transform(
-                          alignment: Alignment.topCenter,
-                          transform:
-                              (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
-                              Matrix4.rotationX(-0.7),
+                        child: Transform.translate(
+                          offset: Offset(0, -1.8),
                           filterQuality: FilterQuality.high,
-                          child: Icon(
-                            Icons.crop_free,
-                            color:
-                                enableFAB0 && !_metadataBlocked
-                                    ? null
-                                    : Theme.of(context).disabledColor,
+                          child: Transform(
+                            alignment: Alignment.topCenter,
+                            transform:
+                                (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
+                                Matrix4.rotationX(-0.7),
+                            filterQuality: FilterQuality.high,
+                            child: Icon(
+                              Icons.crop_free,
+                              color: enableFAB0 && !_metadataBlocked
+                                  ? null
+                                  : Theme.of(context).disabledColor,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                )
+                  )
                 : SizedBox(),
             SizedBox(height: 18.0),
             SizedBox(
@@ -3736,20 +3635,21 @@ class PagePreviewState extends State<PagePreview> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                onPressed:
-                    enableFABs
-                        ? () => _pagesPopup(
-                          context,
-                          [widget.pageIndex],
-                          PopUpType.save,
-                          widget.docIndex,
-                          versionIndex: _selectedVersion,
-                        )
-                        : null,
-                tooltip:
-                    enableFABs ? 'Save Image' : 'Waiting for image to load...',
-                backgroundColor:
-                    enableFABs ? null : Theme.of(context).disabledColor,
+                onPressed: enableFABs
+                    ? () => _pagesPopup(
+                        context,
+                        [widget.pageIndex],
+                        PopUpType.save,
+                        widget.docIndex,
+                        versionIndex: _selectedVersion,
+                      )
+                    : null,
+                tooltip: enableFABs
+                    ? 'Save Image'
+                    : 'Waiting for image to load...',
+                backgroundColor: enableFABs
+                    ? null
+                    : Theme.of(context).disabledColor,
                 elevation: enableFABs ? null : 0.0,
                 child: Icon(
                   Icons.save,
@@ -3761,20 +3661,21 @@ class PagePreviewState extends State<PagePreview> {
             FloatingActionButton(
               heroTag: "sharePageVersion",
 
-              onPressed:
-                  enableFABs
-                      ? () => _pagesPopup(
-                        context,
-                        [widget.pageIndex],
-                        PopUpType.share,
-                        widget.docIndex,
-                        versionIndex: _selectedVersion,
-                      )
-                      : null,
-              tooltip:
-                  enableFABs ? 'Share Image' : 'Waiting for image to load...',
-              backgroundColor:
-                  enableFABs ? null : Theme.of(context).disabledColor,
+              onPressed: enableFABs
+                  ? () => _pagesPopup(
+                      context,
+                      [widget.pageIndex],
+                      PopUpType.share,
+                      widget.docIndex,
+                      versionIndex: _selectedVersion,
+                    )
+                  : null,
+              tooltip: enableFABs
+                  ? 'Share Image'
+                  : 'Waiting for image to load...',
+              backgroundColor: enableFABs
+                  ? null
+                  : Theme.of(context).disabledColor,
               elevation: enableFABs ? null : 0.0,
               child: Icon(
                 Icons.share,
@@ -3805,78 +3706,66 @@ class PagePreviewState extends State<PagePreview> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color:
-                                  _selectedVersion == index
-                                      ? Colors.white
-                                      : Colors.white54,
+                              color: _selectedVersion == index
+                                  ? Colors.white
+                                  : Colors.white54,
                               width: 3,
                             ),
                             boxShadow: [bigBoxShadow(context)],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.5),
-                            child:
-                                _versionPaths[index].isNotEmpty
-                                    ? Image.file(
-                                      File(_versionPaths[index]),
-                                      width:
-                                          _selectedVersion == index ? 70 : 50,
-                                      height:
-                                          _selectedVersion == index ? 70 : 50,
-                                      fit: BoxFit.cover,
-                                      key: ValueKey(_imageRetryKey),
-                                      errorBuilder: (
-                                        context,
-                                        error,
-                                        stackTrace,
-                                      ) {
-                                        _refreshAfterBrokenImage(index);
-                                        return SizedBox(
-                                          width:
-                                              _selectedVersion == index
-                                                  ? 70
-                                                  : 50,
-                                          height:
-                                              _selectedVersion == index
-                                                  ? 70
-                                                  : 50,
-                                          child: const Padding(
-                                            padding: EdgeInsets.all(12.0),
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        );
-                                      },
-                                    )
-                                    : Container(
-                                      width:
-                                          _selectedVersion == index &&
-                                                  index != 0
-                                              ? 70
-                                              : 50,
-                                      height:
-                                          _selectedVersion == index &&
-                                                  index != 0
-                                              ? 70
-                                              : 50,
-                                      color: Theme.of(context).disabledColor,
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(12.0),
-                                        child: CircularProgressIndicator(),
-                                      ),
+                            child: _versionPaths[index].isNotEmpty
+                                ? Image.file(
+                                    File(_versionPaths[index]),
+                                    width: _selectedVersion == index ? 70 : 50,
+                                    height: _selectedVersion == index ? 70 : 50,
+                                    fit: BoxFit.cover,
+                                    key: ValueKey(_imageRetryKey),
+                                    errorBuilder: (context, error, stackTrace) {
+                                      _refreshAfterBrokenImage(index);
+                                      return SizedBox(
+                                        width: _selectedVersion == index
+                                            ? 70
+                                            : 50,
+                                        height: _selectedVersion == index
+                                            ? 70
+                                            : 50,
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(12.0),
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : Container(
+                                    width:
+                                        _selectedVersion == index && index != 0
+                                        ? 70
+                                        : 50,
+                                    height:
+                                        _selectedVersion == index && index != 0
+                                        ? 70
+                                        : 50,
+                                    color: Theme.of(context).disabledColor,
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(12.0),
+                                      child: CircularProgressIndicator(),
                                     ),
+                                  ),
                           ),
                         ),
                         // Locked Badge
                         (g.proUnlocked == true || index != 3 || _pageUnlocked)
                             ? SizedBox()
                             : Positioned(
-                              top: 0,
-                              right: 0,
-                              child: CustomIconButton(
-                                onTap: null,
-                                icon: Icons.lock,
+                                top: 0,
+                                right: 0,
+                                child: CustomIconButton(
+                                  onTap: null,
+                                  icon: Icons.lock,
+                                ),
                               ),
-                            ),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -3948,8 +3837,8 @@ class PagePreviewState extends State<PagePreview> {
             _rotationOngoing = false;
           });
         } else {
-          _rotatedPhotoPaths[quarterTurns -
-              1] = FilesHelper.rotateImageInTmpDir(_photoPath, _totalRotation);
+          _rotatedPhotoPaths[quarterTurns - 1] =
+              FilesHelper.rotateImageInTmpDir(_photoPath, _totalRotation);
           _rotatedPhotoPaths[quarterTurns - 1].whenComplete(() async {
             // if image matches current rotation
             if (_totalRotation ~/ 90 == quarterTurns) {
@@ -3984,8 +3873,8 @@ class PagePreviewState extends State<PagePreview> {
           _rotationOngoing,
       isHidden:
           ((_guiRatioValue != null && (_ratioValue == _guiRatioValue)) &&
-              (_orientationIndex == _guiOrientationIndex) &&
-              _totalRotation == 0),
+          (_orientationIndex == _guiOrientationIndex) &&
+          _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
         await reprocessPhoto();
@@ -4082,22 +3971,21 @@ class PagePreviewState extends State<PagePreview> {
     int quarterTurns = (_totalRotation ~/ 90) % 4;
 
     // Apply rotation logic to each point
-    List<List<int>> rotated =
-        cornerPoints.map((p) {
-          int row = p[0];
-          int col = p[1];
+    List<List<int>> rotated = cornerPoints.map((p) {
+      int row = p[0];
+      int col = p[1];
 
-          switch (quarterTurns) {
-            case 1: // 90°
-              return [col, _imagePixelHeight - row];
-            case 2: // 180°
-              return [_imagePixelHeight - row, _imagePixelWidth - col];
-            case 3: // 270°
-              return [_imagePixelWidth - col, row];
-            default: // 0°
-              return [row, col];
-          }
-        }).toList();
+      switch (quarterTurns) {
+        case 1: // 90°
+          return [col, _imagePixelHeight - row];
+        case 2: // 180°
+          return [_imagePixelHeight - row, _imagePixelWidth - col];
+        case 3: // 270°
+          return [_imagePixelWidth - col, row];
+        default: // 0°
+          return [row, col];
+      }
+    }).toList();
 
     // Rotate the list order to keep top-left point first
     for (var i = 0; i < quarterTurns; i++) {
@@ -4145,21 +4033,19 @@ class PagePreviewState extends State<PagePreview> {
               ),
             ),
           ),
-          onChanged:
-              _versionPaths.first.isEmpty || _metadataBlocked
-                  ? null
-                  : (int? newValue) {
-                    if (newValue != null && newValue != _guiRatioValue) {
-                      setState(() {
-                        final newPortraitValue =
-                            g.availableAspectRatios[newValue].value;
-                        _guiRatioValue =
-                            (_guiOrientationIndex ?? 0) == 0
-                                ? newPortraitValue
-                                : 1 / newPortraitValue;
-                      });
-                    }
-                  },
+          onChanged: _versionPaths.first.isEmpty || _metadataBlocked
+              ? null
+              : (int? newValue) {
+                  if (newValue != null && newValue != _guiRatioValue) {
+                    setState(() {
+                      final newPortraitValue =
+                          g.availableAspectRatios[newValue].value;
+                      _guiRatioValue = (_guiOrientationIndex ?? 0) == 0
+                          ? newPortraitValue
+                          : 1 / newPortraitValue;
+                    });
+                  }
+                },
         ),
       ),
     );
@@ -4197,19 +4083,18 @@ class PagePreviewState extends State<PagePreview> {
               ),
             ),
           ),
-          onChanged:
-              _versionPaths.first.isEmpty || _metadataBlocked
-                  ? null
-                  : (int? newValue) {
-                    if (newValue != null && newValue != _guiOrientationIndex) {
-                      _guiOrientationIndex = newValue;
-                      if (_guiRatioValue! > 1.0 && _guiOrientationIndex != 0 ||
-                          _guiRatioValue! < 1.0 && _guiOrientationIndex != 1) {
-                        _guiRatioValue = 1.0 / _guiRatioValue!;
-                      }
-                      setState(() {});
+          onChanged: _versionPaths.first.isEmpty || _metadataBlocked
+              ? null
+              : (int? newValue) {
+                  if (newValue != null && newValue != _guiOrientationIndex) {
+                    _guiOrientationIndex = newValue;
+                    if (_guiRatioValue! > 1.0 && _guiOrientationIndex != 0 ||
+                        _guiRatioValue! < 1.0 && _guiOrientationIndex != 1) {
+                      _guiRatioValue = 1.0 / _guiRatioValue!;
                     }
-                  },
+                    setState(() {});
+                  }
+                },
         ),
       ),
     );
@@ -4249,12 +4134,11 @@ class PagePreviewState extends State<PagePreview> {
     }
 
     // Apply rotation to corner points visually
-    List<Offset> scaledPoints =
-        _cornerPoints.map((point) {
-          double x = point[1] * _photoScale;
-          double y = point[0] * _photoScale;
-          return Offset(x, y);
-        }).toList();
+    List<Offset> scaledPoints = _cornerPoints.map((point) {
+      double x = point[1] * _photoScale;
+      double y = point[0] * _photoScale;
+      return Offset(x, y);
+    }).toList();
 
     return IgnorePointer(
       child: Center(
@@ -4316,12 +4200,11 @@ class _FrameLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
 
-    final paintEdges =
-        Paint()
-          ..color = color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
+    final paintEdges = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
     var order = [0, 2, 3, 1];
     List<Offset> orderedPoints = order.map((i) => points[i]).toList();
@@ -4363,12 +4246,11 @@ class _CornerLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
 
-    final paintCorners =
-        Paint()
-          ..color = color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
+    final paintCorners = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
     var order = [0, 2, 3, 1];
     List<Offset> orderedPoints = order.map((i) => points[i]).toList();
@@ -4412,12 +4294,11 @@ class _MiddleLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
 
-    final paintCorners =
-        Paint()
-          ..color = color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
+    final paintCorners = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
     var order = [0, 2, 3, 1];
     List<Offset> orderedPoints = order.map((i) => points[i]).toList();
@@ -4517,59 +4398,57 @@ class CustomIconButton extends StatelessWidget {
     return isHidden
         ? Stack()
         : Stack(
-          children: [
-            Container(
-              constraints: constraints,
-              decoration:
-                  isFlat
-                      ? null
-                      : BoxDecoration(
-                        color:
-                            isDisabled
-                                ? Theme.of(context).disabledColor
-                                : buttonColor ??
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.primaryContainer,
+            children: [
+              Container(
+                constraints: constraints,
+                decoration: isFlat
+                    ? null
+                    : BoxDecoration(
+                        color: isDisabled
+                            ? Theme.of(context).disabledColor
+                            : buttonColor ??
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(radius),
-                        boxShadow:
-                            isDisabled ? null : [smallBoxShadow(context)],
+                        boxShadow: isDisabled
+                            ? null
+                            : [smallBoxShadow(context)],
                       ),
-            ),
-            SizedBox(
-              height: constraints.maxHeight,
-              width: constraints.maxWidth,
-              child: Tooltip(
-                message: tooltip ?? "",
-                waitDuration: Duration(milliseconds: 400),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(radius),
-                    onTap: isDisabled ? null : onTap,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          icon,
-                          color:
-                              isDisabled
-                                  ? Theme.of(context).disabledColor
-                                  : iconColor ??
+              ),
+              SizedBox(
+                height: constraints.maxHeight,
+                width: constraints.maxWidth,
+                child: Tooltip(
+                  message: tooltip ?? "",
+                  waitDuration: Duration(milliseconds: 400),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(radius),
+                      onTap: isDisabled ? null : onTap,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            icon,
+                            color: isDisabled
+                                ? Theme.of(context).disabledColor
+                                : iconColor ??
                                       Theme.of(
                                         context,
                                       ).colorScheme.onPrimaryContainer,
-                        ),
-                        child,
-                      ],
+                          ),
+                          child,
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        );
+            ],
+          );
   }
 }
 
@@ -4601,13 +4480,14 @@ class _WarpState extends State<Warp> {
   double _screenWidth = 0;
   double _screenHeight = 0;
   double _displayHeigth = 0;
-  double _scale = 1.0;
+  double _pointsScale = 1.0;
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   int? _currentCorner;
   Offset _touchOffset = Offset(0, 0);
   bool _panning = false;
   double _moveUpBy = 0;
+  double _imageScale = 0;
 
   ui.Image? _magnifierImage;
   bool _magnifierImageLoading = true;
@@ -4642,19 +4522,18 @@ class _WarpState extends State<Warp> {
       _screenWidth = MediaQuery.of(context).size.width;
       _screenHeight = MediaQuery.of(context).size.height - 450;
     }
-    _scale = _screenWidth / _imagePixelWidth;
-    _displayHeigth = _imagePixelHeight * _scale;
+    _pointsScale = _screenWidth / _imagePixelWidth;
+    _displayHeigth = _imagePixelHeight * _pointsScale;
 
     var rotatedPoints = widget.pagePreviewState.rotateCornerPoints(
       widget.cornerPoints,
     );
 
-    _scaledPoints =
-        rotatedPoints.map((point) {
-          double x = point[1] * _scale;
-          double y = point[0] * _scale;
-          return Offset(x, y);
-        }).toList();
+    _scaledPoints = rotatedPoints.map((point) {
+      double x = point[1] * _pointsScale;
+      double y = point[0] * _pointsScale;
+      return Offset(x, y);
+    }).toList();
     _initialScaledPoints = List<Offset>.from(_scaledPoints);
 
     for (var point in _scaledPoints) {
@@ -4663,6 +4542,7 @@ class _WarpState extends State<Warp> {
         _moveUpBy = pointMoveUpBy;
       }
     }
+    _imageScale = (_displayHeigth - _moveUpBy) / _displayHeigth;
     setState(() {});
   }
 
@@ -4679,6 +4559,7 @@ class _WarpState extends State<Warp> {
     if (mounted) {
       if (changeUp.isNegative || changeUp > 25) {
         _moveUpBy += changeUp / 60;
+        _imageScale = (_displayHeigth - _moveUpBy) / _displayHeigth;
         setState(() {});
       }
     }
@@ -4690,11 +4571,9 @@ class _WarpState extends State<Warp> {
     final codec = await ui.instantiateImageCodec(bytes);
     final frameInfo = await codec.getNextFrame();
     if (mounted) {
-      setState(() {
-        _magnifierImage = frameInfo.image;
-        _magnifierImageLoading = false;
-        _moveUpBy;
-      });
+      _magnifierImage = frameInfo.image;
+      _magnifierImageLoading = false;
+      setState(() {});
     }
   }
 
@@ -4738,18 +4617,17 @@ class _WarpState extends State<Warp> {
   // Warp
   @override
   Widget build(BuildContext context) {
-    double scale = (_displayHeigth - _moveUpBy) / _displayHeigth;
     Rect cropRect =
         _scaledPoints.isNotEmpty && _currentCorner != null && _screenWidth != 0
-            ? Rect.fromCenter(
-              center: Offset(
-                _scaledPoints[_currentCorner!].dx / _scale,
-                _scaledPoints[_currentCorner!].dy / _scale,
-              ),
-              width: _circleSize / scale / _screenWidth * _imagePixelWidth,
-              height: _circleSize / scale / _screenWidth * _imagePixelWidth,
-            )
-            : Rect.zero;
+        ? Rect.fromCenter(
+            center: Offset(
+              _scaledPoints[_currentCorner!].dx / _pointsScale,
+              _scaledPoints[_currentCorner!].dy / _pointsScale,
+            ),
+            width: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
+            height: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
+          )
+        : Rect.zero;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -4786,22 +4664,21 @@ class _WarpState extends State<Warp> {
               SizedBox(
                 width: _magnifierSize,
                 height: _magnifierSize,
-                child:
-                    !_magnifierImageLoading && _currentCorner != null
-                        ? Stack(
-                          children: [
-                            SizedBox(
-                              width: _magnifierSize,
-                              height: _magnifierSize,
-                              child: CustomPaint(
-                                painter: CircularCropPainter(
-                                  image: _magnifierImage!,
-                                  cropRect: cropRect,
-                                ),
+                child: !_magnifierImageLoading && _currentCorner != null
+                    ? Stack(
+                        children: [
+                          SizedBox(
+                            width: _magnifierSize,
+                            height: _magnifierSize,
+                            child: CustomPaint(
+                              painter: CircularCropPainter(
+                                image: _magnifierImage!,
+                                cropRect: cropRect,
                               ),
                             ),
-                            _screenWidth != 0
-                                ? CustomPaint(
+                          ),
+                          _screenWidth != 0
+                              ? CustomPaint(
                                   size: Size(_screenWidth, _displayHeigth),
                                   painter: _ZoomLinePainter(
                                     cornerPoints: _scaledPoints,
@@ -4811,30 +4688,30 @@ class _WarpState extends State<Warp> {
                                     zoomSize: _magnifierSize,
                                   ),
                                 )
-                                : SizedBox(),
-                          ],
-                        )
-                        : SizedBox(),
+                              : SizedBox(),
+                        ],
+                      )
+                    : SizedBox(),
               ),
               SizedBox(height: 24),
               // Image + CornersOverlay
               _displayHeigth != 0
                   ? Transform.translate(
-                    offset: Offset(
-                      0,
-                      ((scale * _displayHeigth - _displayHeigth) / 2),
-                    ),
-                    child: Transform.scale(
-                      scale: scale,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Center(child: Image.file(File(widget.imagePath))),
-                          _draggableCornersOverlay(scale),
-                        ],
+                      offset: Offset(
+                        0,
+                        ((_imageScale * _displayHeigth - _displayHeigth) / 2),
                       ),
-                    ),
-                  )
+                      child: Transform.scale(
+                        scale: _imageScale,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Center(child: Image.file(File(widget.imagePath))),
+                            _draggableCornersOverlay(_imageScale),
+                          ],
+                        ),
+                      ),
+                    )
                   : SizedBox(),
             ],
           ),
@@ -4846,8 +4723,8 @@ class _WarpState extends State<Warp> {
   _saveCorners() {
     for (var (i, scaledPoint) in _scaledPoints.indexed) {
       widget.cornerPoints[i] = [
-        (scaledPoint.dy / _scale).toInt(),
-        (scaledPoint.dx / _scale).toInt(),
+        (scaledPoint.dy / _pointsScale).toInt(),
+        (scaledPoint.dx / _pointsScale).toInt(),
       ];
     }
     widget.pagePreviewState.reprocessPhoto(
@@ -5118,8 +4995,8 @@ class CircularCropPainter extends CustomPainter {
     // circular clipping path
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    final clipPath =
-        Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+    final clipPath = Path()
+      ..addOval(Rect.fromCircle(center: center, radius: radius));
     canvas.clipPath(clipPath);
 
     canvas.drawImageRect(
@@ -5165,19 +5042,17 @@ class _ZoomLinePainter extends CustomPainter {
     if (cornerPoints.length < 4) return;
     final double radius = zoomSize / 2;
 
-    final paintBg =
-        Paint()
-          ..color = colorBg
-          ..strokeWidth = strokeWidthBg
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
+    final paintBg = Paint()
+      ..color = colorBg
+      ..strokeWidth = strokeWidthBg
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
-    final paint =
-        Paint()
-          ..color = color
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.stroke
-          ..isAntiAlias = true;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
 
     var order = [0, 2, 3, 1];
     List<Offset> orderedPoints = order.map((i) => cornerPoints[i]).toList();
@@ -5244,11 +5119,10 @@ Future<bool> _pagesPopup(
   // version
   if (versionIndex != null && pageIndexes.length == 1) {
     if (type == PopUpType.delete) {
-      imagePaths =
-          (await g.filesHelper.getImagePathsForPage(
-            docIndex,
-            pageIndexes.first,
-          )).$1;
+      imagePaths = (await g.filesHelper.getImagePathsForPage(
+        docIndex,
+        pageIndexes.first,
+      )).$1;
     } else {
       imagePaths = [
         await g.filesHelper.getVersionPath(
@@ -5316,17 +5190,15 @@ Future<bool> _pagesPopup(
               });
             }
           }
-          String sAction =
-              type == PopUpType.share
-                  ? "Share"
-                  : type == PopUpType.save
-                  ? "Save"
-                  : "Delete";
-          String sObject =
-              isDocument
-                  ? "Document ${docIndex + 1}"
-                  : "${isSinglePage ? "" : "$pagesCount "}"
-                      "Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}"
+          String sAction = type == PopUpType.share
+              ? "Share"
+              : type == PopUpType.save
+              ? "Save"
+              : "Delete";
+          String sObject = isDocument
+              ? "Document ${docIndex + 1}"
+              : "${isSinglePage ? "" : "$pagesCount "}"
+                    "Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}"
                               "${versionIndex != null && type != PopUpType.delete ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
           return StatefulBuilder(
             builder: (context, setStateDialog) {
@@ -5338,76 +5210,75 @@ Future<bool> _pagesPopup(
                   SizedBox(height: 12.0),
                   !allPagesLoaded
                       ? Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(),
-                            ),
-                            SizedBox(width: 8.0),
-                            SizedBox(
-                              width: 190,
-                              child: Text("Processing images..."),
-                            ),
-                          ],
-                        ),
-                      )
+                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(),
+                              ),
+                              SizedBox(width: 8.0),
+                              SizedBox(
+                                width: 190,
+                                child: Text("Processing images..."),
+                              ),
+                            ],
+                          ),
+                        )
                       : SizedBox(),
                   type == PopUpType.delete
                       ? Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Are you sure you want to \npermanently delete ${isDocument ? ""
-                                  "this document" : ""
-                                  "${isSinglePage ? "this " : "these $pagesCount "}"
-                                  "page${isSinglePage ? "" : "s"}"}?",
-                        ),
-                      )
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "Are you sure you want to \npermanently delete ${isDocument ? ""
+                                      "this document" : ""
+                                      "${isSinglePage ? "this " : "these $pagesCount "}"
+                                      "page${isSinglePage ? "" : "s"}"}?",
+                          ),
+                        )
                       : SizedBox(),
                   SizedBox(height: 24.0),
 
                   type == PopUpType.delete
                       ? SizedBox()
                       : Container(
-                        decoration:
-                            (g.proUnlocked == true ||
-                                    pageUnlocked ||
-                                    versionIndex != 3)
-                                ? null
-                                : BoxDecoration(
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerHighest,
+                          decoration:
+                              (g.proUnlocked == true ||
+                                  pageUnlocked ||
+                                  versionIndex != 3)
+                              ? null
+                              : BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [smallBoxShadow(context)],
                                 ),
-                        child: Column(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                // Image
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal:
-                                        (g.proUnlocked == true ||
-                                                pageUnlocked ||
-                                                versionIndex != 3)
-                                            ? 0
-                                            : 4,
-                                  ),
-                                  // Image Export
-                                  child: ElevatedButton.icon(
-                                    onPressed:
-                                        allPagesLoaded &&
-                                                (g.proUnlocked == true ||
-                                                    pageUnlocked ||
-                                                    versionIndex != 3)
-                                            ? () async {
+                          child: Column(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // Image
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          (g.proUnlocked == true ||
+                                              pageUnlocked ||
+                                              versionIndex != 3)
+                                          ? 0
+                                          : 4,
+                                    ),
+                                    // Image Export
+                                    child: ElevatedButton.icon(
+                                      onPressed:
+                                          allPagesLoaded &&
+                                              (g.proUnlocked == true ||
+                                                  pageUnlocked ||
+                                                  versionIndex != 3)
+                                          ? () async {
                                               Navigator.pop(context);
                                               Future? afterExport;
                                               switch (type) {
@@ -5454,39 +5325,38 @@ Future<bool> _pagesPopup(
                                                     });
                                               }
                                             }
-                                            : null,
+                                          : null,
 
-                                    icon: Icon(Icons.image),
-                                    label: Text(
-                                      "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
+                                      icon: Icon(Icons.image),
+                                      label: Text(
+                                        "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
                                       ?*/ "Save"} Image${isSinglePage ? "" : "s"} "
-                                      "${type == PopUpType.save ? "to Gallery" : ""}",
+                                        "${type == PopUpType.save ? "to Gallery" : ""}",
+                                      ),
                                     ),
                                   ),
-                                ),
 
-                                // PDF
-                                SizedBox(
-                                  height:
-                                      (g.proUnlocked == true ||
-                                              (docUnlocked && !isSinglePage) ||
-                                              isSinglePage)
-                                          ? 0
-                                          : 4,
-                                ),
-                                Container(
-                                  decoration:
-                                      (g.proUnlocked == true ||
-                                              (docUnlocked &&
-                                                  (isDocument ||
-                                                      !isSinglePage)) ||
-                                              isSinglePage)
-                                          ? null
-                                          : BoxDecoration(
-                                            color:
-                                                Theme.of(context)
-                                                    .colorScheme
-                                                    .surfaceContainerHighest,
+                                  // PDF
+                                  SizedBox(
+                                    height:
+                                        (g.proUnlocked == true ||
+                                            (docUnlocked && !isSinglePage) ||
+                                            isSinglePage)
+                                        ? 0
+                                        : 4,
+                                  ),
+                                  Container(
+                                    decoration:
+                                        (g.proUnlocked == true ||
+                                            (docUnlocked &&
+                                                (isDocument ||
+                                                    !isSinglePage)) ||
+                                            isSinglePage)
+                                        ? null
+                                        : BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
                                             borderRadius: BorderRadius.circular(
                                               24,
                                             ),
@@ -5494,34 +5364,33 @@ Future<bool> _pagesPopup(
                                               smallBoxShadow(context),
                                             ],
                                           ),
-                                  child: Column(
-                                    children: [
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal:
-                                              (g.proUnlocked == true ||
-                                                      (docUnlocked &&
-                                                          (isDocument ||
-                                                              !isSinglePage)) ||
-                                                      (pageUnlocked ||
-                                                          versionIndex != 3 &&
-                                                              isSinglePage))
-                                                  ? 0
-                                                  : 4,
-                                        ),
-                                        // PDF Export
-                                        child: ElevatedButton.icon(
-                                          onPressed:
-                                              allPagesLoaded &&
-                                                      (g.proUnlocked == true ||
-                                                          (docUnlocked &&
-                                                              (isDocument ||
-                                                                  !isSinglePage)) ||
-                                                          (pageUnlocked ||
-                                                              versionIndex !=
-                                                                      3 &&
-                                                                  isSinglePage))
-                                                  ? () async {
+                                    child: Column(
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal:
+                                                (g.proUnlocked == true ||
+                                                    (docUnlocked &&
+                                                        (isDocument ||
+                                                            !isSinglePage)) ||
+                                                    (pageUnlocked ||
+                                                        versionIndex != 3 &&
+                                                            isSinglePage))
+                                                ? 0
+                                                : 4,
+                                          ),
+                                          // PDF Export
+                                          child: ElevatedButton.icon(
+                                            onPressed:
+                                                allPagesLoaded &&
+                                                    (g.proUnlocked == true ||
+                                                        (docUnlocked &&
+                                                            (isDocument ||
+                                                                !isSinglePage)) ||
+                                                        (pageUnlocked ||
+                                                            versionIndex != 3 &&
+                                                                isSinglePage))
+                                                ? () async {
                                                     Navigator.pop(context);
                                                     Future? afterExport;
                                                     switch (type) {
@@ -5575,113 +5444,121 @@ Future<bool> _pagesPopup(
                                                           });
                                                     }
                                                   }
-                                                  : null,
+                                                : null,
 
-                                          icon: Icon(Icons.picture_as_pdf),
-                                          label: Text(
-                                            "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
+                                            icon: Icon(Icons.picture_as_pdf),
+                                            label: Text(
+                                              "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
                                       ?*/ "Save"} ${isSinglePage ? "" : "combined "}PDF"
-                                            "${type == PopUpType.save ? " to Directory" : ""}",
+                                              "${type == PopUpType.save ? " to Directory" : ""}",
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      (g.proUnlocked == true ||
-                                              (docUnlocked && !isSinglePage) ||
-                                              isSinglePage)
-                                          ? SizedBox()
-                                          : Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              10,
-                                              0,
-                                              10,
-                                              6,
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                ElevatedButton.icon(
-                                                  onPressed: () async {
-                                                    proPopup(context);
-                                                  },
-                                                  icon: Icon(Icons.lock),
-                                                  label: Text("Unlock PRO"),
-                                                ),
-                                                (isDocument || !isSinglePage)
-                                                    ? ElevatedButton.icon(
+                                        (g.proUnlocked == true ||
+                                                (docUnlocked &&
+                                                    !isSinglePage) ||
+                                                isSinglePage)
+                                            ? SizedBox()
+                                            : Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                      10,
+                                                      0,
+                                                      10,
+                                                      6,
+                                                    ),
+                                                child: Column(
+                                                  children: [
+                                                    ElevatedButton.icon(
                                                       onPressed: () async {
-                                                        docUnlocked =
-                                                            await _unlockDocumentWithAd(
-                                                              context,
-                                                            );
-                                                        setStateDialog(() {});
-                                                        await g.metadataHelper
-                                                            .writeDocUnlocked(
-                                                              docIndex,
-                                                              docUnlocked,
-                                                            );
+                                                        proPopup(context);
                                                       },
-                                                      icon: Icon(
-                                                        Icons.play_arrow,
-                                                      ),
-                                                      label: Text("Watch Ad"),
-                                                    )
-                                                    : SizedBox(),
-                                              ],
-                                            ),
-                                          ),
-                                    ],
+                                                      icon: Icon(Icons.lock),
+                                                      label: Text("Unlock PRO"),
+                                                    ),
+                                                    (isDocument ||
+                                                            !isSinglePage)
+                                                        ? ElevatedButton.icon(
+                                                            onPressed: () async {
+                                                              docUnlocked =
+                                                                  await _unlockDocumentWithAd(
+                                                                    context,
+                                                                  );
+                                                              setStateDialog(
+                                                                () {},
+                                                              );
+                                                              await g
+                                                                  .metadataHelper
+                                                                  .writeDocUnlocked(
+                                                                    docIndex,
+                                                                    docUnlocked,
+                                                                  );
+                                                            },
+                                                            icon: Icon(
+                                                              Icons.play_arrow,
+                                                            ),
+                                                            label: Text(
+                                                              "Watch Ad",
+                                                            ),
+                                                          )
+                                                        : SizedBox(),
+                                                  ],
+                                                ),
+                                              ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            // Unlock PRO
-                            (g.proUnlocked == true ||
-                                    pageUnlocked ||
-                                    versionIndex != 3)
-                                ? SizedBox()
-                                : Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    0,
-                                    10,
-                                    6,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      ElevatedButton.icon(
-                                        onPressed: () async {
-                                          proPopup(context);
-                                        },
-                                        icon: Icon(Icons.lock),
-                                        label: Text("Unlock PRO"),
+                                ],
+                              ),
+                              // Unlock PRO
+                              (g.proUnlocked == true ||
+                                      pageUnlocked ||
+                                      versionIndex != 3)
+                                  ? SizedBox()
+                                  : Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        10,
+                                        0,
+                                        10,
+                                        6,
                                       ),
-                                      (isSinglePage && versionIndex != null)
-                                          ? ElevatedButton.icon(
+                                      child: Column(
+                                        children: [
+                                          ElevatedButton.icon(
                                             onPressed: () async {
-                                              pageUnlocked =
-                                                  await _unlockPageWithAd(
-                                                    context,
-                                                  );
-                                              setStateDialog(() {});
-                                              await g.metadataHelper
-                                                  .writePageUnlocked(
-                                                    docIndex,
-                                                    pageIndexes.first,
-                                                    pageUnlocked,
-                                                  );
-                                              globalNotifier.triggerEvent(
-                                                NotifierEvent.setState,
-                                              );
+                                              proPopup(context);
                                             },
-                                            icon: Icon(Icons.play_arrow),
-                                            label: Text("Watch Ad"),
-                                          )
-                                          : SizedBox(),
-                                    ],
-                                  ),
-                                ),
-                          ],
+                                            icon: Icon(Icons.lock),
+                                            label: Text("Unlock PRO"),
+                                          ),
+                                          (isSinglePage && versionIndex != null)
+                                              ? ElevatedButton.icon(
+                                                  onPressed: () async {
+                                                    pageUnlocked =
+                                                        await _unlockPageWithAd(
+                                                          context,
+                                                        );
+                                                    setStateDialog(() {});
+                                                    await g.metadataHelper
+                                                        .writePageUnlocked(
+                                                          docIndex,
+                                                          pageIndexes.first,
+                                                          pageUnlocked,
+                                                        );
+                                                    globalNotifier.triggerEvent(
+                                                      NotifierEvent.setState,
+                                                    );
+                                                  },
+                                                  icon: Icon(Icons.play_arrow),
+                                                  label: Text("Watch Ad"),
+                                                )
+                                              : SizedBox(),
+                                        ],
+                                      ),
+                                    ),
+                            ],
+                          ),
                         ),
-                      ),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -5693,23 +5570,23 @@ Future<bool> _pagesPopup(
                       ),
                       type == PopUpType.delete
                           ? Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                confirmDelete = true;
-                                g.filesHelper.deleteImages(
-                                  context,
-                                  docIndex,
-                                  pageIndexes: pageIndexes,
-                                );
-                                Navigator.pop(context);
-                              },
-                              child: Text(
-                                "Delete",
-                                style: TextStyle(color: Colors.red),
+                              padding: const EdgeInsets.only(left: 8),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  confirmDelete = true;
+                                  g.filesHelper.deleteImages(
+                                    context,
+                                    docIndex,
+                                    pageIndexes: pageIndexes,
+                                  );
+                                  Navigator.pop(context);
+                                },
+                                child: Text(
+                                  "Delete",
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ),
-                            ),
-                          )
+                            )
                           : SizedBox(),
                     ],
                   ),
@@ -5783,28 +5660,25 @@ class _CameraScreenState extends State<CameraScreen> {
     final bool? settingsOpened = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Camera Permission Needed'),
-            content: Text(
-              'Please enable camera access from your device settings.',
-            ),
-            actions: [
-              TextButton(
-                child: Text('Cancel'),
-                onPressed: () {
-                  Navigator.pop(context, false);
-                },
-              ),
-              ElevatedButton(
-                child: Text('Open Settings'),
-                onPressed: () {
-                  openAppSettings();
-                  Navigator.pop(context, true);
-                },
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text('Camera Permission Needed'),
+        content: Text('Please enable camera access from your device settings.'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () {
+              Navigator.pop(context, false);
+            },
           ),
+          ElevatedButton(
+            child: Text('Open Settings'),
+            onPressed: () {
+              openAppSettings();
+              Navigator.pop(context, true);
+            },
+          ),
+        ],
+      ),
     );
     if (settingsOpened != true && mounted && context.mounted) {
       Navigator.pop(context);
@@ -5865,50 +5739,49 @@ class _CameraScreenState extends State<CameraScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder:
-          (_) => StatefulBuilder(
-            builder: (context, setStateDialog) {
-              if (_capturedImages.isEmpty) Navigator.pop(context);
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                child: GridView.builder(
-                  cacheExtent: 1000,
-                  addRepaintBoundaries: false,
-                  itemCount: _capturedImages.length + 3,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 3,
-                    mainAxisSpacing: 3,
-                  ),
-                  itemBuilder: (context, index) {
-                    if (index >= _capturedImages.length) {
-                      return SizedBox();
-                    }
-                    return Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Image.file(
-                            File(_capturedImages[index].path),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            splashColor: Colors.white30,
-                            highlightColor: Colors.white10,
-                            onTap: () {
-                              _openFullscreenViewer(index, setStateDialog);
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              );
-            },
-          ),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          if (_capturedImages.isEmpty) Navigator.pop(context);
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+            child: GridView.builder(
+              cacheExtent: 1000,
+              addRepaintBoundaries: false,
+              itemCount: _capturedImages.length + 3,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 3,
+                mainAxisSpacing: 3,
+              ),
+              itemBuilder: (context, index) {
+                if (index >= _capturedImages.length) {
+                  return SizedBox();
+                }
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.file(
+                        File(_capturedImages[index].path),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        splashColor: Colors.white30,
+                        highlightColor: Colors.white10,
+                        onTap: () {
+                          _openFullscreenViewer(index, setStateDialog);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -5986,19 +5859,19 @@ class _CameraScreenState extends State<CameraScreen> {
                   _controller != null
                       ? CameraPreview(_controller!)
                       : Positioned.fill(
-                        child: Container(
-                          color: ColorScheme.dark().surface,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
+                          child: Container(
+                            color: ColorScheme.dark().surface,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           ),
                         ),
-                      ),
                   Stack(
                     children: [
                       _cameraFlash
                           ? Positioned.fill(
-                            child: Container(color: Colors.black38),
-                          )
+                              child: Container(color: Colors.black38),
+                            )
                           : SizedBox(),
                       Center(child: CustomPaint(painter: CrosshairPainter())),
                     ],
@@ -6056,10 +5929,9 @@ class _CameraScreenState extends State<CameraScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color:
-                          _isPressingCaptureButton || _cameraFlash
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : Colors.transparent,
+                      color: _isPressingCaptureButton || _cameraFlash
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Colors.transparent,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
@@ -6069,10 +5941,9 @@ class _CameraScreenState extends State<CameraScreen> {
                         height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color:
-                              _isPressingCaptureButton || _cameraFlash
-                                  ? Colors.transparent
-                                  : Colors.white,
+                          color: _isPressingCaptureButton || _cameraFlash
+                              ? Colors.transparent
+                              : Colors.white,
                         ),
                       ),
                     ),
@@ -6082,15 +5953,13 @@ class _CameraScreenState extends State<CameraScreen> {
                 Tooltip(
                   message: 'Preview Photos',
                   child: ThumbnailWithBadge(
-                    image:
-                        _capturedImages.isNotEmpty
-                            ? File(_capturedImages.first.path)
-                            : null,
+                    image: _capturedImages.isNotEmpty
+                        ? File(_capturedImages.first.path)
+                        : null,
                     count: _capturedImages.length,
-                    onTap:
-                        _capturedImages.isEmpty
-                            ? null
-                            : () => _openPhotosGrid(context),
+                    onTap: _capturedImages.isEmpty
+                        ? null
+                        : () => _openPhotosGrid(context),
                   ),
                 ),
               ],
@@ -6203,26 +6072,21 @@ class CrosshairPainter extends CustomPainter {
     final double bgThickness3 = 4;
     final double bgThickness4 = 8;
 
-    final paint =
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = crossThickness;
-    final paintBg =
-        Paint()
-          ..color = Colors.black.withAlpha(70)
-          ..strokeWidth = crossThickness + 2 * bgThickness;
-    final paintBg2 =
-        Paint()
-          ..color = Colors.black.withAlpha(14)
-          ..strokeWidth = crossThickness + 2 * bgThickness2;
-    final paintBg3 =
-        Paint()
-          ..color = Colors.black.withAlpha(5)
-          ..strokeWidth = crossThickness + 2 * bgThickness3;
-    final paintBg4 =
-        Paint()
-          ..color = Colors.black.withAlpha(2)
-          ..strokeWidth = crossThickness + 2 * bgThickness4;
+    final paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = crossThickness;
+    final paintBg = Paint()
+      ..color = Colors.black.withAlpha(70)
+      ..strokeWidth = crossThickness + 2 * bgThickness;
+    final paintBg2 = Paint()
+      ..color = Colors.black.withAlpha(14)
+      ..strokeWidth = crossThickness + 2 * bgThickness2;
+    final paintBg3 = Paint()
+      ..color = Colors.black.withAlpha(5)
+      ..strokeWidth = crossThickness + 2 * bgThickness3;
+    final paintBg4 = Paint()
+      ..color = Colors.black.withAlpha(2)
+      ..strokeWidth = crossThickness + 2 * bgThickness4;
 
     final centerX = size.width / 2;
     final centerY = size.height / 2;
@@ -6317,13 +6181,9 @@ class ThumbnailWithBadge extends StatelessWidget {
                 color: image != null ? Colors.white : Colors.white54,
                 width: 2,
               ),
-              image:
-                  image != null
-                      ? DecorationImage(
-                        image: FileImage(image!),
-                        fit: BoxFit.cover,
-                      )
-                      : null,
+              image: image != null
+                  ? DecorationImage(image: FileImage(image!), fit: BoxFit.cover)
+                  : null,
               color: Colors.white30,
             ),
           ),
