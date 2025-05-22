@@ -71,6 +71,7 @@ void main() async {
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
   ]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
 }
 
@@ -243,13 +244,6 @@ class _MyAppState extends State<MyApp> {
             ),
             colorScheme: lightTheme,
             useMaterial3: true,
-            appBarTheme: AppBarTheme(
-              systemOverlayStyle: SystemUiOverlayStyle(
-                systemNavigationBarColor: Colors.transparent,
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.dark,
-              ),
-            ),
             //cardTheme: CardTheme(color: lightTheme.surfaceContainerHigh),
             popupMenuTheme: PopupMenuThemeData(
               color: lightTheme.primaryContainer,
@@ -264,13 +258,6 @@ class _MyAppState extends State<MyApp> {
             ),
             colorScheme: darkTheme,
             useMaterial3: true,
-            appBarTheme: AppBarTheme(
-              systemOverlayStyle: SystemUiOverlayStyle(
-                systemNavigationBarColor: Colors.transparent,
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.light,
-              ),
-            ),
             cardTheme: CardTheme(color: darkTheme.surfaceContainerHigh),
             popupMenuTheme: PopupMenuThemeData(
               color: darkTheme.primaryContainer,
