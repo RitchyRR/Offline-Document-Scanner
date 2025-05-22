@@ -2813,9 +2813,10 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       widget.pageAspectRatios.length,
       (index) => 1.0 / widget.pageAspectRatios[index],
     );
-    ratios[0] = 0.01;
-    ratios[ratios.length - 1] = 0.0;
-    return priorRatios != ratios;
+    //ratios[0] = 0.01;
+    //ratios[ratios.length - 1] = 0.0;
+    return ratios.sum != priorRatios.sum;
+    // compare sum, because this is used for resetting maxScroll
   }
 
   static const double _thumbSize = 56;
