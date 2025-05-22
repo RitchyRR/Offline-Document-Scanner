@@ -2800,13 +2800,9 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   double maxScroll = double.infinity;
   _setMaxScroll({bool reset = false}) {
     if (!widget.controller.hasClients) return;
-    if (reset) {
-      maxScroll = widget.controller.position.maxScrollExtent;
-    } else {
-      maxScroll = [
-        widget.controller.position.maxScrollExtent,
-        maxScroll,
-      ].reduce(math.min);
+    double newMaxScroll = widget.controller.position.maxScrollExtent;
+    if (newMaxScroll < maxScroll || reset) {
+      maxScroll = newMaxScroll;
     }
   }
 
