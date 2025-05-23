@@ -168,7 +168,7 @@ class OpenCVHelper {
       return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
-    var (resultSuccess, resultImage) = cv.imencode('.png', imageMat);
+    var (resultSuccess, resultImage) = cv.imencode('.webp', imageMat);
     if (!resultSuccess) {
       dev.log("Error: Failed to encode image.");
     }

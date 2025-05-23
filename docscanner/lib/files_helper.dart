@@ -32,6 +32,8 @@ import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+
 class FilesHelper {
   late String docsPath = "";
   int screenWidth;
@@ -237,7 +239,7 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    Uint8List imageBytes,
+    Uint8List webpBytes,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -245,13 +247,13 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$versionName.png")) {
+      if (fse.path.endsWith("$versionName.webp")) {
         fse.delete();
       }
     }
     String versionPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
-    File(versionPath).writeAsBytesSync(imageBytes);
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.webp";
+    File(versionPath).writeAsBytesSync(webpBytes);
     if (!File(versionPath).existsSync()) {
       dev.log("Error, saveImage: Failed to save $versionPath");
       return "";
@@ -271,12 +273,12 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$fileName.png")) {
+      if (fse.path.endsWith("$fileName.webp")) {
         fse.delete();
       }
     }
     String filePath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.png";
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.webp";
     File(filePath).writeAsBytesSync(imageBytes);
     if (!File(filePath).existsSync()) {
       throw StateError("Error, saveImage: Failed to save $filePath");
@@ -296,7 +298,7 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$fileName.png")) {
+      if (fse.path.endsWith("$fileName.webp")) {
         return fse.path;
       }
     }
@@ -744,7 +746,7 @@ class FilesHelper {
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       for (var name in processedNames) {
-        if (fse.path.endsWith("$name.png")) {
+        if (fse.path.endsWith("$name.webp")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
           fse.delete();
           //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
@@ -944,7 +946,7 @@ class FilesHelper {
     if (pageDir.existsSync()) {
       var pageFiles = pageDir.listSync();
       for (var file in pageFiles) {
-        if (file.path.endsWith(".png")) versionsCount++;
+        if (file.path.endsWith(".webp")) versionsCount++;
       }
     } else {
       dev.log(
@@ -1138,7 +1140,7 @@ class FilesHelper {
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
-          final imgInfo = AppGlobals.getPngInfo(
+          final imgInfo = AppGlobals.getWebPInfo(
             File(imagePaths[i]).readAsBytesSync(),
           );
           double photoRatio =
@@ -1453,7 +1455,7 @@ class FilesHelper {
   ) async {
     final port = ReceivePort();
     final tmpDir = await getTemporaryDirectory();
-    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
+    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.webp";
 
     if (!File(rotatedFilePath).existsSync()) {
       IsolatesManager().runTask(_rotateImageInTmpDirIsolate, (
@@ -1496,7 +1498,7 @@ class FilesHelper {
     List<String> paths = [];
     final tmpDir = await getTemporaryDirectory();
     for (var angle = 90; angle <= 270; angle += 90) {
-      paths.add("${tmpDir.path}/rotated_$angle.png");
+      paths.add("${tmpDir.path}/rotated_$angle.webp");
     }
     _deleteImages(paths);
   }
@@ -1597,14 +1599,26 @@ class FilesHelper {
       // -> Uint8List
       final ui.Image uiImage = await renderedPage.createImageDetached();
       final ByteData? byteData = await uiImage.toByteData(
-        format: ui.ImageByteFormat.png,
+        format: ui.ImageByteFormat.png, // first to png, then to webp
       );
-      final Uint8List pngBytes = byteData!.buffer.asUint8List();
+      if (byteData == null) {
+        throw Exception("Failed to get byte data from image");
+      }
+
+      //final Uint8List pngBytes = byteData!.buffer.asUint8List();
+      final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
+        byteData.buffer.asUint8List(),
+        minWidth: uiImage.width,
+        minHeight: uiImage.height,
+        format: CompressFormat.webp,
+        quality: 100,
+      );
+
       // Processing
       imageProcessingManager.processPdfPage(
         docIndex,
         pageIndex + firstPageIndex,
-        pngBytes,
+        webpBytes,
       );
       // Cleanup
       pagesProcessed++;

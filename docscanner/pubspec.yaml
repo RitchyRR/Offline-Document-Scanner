@@ -48,6 +48,7 @@ dependencies:
   collection:
   pdf_render:
   crypto:
+  flutter_image_compress:
 
 
 dev_dependencies:

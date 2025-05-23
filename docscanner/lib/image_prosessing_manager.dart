@@ -187,7 +187,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List photoBytes,
+      Uint8List webpBytes,
       AppGlobals g,
     )
     data,
@@ -197,14 +197,14 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    Uint8List photoBytes = data.$5;
+    Uint8List webpBytes = data.$5;
     AppGlobals g = data.$6;
 
     // Save Photo
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, photoBytes);
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, webpBytes);
 
     // Generate Metadata
-    final imgInfo = AppGlobals.getPngInfo(photoBytes);
+    final imgInfo = AppGlobals.getWebPInfo(webpBytes);
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
     }
@@ -361,9 +361,9 @@ class ImageProcessingManager {
   Future<void> processPdfPage(
     int docIndex,
     int pageIndex,
-    Uint8List photoBytes,
+    Uint8List webpBytes,
   ) async {
-    if (photoBytes.isEmpty) return;
+    if (webpBytes.isEmpty) return;
 
     final wrapperCompleter = Completer<void>();
     final port = ReceivePort();
@@ -371,7 +371,7 @@ class ImageProcessingManager {
 
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolateThumbnail,
-      (port.sendPort, token, docIndex, pageIndex, photoBytes, g),
+      (port.sendPort, token, docIndex, pageIndex, webpBytes, g),
       prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
@@ -397,7 +397,7 @@ class ImageProcessingManager {
 
     killer = await IsolatesManager().runTask(
       _processPdfPageIsolateFilters,
-      (port2.sendPort, token, docIndex, pageIndex, photoBytes, g),
+      (port2.sendPort, token, docIndex, pageIndex, webpBytes, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
@@ -925,7 +925,7 @@ class ImageProcessingManager {
     }
 
     String thumbnailPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.webp";
     File versionFile = File(versionPath);
     File thumbnailFile = File(thumbnailPath);
 
