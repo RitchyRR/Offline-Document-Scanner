@@ -5523,7 +5523,7 @@ Future<bool> _pagesPopup(
                                                       case PopUpType.save:
                                                         afterExport = g
                                                             .filesHelper
-                                                            .pickFolderForImagesPdf(
+                                                            .pickFolderForSavingPdf(
                                                               docIndex,
                                                               context,
                                                               pageIndexes:

@@ -1138,7 +1138,7 @@ class FilesHelper {
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
-          final imgInfo = AppGlobals.getImageInfo(
+          final imgInfo = AppGlobals.getPngInfo(
             File(imagePaths[i]).readAsBytesSync(),
           );
           double photoRatio =
@@ -1178,7 +1178,7 @@ class FilesHelper {
     return null;
   }
 
-  Future<void> pickFolderForImagesPdf(
+  Future<void> pickFolderForSavingPdf(
     int docIndex,
     BuildContext context, {
     List<int> pageIndexes = const [],

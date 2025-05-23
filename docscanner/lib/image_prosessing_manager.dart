@@ -2,7 +2,6 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'dart:async';
@@ -205,7 +204,7 @@ class ImageProcessingManager {
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, photoBytes);
 
     // Generate Metadata
-    final imgInfo = AppGlobals.getImageInfo(photoBytes);
+    final imgInfo = AppGlobals.getPngInfo(photoBytes);
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
     }
@@ -594,8 +593,9 @@ class ImageProcessingManager {
 
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
     while (taskKillers.isNotEmpty) {
-      final otherKeys =
-          taskKillers.keys.where((key) => key.$1 > docIndex).toList();
+      final otherKeys = taskKillers.keys
+          .where((key) => key.$1 > docIndex)
+          .toList();
       final otherIsolates = otherKeys.map((key) => taskKillers[key]!).toList();
 
       if (otherIsolates.isEmpty) return;
@@ -605,10 +605,9 @@ class ImageProcessingManager {
 
   Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
-      final otherKeys =
-          taskKillers.keys
-              .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
-              .toList();
+      final otherKeys = taskKillers.keys
+          .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
+          .toList();
       final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
 
       if (higherTasks.isEmpty) return;
@@ -624,10 +623,9 @@ class ImageProcessingManager {
     int smallestIndex = pageIndexes.reduce(math.min);
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
-      final otherKeys =
-          taskKillers.keys
-              .where((key) => key.$1 == docIndexIn && key.$2 > smallestIndex)
-              .toList();
+      final otherKeys = taskKillers.keys
+          .where((key) => key.$1 == docIndexIn && key.$2 > smallestIndex)
+          .toList();
       for (var pageIndex in pageIndexes) {
         otherKeys.removeWhere((key) => key.$2 == pageIndex);
       }
@@ -640,8 +638,9 @@ class ImageProcessingManager {
 
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
-      final docKeys =
-          taskKillers.keys.where((key) => key.$1 == docIndex).toList();
+      final docKeys = taskKillers.keys
+          .where((key) => key.$1 == docIndex)
+          .toList();
       final docIsolates = docKeys.map((key) => taskKillers[key]!).toList();
 
       if (docIsolates.isEmpty) return;
@@ -934,9 +933,9 @@ class ImageProcessingManager {
       dev.log("Error, writeScaledThumbnail: $versionPath does not exist");
       return false;
     } else {
-      for (FileSystemEntity fse
-          in Directory(pagePath).listSync()
-            ..sort((a, b) => a.path.compareTo(b.path))) {
+      for (FileSystemEntity fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
         if (fse.path.contains("thumbnail")) {
           String oldThumbnailPath = fse.path;
           if (overwrite) {
@@ -949,37 +948,16 @@ class ImageProcessingManager {
         }
       }
     }
-    // Read
-    img.Image? selectedVersion;
-    try {
-      Uint8List imageBytes = versionFile.readAsBytesSync();
-      selectedVersion = img.decodeNamedImage(versionPath, imageBytes);
-    } catch (e) {
-      dev.log("Error, writeScaledThumbnail, decode: :$e");
-    }
-    if (selectedVersion == null) {
-      throw StateError("selectedVersion used for thumbnail does not exist");
-    }
 
-    img.Image resized;
-    try {
-      // Resize
-      resized = img.copyResize(
-        selectedVersion,
-        width:
-            (screenWidth.toDouble() * 0.927083333)
-                .toInt(), // thumbnail width in Pages Widget
-        maintainAspect: true,
-        interpolation: img.Interpolation.linear,
-      );
-    } catch (e) {
-      dev.log("Error, writeScaledThumbnail, resize: :$e");
-      throw StateError("$e");
-    }
+    OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    Uint8List scaled = cvHelper.scaleImageToWidth(
+      versionPath,
+      (screenWidth * 0.927083333).toInt(),
+    );
 
     try {
       // Save
-      thumbnailFile.writeAsBytesSync(img.encodePng(resized));
+      thumbnailFile.writeAsBytesSync(scaled); //img.encodePng(resized)
     } catch (e) {
       dev.log("Error, writeScaledThumbnail, write: :$e");
     }
@@ -1004,9 +982,9 @@ class ImageProcessingManager {
     SendPort? sendPort,
     String pagePath,
   ) async {
-    for (FileSystemEntity fse
-        in Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path))) {
+    for (FileSystemEntity fse in Directory(
+      pagePath,
+    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.contains("thumbnail")) {
         String oldThumbnailPath = fse.path;
         await File(oldThumbnailPath).delete();

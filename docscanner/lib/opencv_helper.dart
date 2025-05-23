@@ -105,6 +105,25 @@ class OpenCVHelper {
     return _returnImage(mat);
   }
 
+  Uint8List scaleImageToWidth(String pathIn, int newWidth) {
+    cv.Mat mat = _loadWarped(pathIn);
+
+    int newHeight = (height * (newWidth / width)).toInt();
+    //dev.log("$width x $height -> $newWidth x $newHeight");
+    cv.Mat scaled;
+    try {
+      scaled = cv.resize(mat, (
+        newWidth,
+        newHeight,
+      ), interpolation: cv.INTER_LINEAR);
+    } catch (e) {
+      scaled = cv.Mat.zeros(newHeight, newWidth, cv.MatType.CV_8UC3);
+      dev.log("Exception: $e");
+    }
+
+    return _returnImage(scaled);
+  }
+
   cv.Mat _loadImage(String imagePath) {
     // Load image
     cv.Mat imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
@@ -123,12 +142,13 @@ class OpenCVHelper {
     return imageMat;
   }
 
-  cv.Mat? _loadWarped(String imagePath) {
+  cv.Mat _loadWarped(String imagePath) {
     // Load image
     cv.Mat? imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
     if (imageMat.isEmpty) {
-      dev.log("Error: Failed to load warped/processed1/processed2 image.");
-      return null;
+      throw StateError(
+        "Error: Failed to load warped/processed1/processed2 image.",
+      );
     }
 
     // Compute K based on image dimensions
@@ -783,10 +803,12 @@ class OpenCVHelper {
     // Calculate distortion factors
     double widthDistortion = widthTop / widthBottom;
     double heightDistortion = heightLeft / heightRight;
-    widthDistortion =
-        widthDistortion > 1 ? widthDistortion : 1 / widthDistortion;
-    heightDistortion =
-        heightDistortion > 1 ? heightDistortion : 1 / heightDistortion;
+    widthDistortion = widthDistortion > 1
+        ? widthDistortion
+        : 1 / widthDistortion;
+    heightDistortion = heightDistortion > 1
+        ? heightDistortion
+        : 1 / heightDistortion;
 
     // Correct for foreshortening
     double correctedHeight = avgHeight * math.sqrt(widthDistortion);
@@ -831,14 +853,12 @@ class OpenCVHelper {
     bool noBoderCutin = false,
   }) {
     final int borderTolerance = 6 + (K ~/ 9);
-    borderCutIn[borderIndex * 2] =
-        noBoderCutin
-            ? 0
-            : _percentileValueInt(depths.sublist(0, depths.length ~/ 2), 0.67);
-    borderCutIn[borderIndex * 2 + 1] =
-        noBoderCutin
-            ? 0
-            : _percentileValueInt(depths.sublist(depths.length ~/ 2), 0.67);
+    borderCutIn[borderIndex * 2] = noBoderCutin
+        ? 0
+        : _percentileValueInt(depths.sublist(0, depths.length ~/ 2), 0.67);
+    borderCutIn[borderIndex * 2 + 1] = noBoderCutin
+        ? 0
+        : _percentileValueInt(depths.sublist(depths.length ~/ 2), 0.67);
     borderCorrectionDepth[borderIndex] =
         depths
             .sublist(depths.length ~/ 10, depths.length * 9 ~/ 10)

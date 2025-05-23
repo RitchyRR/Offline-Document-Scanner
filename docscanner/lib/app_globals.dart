@@ -3,9 +3,7 @@ import 'dart:typed_data' show Uint8List;
 import 'package:docscanner/files_helper.dart';
 //import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
-import 'package:image/image.dart'
-    as img
-    show DecodeInfo, findDecoderForNamedImage;
+import 'package:image/image.dart' as img show DecodeInfo, PngDecoder;
 
 class AppGlobals {
   // singleton setup:
@@ -51,12 +49,8 @@ class AppGlobals {
   ];
   List<AspectRatioInfo> availableAspectRatios = [];
 
-  static img.DecodeInfo? getImageInfo(
-    Uint8List bytes, {
-    String filePath = ".png",
-  }) {
-    final decoder = img.findDecoderForNamedImage(filePath);
-    return decoder!.startDecode(bytes);
+  static img.DecodeInfo? getPngInfo(Uint8List bytes) {
+    return img.PngDecoder().startDecode(bytes);
   }
 }
 
