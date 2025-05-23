@@ -43,10 +43,9 @@ class FilesHelper {
     final jsonString = prefs.getString("markedDeletedPages");
     List<List<int>> decoded = _markedDeletedPages;
     if (jsonString != null && jsonString != "[]") {
-      decoded =
-          (jsonDecode(jsonString) as List<dynamic>)
-              .map<List<int>>((e) => List<int>.from(e as List))
-              .toList();
+      decoded = (jsonDecode(jsonString) as List<dynamic>)
+          .map<List<int>>((e) => List<int>.from(e as List))
+          .toList();
     }
     _markedDeletedPages.clear();
     _markedDeletedPages.addAll(decoded);
@@ -61,8 +60,8 @@ class FilesHelper {
     }
     _markedDeletedPages[docIndex].add(pageIndex);
     _markedDeletedPages[docIndex].sort();
-    _markedDeletedPages[docIndex] =
-        _markedDeletedPages[docIndex].reversed.toList();
+    _markedDeletedPages[docIndex] = _markedDeletedPages[docIndex].reversed
+        .toList();
     final jsonString = jsonEncode(_markedDeletedPages);
     prefs.setString("markedDeletedPages", jsonString);
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
@@ -118,10 +117,9 @@ class FilesHelper {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
     if (jsonString != null && jsonString != "[]") {
-      final List<List<int>> decoded =
-          (jsonDecode(jsonString) as List<dynamic>)
-              .map<List<int>>((e) => List<int>.from(e as List))
-              .toList();
+      final List<List<int>> decoded = (jsonDecode(jsonString) as List<dynamic>)
+          .map<List<int>>((e) => List<int>.from(e as List))
+          .toList();
       _markedDeletedPages.clear();
       _markedDeletedPages.addAll(decoded);
     }
@@ -244,9 +242,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String versionName = versionNames[versionIndex];
-    for (var fse
-        in Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path))) {
+    for (var fse in Directory(
+      pagePath,
+    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$versionName.png")) {
         fse.delete();
       }
@@ -270,9 +268,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String fileName = "shape";
-    for (var fse
-        in Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path))) {
+    for (var fse in Directory(
+      pagePath,
+    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$fileName.png")) {
         fse.delete();
       }
@@ -295,9 +293,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String fileName = "shape";
-    for (var fse
-        in Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path))) {
+    for (var fse in Directory(
+      pagePath,
+    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.endsWith("$fileName.png")) {
         return fse.path;
       }
@@ -325,9 +323,8 @@ class FilesHelper {
       String? backupPath;
       List<FileSystemEntity> versions = [];
       try {
-        versions =
-            (Directory(page0Path).listSync()
-              ..sort((a, b) => a.path.compareTo(b.path)));
+        versions = (Directory(page0Path).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path)));
       } catch (e) {
         dev.log("Error: getDocThumbnails: $e");
       }
@@ -378,9 +375,8 @@ class FilesHelper {
       String? thumbnailPath;
       String? backupPath;
       try {
-        List<FileSystemEntity> versions =
-            Directory(pagePath).listSync()
-              ..sort((a, b) => a.path.compareTo(b.path));
+        List<FileSystemEntity> versions = Directory(pagePath).listSync()
+          ..sort((a, b) => a.path.compareTo(b.path));
         for (var version in versions) {
           if (!fullSized && version.path.contains(thumbnailName)) {
             thumbnailPath = version.path;
@@ -464,9 +460,9 @@ class FilesHelper {
           }
 
           // Check if page is empty / incomplete
-          List<FileSystemEntity> pageFseL =
-              Directory(expectedPagePath).listSync()
-                ..sort((a, b) => a.path.compareTo(b.path));
+          List<FileSystemEntity> pageFseL = Directory(
+            expectedPagePath,
+          ).listSync()..sort((a, b) => a.path.compareTo(b.path));
           bool pageIncomplete = pageFseL.isEmpty;
           int countVersionsAndThumbnail = 0;
           if (!pageIncomplete) {
@@ -490,9 +486,9 @@ class FilesHelper {
               await _deletePage(docIndex, pageIndex, isBroken: true);
             } else {
               String photoName = versionNames[0];
-              for (var pageFse
-                  in Directory(expectedPagePath).listSync()
-                    ..sort((a, b) => a.path.compareTo(b.path))) {
+              for (var pageFse in Directory(
+                expectedPagePath,
+              ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
                 if (pageFse.path.contains(photoName)) {
                   photoExists = true;
                   break;
@@ -744,9 +740,9 @@ class FilesHelper {
     }
     List<String> processedNames = ["thumbnail"];
     processedNames.addAll(versionNames.getRange(1, 4));
-    for (var fse
-        in Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path))) {
+    for (var fse in Directory(
+      pagePath,
+    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       for (var name in processedNames) {
         if (fse.path.endsWith("$name.png")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
@@ -796,9 +792,8 @@ class FilesHelper {
     String shapePath = "";
     String thumbnailPath = "";
     try {
-      List<FileSystemEntity> versionsFSE =
-          (Directory(pagePath).listSync()
-            ..sort((a, b) => a.path.compareTo(b.path)));
+      List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
+        ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
         for (var (versionIndex, versionName) in versionNames.indexed) {
           if (fse.path.contains(versionName)) {
@@ -832,9 +827,8 @@ class FilesHelper {
       supressWarnings: supressWarnings,
     );
 
-    List<FileSystemEntity> versionsFSE =
-        (Directory(pagePath).listSync()
-          ..sort((a, b) => a.path.compareTo(b.path)));
+    List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
+      ..sort((a, b) => a.path.compareTo(b.path)));
     for (var fse in versionsFSE) {
       if (fse.path.contains(versionNames[versionIndex])) {
         return fse.path;
@@ -982,8 +976,10 @@ class FilesHelper {
   }
 
   Future<void> saveDocumentImagesToGallery(int docIndex) async {
-    List<String> imagePaths =
-        (await getPagesThumbnails(docIndex, fullSized: true)).$1;
+    List<String> imagePaths = (await getPagesThumbnails(
+      docIndex,
+      fullSized: true,
+    )).$1;
     final albumName = "Scanned Documents";
 
     int i = 0;
@@ -1005,12 +1001,11 @@ class FilesHelper {
         await getVersionPath(docIndex, pageIndexes.first, versionIndex),
       ];
     } else {
-      imagePaths =
-          (await getPagesThumbnails(
-            docIndex,
-            pageIndexes: pageIndexes,
-            fullSized: true,
-          )).$1;
+      imagePaths = (await getPagesThumbnails(
+        docIndex,
+        pageIndexes: pageIndexes,
+        fullSized: true,
+      )).$1;
     }
     if (imagePaths.isEmpty) {
       dev.log("Error, saveImagesToGallery: No images in Document $docIndex");
@@ -1050,15 +1045,6 @@ class FilesHelper {
       ),
       duration: const Duration(days: 1),
     );
-    ReceivePort port = ReceivePort();
-    RootIsolateToken token = RootIsolateToken.instance!;
-    TaskKiller killer = await IsolatesManager().runTask(_pickImageIsolate, (
-      port.sendPort,
-      token,
-      source,
-      isMultiImage,
-    ), prio: IsolatePriority.immediate);
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1000));
       if (context.mounted) {
@@ -1066,38 +1052,7 @@ class FilesHelper {
       }
     });
 
-    final completer = Completer<List<String>>();
-    port.listen((message) async {
-      if (message is List<String>) {
-        completer.complete(message);
-      } else {
-        completer.complete([]);
-      }
-      messenger.hideCurrentSnackBar();
-      pickingImage = false;
-      port.close();
-      killer.kill();
-    });
-    return await completer.future;
-  }
-
-  static Future<void> _pickImageIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      ImageSource source,
-      bool isMultiImage,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    RootIsolateToken token = data.$2;
-    ImageSource source = data.$3;
-    bool isMultiImage = data.$4;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
     List<String> imagePaths = [];
-
     final ImagePicker picker = ImagePicker();
     final double maxWidth = 4048;
     final double maxHeight = 4048;
@@ -1122,7 +1077,10 @@ class FilesHelper {
         imagePaths = [pickedFile.path];
       }
     }
-    sendPort.send(imagePaths);
+    messenger.hideCurrentSnackBar();
+    pickingImage = false;
+
+    return imagePaths;
   }
 
   Future<pdfw.Document?> _convertImagesToPdf(
@@ -1136,12 +1094,11 @@ class FilesHelper {
         await getVersionPath(docIndex, pageIndexes.first, versionIndex),
       ];
     } else {
-      imagePaths =
-          (await getPagesThumbnails(
-            docIndex,
-            pageIndexes: pageIndexes,
-            fullSized: true,
-          )).$1;
+      imagePaths = (await getPagesThumbnails(
+        docIndex,
+        pageIndexes: pageIndexes,
+        fullSized: true,
+      )).$1;
     }
     if (imagePaths.isEmpty) {
       dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
@@ -1273,8 +1230,9 @@ class FilesHelper {
         displayPageIndexes.add(pageIndex + 1);
       }
       // Save PDF
-      final String? versionName =
-          versionIndex != null ? versionNames[versionIndex] : null;
+      final String? versionName = versionIndex != null
+          ? versionNames[versionIndex]
+          : null;
       final String docName =
           "doc${docIndex + 1}${pageIndexes.length == 1
               ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}")
@@ -1317,10 +1275,9 @@ class FilesHelper {
             messenger?.hideCurrentSnackBar();
             // Saved Toast
             const String basePath = "/storage/emulated/0";
-            final readablePath =
-                pdfPath.startsWith(basePath)
-                    ? pdfPath.substring(basePath.length)
-                    : pdfPath;
+            final readablePath = pdfPath.startsWith(basePath)
+                ? pdfPath.substring(basePath.length)
+                : pdfPath;
             dev.log("PDF saved at: $readablePath");
             Fluttertoast.showToast(
               msg: "PDF saved at: $readablePath",
@@ -1375,8 +1332,10 @@ class FilesHelper {
     if (context.mounted) {
       messenger = ScaffoldMessenger.of(context);
     }
-    List<String> imagePaths =
-        (await getPagesThumbnails(docIndex, fullSized: true)).$1;
+    List<String> imagePaths = (await getPagesThumbnails(
+      docIndex,
+      fullSized: true,
+    )).$1;
     if (imagePaths.isNotEmpty) {
       shareImages(docIndex);
     } else {
@@ -1397,12 +1356,11 @@ class FilesHelper {
         await getVersionPath(docIndex, pageIndexes.first, versionIndex),
       ];
     } else {
-      imagePaths =
-          (await getPagesThumbnails(
-            docIndex,
-            pageIndexes: pageIndexes,
-            fullSized: true,
-          )).$1;
+      imagePaths = (await getPagesThumbnails(
+        docIndex,
+        pageIndexes: pageIndexes,
+        fullSized: true,
+      )).$1;
     }
     if (imagePaths.isEmpty) {
       dev.log("Error, shareImages: No images in Document $docIndex");
@@ -1450,8 +1408,9 @@ class FilesHelper {
 
     // Save PDF
     final docsDir = await _getDocumentsPath();
-    final String? versionName =
-        versionIndex != null ? versionNames[versionIndex] : null;
+    final String? versionName = versionIndex != null
+        ? versionNames[versionIndex]
+        : null;
     String pdfPath =
         "$docsDir/doc${docIndex + 1}${pageIndexes.length == 1 ? "_page${pageIndexes.isNotEmpty ? pageIndexes.first + 1 : 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
     pdfw.Document? pdf = await _convertImagesToPdf(
@@ -1574,8 +1533,9 @@ class FilesHelper {
         xFile.path,
         addToDocWithIndex: addToDocWithIndex,
       );
-      addToDocWithIndex =
-          (addToDocWithIndex != null) ? addToDocWithIndex++ : null;
+      addToDocWithIndex = (addToDocWithIndex != null)
+          ? addToDocWithIndex++
+          : null;
       indexPairsList.add((docData.$1, docData.$2));
     }
     return indexPairsList;
