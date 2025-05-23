@@ -1046,8 +1046,8 @@ class FilesHelper {
       duration: const Duration(days: 1),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await Future.delayed(Duration(milliseconds: 1000));
-      if (context.mounted) {
+      await Future.delayed(Duration(milliseconds: 500));
+      if (context.mounted && pickingImage) {
         messenger.showSnackBar(snackBar);
       }
     });
