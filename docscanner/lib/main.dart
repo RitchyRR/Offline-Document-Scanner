@@ -563,7 +563,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
           );
 
           return AlertDialog(
-            title: Text("Edit Document $displayDocIndex"),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.edit,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 30,
+                ),
+                SizedBox(width: 12),
+                Flexible(child: Text("Edit Document $displayDocIndex")),
+              ],
+            ),
             content: StatefulBuilder(
               builder: (context, setState) {
                 future.whenComplete(() {
@@ -668,7 +679,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text("Select Aspect Ratios"),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.crop,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              SizedBox(width: 12),
+              Flexible(child: const Text("Select Aspect Ratios")),
+            ],
+          ),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
@@ -777,7 +799,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text('Tell a Friend!'),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.share,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  size: 30,
+                ),
+                SizedBox(width: 12),
+                Flexible(child: const Text("Tell a Friend!")),
+              ],
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1636,9 +1669,22 @@ Future<bool> proPopup(BuildContext context) async {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: g.proUnlocked == true
-            ? Text("PRO Features:")
-            : Text("Unlock PRO Features"),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              g.proUnlocked == true ? Icons.verified : Icons.lock,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 30,
+            ),
+            SizedBox(width: 12),
+            Flexible(
+              child: g.proUnlocked == true
+                  ? Text("PRO Features:")
+                  : Text("Unlock PRO Features"),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2492,7 +2538,18 @@ class _PagesState extends State<Pages> with RouteAware {
               setState(() => allowChangePageIndex = true);
             });
             return AlertDialog(
-              title: Text("Page $displayPageIndex"),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.edit,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    size: 30,
+                  ),
+                  SizedBox(width: 12),
+                  Flexible(child: Text("Page $displayPageIndex")),
+                ],
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -3309,7 +3366,18 @@ class PagePreviewState extends State<PagePreview> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Unlock PRO filter"),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              SizedBox(width: 12),
+              Flexible(child: const Text("Unlock PRO filter")),
+            ],
+          ),
           content: Text(
             "You have selected the PRO filter, by selecting it"
             "and then trying to leave this page.\n\n"
@@ -4596,7 +4664,18 @@ class _WarpState extends State<Warp> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Discard Corner Adjustments"),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cancel,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              SizedBox(width: 12),
+              Flexible(child: const Text("Discard Corner Adjustments")),
+            ],
+          ),
           content: Text(
             "Are you sure you want to discard your corner adjustments?",
           ),
@@ -5209,9 +5288,31 @@ Future<bool> _pagesPopup(
                               "${versionIndex != null && type != PopUpType.delete ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
           return StatefulBuilder(
             builder: (context, setStateDialog) {
+              IconData icon;
+              switch (type) {
+                case PopUpType.share:
+                  icon = Icons.share;
+                  break;
+                case PopUpType.save:
+                  icon = Icons.save;
+                  break;
+                case PopUpType.delete:
+                  icon = Icons.delete;
+                  break;
+              }
               return AlertDialog(
-                title: Text("$sAction $sObject"),
-
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      size: 36,
+                    ),
+                    SizedBox(width: 24.0),
+                    Flexible(child: Text("$sAction $sObject")),
+                  ],
+                ),
                 actions: [
                   ImagesScrollPreview(pagePaths: imagePaths),
                   SizedBox(height: 12.0),
@@ -5237,7 +5338,7 @@ Future<bool> _pagesPopup(
                       : SizedBox(),
                   type == PopUpType.delete
                       ? Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: Alignment.center,
                           child: Text(
                             "Are you sure you want to \npermanently delete ${isDocument ? ""
                                       "this document" : ""
@@ -5668,7 +5769,18 @@ class _CameraScreenState extends State<CameraScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Camera Permission Needed'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 30,
+            ),
+            SizedBox(width: 12),
+            Flexible(child: const Text("Camera Permission Needed")),
+          ],
+        ),
         content: Text('Please enable camera access from your device settings.'),
         actions: [
           TextButton(
@@ -5797,7 +5909,18 @@ class _CameraScreenState extends State<CameraScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Discard Photos"),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.delete,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              SizedBox(width: 12),
+              Flexible(child: const Text("Discard Photos")),
+            ],
+          ),
           content: Text(
             "Are you sure you want to discard the photos that you have taken?",
           ),
