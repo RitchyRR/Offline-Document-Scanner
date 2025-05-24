@@ -465,7 +465,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   List<int> _docPageCounts = [];
   List<String> _docNames = [];
   List<String> _docDates = [];
-  final List<double> _thumbnailRatios = [];
+  List<double> _thumbnailRatios = [];
   int _docsCount = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
     // Thumbnails
@@ -491,9 +491,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // Document Metadata (Names, Dates, AspectRatios)
     _docNames = List.generate(_docsCount, (_) => "");
     _docDates = List.generate(_docsCount, (_) => "");
-    while (_thumbnailRatios.length < _docsCount) {
-      _thumbnailRatios.add(1.0 / math.sqrt2);
-    }
+    List<double> newThumbnailRatios = List.generate(
+      _docsCount,
+      (_) => 1.0 / math.sqrt2,
+    ); // first collect here, because random setState()s will otherwise show wrong ratios, while still awaiting all ratios
+
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
       _docDates[docIndex] =
           (await g.metadataHelper.readDocDate(docIndex)) ?? "";
@@ -513,8 +515,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
             supressWarnings: supressWarnings,
           ) ??
           math.sqrt2;
-      _thumbnailRatios[docIndex] = 1.0 / ratioValue;
+      newThumbnailRatios[docIndex] = 1.0 / ratioValue;
     }
+    _thumbnailRatios = newThumbnailRatios;
 
     // Refresh Display
     if (mounted) {
@@ -1858,7 +1861,7 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> with RouteAware {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
-  final List<double> _thumbnailRatios = [];
+  List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
 
   @override
@@ -1936,9 +1939,10 @@ class _PagesState extends State<Pages> with RouteAware {
     if (_pagesCount != _pageThumbnails.length) {
       newThumbnails = true;
     }
-    while (_thumbnailRatios.length < _pagesCount) {
-      _thumbnailRatios.add(1.0 / math.sqrt2);
-    }
+    List<double> newThumbnailRatios = List.generate(
+      _pagesCount,
+      (_) => 1.0 / math.sqrt2,
+    ); // first collect here, because random setState()s will otherwise show wrong ratios, while still awaiting all ratios
     for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
       if (!newThumbnails &&
           (_pageThumbnails.length <= pageIndex ||
@@ -1954,8 +1958,9 @@ class _PagesState extends State<Pages> with RouteAware {
             supressWarnings: supressWarnings_,
           ) ??
           math.sqrt2;
-      _thumbnailRatios[pageIndex] = 1.0 / ratioValue;
+      newThumbnailRatios[pageIndex] = 1.0 / ratioValue;
     }
+    _thumbnailRatios = newThumbnailRatios;
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted) {
         Navigator.pop(context);
@@ -2695,41 +2700,6 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   bool _isDragging = false;
   Timer? _hideTimer;
   int _lastPage = 0;
-
-  double _maxScroll = 0.0;
-  _setMaxScroll() async {
-    if (!widget.controller.hasClients) return;
-    double newMaxScroll = widget.controller.position.maxScrollExtent;
-    if (newMaxScroll != 0.0) {
-      if (_maxScroll == 0) {
-        _maxScroll = newMaxScroll;
-        return;
-      } else if (newMaxScroll != _maxScroll) {
-        // Slowly update _maxScroll
-        double diff = newMaxScroll - _maxScroll;
-        _maxScroll += diff.isNegative ? -1.0 : 1.0;
-        // Instantly scroll to beginning/end
-        if (widget.controller.offset <=
-                widget.controller.position.minScrollExtent ||
-            widget.controller.offset >= newMaxScroll) {
-          _maxScroll = newMaxScroll;
-        }
-      }
-    }
-  }
-
-  List<double> _ratios = [];
-  _setRatios() {
-    //final List<double> priorRatios = List<double>.from(_ratios);
-    _ratios = List<double>.generate(
-      widget.pageAspectRatios.length,
-      (index) => 1.0 / widget.pageAspectRatios[index],
-    );
-    //ratios[0] = 0.01;
-    //ratios[ratios.length - 1] = 0.0;
-    //if (_ratios.sum != priorRatios.sum) _maxScrollFinal = false;
-  }
-
   static const double _thumbSize = 56;
 
   @override
@@ -2744,7 +2714,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onScroll);
+    widget.controller.addListener(_scrollListener);
     _fadeController = AnimationController(
       vsync: this,
       duration: widget.thumbVisibilityFadeDuration,
@@ -2772,14 +2742,57 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onScroll);
+    widget.controller.removeListener(_scrollListener);
     _hideTimer?.cancel();
     _fadeController.dispose();
     _railSlideController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
+  double _maxScroll = 0.0;
+  _setMaxScroll({bool jump = false}) async {
+    if (!widget.controller.hasClients ||
+        !widget.controller.position.hasContentDimensions) {
+      return;
+    }
+    double newMaxScroll = widget.controller.position.maxScrollExtent;
+    double curretnPos = widget.controller.offset;
+
+    if (newMaxScroll != 0.0) {
+      if (jump) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          _maxScroll = newMaxScroll;
+        });
+      } else if (_maxScroll == 0) {
+        // Instantly set initially
+        _maxScroll = newMaxScroll;
+      } else if (curretnPos >= newMaxScroll) {
+        // Instantly scroll to end
+        _maxScroll = newMaxScroll;
+      } else if (newMaxScroll != _maxScroll) {
+        // Slowly update _maxScroll
+        double diff = newMaxScroll - _maxScroll;
+        _maxScroll += diff.isNegative ? -1.0 : 1.0;
+      }
+    }
+  }
+
+  List<double> _ratios = [];
+  _setRatios() {
+    final List<double> priorRatios = List<double>.from(_ratios);
+    _ratios = List<double>.generate(
+      widget.pageAspectRatios.length,
+      (index) => 1.0 / widget.pageAspectRatios[index],
+    );
+    _ratios[0] /= 2;
+    _ratios[_ratios.length - 1] /= 2;
+    setState(() {});
+    if (_ratios.sum != priorRatios.sum) {
+      _setMaxScroll(jump: true);
+    }
+  }
+
+  void _scrollListener() {
     if (_isDragging) {
       return;
     }
@@ -2861,7 +2874,10 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     // move thumb
     final minTop = containerHeight * widget.scrollRangeStart;
     final maxTop = containerHeight * widget.scrollRangeEnd - _thumbSize;
-    _thumbTop = (_thumbTop + details.delta.dy).clamp(minTop, maxTop);
+    _thumbTop = (details.globalPosition.dy - minTop - _thumbSize).clamp(
+      minTop,
+      maxTop,
+    );
     setState(() {});
 
     // move page
@@ -2947,7 +2963,6 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     final railColor = Theme.of(context).colorScheme.onPrimaryContainer;
 
     _setRatios();
-    _setMaxScroll();
 
     return LayoutBuilder(
       builder: (_, constraints) {
