@@ -1079,8 +1079,9 @@ class FilesHelper {
         imagePaths = [pickedFile.path];
       }
     }
-    messenger.hideCurrentSnackBar();
+
     pickingImage = false;
+    messenger.hideCurrentSnackBar();
 
     return imagePaths;
   }

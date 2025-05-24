@@ -2624,62 +2624,6 @@ class _PagesState extends State<Pages> with RouteAware {
                             ),
                     ),
                   ),
-                  //SizedBox(height: 24),
-                  //// Save, Share, Delete
-                  //Align(
-                  //  alignment: Alignment.centerLeft,
-                  //  child: Text(
-                  //    "Save, Share, Delete",
-                  //    style: TextStyle(
-                  //      color: Colors.white70,
-                  //      fontSize: 12,
-                  //      fontWeight: FontWeight.w400,
-                  //    ),
-                  //  ),
-                  //),
-                  //Row(
-                  //  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  //  children: [
-                  //    // Save
-                  //    IconButton(
-                  //      onPressed:
-                  //          () => _pagesPopup(
-                  //            context,
-                  //            [pageIndex],
-                  //            PopUpType.save,
-                  //            widget.docIndex,
-                  //          ),
-                  //      icon: Icon(Icons.save),
-                  //    ),
-                  //    // Share
-                  //    IconButton(
-                  //      onPressed:
-                  //          () => _pagesPopup(
-                  //            context,
-                  //            [pageIndex],
-                  //            PopUpType.share,
-                  //            widget.docIndex,
-                  //          ),
-                  //      icon: Icon(Icons.share),
-                  //    ),
-                  //    // Delete
-                  //    IconButton(
-                  //      onPressed: () async {
-                  //        if (await _pagesPopup(
-                  //          context,
-                  //          selected,
-                  //          PopUpType.delete,
-                  //          widget.docIndex,
-                  //        )) {
-                  //          if (context.mounted) {
-                  //            Navigator.pop(context);
-                  //          }
-                  //        }
-                  //      },
-                  //      icon: Icon(Icons.delete),
-                  //    ),
-                  //  ],
-                  //),
                 ],
               ),
               actions: [
@@ -2752,32 +2696,38 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   Timer? _hideTimer;
   int _lastPage = 0;
 
-  double maxScroll = double.infinity;
-  _setMaxScroll({bool reset = false}) {
+  double _maxScroll = 0.0;
+  _setMaxScroll() async {
     if (!widget.controller.hasClients) return;
     double newMaxScroll = widget.controller.position.maxScrollExtent;
-    if (newMaxScroll < maxScroll) {
-      maxScroll = newMaxScroll;
-    } else if (reset) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        // PostFrame because newMaxScroll is depends on being built first
-        newMaxScroll = widget.controller.position.maxScrollExtent;
-        maxScroll = newMaxScroll;
-      });
+    if (newMaxScroll != 0.0) {
+      if (_maxScroll == 0) {
+        _maxScroll = newMaxScroll;
+        return;
+      } else if (newMaxScroll != _maxScroll) {
+        // Slowly update _maxScroll
+        double diff = newMaxScroll - _maxScroll;
+        _maxScroll += diff.isNegative ? -1.0 : 1.0;
+        // Instantly scroll to beginning/end
+        if (widget.controller.offset <=
+                widget.controller.position.minScrollExtent ||
+            widget.controller.offset >= newMaxScroll) {
+          _maxScroll = newMaxScroll;
+        }
+      }
     }
   }
 
-  List<double> ratios = [];
+  List<double> _ratios = [];
   _setRatios() {
-    final List<double> priorRatios = List<double>.from(ratios);
-    ratios = List<double>.generate(
+    //final List<double> priorRatios = List<double>.from(_ratios);
+    _ratios = List<double>.generate(
       widget.pageAspectRatios.length,
       (index) => 1.0 / widget.pageAspectRatios[index],
     );
     //ratios[0] = 0.01;
     //ratios[ratios.length - 1] = 0.0;
-    return ratios.sum != priorRatios.sum;
-    // compare sum, because this is used for resetting maxScroll
+    //if (_ratios.sum != priorRatios.sum) _maxScrollFinal = false;
   }
 
   static const double _thumbSize = 56;
@@ -2849,9 +2799,9 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     final viewportHeight = widget.controller.position.viewportDimension;
 
-    final scrollFraction = maxScroll == 0
+    final scrollFraction = _maxScroll == 0
         ? 0
-        : (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
+        : (widget.controller.offset / _maxScroll).clamp(0.0, 1.0);
     final thumbTravelHeight =
         viewportHeight * (widget.scrollRangeEnd - widget.scrollRangeStart);
 
@@ -2918,7 +2868,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     final scrollAreaHeight = maxTop - minTop;
     final scrollFraction = (_thumbTop - minTop) / scrollAreaHeight;
 
-    final newScrollOffset = scrollFraction * maxScroll;
+    final newScrollOffset = scrollFraction * _maxScroll;
     if (_isDragging) {
       widget.controller.jumpTo(newScrollOffset);
     }
@@ -2935,21 +2885,21 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   int _getCurrentPage() {
-    if (!widget.controller.hasClients || ratios.isEmpty) {
+    if (!widget.controller.hasClients || _ratios.isEmpty) {
       return 0;
     }
 
     final offset = widget.controller.offset;
 
-    final total = ratios.fold<double>(0.0, (a, b) => a + b);
+    final total = _ratios.fold<double>(0.0, (a, b) => a + b);
     final cumulative = <double>[];
     double sum = 0.0;
-    for (var ratio in ratios) {
+    for (var ratio in _ratios) {
       sum += ratio;
       cumulative.add(sum);
     }
 
-    final scrolledFraction = maxScroll == 0 ? 0 : offset / maxScroll;
+    final scrolledFraction = _maxScroll == 0 ? 0 : offset / _maxScroll;
     final scrollPosition = total * scrolledFraction;
 
     for (int i = 0; i < cumulative.length; i++) {
@@ -2958,7 +2908,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       }
     }
 
-    return ratios.length - 1;
+    return _ratios.length - 1;
   }
 
   bool _atTopOrBottom = true;
@@ -2971,7 +2921,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     if ((widget.controller.offset <=
             widget.controller.position.minScrollExtent ||
-        widget.controller.offset >= maxScroll)) {
+        widget.controller.offset >= _maxScroll)) {
       if (!_atTopOrBottom) {
         if (_isDragging) {
           HapticFeedback.lightImpact();
@@ -2996,8 +2946,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     final railWidth = 12.0;
     final railColor = Theme.of(context).colorScheme.onPrimaryContainer;
 
-    final bool newRatios = _setRatios();
-    _setMaxScroll(reset: newRatios);
+    _setRatios();
+    _setMaxScroll();
 
     return LayoutBuilder(
       builder: (_, constraints) {
@@ -3060,7 +3010,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                             boxShadow: [tinyBoxShadow(context)],
                           ),
                           child: Text(
-                            '${_getCurrentPage() + 1}/${ratios.length}',
+                            '${_getCurrentPage() + 1}/${_ratios.length}',
                             style: TextStyle(fontSize: 12, color: textColor),
                           ),
                         ),
