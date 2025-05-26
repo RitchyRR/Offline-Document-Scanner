@@ -1,6 +1,8 @@
 import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'package:docscanner/app_globals.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'
+    show CompressFormat, FlutterImageCompress;
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
@@ -45,9 +47,9 @@ class OpenCVHelper {
   AppGlobals g;
   OpenCVHelper(gIn) : g = gIn;
 
-  (Uint8List, Uint8List, List<int>, double, List<List<int>>) warpImage(
+  Future<(Uint8List, Uint8List, List<int>, double, List<List<int>>)> warpImage(
     ParamsWarpImage params,
-  ) {
+  ) async {
     cv.Mat imageMat = _loadImage(params.pathIn);
     cv.Mat? shape = (params.shape.isNotEmpty) ? _loadImage(params.shape) : null;
 
@@ -63,15 +65,15 @@ class OpenCVHelper {
     double ratioValue = warpedRes.$3;
     List<List<int>> cornerPoints = warpedRes.$4;
     return (
-      _returnImage(warped),
-      _returnImage(shape),
+      await _returnImage(warped),
+      await _returnImage(shape),
       borderCorrectionDepth,
       ratioValue,
       cornerPoints,
     );
   }
 
-  Uint8List processImage1(ParamsProcessImage1 params) {
+  Future<Uint8List> processImage1(ParamsProcessImage1 params) {
     cv.Mat? warped = _loadWarped(params.pathIn);
 
     cv.Mat? filtered1 = _filterImage1(warped);
@@ -79,7 +81,7 @@ class OpenCVHelper {
     return _returnImage(filtered1);
   }
 
-  Uint8List processImage2(ParamsProcessImage2 params) {
+  Future<Uint8List> processImage2(ParamsProcessImage2 params) {
     borderCorrectionDepth = params.borderCorrectionDepth;
 
     cv.Mat? filtered1 = _loadWarped(params.pathIn);
@@ -89,7 +91,7 @@ class OpenCVHelper {
     return _returnImage(filtered2);
   }
 
-  Uint8List rotateImage(String pathIn, int angle) {
+  Future<Uint8List> rotateImage(String pathIn, int angle) {
     cv.Mat mat = _loadImage(pathIn);
 
     if (angle != 0) {
@@ -105,7 +107,7 @@ class OpenCVHelper {
     return _returnImage(mat);
   }
 
-  Uint8List scaleImageToWidth(String pathIn, int newWidth) {
+  Future<Uint8List> scaleImageToWidth(String pathIn, int newWidth) {
     cv.Mat mat = _loadWarped(pathIn);
 
     int newHeight = (height * (newWidth / width)).toInt();
@@ -162,18 +164,27 @@ class OpenCVHelper {
     return imageMat;
   }
 
-  Uint8List _returnImage(cv.Mat? imageMat) {
+  Future<Uint8List> _returnImage(cv.Mat? imageMat) async {
     if (imageMat == null || imageMat.isEmpty) {
       dev.log("Error: Mat empty, can't convert to Image.");
       return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
-    var (resultSuccess, resultImage) = cv.imencode('.webp', imageMat);
+    var (resultSuccess, resultImageBytes) = cv.imencode('.webp', imageMat);
     if (!resultSuccess) {
       dev.log("Error: Failed to encode image.");
     }
 
-    return resultImage;
+    final imgInfo = AppGlobals.getWebPInfo(resultImageBytes);
+    final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
+      resultImageBytes,
+      minWidth: imgInfo!.width,
+      minHeight: imgInfo.height,
+      format: CompressFormat.webp,
+      quality: 100,
+    );
+
+    return webpBytes;
   }
 
   /// Warp Image: Edge detection, stretch to A4

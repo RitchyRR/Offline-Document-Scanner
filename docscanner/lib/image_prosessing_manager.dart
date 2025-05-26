@@ -2,6 +2,8 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'
+    show FlutterImageCompress, CompressFormat;
 import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'dart:async';
@@ -93,7 +95,10 @@ class ImageProcessingManager {
       supressWarnings: isInitial,
     );
     if (shapePath.isNotEmpty && rotationIn != 0) {
-      Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
+      Uint8List rotatedShape = await cvHelper.rotateImage(
+        shapePath,
+        rotationIn,
+      );
       shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
@@ -102,7 +107,7 @@ class ImageProcessingManager {
     }
 
     // Warped + Metadata
-    var warpedRet = cvHelper.warpImage(
+    var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
         versionPaths[0],
         shapePath,
@@ -134,7 +139,7 @@ class ImageProcessingManager {
     );
 
     // Processed1 basierend auf dem Warped-Bild
-    Uint8List processed1 = cvHelper.processImage1(
+    Uint8List processed1 = await cvHelper.processImage1(
       ParamsProcessImage1(versionPaths[1]),
     );
     versionPaths[2] = await g.filesHelper.savePageVersion(
@@ -145,7 +150,7 @@ class ImageProcessingManager {
     );
 
     // Processed2 basierend auf dem Warped-Bild
-    Uint8List processed2 = cvHelper.processImage2(
+    Uint8List processed2 = await cvHelper.processImage2(
       ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
     versionPaths[3] = await g.filesHelper.savePageVersion(
@@ -248,7 +253,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List photoBytes,
+      Uint8List webpBytes,
       AppGlobals g,
     )
     data,
@@ -258,7 +263,7 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    Uint8List photoBytes = data.$5;
+    Uint8List webpBytes = data.$5;
     AppGlobals g = data.$6;
 
     // Warped
@@ -266,20 +271,20 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       1,
-      photoBytes,
+      webpBytes,
     );
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
     // Processed1 basierend auf dem Warped-Bild
-    Uint8List processed1 = cvHelper.processImage1(
+    Uint8List processed1 = await cvHelper.processImage1(
       ParamsProcessImage1(warpedPath),
     );
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
 
     // Processed2 basierend auf dem Warped-Bild
-    Uint8List processed2 = cvHelper.processImage2(
+    Uint8List processed2 = await cvHelper.processImage2(
       ParamsProcessImage2(warpedPath, borderCorrectionDepth),
     );
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
@@ -303,18 +308,22 @@ class ImageProcessingManager {
 
     if (!isPhotoAlreadyInPage) {
       // Save Photo
-      File photoFile = File(photoPath);
-      Uint8List photo;
-      if (photoFile.existsSync()) {
-        photo = photoFile.readAsBytesSync();
-      } else {
-        throw StateError('photo does not exist');
+      final imgInfo = await AppGlobals.getImageInfo(photoPath);
+      final Uint8List? webpBytes = await FlutterImageCompress.compressWithFile(
+        photoPath,
+        minWidth: imgInfo!.width,
+        minHeight: imgInfo.height,
+        format: CompressFormat.webp,
+        quality: 100,
+      );
+      if (webpBytes == null) {
+        throw StateError('photo $photoPath does not exist');
       }
       photoPath = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         0,
-        photo,
+        webpBytes,
       );
     }
 
@@ -458,7 +467,7 @@ class ImageProcessingManager {
     }
 
     // Warped
-    var warpedRet = cvHelper.warpImage(
+    var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
         versionPaths[0],
         shapePath,
@@ -495,7 +504,7 @@ class ImageProcessingManager {
 
     // Processed1 basierend auf dem Warped-Bild
     if (versionPaths[2].isEmpty) {
-      Uint8List processed1 = cvHelper.processImage1(
+      Uint8List processed1 = await cvHelper.processImage1(
         ParamsProcessImage1(versionPaths[1]),
       );
       versionPaths[2] = await g.filesHelper.savePageVersion(
@@ -508,7 +517,7 @@ class ImageProcessingManager {
 
     // Processed2 basierend auf dem Warped-Bild
     if (versionPaths[3].isEmpty) {
-      Uint8List processed2 = cvHelper.processImage2(
+      Uint8List processed2 = await cvHelper.processImage2(
         ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
       );
       versionPaths[3] = await g.filesHelper.savePageVersion(
@@ -794,21 +803,28 @@ class ImageProcessingManager {
 
     /// 1. save rotated photo
 
-    File rotatedPhotoFile = File(versionPaths[0]);
-    Uint8List rotatedPhoto;
-    if (rotatedPhotoFile.existsSync()) {
-      rotatedPhoto = rotatedPhotoFile.readAsBytesSync();
-    } else {
-      throw StateError('rotated photo does not exist');
+    final imgInfo = await AppGlobals.getImageInfo(versionPaths[0]);
+    final Uint8List? webpBytes = await FlutterImageCompress.compressWithFile(
+      versionPaths[0],
+      minWidth: imgInfo!.width,
+      minHeight: imgInfo.height,
+      format: CompressFormat.webp,
+      quality: 100,
+    );
+    if (webpBytes == null) {
+      throw StateError('photo $versionPaths[0] does not exist');
     }
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, rotatedPhoto);
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, webpBytes);
 
     /// 2. rotate processed -> save
 
     // Shape
     String? shapePath = await g.filesHelper.getPageShape(docIndex, pageIndex);
     if (shapePath.isEmpty && rotationIn != 0) {
-      Uint8List rotatedShape = cvHelper.rotateImage(shapePath, rotationIn);
+      Uint8List rotatedShape = await cvHelper.rotateImage(
+        shapePath,
+        rotationIn,
+      );
       shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
@@ -817,7 +833,10 @@ class ImageProcessingManager {
     }
 
     // Warped
-    Uint8List rotatedWarped = cvHelper.rotateImage(versionPaths[1], rotationIn);
+    Uint8List rotatedWarped = await cvHelper.rotateImage(
+      versionPaths[1],
+      rotationIn,
+    );
     versionPaths[1] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -826,7 +845,10 @@ class ImageProcessingManager {
     );
 
     // Processed1
-    Uint8List rotatedP1 = cvHelper.rotateImage(versionPaths[2], rotationIn);
+    Uint8List rotatedP1 = await cvHelper.rotateImage(
+      versionPaths[2],
+      rotationIn,
+    );
     versionPaths[2] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -835,7 +857,10 @@ class ImageProcessingManager {
     );
 
     // Processed2
-    Uint8List rotatedP2 = cvHelper.rotateImage(versionPaths[3], rotationIn);
+    Uint8List rotatedP2 = await cvHelper.rotateImage(
+      versionPaths[3],
+      rotationIn,
+    );
     versionPaths[3] = await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -950,7 +975,7 @@ class ImageProcessingManager {
     }
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    Uint8List scaled = cvHelper.scaleImageToWidth(
+    Uint8List scaled = await cvHelper.scaleImageToWidth(
       versionPath,
       (screenWidth * 0.927083333).toInt(),
     );
@@ -995,6 +1020,7 @@ class ImageProcessingManager {
   static Future<void> _saveNewThumbnailIsolate(
     (
       SendPort sendPort,
+      RootIsolateToken token,
       int docIndex,
       int pageIndex,
       int thumbnailIndex,
@@ -1003,10 +1029,13 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort sendPort = data.$1;
-    int docIndex = data.$2;
-    int pageIndex = data.$3;
-    int thumbnailIndex = data.$4;
-    AppGlobals gIn = data.$5;
+    RootIsolateToken token = data.$2;
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    int thumbnailIndex = data.$5;
+    AppGlobals gIn = data.$6;
+
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     await _scaleAndSaveThumbnailIsolate(
       sendPort,
@@ -1042,8 +1071,10 @@ class ImageProcessingManager {
 
     TaskKiller killer;
     if (isNewIndex) {
+      RootIsolateToken token = RootIsolateToken.instance!;
       killer = await IsolatesManager().runTask(_saveNewThumbnailIsolate, (
         port.sendPort,
+        token,
         docIndex,
         pageIndex,
         thumbnailIndex,

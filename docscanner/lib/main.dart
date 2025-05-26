@@ -5278,9 +5278,9 @@ Future<bool> _pagesPopup(
                     Icon(
                       icon,
                       color: Theme.of(context).colorScheme.onSurface,
-                      size: 36,
+                      size: 30,
                     ),
-                    SizedBox(width: 24.0),
+                    SizedBox(width: 12.0),
                     Flexible(child: Text("$sAction $sObject")),
                   ],
                 ),

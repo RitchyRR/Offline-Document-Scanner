@@ -3,7 +3,8 @@ import 'dart:typed_data' show Uint8List;
 import 'package:docscanner/files_helper.dart';
 //import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
-import 'package:image/image.dart' as img show DecodeInfo, WebPDecoder;
+import 'package:image/image.dart' as img;
+import 'package:image/image.dart';
 
 class AppGlobals {
   // singleton setup:
@@ -51,6 +52,12 @@ class AppGlobals {
 
   static img.DecodeInfo? getWebPInfo(Uint8List bytes) {
     return img.WebPDecoder().startDecode(bytes);
+  }
+
+  static Future<img.DecodeInfo?> getImageInfo(String imagePath) async {
+    final decoder = findDecoderForNamedImage(imagePath);
+    final bytes = await readFile(imagePath);
+    return decoder!.startDecode(bytes!);
   }
 }
 

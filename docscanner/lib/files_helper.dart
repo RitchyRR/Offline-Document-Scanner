@@ -265,7 +265,7 @@ class FilesHelper {
   Future<String> savePageShape(
     int docIndex,
     int pageIndex,
-    Uint8List imageBytes,
+    Uint8List webpBytes,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -279,7 +279,7 @@ class FilesHelper {
     }
     String filePath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.webp";
-    File(filePath).writeAsBytesSync(imageBytes);
+    File(filePath).writeAsBytesSync(webpBytes);
     if (!File(filePath).existsSync()) {
       throw StateError("Error, saveImage: Failed to save $filePath");
     }
@@ -1158,15 +1158,31 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          final imageBytes = imageFile.readAsBytesSync();
-          final image = pdfw.MemoryImage(imageBytes);
+          //final imageBytes = imageFile.readAsBytesSync();
+          //final jpegBytes = await FlutterImageCompress.compressWithFile(
+          //  imagePath,
+          //  format: CompressFormat.jpeg,
+          //  quality: 80,
+          //);
+          final imgInfo = AppGlobals.getWebPInfo(imageFile.readAsBytesSync());
+          final Uint8List? webpBytes =
+              await FlutterImageCompress.compressWithFile(
+                imagePath,
+                minWidth: imgInfo!.width,
+                minHeight: imgInfo.height,
+                format: CompressFormat.webp,
+                quality: 100,
+              );
 
           pdfDoc.addPage(
             pdfw.Page(
               pageFormat: pageFormats[i],
               build: (pdfw.Context context) {
                 return pdfw.Center(
-                  child: pdfw.Image(image, fit: pdfw.BoxFit.contain),
+                  child: pdfw.Image(
+                    pdfw.MemoryImage(webpBytes!),
+                    fit: pdfw.BoxFit.contain,
+                  ),
                 );
               },
             ),
@@ -1490,7 +1506,7 @@ class FilesHelper {
     AppGlobals gIn = data.$5;
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    Uint8List rotatedBytes = cvHelper.rotateImage(imagePath, angle);
+    Uint8List rotatedBytes = await cvHelper.rotateImage(imagePath, angle);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
     sendPort.send(true);
   }
@@ -1606,7 +1622,6 @@ class FilesHelper {
         throw Exception("Failed to get byte data from image");
       }
 
-      //final Uint8List pngBytes = byteData!.buffer.asUint8List();
       final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
         byteData.buffer.asUint8List(),
         minWidth: uiImage.width,
