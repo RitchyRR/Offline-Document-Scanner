@@ -299,34 +299,34 @@ class ImageProcessingManager {
     if (photoPath.isEmpty) return;
 
     if (!isPhotoAlreadyInPage) {
-      if (File(photoPath).lengthSync() > 3000000 * 8) // ~ 3 MB
-      {
-        // Save Photo
-        final imgInfo = await AppGlobals.getImageInfo(photoPath);
-        final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
-          photoPath,
-          minWidth: imgInfo!.width,
-          minHeight: imgInfo.height,
-          format: CompressFormat.png,
-          quality: 100,
-        );
-        if (pngBytes == null) {
-          throw StateError('photo $photoPath is broken');
-        }
-        photoPath = await g.filesHelper.savePageVersion(
-          docIndex,
-          pageIndex,
-          0,
-          pngBytes,
-        );
-      } else {
-        photoPath = await g.filesHelper.copyToPageVersion(
-          docIndex,
-          pageIndex,
-          0,
-          photoPath,
-        );
-      }
+      //if (File(photoPath).lengthSync() > 3000000 * 8) // ~ 3 MB
+      //{
+      //  // Save Photo
+      //  final imgInfo = await AppGlobals.getImageInfo(photoPath);
+      //  final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
+      //    photoPath,
+      //    minWidth: imgInfo!.width,
+      //    minHeight: imgInfo.height,
+      //    format: CompressFormat.png,
+      //    quality: 100,
+      //  );
+      //  if (pngBytes == null) {
+      //    throw StateError('photo $photoPath is broken');
+      //  }
+      //  photoPath = await g.filesHelper.savePageVersion(
+      //    docIndex,
+      //    pageIndex,
+      //    0,
+      //    pngBytes,
+      //  );
+      //} else {
+      photoPath = await g.filesHelper.copyToPageVersion(
+        docIndex,
+        pageIndex,
+        0,
+        photoPath,
+      );
+      //}
     }
 
     final wrapperCompleter = Completer<void>();
