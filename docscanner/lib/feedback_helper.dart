@@ -49,19 +49,21 @@ class FeedbackHelper {
   }
 
   bool canShowExportPopup() {
-    if (state == FeedbackState.hidden) return false;
-    bool can = state == FeedbackState.init;
-    state = FeedbackState.afterFirstExport;
-    _writeFeedbackState();
-    return can;
+    if (state == FeedbackState.init) {
+      state = FeedbackState.afterFirstExport;
+      _writeFeedbackState();
+      return true;
+    }
+    return false;
   }
 
   bool canShowProcessingPopup() {
-    if (state == FeedbackState.hidden) return false;
-    bool can = state == FeedbackState.afterFirstExport;
-    state = FeedbackState.afterFirstProcessing;
-    _writeFeedbackState();
-    return can;
+    if (state == FeedbackState.afterFirstExport) {
+      state = FeedbackState.afterFirstProcessing;
+      _writeFeedbackState();
+      return true;
+    }
+    return false;
   }
 
   bool canShowInAppbar() {
@@ -109,55 +111,53 @@ class FeedbackHelper {
     int rating = 0;
     await showDialog(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: Text('Rate our App'),
-                content: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return IconButton(
-                      icon: Icon(
-                        index < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 36,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          rating = index + 1;
-                        });
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Rate our App'),
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                    size: 36,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      rating = index + 1;
+                    });
+                  },
+                );
+              }),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: rating == 0
+                    ? null
+                    : () async {
+                        state = FeedbackState.hidden;
+                        _writeRating(rating);
+                        Navigator.pop(context);
+                        if (rating == 5) {
+                          _redirectToPlayStore();
+                        } else {
+                          _showFeedbackDialog(context, rating);
+                        }
                       },
-                    );
-                  }),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed:
-                        rating == 0
-                            ? null
-                            : () async {
-                              state = FeedbackState.hidden;
-                              _writeRating(rating);
-                              Navigator.pop(context);
-                              if (rating == 5) {
-                                _redirectToPlayStore();
-                              } else {
-                                _showFeedbackDialog(context, rating);
-                              }
-                            },
-                    child: Text('Next'),
-                  ),
-                ],
-              );
-            },
-          ),
+                child: Text('Next'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -165,45 +165,43 @@ class FeedbackHelper {
     final TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: Text('Give Feedback'),
-                content: TextField(
-                  controller: controller,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText:
-                        "What would you like to see?\n"
-                        "What is missing?\n"
-                        "What went wrong?\n",
-                  ),
-                  onChanged: (text) {
-                    setState(() {});
-                  },
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed:
-                        controller.text.trim().isEmpty
-                            ? null
-                            : () {
-                              final feedback = controller.text;
-                              dev.log('User feedback: $feedback');
-                              _sendFeedbackByEmail(feedback, rating);
-                              Navigator.pop(context);
-                            },
-                    child: Text('Send'),
-                  ),
-                ],
-              );
-            },
-          ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Give Feedback'),
+            content: TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText:
+                    "What would you like to see?\n"
+                    "What is missing?\n"
+                    "What went wrong?\n",
+              ),
+              onChanged: (text) {
+                setState(() {});
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: controller.text.trim().isEmpty
+                    ? null
+                    : () {
+                        final feedback = controller.text;
+                        dev.log('User feedback: $feedback');
+                        _sendFeedbackByEmail(feedback, rating);
+                        Navigator.pop(context);
+                      },
+                child: Text('Send'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -271,8 +269,9 @@ class FeedbackHelper {
       }
     }
     final multiplied = sigBigInt * BigInt.from(multiplier);
-    final hashed =
-        sha256.convert(utf8.encode(multiplied.toString())).toString();
+    final hashed = sha256
+        .convert(utf8.encode(multiplied.toString()))
+        .toString();
 
     bool valid = false;
     if (Platform.isAndroid && installer == "com.android.vending") {

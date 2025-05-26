@@ -170,21 +170,21 @@ class OpenCVHelper {
       return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
-    var (resultSuccess, resultImageBytes) = cv.imencode('.webp', imageMat);
+    var (resultSuccess, resultImageBytes) = cv.imencode('.png', imageMat);
     if (!resultSuccess) {
       dev.log("Error: Failed to encode image.");
     }
 
-    final imgInfo = AppGlobals.getWebPInfo(resultImageBytes);
-    final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
+    final imgInfo = AppGlobals.getPngInfo(resultImageBytes);
+    final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
       resultImageBytes,
       minWidth: imgInfo!.width,
       minHeight: imgInfo.height,
-      format: CompressFormat.webp,
+      format: CompressFormat.png,
       quality: 100,
     );
 
-    return webpBytes;
+    return pngBytes;
   }
 
   /// Warp Image: Edge detection, stretch to A4

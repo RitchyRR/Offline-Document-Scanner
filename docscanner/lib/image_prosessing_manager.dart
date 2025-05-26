@@ -192,7 +192,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List webpBytes,
+      Uint8List pngBytes,
       AppGlobals g,
     )
     data,
@@ -202,14 +202,14 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    Uint8List webpBytes = data.$5;
+    Uint8List pngBytes = data.$5;
     AppGlobals g = data.$6;
 
     // Save Photo
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, webpBytes);
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
 
     // Generate Metadata
-    final imgInfo = AppGlobals.getWebPInfo(webpBytes);
+    final imgInfo = AppGlobals.getPngInfo(pngBytes);
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
     }
@@ -308,21 +308,21 @@ class ImageProcessingManager {
       //{
       // Save Photo
       final imgInfo = await AppGlobals.getImageInfo(photoPath);
-      final Uint8List? webpBytes = await FlutterImageCompress.compressWithFile(
+      final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
         photoPath,
         minWidth: imgInfo!.width,
         minHeight: imgInfo.height,
-        format: CompressFormat.webp,
+        format: CompressFormat.png,
         quality: 100,
       );
-      if (webpBytes == null) {
+      if (pngBytes == null) {
         throw StateError('photo $photoPath is broken');
       }
       photoPath = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         0,
-        webpBytes,
+        pngBytes,
       );
       //} else {
       //  photoPath = await g.filesHelper.copyToPageVersion(
@@ -377,9 +377,9 @@ class ImageProcessingManager {
   Future<void> processPdfPage(
     int docIndex,
     int pageIndex,
-    Uint8List webpBytes,
+    Uint8List pngBytes,
   ) async {
-    if (webpBytes.isEmpty) return;
+    if (pngBytes.isEmpty) return;
 
     final wrapperCompleter = Completer<void>();
     final port = ReceivePort();
@@ -387,7 +387,7 @@ class ImageProcessingManager {
 
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolateThumbnail,
-      (port.sendPort, token, docIndex, pageIndex, webpBytes, g),
+      (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
       prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
         repairPage(docIndex, pageIndex);
@@ -813,17 +813,17 @@ class ImageProcessingManager {
     /// 1. save rotated photo
 
     final imgInfo = await AppGlobals.getImageInfo(versionPaths[0]);
-    final Uint8List? webpBytes = await FlutterImageCompress.compressWithFile(
+    final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
       versionPaths[0],
       minWidth: imgInfo!.width,
       minHeight: imgInfo.height,
-      format: CompressFormat.webp,
+      format: CompressFormat.png,
       quality: 100,
     );
-    if (webpBytes == null) {
+    if (pngBytes == null) {
       throw StateError('photo $versionPaths[0] does not exist');
     }
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, webpBytes);
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
 
     /// 2. rotate processed -> save
 
@@ -959,7 +959,7 @@ class ImageProcessingManager {
     }
 
     String thumbnailPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.webp";
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
     File versionFile = File(versionPath);
     File thumbnailFile = File(thumbnailPath);
 
