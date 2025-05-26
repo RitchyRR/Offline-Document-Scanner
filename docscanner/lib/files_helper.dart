@@ -267,7 +267,7 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    Uint8List webpBytes,
+    Uint8List pngBytes,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -280,8 +280,8 @@ class FilesHelper {
       }
     }
     String versionPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.webp";
-    File(versionPath).writeAsBytesSync(webpBytes);
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
+    File(versionPath).writeAsBytesSync(pngBytes);
     if (!File(versionPath).existsSync()) {
       dev.log("Error, saveImage: Failed to save $versionPath");
       return "";
@@ -293,7 +293,7 @@ class FilesHelper {
   Future<String> savePageShape(
     int docIndex,
     int pageIndex,
-    Uint8List webpBytes,
+    Uint8List pngBytes,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
@@ -306,8 +306,8 @@ class FilesHelper {
       }
     }
     String filePath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.webp";
-    File(filePath).writeAsBytesSync(webpBytes);
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.png";
+    File(filePath).writeAsBytesSync(pngBytes);
     if (!File(filePath).existsSync()) {
       throw StateError("Error, saveImage: Failed to save $filePath");
     }
@@ -1169,7 +1169,7 @@ class FilesHelper {
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
-          final imgInfo = AppGlobals.getWebPInfo(
+          final imgInfo = AppGlobals.getPngInfo(
             File(imagePaths[i]).readAsBytesSync(),
           );
           double photoRatio =
@@ -1192,13 +1192,13 @@ class FilesHelper {
           //  format: CompressFormat.jpeg,
           //  quality: 80,
           //);
-          final imgInfo = AppGlobals.getWebPInfo(imageFile.readAsBytesSync());
-          final Uint8List? webpBytes =
+          final imgInfo = AppGlobals.getPngInfo(imageFile.readAsBytesSync());
+          final Uint8List? pngBytes =
               await FlutterImageCompress.compressWithFile(
                 imagePath,
                 minWidth: imgInfo!.width,
                 minHeight: imgInfo.height,
-                format: CompressFormat.webp,
+                format: CompressFormat.png,
                 quality: 100,
               );
 
@@ -1208,7 +1208,7 @@ class FilesHelper {
               build: (pdfw.Context context) {
                 return pdfw.Center(
                   child: pdfw.Image(
-                    pdfw.MemoryImage(webpBytes!),
+                    pdfw.MemoryImage(pngBytes!),
                     fit: pdfw.BoxFit.contain,
                   ),
                 );
@@ -1500,7 +1500,7 @@ class FilesHelper {
   ) async {
     final port = ReceivePort();
     final tmpDir = await getTemporaryDirectory();
-    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.webp";
+    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
 
     if (!File(rotatedFilePath).existsSync()) {
       IsolatesManager().runTask(_rotateImageInTmpDirIsolate, (
@@ -1543,7 +1543,7 @@ class FilesHelper {
     List<String> paths = [];
     final tmpDir = await getTemporaryDirectory();
     for (var angle = 90; angle <= 270; angle += 90) {
-      paths.add("${tmpDir.path}/rotated_$angle.webp");
+      paths.add("${tmpDir.path}/rotated_$angle.png");
     }
     _deleteImages(paths);
   }
@@ -1644,17 +1644,17 @@ class FilesHelper {
       // -> Uint8List
       final ui.Image uiImage = await renderedPage.createImageDetached();
       final ByteData? byteData = await uiImage.toByteData(
-        format: ui.ImageByteFormat.png, // first to png, then to webp
+        format: ui.ImageByteFormat.png, // first to png, then to png
       );
       if (byteData == null) {
         throw Exception("Failed to get byte data from image");
       }
       final imageBytes = byteData.buffer.asUint8List();
-      final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
+      final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
         imageBytes,
         minWidth: uiImage.width,
         minHeight: uiImage.height,
-        format: CompressFormat.webp,
+        format: CompressFormat.png,
         quality: 100,
       );
 
@@ -1662,7 +1662,7 @@ class FilesHelper {
       imageProcessingManager.processPdfPage(
         docIndex,
         pageIndex + firstPageIndex,
-        webpBytes,
+        pngBytes,
       );
       // Cleanup
       pagesProcessed++;

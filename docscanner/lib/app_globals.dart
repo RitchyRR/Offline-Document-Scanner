@@ -50,8 +50,8 @@ class AppGlobals {
   ];
   List<AspectRatioInfo> availableAspectRatios = [];
 
-  static img.DecodeInfo? getWebPInfo(Uint8List bytes) {
-    return img.WebPDecoder().startDecode(bytes);
+  static img.DecodeInfo? getPngInfo(Uint8List bytes) {
+    return img.PngDecoder().startDecode(bytes);
   }
 
   static Future<img.DecodeInfo?> getImageInfo(String imagePath) async {
