@@ -181,7 +181,7 @@ class OpenCVHelper {
       minWidth: imgInfo!.width,
       minHeight: imgInfo.height,
       format: CompressFormat.webp,
-      quality: 100,
+      quality: 90,
     );
 
     return webpBytes;

@@ -314,7 +314,7 @@ class ImageProcessingManager {
         minWidth: imgInfo!.width,
         minHeight: imgInfo.height,
         format: CompressFormat.webp,
-        quality: 100,
+        quality: 90,
       );
       if (webpBytes == null) {
         throw StateError('photo $photoPath does not exist');
@@ -809,7 +809,7 @@ class ImageProcessingManager {
       minWidth: imgInfo!.width,
       minHeight: imgInfo.height,
       format: CompressFormat.webp,
-      quality: 100,
+      quality: 90,
     );
     if (webpBytes == null) {
       throw StateError('photo $versionPaths[0] does not exist');

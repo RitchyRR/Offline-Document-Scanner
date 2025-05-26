@@ -1171,7 +1171,7 @@ class FilesHelper {
                 minWidth: imgInfo!.width,
                 minHeight: imgInfo.height,
                 format: CompressFormat.webp,
-                quality: 100,
+                quality: 90,
               );
 
           pdfDoc.addPage(
@@ -1627,7 +1627,7 @@ class FilesHelper {
         minWidth: uiImage.width,
         minHeight: uiImage.height,
         format: CompressFormat.webp,
-        quality: 100,
+        quality: 90,
       );
 
       // Processing
