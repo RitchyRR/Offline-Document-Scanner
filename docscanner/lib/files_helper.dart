@@ -244,6 +244,9 @@ class FilesHelper {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(docIndex, pageIndex);
     String versionName = versionNames[versionIndex];
+    if (imagePath.startsWith(pagePath) && imagePath.contains("$versionName.")) {
+      return imagePath;
+    }
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
