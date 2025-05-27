@@ -1609,7 +1609,7 @@ class FilesHelper {
     // Process delayed
     Future.microtask(() async {
       await Future.delayed(Duration(milliseconds: 100));
-      _savePdfAsPage(firstPageIndex, pageCount, doc, docIndex);
+      _savePdfAsPages(firstPageIndex, pageCount, doc, docIndex);
       // Creation Date
       final now = DateTime.now();
       final newDate = "${now.year}-${now.month}-${now.day}";
@@ -1618,57 +1618,65 @@ class FilesHelper {
     return (docIndex, firstPageIndex);
   }
 
-  Future<void> _savePdfAsPage(
+  Future<void> _savePdfAsPages(
     int firstPageIndex,
     int pageCount,
     pdfr.PdfDocument doc,
     int docIndex,
   ) async {
-    int pagesProcessed = 0;
+    List<Future> futures = [];
     for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-      final page = await doc.getPage(pageIndex + 1);
-      // render Page at 300 DPI (max 4048 pixel)
-      const targetDpi = 300;
-      const deafaultAssumedDpi = 72;
-      final dpiScale = targetDpi / deafaultAssumedDpi;
-      const maxSize = 4048;
-      final pageSize = page.width > page.height ? page.width : page.height;
-      final limitingScale = (maxSize / pageSize * dpiScale).clamp(
-        double.minPositive,
-        1.0,
+      futures.add(
+        _savePdfAsPageAsync(doc, docIndex, pageIndex, firstPageIndex),
       );
-      final renderedPage = await page.render(
-        width: (page.width * limitingScale * dpiScale).toInt(),
-        height: (page.height * limitingScale * dpiScale).toInt(),
-      );
-      // -> Uint8List
-      final ui.Image uiImage = await renderedPage.createImageDetached();
-      final ByteData? byteData = await uiImage.toByteData(
-        format: ui.ImageByteFormat.png, // first to png, then to png
-      );
-      if (byteData == null) {
-        throw Exception("Failed to get byte data from image");
-      }
-      final imageBytes = byteData.buffer.asUint8List();
-      final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
-        imageBytes,
-        minWidth: uiImage.width,
-        minHeight: uiImage.height,
-        format: CompressFormat.png,
-        quality: 100,
-      );
-
-      // Processing
-      imageProcessingManager.processPdfPage(
-        docIndex,
-        pageIndex + firstPageIndex,
-        pngBytes,
-      );
-      // Cleanup
-      pagesProcessed++;
-      if (pagesProcessed == pageCount) {
-        doc.dispose();
-      }
     }
+    // Cleanup
+    await Future.wait(futures);
+    doc.dispose();
+  }
+
+  _savePdfAsPageAsync(
+    pdfr.PdfDocument doc,
+    int docIndex,
+    int pageIndex,
+    int firstPageIndex,
+  ) async {
+    final page = await doc.getPage(pageIndex + 1);
+    // render Page at 300 DPI (max 4048 pixel)
+    const targetDpi = 300;
+    const deafaultAssumedDpi = 72;
+    final dpiScale = targetDpi / deafaultAssumedDpi;
+    const maxSize = 4048;
+    final pageSize = page.width > page.height ? page.width : page.height;
+    final limitingScale = (maxSize / pageSize * dpiScale).clamp(
+      double.minPositive,
+      1.0,
+    );
+    final renderedPage = await page.render(
+      width: (page.width * limitingScale * dpiScale).toInt(),
+      height: (page.height * limitingScale * dpiScale).toInt(),
+    );
+    // -> Uint8List
+    final ui.Image uiImage = await renderedPage.createImageDetached();
+    final ByteData? byteData = await uiImage.toByteData(
+      format: ui.ImageByteFormat.png, // first to png, then to png
+    );
+    if (byteData == null) {
+      throw Exception("Failed to get byte data from image");
+    }
+    final imageBytes = byteData.buffer.asUint8List();
+    final futurePngBytes = await FlutterImageCompress.compressWithList(
+      imageBytes,
+      minWidth: uiImage.width,
+      minHeight: uiImage.height,
+      format: CompressFormat.png,
+      quality: 100,
+    );
+    // Processing
+    imageProcessingManager.processPdfPage(
+      docIndex,
+      pageIndex + firstPageIndex,
+      futurePngBytes,
+    );
   }
 }
