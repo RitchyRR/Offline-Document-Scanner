@@ -1506,8 +1506,10 @@ class FilesHelper {
     final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
 
     if (!File(rotatedFilePath).existsSync()) {
+      //RootIsolateToken token = RootIsolateToken.instance!;
       IsolatesManager().runTask(_rotateImageInTmpDirIsolate, (
         port.sendPort,
+        //token,
         imagePath,
         rotatedFilePath,
         rotationIn,
@@ -1523,6 +1525,7 @@ class FilesHelper {
   static Future<void> _rotateImageInTmpDirIsolate(
     (
       SendPort sendPort,
+      //RootIsolateToken token,
       String imagePath,
       String rotatedFilePath,
       int angle,
@@ -1531,10 +1534,12 @@ class FilesHelper {
     data,
   ) async {
     SendPort sendPort = data.$1;
+    //RootIsolateToken token = data.$2;
     String imagePath = data.$2;
     String rotatedFilePath = data.$3;
     int angle = data.$4;
     AppGlobals gIn = data.$5;
+    //BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
     Uint8List rotatedBytes = await cvHelper.rotateImage(imagePath, angle);

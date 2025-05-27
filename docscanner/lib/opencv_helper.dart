@@ -104,7 +104,7 @@ class OpenCVHelper {
       );
     }
 
-    return _returnImage(mat);
+    return _returnImage(mat, uncompressed: true);
   }
 
   Future<Uint8List> scaleImageToWidth(String pathIn, int newWidth) {
@@ -164,7 +164,10 @@ class OpenCVHelper {
     return imageMat;
   }
 
-  Future<Uint8List> _returnImage(cv.Mat? imageMat) async {
+  Future<Uint8List> _returnImage(
+    cv.Mat? imageMat, {
+    bool uncompressed = false,
+  }) async {
     if (imageMat == null || imageMat.isEmpty) {
       dev.log("Error: Mat empty, can't convert to Image.");
       return Uint8List(0);
@@ -175,16 +178,19 @@ class OpenCVHelper {
       dev.log("Error: Failed to encode image.");
     }
 
-    final imgInfo = AppGlobals.getPngInfo(resultImageBytes);
-    final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
-      resultImageBytes,
-      minWidth: imgInfo!.width,
-      minHeight: imgInfo.height,
-      format: CompressFormat.png,
-      quality: 100,
-    );
-
-    return pngBytes;
+    if (uncompressed) {
+      return resultImageBytes;
+    } else {
+      final imgInfo = AppGlobals.getPngInfo(resultImageBytes);
+      final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
+        resultImageBytes,
+        minWidth: imgInfo!.width,
+        minHeight: imgInfo.height,
+        format: CompressFormat.png,
+        quality: 100,
+      );
+      return pngBytes;
+    }
   }
 
   /// Warp Image: Edge detection, stretch to A4
