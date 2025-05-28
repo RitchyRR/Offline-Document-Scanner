@@ -1686,4 +1686,33 @@ class FilesHelper {
       futurePngBytes,
     );
   }
+
+  Future<void> exportErrorLog() async {
+    // Get internal log file
+    final docDir = await getApplicationDocumentsDirectory();
+    final logFile = File("${docDir.path}/error_log.txt");
+
+    if (!await logFile.exists()) {
+      Fluttertoast.showToast(msg: "No log file found.");
+      return;
+    }
+
+    // Let user pick folder
+    isTmpExternal = true;
+    String? selectedDirectory = await getDirectoryPath(
+      confirmButtonText: "Select a Folder to Save PDF",
+    );
+    Future.delayed(Duration(seconds: 1), () {
+      isTmpExternal = false;
+    });
+    if (selectedDirectory == null) {
+      Fluttertoast.showToast(msg: "Saving Error Log cancelled");
+      return;
+    }
+
+    // Save externally
+    final outputFile = File("$selectedDirectory/error_log.txt");
+    outputFile.writeAsBytesSync(logFile.readAsBytesSync());
+    Fluttertoast.showToast(msg: "Log at: $selectedDirectory");
+  }
 }
