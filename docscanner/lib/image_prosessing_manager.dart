@@ -964,8 +964,9 @@ class ImageProcessingManager {
     File thumbnailFile = File(thumbnailPath);
 
     if (!versionFile.existsSync()) {
-      dev.log("Error, writeScaledThumbnail: $versionPath does not exist");
-      return false;
+      throw StateError(
+        "Error, writeScaledThumbnail: $versionPath does not exist",
+      );
     } else {
       for (FileSystemEntity fse in Directory(
         pagePath,
@@ -993,7 +994,7 @@ class ImageProcessingManager {
       // Save
       thumbnailFile.writeAsBytesSync(scaled); //img.encodePng(resized)
     } catch (e) {
-      dev.log("Error, writeScaledThumbnail, write: :$e");
+      throw StateError("Error, writeScaledThumbnail, write: :$e");
     }
 
     try {
@@ -1006,7 +1007,7 @@ class ImageProcessingManager {
         sendPort.send(NotifierEvent.loadDocsThumbnails);
       }
     } catch (e) {
-      dev.log("Error, writeScaledThumbnail, notify: :$e");
+      throw StateError("Error, writeScaledThumbnail, notify: :$e");
     }
 
     return true;

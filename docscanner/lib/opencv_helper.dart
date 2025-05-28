@@ -303,7 +303,7 @@ class OpenCVHelper {
   /// Step 2: Edge Detection & Filling -> Shape of document
   cv.Mat _documentMask(cv.Mat imageMat) {
     if (imageMat.isEmpty) {
-      dev.log("Error, Edge Detection & Filling: split channels");
+      throw StateError("Error, Edge Detection & Filling: split channels");
     }
 
     cv.Mat edges = _rgbEdges(imageMat);

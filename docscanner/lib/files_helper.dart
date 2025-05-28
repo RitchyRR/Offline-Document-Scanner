@@ -259,8 +259,7 @@ class FilesHelper {
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
     File(imagePath).copySync(versionPath);
     if (!File(versionPath).existsSync()) {
-      dev.log("Error, saveImage: Failed to copy to $versionPath");
-      return "";
+      throw StateError("Error, saveImage: Failed to copy to $versionPath");
     }
     //dev.log("Image copied to at: $toImagePath");
     return versionPath;
@@ -286,8 +285,7 @@ class FilesHelper {
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
     File(versionPath).writeAsBytesSync(pngBytes);
     if (!File(versionPath).existsSync()) {
-      dev.log("Error, saveImage: Failed to save $versionPath");
-      return "";
+      throw StateError("Error, saveImage: Failed to save $versionPath");
     }
     //dev.log("Image saved at: $toImagePath");
     return versionPath;
@@ -446,7 +444,7 @@ class FilesHelper {
       _repairDirectoryStructure();
       //  )) break;
     } catch (e) {
-      dev.log("Error, repairDirectoryStructure: $e");
+      throw StateError("Error, repairDirectoryStructure: $e");
     }
     //}
     //if (i == 5) {
@@ -766,10 +764,9 @@ class FilesHelper {
   ) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
     if (!await Directory(pagePath).exists()) {
-      dev.log(
+      throw StateError(
         "Error, deleteProcessedVersionsOfPage: Document $docIndex, Page $pageIndex nonexistent",
       );
-      return;
     }
     List<String> processedNames = ["thumbnail"];
     processedNames.addAll(versionNames.getRange(1, 4));
@@ -842,7 +839,7 @@ class FilesHelper {
         }
       }
     } catch (e) {
-      dev.log("Error, getImagePathsForPage: $e");
+      throw StateError("Error, getImagePathsForPage: $e");
     }
 
     return (versionPaths, shapePath, thumbnailPath);
@@ -1039,7 +1036,9 @@ class FilesHelper {
       )).$1;
     }
     if (imagePaths.isEmpty) {
-      dev.log("Error, saveImagesToGallery: No images in Document $docIndex");
+      throw StateError(
+        "Error, saveImagesToGallery: No images in Document $docIndex",
+      );
     }
 
     final albumName = "Scanned Documents";
@@ -1133,7 +1132,9 @@ class FilesHelper {
       )).$1;
     }
     if (imagePaths.isEmpty) {
-      dev.log("Error, _convertImagesToPdf: No images in Document $docIndex");
+      throw StateError(
+        "Error, _convertImagesToPdf: No images in Document $docIndex",
+      );
     }
 
     // Metadata
@@ -1221,9 +1222,8 @@ class FilesHelper {
 
       return pdfDoc;
     } catch (e) {
-      dev.log("Error, _convertImageToPdf: $e");
+      throw StateError("Error, _convertImageToPdf: $e");
     }
-    return null;
   }
 
   Future<void> pickFolderForSavingPdf(
@@ -1343,7 +1343,7 @@ class FilesHelper {
       });
       return await completer.future;
     } catch (e) {
-      dev.log("Error, pickFolderForDocumentPdf: $e");
+      throw StateError("Error, pickFolderForDocumentPdf: $e");
     }
   }
 
@@ -1368,7 +1368,8 @@ class FilesHelper {
         await pdfFile.writeAsBytes(await pdf.save());
         sendPort.send(true);
       } catch (e) {
-        dev.log("Error, _writePfdToPathIsolate: $e");
+        sendPort.send(false);
+        throw StateError("Error, _writePfdToPathIsolate: $e");
       }
     } else {
       sendPort.send(false);
@@ -1411,7 +1412,7 @@ class FilesHelper {
       )).$1;
     }
     if (imagePaths.isEmpty) {
-      dev.log("Error, shareImages: No images in Document $docIndex");
+      throw StateError("Error, shareImages: No images in Document $docIndex");
     }
 
     List<XFile> xFiles = [];

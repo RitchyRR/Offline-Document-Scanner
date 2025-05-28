@@ -223,7 +223,7 @@ class FeedbackHelper {
       dev.log("To $email: $message");
     } else {
       Fluttertoast.showToast(msg: "Error: No connection :(");
-      dev.log("Error, sendFeedbackByEmail: No connection :(");
+      throw StateError("Error, sendFeedbackByEmail: No connection :(");
     }
   }
 
