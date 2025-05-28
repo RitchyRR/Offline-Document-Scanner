@@ -75,7 +75,7 @@ class ImageProcessingManager {
           "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
         );
       } else {
-        StateError('Error, _processPageIsolate: no photo');
+        throw StateError('Error, _processPageIsolate: no photo');
       }
     }
     int thumbnailIndex =
