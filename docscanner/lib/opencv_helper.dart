@@ -173,7 +173,7 @@ class OpenCVHelper {
       return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
-    var (resultSuccess, resultImageBytes) = cv.imencode('.png', imageMat);
+    var (resultSuccess, resultImageBytes) = cv.imencode(".png", imageMat);
     if (!resultSuccess) {
       dev.log("Error: Failed to encode image.");
     }
@@ -970,7 +970,7 @@ class OpenCVHelper {
       hsv[1] = cv.min(cv.medianBlur(hsv[1], k1), hsv[1]);
       subtracted = cv.cvtColor(cv.merge(hsv), cv.COLOR_HSV2BGR);
     } catch (e) {
-      dev.log("Error, _warpedBg, medianBlur: $e");
+      dev.log("Warning, _warpedBg, medianBlur: $e");
     }
 
     return subtracted;
@@ -990,7 +990,7 @@ class OpenCVHelper {
     try {
       bg = cv.medianBlur(bg, (K * 2) + 1);
     } catch (e) {
-      dev.log("Error, _warpedBg, medianBlur: $e");
+      dev.log("Warning, _warpedBg, medianBlur: $e");
     }
     // 3. Remove dark structures (Closing)
     int k2 = K;

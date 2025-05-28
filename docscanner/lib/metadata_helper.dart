@@ -21,11 +21,11 @@ class MetadataHelper {
     final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
-        "Error, _writeDoc, $keyIn: Document does not exist: Document $docIndex",
+        "Warning, _writeDoc, $keyIn: Document does not exist: Document $docIndex",
       );
       return;
     }
-    final file = File('$docPath/metadata.json');
+    final file = File("$docPath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     // Read + Decrypt
@@ -34,7 +34,7 @@ class MetadataHelper {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       } catch (e) {
-        dev.log("Error, _writeDoc, $keyIn: Reading metadata: $e");
+        dev.log("Warning, _writeDoc, $keyIn: Reading metadata: $e");
       }
     } else if (!supressWarnings) {
       dev.log(
@@ -52,11 +52,11 @@ class MetadataHelper {
     final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
       dev.log(
-        "Error, saveDocName: Document does not exist: Document $docIndex",
+        "Warning, saveDocName: Document does not exist: Document $docIndex",
       );
       return null;
     }
-    final file = File('$docPath/metadata.json');
+    final file = File("$docPath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     // Read + Decrypt
@@ -66,10 +66,10 @@ class MetadataHelper {
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
         return metadata[keyIn];
       } catch (e) {
-        dev.log("Error, _readDoc, $keyIn: $e");
+        dev.log("Warning, _readDoc, $keyIn: $e");
       }
     } else {
-      dev.log("Error, _readDoc, $keyIn: No existing metadata.");
+      dev.log("Warning, _readDoc, $keyIn: No existing metadata.");
     }
     return null;
   }
@@ -81,10 +81,10 @@ class MetadataHelper {
     dynamic value,
   ) async {
     final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
+    final file = File("$pagePath/metadata.json");
     if (!Directory(pagePath).existsSync()) {
       dev.log(
-        "Error, _writePage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
+        "Warning, _writePage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
       );
       return;
     }
@@ -96,7 +96,7 @@ class MetadataHelper {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       } catch (e) {
-        dev.log("Error, _writePage, $keyIn: $e");
+        dev.log("Warning, _writePage, $keyIn: $e");
       }
     }
 
@@ -115,14 +115,13 @@ class MetadataHelper {
   }) async {
     bool isIsolate = false;
     if (gIn != null) isIsolate = true;
-    final pagePath =
-        await (isIsolate
-            ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
-            : g.filesHelper.getPagePath(docIndex, pageIndex));
-    final file = File('$pagePath/metadata.json');
+    final pagePath = await (isIsolate
+        ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
+        : g.filesHelper.getPagePath(docIndex, pageIndex));
+    final file = File("$pagePath/metadata.json");
     if (!Directory(pagePath).existsSync()) {
       dev.log(
-        "Error, _readPage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
+        "Warning, _readPage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
       );
       return;
     }
@@ -135,10 +134,10 @@ class MetadataHelper {
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
         return metadata[keyIn];
       } catch (e) {
-        dev.log("Error, _readPage, $keyIn: No existing metadata: $e");
+        dev.log("Warning, _readPage, $keyIn: No existing metadata: $e");
       }
     } else if (!supressWarnings) {
-      dev.log("Error, _readPage, $keyIn: No existing metadata.");
+      dev.log("Warning, _readPage, $keyIn: No existing metadata.");
     }
     return null;
   }
@@ -179,7 +178,7 @@ class MetadataHelper {
   }
 
   Future<void> writeDocUnlocked(int docIndex, bool unlocked) async {
-    await _writeDoc(docIndex, "unlocked", unlocked ? 'true' : 'false');
+    await _writeDoc(docIndex, "unlocked", unlocked ? "true" : "false");
 
     if (unlocked) {
       // Re-lock after 1 hour
@@ -192,7 +191,7 @@ class MetadataHelper {
   Future<bool> readDocUnlocked(int docIndex) async {
     dynamic value = await _readDoc(docIndex, "unlocked");
     if (value is String) {
-      return value == 'true';
+      return value == "true";
     } else {
       return false;
     }
@@ -207,7 +206,7 @@ class MetadataHelper {
       docIndex,
       pageIndex,
       "unlocked",
-      unlocked ? 'true' : 'false',
+      unlocked ? "true" : "false",
     );
 
     if (unlocked) {
@@ -234,7 +233,7 @@ class MetadataHelper {
       supressWarnings: supressWarnings,
     );
     if (value is String) {
-      return value == 'true';
+      return value == "true";
     } else {
       return false;
     }
@@ -254,7 +253,7 @@ class MetadataHelper {
     if (gIn != null) isIsolate = true;
     String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
         .getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
+    final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     // Read + Decrypt
@@ -263,7 +262,7 @@ class MetadataHelper {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       } catch (e) {
-        dev.log("Error, writePageMetadata, reading: $e");
+        dev.log("Warning, writePageMetadata, reading: $e");
       }
     }
 
@@ -274,7 +273,7 @@ class MetadataHelper {
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
     } catch (e) {
-      dev.log("Error, writePageMetadata: $e");
+      dev.log("Warning, writePageMetadata: $e");
     }
   }
 
@@ -287,7 +286,7 @@ class MetadataHelper {
     List<List<int>>? cornerPoints;
 
     String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
+    final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     // Read + Decrypt
@@ -300,17 +299,14 @@ class MetadataHelper {
           throw StateError("aspectRatio should not be saved as 0");
         }
       } catch (e) {
-        dev.log("Error, readPageMetadata, ratioValue: $e");
+        dev.log("Warning, readPageMetadata, ratioValue: $e");
       }
       try {
-        cornerPoints =
-            (metadata["corners"] as List)
-                .map<List<int>>(
-                  (e) => (e as List).map((v) => v as int).toList(),
-                )
-                .toList();
+        cornerPoints = (metadata["corners"] as List)
+            .map<List<int>>((e) => (e as List).map((v) => v as int).toList())
+            .toList();
       } catch (e) {
-        dev.log("Error, readPageMetadata, cornerPoints: $e");
+        dev.log("Warning, readPageMetadata, cornerPoints: $e");
       }
     } else if (!supressWarnings) {
       dev.log(
@@ -338,11 +334,10 @@ class MetadataHelper {
       thumbnailIndexIn = 2;
     }
     String newThumbnailName = versionNames[thumbnailIndexIn];
-    String pagePath =
-        await (isIsolate
-            ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
-            : g.filesHelper.getPagePath(docIndex, pageIndex));
-    final file = File('$pagePath/metadata.json');
+    String pagePath = await (isIsolate
+        ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
+        : g.filesHelper.getPagePath(docIndex, pageIndex));
+    final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     try {
@@ -356,7 +351,7 @@ class MetadataHelper {
           );
           oldThumbnailName = metadata["thumbnail"];
         } catch (e) {
-          dev.log("Error, writePageThumbnailIndex, Read: $e");
+          dev.log("Warning, writePageThumbnailIndex, Read: $e");
         }
       } else {
         dev.log(
@@ -374,7 +369,7 @@ class MetadataHelper {
         await file.writeAsString(encrypted);
       }
     } catch (e) {
-      dev.log("Error, writePageThumbnailIndex: $e");
+      dev.log("Warning, writePageThumbnailIndex: $e");
     }
     return isNewIndex;
   }
@@ -446,7 +441,7 @@ class MetadataHelper {
 
     String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
         .getPagePath(docIndex, pageIndex);
-    final file = File('$pagePath/metadata.json');
+    final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
     // Read + Decrypt
@@ -454,15 +449,12 @@ class MetadataHelper {
       try {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
-        List<List<int>> cornerPoints =
-            (metadata["corners"] as List)
-                .map<List<int>>(
-                  (e) => (e as List).map((v) => v as int).toList(),
-                )
-                .toList();
+        List<List<int>> cornerPoints = (metadata["corners"] as List)
+            .map<List<int>>((e) => (e as List).map((v) => v as int).toList())
+            .toList();
         return cornerPoints;
       } catch (e) {
-        dev.log("Error, readPageCornerPoints: $e");
+        dev.log("Warning, readPageCornerPoints: $e");
       }
     }
     if (!supressWarnings) {
@@ -475,7 +467,7 @@ class MetadataHelper {
 }
 
 class MetadataCryptoHelper {
-  static const _storageKey = 'encryption_key';
+  static const _storageKey = "encryption_key";
   static const _keySize = 32; // 256-bit AES
   static final _secureStorage = FlutterSecureStorage();
 
@@ -498,7 +490,7 @@ class MetadataCryptoHelper {
 
       return Key(base64Url.decode(keyBase64));
     } catch (e) {
-      dev.log("Error, _getOrCreateKey: $e");
+      dev.log("Warning, _getOrCreateKey: $e");
       throw StateError("_getOrCreateKey: $e");
     }
   }
@@ -520,7 +512,7 @@ class MetadataCryptoHelper {
 
       return encryptedWithIv;
     } catch (e) {
-      dev.log("Error, encryptMetadata: $e");
+      dev.log("Warning, encryptMetadata: $e");
       throw StateError("encryptMetadata: $e");
     }
   }
@@ -543,7 +535,7 @@ class MetadataCryptoHelper {
 
       return jsonDecode(decrypted);
     } catch (e) {
-      dev.log("Error, decryptMetadata: $e");
+      dev.log("Warning, decryptMetadata: $e");
       throw StateError("decryptMetadata: $e");
     }
   }

@@ -58,7 +58,7 @@ class ImageProcessingManager {
     int rotationIn = data.$9;
     bool isInitial = data.$10;
     if (pageThumbnailIndexIn == 0) {
-      throw StateError('Error, _processPageIsolate: photo cant be thumbnail');
+      throw StateError("Error, _processPageIsolate: photo cant be thumbnail");
     }
     AppGlobals g = data.$11;
     if (!File(newPhotoPath).existsSync() ||
@@ -75,7 +75,7 @@ class ImageProcessingManager {
           "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
         );
       } else {
-        throw StateError('Error, _processPageIsolate: no photo');
+        throw StateError("Error, _processPageIsolate: no photo");
       }
     }
     int thumbnailIndex =
@@ -175,7 +175,7 @@ class ImageProcessingManager {
       }
     }
 
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   static void _processPdfPageIsolateThumbnail(
@@ -236,7 +236,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
     await _scaleAndSaveThumbnailIsolate(sendPort, docIndex, pageIndex, 0, g);
 
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   static void _processPdfPageIsolateFilters(
@@ -273,7 +273,7 @@ class ImageProcessingManager {
     );
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
 
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   Future<void> _processPageWrapper(
@@ -303,7 +303,7 @@ class ImageProcessingManager {
       //    quality: 100,
       //  );
       //  if (pngBytes == null) {
-      //    throw StateError('photo $photoPath is broken');
+      //    throw StateError("photo $photoPath is broken");
       //  }
       //  photoPath = await g.filesHelper.savePageVersion(
       //    docIndex,
@@ -351,7 +351,7 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port.close();
         wrapperCompleter.complete();
 
@@ -389,7 +389,7 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port.close();
         wrapperCompleter.complete();
 
@@ -426,7 +426,7 @@ class ImageProcessingManager {
     port2.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port2.close();
         wrapperCompleter2.complete();
 
@@ -472,7 +472,7 @@ class ImageProcessingManager {
 
     final photoFile = File(versionPaths[0]);
     if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
-      throw StateError('Error, _repairPageIsolate: no photo');
+      throw StateError("Error, _repairPageIsolate: no photo");
     }
 
     // Warped
@@ -565,7 +565,7 @@ class ImageProcessingManager {
       }
     }
 
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
@@ -771,7 +771,7 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port.close();
         repairCompleter.complete();
 
@@ -821,7 +821,7 @@ class ImageProcessingManager {
       quality: 100,
     );
     if (pngBytes == null) {
-      throw StateError('photo $versionPaths[0] does not exist');
+      throw StateError("photo $versionPaths[0] does not exist");
     }
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
 
@@ -898,7 +898,7 @@ class ImageProcessingManager {
       );
     }
 
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   Future<void> rotatePage(
@@ -925,7 +925,7 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port.close();
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();
@@ -1053,7 +1053,7 @@ class ImageProcessingManager {
       thumbnailIndex,
       gIn,
     );
-    sendPort.send('done');
+    sendPort.send("done");
   }
 
   Future<void> saveNewThumbnail(
@@ -1098,7 +1098,7 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == 'done') {
+      } else if (message == "done") {
         port.close();
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();

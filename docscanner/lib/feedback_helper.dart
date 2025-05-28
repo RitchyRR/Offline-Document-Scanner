@@ -114,7 +114,7 @@ class FeedbackHelper {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text('Rate our App'),
+            title: Text("Rate our App"),
             content: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
@@ -137,7 +137,7 @@ class FeedbackHelper {
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: Text('Cancel'),
+                child: Text("Cancel"),
               ),
               ElevatedButton(
                 onPressed: rating == 0
@@ -152,7 +152,7 @@ class FeedbackHelper {
                           _showFeedbackDialog(context, rating);
                         }
                       },
-                child: Text('Next'),
+                child: Text("Next"),
               ),
             ],
           );
@@ -168,7 +168,7 @@ class FeedbackHelper {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text('Give Feedback'),
+            title: Text("Give Feedback"),
             content: TextField(
               controller: controller,
               maxLines: 4,
@@ -185,18 +185,18 @@ class FeedbackHelper {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
+                child: Text("Cancel"),
               ),
               ElevatedButton(
                 onPressed: controller.text.trim().isEmpty
                     ? null
                     : () {
                         final feedback = controller.text;
-                        dev.log('User feedback: $feedback');
+                        dev.log("User feedback: $feedback");
                         _sendFeedbackByEmail(feedback, rating);
                         Navigator.pop(context);
                       },
-                child: Text('Send'),
+                child: Text("Send"),
               ),
             ],
           );
@@ -213,17 +213,17 @@ class FeedbackHelper {
       "User feedback:\n\n"
       "$message\n\n",
     );
-    final String email = 'R.R.appdev.public@gmail.com';
+    final String email = "R.R.appdev.public@gmail.com";
 
-    final Uri emailUri = Uri.parse('mailto:$email?subject=$subject&body=$body');
+    final Uri emailUri = Uri.parse("mailto:$email?subject=$subject&body=$body");
 
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
       Fluttertoast.showToast(msg: "Thank you for your feedback!");
-      dev.log('To $email: $message');
+      dev.log("To $email: $message");
     } else {
       Fluttertoast.showToast(msg: "Error: No connection :(");
-      dev.log('Error, sendFeedbackByEmail: No connection :(');
+      dev.log("Error, sendFeedbackByEmail: No connection :(");
     }
   }
 
@@ -238,10 +238,10 @@ class FeedbackHelper {
 
     // open store page
     final url = Uri(
-      scheme: 'https',
-      host: 'play.google.com',
-      path: '/store/apps/details',
-      queryParameters: {'id': 'com.rrapps.docscanner'},
+      scheme: "https",
+      host: "play.google.com",
+      path: "/store/apps/details",
+      queryParameters: {"id": "com.rrapps.docscanner"},
     );
     dev.log("Opening URL: $url");
     if (await canLaunchUrl(url)) {

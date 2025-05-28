@@ -166,7 +166,7 @@ class FilesHelper {
     }
     WidgetsFlutterBinding.ensureInitialized();
     final baseDir = await getApplicationDocumentsDirectory();
-    docsPath = '${baseDir.path}/Documents';
+    docsPath = "${baseDir.path}/Documents";
     var docsDir = Directory(docsPath);
     if (!docsDir.existsSync()) {
       await docsDir.create(recursive: true);
@@ -193,7 +193,7 @@ class FilesHelper {
     await _initializeDocumentsPath();
 
     String docPath =
-        '$docsPath/Document ${(docIndex).toString().padLeft(4, '0')}';
+        "$docsPath/Document ${(docIndex).toString().padLeft(4, "0")}";
     if (!Directory(docPath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getDocumentPath: Requested Document $docIndex does not exist.",
@@ -206,13 +206,13 @@ class FilesHelper {
     String docPath = await getDocumentPath(docIndex);
     int pageIndex = 0;
     while (Directory(
-      '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}',
+      "$docPath/Page ${(pageIndex).toString().padLeft(4, "0")}",
     ).existsSync()) {
       pageIndex++;
     }
 
     String newPagePath =
-        '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
+        "$docPath/Page ${(pageIndex).toString().padLeft(4, "0")}";
     Directory(newPagePath).createSync();
     return (newPagePath, pageIndex);
   }
@@ -226,7 +226,7 @@ class FilesHelper {
       docIndex,
       supressWarnings: supressWarnings,
     );
-    String pagePath = '$docPath/Page ${(pageIndex).toString().padLeft(4, '0')}';
+    String pagePath = "$docPath/Page ${(pageIndex).toString().padLeft(4, "0")}";
     if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, getPagePath: Requested directory \"$pagePath\" does not exist.",
@@ -980,9 +980,7 @@ class FilesHelper {
         if (!file.path.endsWith(".json")) versionsCount++;
       }
     } else {
-      dev.log(
-        "Warning, getPageVersionsCount: '${pageDir.path}' does not exist",
-      );
+      dev.log("Warning, getPageVersionsCount: ${pageDir.path} does not exist");
     }
     return versionsCount;
   }
@@ -993,7 +991,7 @@ class FilesHelper {
     if (docDir.existsSync()) {
       pagesCount = docDir.listSync().whereType<Directory>().toList().length;
     } else {
-      dev.log("Warning, getPagesCount: '${docDir.path}' does not exist");
+      dev.log("Warning, getPagesCount: ${docDir.path} does not exist");
       pagesCount = 0;
     }
     return pagesCount;
@@ -1020,7 +1018,7 @@ class FilesHelper {
       await Gal.putImage(imagePath, album: albumName);
       i++;
     }
-    Fluttertoast.showToast(msg: 'Saved $i images in album "$albumName"');
+    Fluttertoast.showToast(msg: "Saved $i images in album $albumName");
   }
 
   Future<void> saveImagesToGallery(
@@ -1048,7 +1046,7 @@ class FilesHelper {
 
     for (String imagePath in imagePaths) {
       await Gal.putImage(imagePath, album: albumName);
-      Fluttertoast.showToast(msg: 'Saved in album "$albumName"');
+      Fluttertoast.showToast(msg: "Saved in album $albumName");
     }
   }
 
@@ -1066,7 +1064,7 @@ class FilesHelper {
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Fetching Images...'),
+          const Text("Fetching Images..."),
           SizedBox(
             width: 20,
             height: 20,
@@ -1246,7 +1244,7 @@ class FilesHelper {
         content: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Processing PDF...'),
+            const Text("Processing PDF..."),
             SizedBox(
               width: 20,
               height: 20,
@@ -1270,7 +1268,7 @@ class FilesHelper {
         isTmpExternal = false;
       });
       if (selectedDirectory == null) {
-        throw StateError('User-Action, pickFolderForDocumentPdf: cancelled');
+        throw StateError("User-Action, pickFolderForDocumentPdf: cancelled");
       }
 
       // SnackBar
@@ -1442,7 +1440,7 @@ class FilesHelper {
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Processing PDF...'),
+          const Text("Processing PDF..."),
           SizedBox(
             width: 20,
             height: 20,
@@ -1572,7 +1570,7 @@ class FilesHelper {
     final List<(int?, int?)> indexPairsList = [];
     if (isTmpExternal) return indexPairsList;
     // User picks PDF
-    final pdfType = XTypeGroup(label: 'PDF', extensions: ['pdf']);
+    final pdfType = XTypeGroup(label: "PDF", extensions: ["pdf"]);
     isTmpExternal = true;
     final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
     Future.delayed(Duration(seconds: 1), () {

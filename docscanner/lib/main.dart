@@ -65,7 +65,7 @@ void main() async {
   MobileAds.instance.initialize();
   //// Play Test Ads
   //MobileAds.instance.updateRequestConfiguration(
-  //  RequestConfiguration(testDeviceIds: ['09BF6CED0A634AD6921EF7E4280CFAFC']),
+  //  RequestConfiguration(testDeviceIds: ["09BF6CED0A634AD6921EF7E4280CFAFC"]),
   //);
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -145,13 +145,13 @@ class _MyAppState extends State<MyApp> {
       if (mounted) {
         g.filesHelper.calculateScreenWidth(context);
       } else {
-        dev.log("Error, _MyAppState, initAsync(): not mounted");
+        dev.log("Warning, _MyAppState, initAsync(): not mounted");
       }
     });
     final sStorage = FlutterSecureStorage();
-    final proUnlockedString = await sStorage.read(key: 'proUnlocked');
+    final proUnlockedString = await sStorage.read(key: "proUnlocked");
     setState(() {
-      g.proUnlocked = proUnlockedString != null && proUnlockedString == 'true';
+      g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
     });
   }
 
@@ -178,32 +178,32 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           navigatorKey: navigatorKey, // to pop until homepage from anywhere
           navigatorObservers: [routeObserver],
-          title: 'Offline Document Scanner',
-          initialRoute: '/',
+          title: "Offline Document Scanner",
+          initialRoute: "/",
           onGenerateRoute: (settings) {
             switch (settings.name) {
-              case '/':
+              case "/":
                 return MaterialPageRoute(builder: (_) => DocumentsHome());
 
-              case '/pages':
+              case "/pages":
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
                   builder: (_) => Pages(
-                    docIndex: args['docIndex'],
-                    initialPageIndex: args['initialPageIndex'],
+                    docIndex: args["docIndex"],
+                    initialPageIndex: args["initialPageIndex"],
                   ),
                 );
 
-              case '/preview':
+              case "/preview":
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
                   builder: (_) => PagePreview(
-                    docIndex: args['docIndex'],
-                    pageIndex: args['pageIndex'],
+                    docIndex: args["docIndex"],
+                    pageIndex: args["pageIndex"],
                   ),
                 );
 
-              case '/camera':
+              case "/camera":
                 return MaterialPageRoute(
                   builder: (context) => Theme(
                     data: Theme.of(context).copyWith(
@@ -213,16 +213,16 @@ class _MyAppState extends State<MyApp> {
                   ),
                 );
 
-              case '/warp':
+              case "/warp":
                 final args = settings.arguments as Map<String, dynamic>;
                 return MaterialPageRoute(
                   builder: (_) => Warp(
-                    pagePreviewState: args['pagePreviewState'],
-                    docIndex: args['docIndex'],
-                    pageIndex: args['pageIndex'],
-                    imagePath: args['imagePath'],
-                    cornerPoints: args['cornerPoints'],
-                    rotation: args['rotation'],
+                    pagePreviewState: args["pagePreviewState"],
+                    docIndex: args["docIndex"],
+                    pageIndex: args["pageIndex"],
+                    imagePath: args["imagePath"],
+                    cornerPoints: args["cornerPoints"],
+                    rotation: args["rotation"],
                   ),
                 );
 
@@ -260,7 +260,7 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           themeMode: ThemeMode.system, // device controls theme
-          home: const DocumentsHome(title: 'Documents'),
+          home: const DocumentsHome(title: "Documents"),
         );
       },
     );
@@ -403,15 +403,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushNamed(
         context,
-        '/pages',
-        arguments: {'docIndex': docIndex, 'initialPageIndex': pageIndex},
+        "/pages",
+        arguments: {"docIndex": docIndex, "initialPageIndex": pageIndex},
       );
     });
   }
 
   Future<List<String>> _openCamera() async {
     g.filesHelper.pickingImage = true;
-    final result = await Navigator.pushNamed(context, '/camera');
+    final result = await Navigator.pushNamed(context, "/camera");
     List<String> photoPaths = [];
     if (result is List<XFile>) {
       for (var xfile in result) {
@@ -546,7 +546,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   Future<void> _openDocument(int docIndex) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushNamed(context, '/pages', arguments: {'docIndex': docIndex});
+      Navigator.pushNamed(context, "/pages", arguments: {"docIndex": docIndex});
     });
   }
 
@@ -606,7 +606,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       onPressed: !allowChangeDocIndex
                           ? () => Fluttertoast.showToast(
                               msg:
-                                  'Blocked while other Documents are processing...',
+                                  "Blocked while other Documents are processing...",
                             )
                           : null,
                       child: DropdownButtonFormField<int>(
@@ -793,10 +793,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
         "Hey, I found this document scanner app that works without uploading your data.\n"
         "The image processing is really good!\n";
     final url = Uri(
-      scheme: 'https',
-      host: 'play.google.com',
-      path: '/store/apps/details',
-      queryParameters: {'id': 'com.rrapps.docscanner'},
+      scheme: "https",
+      host: "play.google.com",
+      path: "/store/apps/details",
+      queryParameters: {"id": "com.rrapps.docscanner"},
     );
     await showDialog(
       context: context,
@@ -837,7 +837,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
+                child: Text("Cancel"),
               ),
               ElevatedButton.icon(
                 icon: Icon(Icons.share),
@@ -851,7 +851,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                           ShareParams(text: fullMessage),
                         );
                       },
-                label: Text('Share'),
+                label: Text("Share"),
               ),
             ],
           );
@@ -986,7 +986,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 case "licenses":
                   showLicensePage(
                     context: context,
-                    applicationName: 'Offline Document Scanner',
+                    applicationName: "Offline Document Scanner",
                     applicationVersion:
                         "${_packageInfo.version}+${_packageInfo.buildNumber}",
                   );
@@ -1318,7 +1318,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 Center(
                   child: Text(
                     textAlign: TextAlign.center,
-                    'Add a new Document',
+                    "Add a new Document",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 24,
@@ -1330,7 +1330,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(0, 32, 0, 95),
                     child: Image.asset(
-                      'assets/arrow.png',
+                      "assets/arrow.png",
                       height: 360,
                       color: Theme.of(context).splashColor, // optional tint
                       fit: BoxFit.contain, // or BoxFit.cover, etc.
@@ -1356,7 +1356,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 onPressed: () {
                   _openImagePicker(ImageSource.gallery, isMultiImage: true);
                 },
-                tooltip: 'Pick Images from Gallery',
+                tooltip: "Pick Images from Gallery",
                 child: const Icon(Icons.photo_library),
               ),
             ),
@@ -1373,7 +1373,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   final indexPairsList = await g.filesHelper.pickPdfToDoc();
                   _openDocument(indexPairsList.first.$1!);
                 },
-                tooltip: 'Pick PDF from Directory',
+                tooltip: "Pick PDF from Directory",
                 child: const Icon(Icons.picture_as_pdf),
               ),
             ),
@@ -1384,7 +1384,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 onPressed: () {
                   _openImagePicker(ImageSource.camera);
                 },
-                tooltip: 'Take a Photo',
+                tooltip: "Take a Photo",
                 child: const Icon(Icons.camera_alt),
               ),
           ],
@@ -1548,7 +1548,7 @@ final List<ProductDetails> products = [];
 Future<void> initStoreInfo() async {
   final bool available = await iap.isAvailable();
   if (!available) {
-    dev.log("Error, initStoreInfo: In-App-Purchases not available");
+    dev.log("Warning, initStoreInfo: In-App-Purchases not available");
     return;
   }
   listenToPurchaseUpdates();
@@ -1560,7 +1560,7 @@ Future<void> initStoreInfo() async {
 
   if (response.notFoundIDs.isNotEmpty) {
     dev.log(
-      "Error, initStoreInfo: Product IDs not forund: ${response.notFoundIDs}",
+      "Warning, initStoreInfo: Product IDs not forund: ${response.notFoundIDs}",
     );
   }
 
@@ -1575,8 +1575,8 @@ Future<void> initStoreInfo() async {
 deactivateProAfterWeekOffline() async {
   final sStorage = FlutterSecureStorage();
 
-  final bool isSaved = 'true' == await sStorage.read(key: 'proUnlocked');
-  final String? savedDate = await sStorage.read(key: 'proUnlockedDate');
+  final bool isSaved = "true" == await sStorage.read(key: "proUnlocked");
+  final String? savedDate = await sStorage.read(key: "proUnlockedDate");
 
   if (isSaved && savedDate != null) {
     final unlockTime = DateTime.tryParse(savedDate);
@@ -1657,12 +1657,12 @@ Future<bool> buyPro() async {
   try {
     proUpgrade = products[0];
   } catch (e) {
-    dev.log("Error, buyPro: proUpgrade not available: $e");
+    dev.log("Warning, buyPro: proUpgrade not available: $e");
     return false;
   }
   final PurchaseParam purchaseParam = PurchaseParam(productDetails: proUpgrade);
   if (!await iap.buyNonConsumable(purchaseParam: purchaseParam)) {
-    dev.log("Error, buyPro: Request not sent successfully.");
+    dev.log("Warning, buyPro: Request not sent successfully.");
     return false;
   }
   return true;
@@ -1743,18 +1743,18 @@ setPro(final bool proUnlockedIn) async {
 
   final sStorage = FlutterSecureStorage();
   sStorage.write(
-    key: 'proUnlocked',
-    value: proUnlockedIn == true ? 'true' : 'false',
+    key: "proUnlocked",
+    value: proUnlockedIn == true ? "true" : "false",
   );
 
   if (proUnlockedIn) {
     final now = DateTime.now().toIso8601String();
-    sStorage.write(key: 'proUnlockedDate', value: now);
+    sStorage.write(key: "proUnlockedDate", value: now);
   }
 
   if (showMessages) {
     Fluttertoast.showToast(
-      msg: proUnlockedIn ? 'PRO Features unlocked!' : 'PRO Features disabled!',
+      msg: proUnlockedIn ? 'PRO Features unlocked!' : "PRO Features disabled!",
     );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
@@ -1764,7 +1764,7 @@ Future<bool> _unlockDocumentWithAd(BuildContext context) async {
   final bool adWatched = await adsHelper.showRewardAd();
   if (adWatched) {
     Fluttertoast.showToast(
-      msg: 'Combined PDF temorarily unlocked for Document!',
+      msg: "Combined PDF temorarily unlocked for Document!",
     );
     return true;
   }
@@ -1774,7 +1774,7 @@ Future<bool> _unlockDocumentWithAd(BuildContext context) async {
 Future<bool> _unlockPageWithAd(BuildContext context) async {
   final bool adWatched = await adsHelper.showRewardAd();
   if (adWatched) {
-    Fluttertoast.showToast(msg: 'PRO filter temorarily unlocked for Page!');
+    Fluttertoast.showToast(msg: "PRO filter temorarily unlocked for Page!");
     return true;
   }
   return false;
@@ -1979,8 +1979,8 @@ class _PagesState extends State<Pages> with RouteAware {
   Future<void> _openPagePreview(int pageIndex) async {
     Navigator.pushNamed(
       context,
-      '/preview',
-      arguments: {'docIndex': widget.docIndex, 'pageIndex': pageIndex},
+      "/preview",
+      arguments: {"docIndex": widget.docIndex, "pageIndex": pageIndex},
     );
   }
 
@@ -2034,7 +2034,7 @@ class _PagesState extends State<Pages> with RouteAware {
 
   Future<List<String>> _openCamera() async {
     g.filesHelper.pickingImage = true;
-    final result = await Navigator.pushNamed(context, '/camera');
+    final result = await Navigator.pushNamed(context, "/camera");
     List<String> photoPaths = [];
     if (result is List<XFile>) {
       for (var xfile in result) {
@@ -2381,7 +2381,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             isMultiImage: true,
                           );
                         },
-                        tooltip: 'Pick Images from Gallery',
+                        tooltip: "Pick Images from Gallery",
                         child: const Icon(Icons.photo_library),
                       ),
                     ),
@@ -2439,7 +2439,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             );
                           }
                         },
-                        tooltip: 'Pick PDF from Directory',
+                        tooltip: "Pick PDF from Directory",
                         child: const Icon(Icons.picture_as_pdf),
                       ),
                     ),
@@ -2451,7 +2451,7 @@ class _PagesState extends State<Pages> with RouteAware {
                         onPressed: () {
                           _openImagePicker(ImageSource.camera);
                         },
-                        tooltip: 'Take a Photo',
+                        tooltip: "Take a Photo",
                         child: const Icon(Icons.camera_alt),
                       ),
                   ],
@@ -2478,7 +2478,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             _cancelSelectMode();
                           }
                         },
-                        tooltip: 'Delete',
+                        tooltip: "Delete",
                         child: const Icon(Icons.delete),
                       ),
                     ),
@@ -2499,7 +2499,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             widget.docIndex,
                           );
                         },
-                        tooltip: 'Save',
+                        tooltip: "Save",
                         child: const Icon(Icons.save),
                       ),
                     ),
@@ -2515,7 +2515,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             widget.docIndex,
                           );
                         },
-                        tooltip: 'Share',
+                        tooltip: "Share",
                         child: const Icon(Icons.share),
                       ),
                   ],
@@ -2564,7 +2564,7 @@ class _PagesState extends State<Pages> with RouteAware {
                     onPressed: !allowChangePageIndex
                         ? () => Fluttertoast.showToast(
                             msg:
-                                'Blocked while other Pages of this Document are processing...',
+                                "Blocked while other Pages of this Document are processing...",
                           )
                         : null,
                     child: DropdownButtonFormField<int>(
@@ -2606,7 +2606,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           }
                         : () => Fluttertoast.showToast(
                             msg:
-                                'Blocked while Pages of this Document are processing...',
+                                "Blocked while Pages of this Document are processing...",
                           ),
                     label: Text(
                       "Reverse Order",
@@ -3026,7 +3026,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                             boxShadow: [tinyBoxShadow(context)],
                           ),
                           child: Text(
-                            '${_getCurrentPage() + 1}/${_ratios.length}',
+                            "${_getCurrentPage() + 1}/${_ratios.length}",
                             style: TextStyle(fontSize: 12, color: textColor),
                           ),
                         ),
@@ -3320,14 +3320,14 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _openWarpManuallyPage() async {
     Navigator.pushNamed(
       context,
-      '/warp',
+      "/warp",
       arguments: {
-        'pagePreviewState': this,
-        'docIndex': widget.docIndex,
-        'pageIndex': widget.pageIndex,
-        'imagePath': _versionPaths.first,
-        'cornerPoints': _cornerPoints,
-        'rotation': _totalRotation,
+        "pagePreviewState": this,
+        "docIndex": widget.docIndex,
+        "pageIndex": widget.pageIndex,
+        "imagePath": _versionPaths.first,
+        "cornerPoints": _cornerPoints,
+        "rotation": _totalRotation,
       },
     );
   }
@@ -3435,7 +3435,7 @@ class PagePreviewState extends State<PagePreview> {
         resizeToAvoidBottomInset: false,
         // Top Bar
         appBar: AppBar(
-          title: Text('Page ${widget.pageIndex + 1}'),
+          title: Text("Page ${widget.pageIndex + 1}"),
           actions: [
             PopupMenuButton(
               itemBuilder: (context) => [
@@ -3636,7 +3636,7 @@ class PagePreviewState extends State<PagePreview> {
                           : null,
                       tooltip: enableFAB0 && !_metadataBlocked
                           ? 'Adjust Corner Points'
-                          : 'Waiting for image to load...',
+                          : "Waiting for image to load...",
                       backgroundColor: enableFAB0 && !_metadataBlocked
                           ? null
                           : Theme.of(context).disabledColor,
@@ -3686,7 +3686,7 @@ class PagePreviewState extends State<PagePreview> {
                     : null,
                 tooltip: enableFABs
                     ? 'Save Image'
-                    : 'Waiting for image to load...',
+                    : "Waiting for image to load...",
                 backgroundColor: enableFABs
                     ? null
                     : Theme.of(context).disabledColor,
@@ -3712,7 +3712,7 @@ class PagePreviewState extends State<PagePreview> {
                   : null,
               tooltip: enableFABs
                   ? 'Share Image'
-                  : 'Waiting for image to load...',
+                  : "Waiting for image to load...",
               backgroundColor: enableFABs
                   ? null
                   : Theme.of(context).disabledColor,
@@ -3849,7 +3849,7 @@ class PagePreviewState extends State<PagePreview> {
           _imageRetryKey = (_imageRetryKey - 1) * (-1);
         });
       } else {
-        dev.log("Error, _refreshAfterBrokenImage: not mounted");
+        dev.log("Warning, _refreshAfterBrokenImage: not mounted");
       }
     });
   }
@@ -4707,7 +4707,7 @@ class _WarpState extends State<Warp> {
             CustomIconButton(
               onTap: () => _saveCorners(),
               icon: Icons.check,
-              tooltip: 'Save adjusted Corners',
+              tooltip: "Save adjusted Corners",
             ),
             SizedBox(width: 12),
           ],
@@ -5753,16 +5753,16 @@ class _CameraScreenState extends State<CameraScreen> {
             Flexible(child: const Text("Camera Permission Needed")),
           ],
         ),
-        content: Text('Please enable camera access from your device settings.'),
+        content: Text("Please enable camera access from your device settings."),
         actions: [
           TextButton(
-            child: Text('Cancel'),
+            child: Text("Cancel"),
             onPressed: () {
               Navigator.pop(context, false);
             },
           ),
           ElevatedButton(
-            child: Text('Open Settings'),
+            child: Text("Open Settings"),
             onPressed: () {
               openAppSettings();
               Navigator.pop(context, true);
@@ -5816,7 +5816,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _cameraFlash = false;
       });
     } catch (e) {
-      dev.log("Error taking photo: $e");
+      dev.log("Warning taking photo: $e");
     }
   }
 
@@ -5933,13 +5933,13 @@ class _CameraScreenState extends State<CameraScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            tooltip: 'Close Camera',
+            tooltip: "Close Camera",
             icon: const Icon(Icons.close, color: Colors.white),
             onPressed: () => Navigator.maybePop(context),
           ),
           actions: [
             CustomIconButton(
-              tooltip: 'Process Photos',
+              tooltip: "Process Photos",
               isDisabled: _capturedImages.isEmpty,
               onTap: () {
                 allowPop = true;
@@ -5993,7 +5993,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: IconButton(
-                    tooltip: _isFlashOn ? 'Disable Flash' : 'Enable Flash',
+                    tooltip: _isFlashOn ? 'Disable Flash' : "Enable Flash",
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       _toggleFlash();
@@ -6053,7 +6053,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
 
                 Tooltip(
-                  message: 'Preview Photos',
+                  message: "Preview Photos",
                   child: ThumbnailWithBadge(
                     image: _capturedImages.isNotEmpty
                         ? File(_capturedImages.first.path)
@@ -6091,13 +6091,13 @@ class _CameraScreenState extends State<CameraScreen> {
               appBar: AppBar(
                 backgroundColor: Colors.black,
                 leading: IconButton(
-                  tooltip: 'Back',
+                  tooltip: "Back",
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
                 actions: [
                   IconButton(
-                    tooltip: 'Delete Photo',
+                    tooltip: "Delete Photo",
                     icon: Icon(Icons.delete, color: Colors.white),
                     onPressed: () {
                       HapticFeedback.lightImpact();
@@ -6137,7 +6137,7 @@ class _CameraScreenState extends State<CameraScreen> {
               //    children: <Widget>[
               //      FloatingActionButton(
               //        heroTag: "deletePhoto",
-              //        tooltip: 'Delete Photo',
+              //        tooltip: "Delete Photo",
               //        onPressed: () {
               //          HapticFeedback.lightImpact();
               //          int index = controller.page!.round();
@@ -6301,7 +6301,7 @@ class ThumbnailWithBadge extends StatelessWidget {
                   color: Colors.white, //Theme.of(context).colorScheme.
                 ),
                 child: Text(
-                  '$count',
+                  "$count",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
@@ -6349,7 +6349,7 @@ class AdsHelper {
           completer.complete();
         },
         onAdFailedToLoad: (LoadAdError error) {
-          dev.log("Error: Failed to load reward ad: $error");
+          dev.log("Warning: Failed to load reward ad: $error");
           Fluttertoast.showToast(msg: "Error: Failed to load ad.");
           completer.complete();
         },
@@ -6365,14 +6365,14 @@ class AdsHelper {
     if (_isAdLoaded && _rewardAd != null) {
       _rewardAd!.show(
         onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-          dev.log('User earned reward: ${reward.type}'); //${reward.amount}
+          dev.log("User earned reward: ${reward.type}"); //${reward.amount}
           //Fluttertoast.showToast(msg: "User earned reward: ${reward.type}");
           watachedAd = true;
           completer.complete();
         },
       );
     } else {
-      dev.log("Error: Ad not loaded yet.");
+      dev.log("Warning: Ad not loaded yet.");
       Fluttertoast.showToast(msg: "Error: Ad not loaded.");
       completer.complete();
     }
