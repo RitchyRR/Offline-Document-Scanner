@@ -44,7 +44,7 @@ class FilesHelper {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
     List<List<int>> decoded = _markedDeletedPages;
-    if (jsonString != null && jsonString != "[]") {
+    if (jsonString != null && jsonString != "" && jsonString != "[]") {
       decoded = (jsonDecode(jsonString) as List<dynamic>)
           .map<List<int>>((e) => List<int>.from(e as List))
           .toList();
@@ -55,11 +55,11 @@ class FilesHelper {
   }
 
   _addMarkedDeletedPage(int docIndex, int pageIndex) async {
-    if (_markedDeletedPages[docIndex].contains(pageIndex)) return;
-    final prefs = await SharedPreferences.getInstance();
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
+    if (_markedDeletedPages[docIndex].contains(pageIndex)) return;
+    final prefs = await SharedPreferences.getInstance();
     _markedDeletedPages[docIndex].add(pageIndex);
     _markedDeletedPages[docIndex].sort();
     _markedDeletedPages[docIndex] = _markedDeletedPages[docIndex].reversed
@@ -85,7 +85,7 @@ class FilesHelper {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedDocs");
     List<int> decoded = _markedDeletedDocs;
-    if (jsonString != null && jsonString != "[]") {
+    if (jsonString != null && jsonString != "" && jsonString != "[]") {
       decoded = (jsonDecode(jsonString) as List<dynamic>).cast<int>();
     }
     _markedDeletedDocs.clear();

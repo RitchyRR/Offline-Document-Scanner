@@ -424,6 +424,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   _initReceiveSharingIntent() {
     // App launched by Opening/Sharing image(s)/pdf
+    WidgetsFlutterBinding.ensureInitialized();
     ReceiveSharingIntent.instance.getInitialMedia().then((
       List<SharedMediaFile> value,
     ) {

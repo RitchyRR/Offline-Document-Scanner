@@ -142,23 +142,15 @@ class ImageProcessingManager {
     Uint8List processed1 = await cvHelper.processImage1(
       ParamsProcessImage1(versionPaths[1]),
     );
-    versionPaths[2] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      2,
-      processed1,
-    );
+    //versionPaths[2] =
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
 
     // Processed2 basierend auf dem Warped-Bild
     Uint8List processed2 = await cvHelper.processImage2(
       ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
     );
-    versionPaths[3] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      3,
-      processed2,
-    );
+    //versionPaths[3] =
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
 
     // Update thumbnails:
     sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -350,6 +342,7 @@ class ImageProcessingManager {
       ),
       prio: prio,
       onErrorFunction: (error, stack) async {
+        dev.log("_processPageIsolate, onErrorFunction: $error $stack");
         repairPage(docIndex, pageIndex);
       },
     );
@@ -385,6 +378,9 @@ class ImageProcessingManager {
       (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
       prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
+        dev.log(
+          "_processPdfPageIsolateThumbnail, onErrorFunction: $error $stack",
+        );
         repairPage(docIndex, pageIndex);
       },
     );
@@ -419,6 +415,9 @@ class ImageProcessingManager {
       (port2.sendPort, token, docIndex, pageIndex, photoPath, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
+        dev.log(
+          "_processPdfPageIsolateFilters, onErrorFunction: $error $stack",
+        );
         repairPage(docIndex, pageIndex);
       },
     );
@@ -763,7 +762,7 @@ class ImageProcessingManager {
       (port.sendPort, token, docIndex, pageIndex, ratioValue, cornerPoints, g),
       prio: IsolatePriority.regular,
       onErrorFunction: (error, stack) {
-        dev.log("Error, _repairPageIsolate -> deleting page: $error $stack");
+        dev.log("_repairPageIsolate, onErrorFunction: $error $stack");
         g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
       },
     );
