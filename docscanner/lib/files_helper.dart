@@ -213,7 +213,7 @@ class FilesHelper {
 
     String newPagePath =
         "$docPath/Page ${(pageIndex).toString().padLeft(4, "0")}";
-    Directory(newPagePath).createSync();
+    Directory(newPagePath).createSync(recursive: true);
     return (newPagePath, pageIndex);
   }
 
@@ -242,7 +242,12 @@ class FilesHelper {
     String imagePath,
   ) async {
     await _initializeDocumentsPath();
-    String pagePath = await getPagePath(docIndex, pageIndex);
+    String pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    Directory(pagePath).createSync(recursive: true);
     String versionName = versionNames[versionIndex];
     if (imagePath.startsWith(pagePath) && imagePath.contains("$versionName.")) {
       return imagePath;
@@ -491,9 +496,13 @@ class FilesHelper {
           }
 
           // Check if page is empty / incomplete
-          List<FileSystemEntity> pageFseL = Directory(
-            expectedPagePath,
-          ).listSync()..sort((a, b) => a.path.compareTo(b.path));
+          List<FileSystemEntity> pageFseL = [];
+          try {
+            pageFseL = Directory(expectedPagePath).listSync()
+              ..sort((a, b) => a.path.compareTo(b.path));
+          } catch (e) {
+            dev.log("Warning, _repairDirectoryStructure: $e");
+          }
           bool pageIncomplete = pageFseL.isEmpty;
           int countVersionsAndThumbnail = 0;
           if (!pageIncomplete) {
@@ -1710,8 +1719,21 @@ class FilesHelper {
       return;
     }
 
-    // Save externally
     final outputFile = File("$selectedDirectory/error_log.txt");
+
+    // Rename old document
+    if (outputFile.existsSync()) {
+      outputFile.renameSync(
+        "${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
+      );
+      Fluttertoast.showToast(
+        msg:
+            "Existing $outputFile renamed to ${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
+        toastLength: Toast.LENGTH_LONG,
+      );
+    }
+
+    // Save externally
     outputFile.writeAsBytesSync(logFile.readAsBytesSync());
     Fluttertoast.showToast(msg: "Log at: $selectedDirectory");
   }

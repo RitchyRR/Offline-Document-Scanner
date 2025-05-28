@@ -20,10 +20,7 @@ class MetadataHelper {
   }) async {
     final docPath = await g.filesHelper.getDocumentPath(docIndex);
     if (!Directory(docPath).existsSync()) {
-      dev.log(
-        "Warning, _writeDoc, $keyIn: Document does not exist: Document $docIndex",
-      );
-      return;
+      Directory(docPath).createSync(recursive: true);
     }
     final file = File("$docPath/metadata.json");
     Map<String, dynamic> metadata = {};
@@ -40,6 +37,7 @@ class MetadataHelper {
       dev.log(
         "Warning, _writeDoc, $keyIn: No existing metadata, creating new one.",
       );
+      file.createSync();
     }
 
     // Write + Encrypt
@@ -83,10 +81,7 @@ class MetadataHelper {
     final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     if (!Directory(pagePath).existsSync()) {
-      dev.log(
-        "Warning, _writePage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
-      );
-      return;
+      Directory(pagePath).createSync(recursive: true);
     }
     Map<String, dynamic> metadata = {};
 
@@ -98,6 +93,8 @@ class MetadataHelper {
       } catch (e) {
         dev.log("Warning, _writePage, $keyIn: $e");
       }
+    } else {
+      file.createSync();
     }
 
     // Write + Encrypt
