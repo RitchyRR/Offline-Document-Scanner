@@ -1,10 +1,14 @@
+import 'dart:io' show File, FileMode;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 import 'package:docscanner/files_helper.dart';
 //import 'package:docscanner/image_prosessing_manager.dart';
 import 'package:docscanner/metadata_helper.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image/image.dart' as img;
 import 'package:image/image.dart';
+import 'package:path_provider/path_provider.dart'
+    show getApplicationDocumentsDirectory;
 
 class AppGlobals {
   // singleton setup:
@@ -79,3 +83,28 @@ enum NotifierEvent {
 }
 
 enum PopUpType { share, save, delete }
+
+class ErrorLogger {
+  static Future<void> log(String message) async {
+    final now = DateTime.now();
+    final logMessage = '[$now] $message\n';
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/error_log.txt');
+    await file.writeAsString(logMessage, mode: FileMode.append);
+  }
+
+  static Future<void> logError(String error, StackTrace? stack) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final logFile = File('${dir.path}/error_log.txt');
+      final now = DateTime.now().toIso8601String();
+      await logFile.writeAsString(
+        '[$now] ERROR: $error\nSTACKTRACE:\n$stack\n\n',
+        mode: FileMode.append,
+      );
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Could not log error: $e");
+    }
+  }
+}

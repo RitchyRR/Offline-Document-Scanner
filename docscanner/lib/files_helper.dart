@@ -446,7 +446,7 @@ class FilesHelper {
       //if (!(
       // ignore: use_build_context_synchronously
       await _deleteMarkedDeleted();
-      _repairDirectoryStructure();
+      await _repairDirectoryStructure();
       //  )) break;
     } catch (e) {
       throw StateError("Error, repairDirectoryStructure: $e");
@@ -1723,14 +1723,21 @@ class FilesHelper {
 
     // Rename old document
     if (outputFile.existsSync()) {
-      outputFile.renameSync(
-        "${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
-      );
-      Fluttertoast.showToast(
-        msg:
-            "Existing $outputFile renamed to ${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
-        toastLength: Toast.LENGTH_LONG,
-      );
+      try {
+        outputFile.renameSync(
+          "${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
+        );
+        Fluttertoast.showToast(
+          msg:
+              "Existing $outputFile renamed to ${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
+          toastLength: Toast.LENGTH_LONG,
+        );
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: "Renaming Error Log failed: $e",
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
     }
 
     // Save externally

@@ -4,6 +4,8 @@ import 'dart:developer' as dev show log;
 import 'dart:isolate';
 import 'dart:io';
 
+import 'package:docscanner/app_globals.dart' show ErrorLogger;
+
 class TaskKiller {
   final void Function() _kill;
   final void Function() _delay;
@@ -291,6 +293,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         stack = StackTrace.fromString(e[1]);
       }
     }
+    ErrorLogger.logError("Error in Isolate: $error", stack);
     if (onErrorFunction != null) {
       onErrorFunction!(error, stack);
     }

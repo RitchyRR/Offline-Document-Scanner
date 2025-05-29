@@ -6,8 +6,6 @@ import 'package:docscanner/isolates_manager.dart' show IsolatesManager;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:path_provider/path_provider.dart'
-    show getApplicationDocumentsDirectory;
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus;
@@ -75,28 +73,14 @@ void main() async {
   ]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  Future<void> logError(String error, StackTrace? stack) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final logFile = File('${dir.path}/error_log.txt');
-      final now = DateTime.now().toIso8601String();
-      await logFile.writeAsString(
-        '[$now] ERROR: $error\nSTACKTRACE:\n$stack\n\n',
-        mode: FileMode.append,
-      );
-    } catch (e) {
-      dev.log("_logError failed, no file access");
-    }
-  }
-
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.dumpErrorToConsole(details);
-    logError(details.exceptionAsString(), details.stack);
+    ErrorLogger.logError(details.exceptionAsString(), details.stack);
   };
 
   // For errors in async code outside Flutter widgets
   ui.PlatformDispatcher.instance.onError = (error, stack) {
-    logError(error.toString(), stack);
+    ErrorLogger.logError(error.toString(), stack);
     return true;
   };
 
@@ -339,13 +323,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   late PackageInfo _packageInfo;
   Future<void> initAsync() async {
-    _initReceiveSharingIntent();
     _packageInfo = await PackageInfo.fromPlatform();
     await _loadDocsDisplay(onInit: true);
     await loadAvailableAspectRatios();
+    Completer repairCompleter = Completer();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      g.filesHelper.repairDirectoryStructure();
+      await g.filesHelper.repairDirectoryStructure();
+      repairCompleter.complete();
     });
+    await repairCompleter.future;
+    _initReceiveSharingIntent();
   }
 
   @override
