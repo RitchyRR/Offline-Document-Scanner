@@ -1101,6 +1101,7 @@ class FilesHelper {
         maxWidth: maxWidth,
         maxHeight: maxHeight,
         requestFullMetadata: false,
+        limit: 20,
       );
       for (var xfile in pickedFileList) {
         imagePaths.add(xfile.path);

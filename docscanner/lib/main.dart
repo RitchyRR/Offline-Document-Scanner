@@ -73,12 +73,11 @@ void main() async {
   ]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
+  // Errors -> log file
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.dumpErrorToConsole(details);
     ErrorLogger.logError(details.exceptionAsString(), details.stack);
   };
-
-  // For errors in async code outside Flutter widgets
   ui.PlatformDispatcher.instance.onError = (error, stack) {
     ErrorLogger.logError(error.toString(), stack);
     return true;

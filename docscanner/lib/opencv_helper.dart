@@ -41,7 +41,7 @@ class OpenCVHelper {
   int cols = 0;
   int height = 0;
   int width = 0;
-  var borderCutIn = List<int>.generate(8, (_) => 0);
+  List<int>? borderCutIn = List<int>.generate(8, (_) => 0);
   var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
   AppGlobals g;
@@ -203,6 +203,7 @@ class OpenCVHelper {
   ) {
     List<List<int>> corners;
     double ratioValue;
+    if (cornerPointsIn != null) borderCutIn = null;
 
     if (shape == null) {
       // 1. Isolate remove Text and Images to get Shape
@@ -210,6 +211,7 @@ class OpenCVHelper {
 
       // 2. create a binary image, white representing the shape of the document
       shape = _documentMask(bg);
+      //return (shape, shape, 1.4, []);
       bg.dispose();
       bg = null;
     } else {
@@ -225,20 +227,12 @@ class OpenCVHelper {
     }
     if (ratioValueIn == null) {
       // 4. Perspective transformation
-      ratioValue = _calculateTransformation(
-        shape,
-        corners,
-        noBoderCutin: cornerPointsIn != null,
-      );
+      ratioValue = _calculateTransformation(shape, corners);
     } else {
       ratioValue = ratioValueIn;
       _setHeightFromCorners(corners, ratioValue);
       //cv.Mat warpedShape = _transformImage(shape, corners);
-      _calculateBorderSize(
-        shape,
-        corners,
-        noBoderCutin: cornerPointsIn != null,
-      );
+      _calculateBorderSize(shape, corners);
     }
 
     cv.Mat? warped;
@@ -307,7 +301,25 @@ class OpenCVHelper {
     }
 
     cv.Mat edges = _rgbEdges(imageMat);
-
+    //return edges;
+    cv.Mat hughEdges = _houghEdges(edges); //.add(edges);
+    //return hughEdges;
+    cv.Mat hughShape = _hughShape(hughEdges);
+    if (hughShape.at<int>(0, 0) == 0 &&
+        hughShape.at<int>(0, cols ~/ 2) == 0 &&
+        hughShape.at<int>(0, cols - 1) == 0 &&
+        hughShape.at<int>(rows - 1, 0) == 0 &&
+        hughShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
+        hughShape.at<int>(rows - 1, cols - 1) == 0 &&
+        hughShape.at<int>(rows ~/ 2, 0) == 0 &&
+        hughShape.at<int>(rows ~/ 2, cols - 1) == 0) {
+      //dev.log("Good, _documentMask: Returning documentMask from hugh edges");
+      borderCutIn = null;
+      //return hughEdges;
+      return hughShape;
+    }
+    edges = edges.add(hughEdges);
+    //return edges;
     // 1. try just filling edges
     cv.Mat tightRiskyShape = _tightRiskyShape(edges);
     if (tightRiskyShape.at<int>(0, 0) == 0 &&
@@ -318,8 +330,21 @@ class OpenCVHelper {
         tightRiskyShape.at<int>(rows - 1, cols - 1) == 0 &&
         tightRiskyShape.at<int>(rows ~/ 2, 0) == 0 &&
         tightRiskyShape.at<int>(rows ~/ 2, cols - 1) == 0) {
-      //dev.log("Good, _documentMask: Returning documentMask from simple edges");
+      //dev.log("Good, _documentMask: Returning documentMask from simple edges + hugh edges");
       return tightRiskyShape;
+    }
+
+    cv.Mat mediumShape = _mediumShape(edges);
+    if (mediumShape.at<int>(0, 0) == 0 &&
+        mediumShape.at<int>(0, cols ~/ 2) == 0 &&
+        mediumShape.at<int>(0, cols - 1) == 0 &&
+        mediumShape.at<int>(rows - 1, 0) == 0 &&
+        mediumShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
+        mediumShape.at<int>(rows - 1, cols - 1) == 0 &&
+        mediumShape.at<int>(rows ~/ 2, 0) == 0 &&
+        mediumShape.at<int>(rows ~/ 2, cols - 1) == 0) {
+      //dev.log("Good, _documentMask: Returning mediumShape from simple edges + hugh edges");
+      return mediumShape;
     }
 
     cv.Mat looseSafeShape = _looseSafeShape(edges);
@@ -334,17 +359,122 @@ class OpenCVHelper {
   }
 
   cv.Mat _rgbEdges(cv.Mat mat) {
-    cv.VecMat channels = cv.split(mat);
-    cv.Mat edges = cv.Mat.zeros(mat.rows, mat.cols, cv.MatType.CV_8UC1);
-    double highT = 60 + K * 0.1;
+    // Initial guess for Canny thresholds
+    double baseThreshold = 62.5;
+    double highT = baseThreshold + K * 0.1;
     double lowT = 0.7 * highT;
-    //dev.log("canny thresholds: $lowT, $highT");
-    // edges for all color channels:
-    for (cv.Mat channel in channels) {
+
+    // Step 1: Run Canny with initial thresholds on all channels
+    cv.VecMat channelsVec = cv.split(mat);
+    cv.Mat edgesInitial = cv.Mat.zeros(mat.rows, mat.cols, cv.MatType.CV_8UC1);
+    for (cv.Mat channel in channelsVec) {
       cv.Mat channelEdges = cv.canny(channel, lowT, highT);
-      edges = cv.add(edges, channelEdges);
+      edgesInitial = cv.add(edgesInitial, channelEdges);
     }
-    return edges;
+    // Add saturation edges
+    cv.VecMat hsv = cv.split(cv.cvtColor(mat, cv.COLOR_BGR2HSV));
+    cv.Mat sEdges = cv.canny(hsv[1], lowT, highT);
+    edgesInitial = cv.add(edgesInitial, sEdges);
+
+    // Step 2: Calculate edge density
+    int edgePixels = cv.countNonZero(edgesInitial);
+    int totalPixels = mat.rows * mat.cols;
+    double edgeDensity = edgePixels / totalPixels;
+
+    // Step 3: Define target edge density and adjust thresholds
+    double targetDensity = 0.00275;
+    double scale = (edgeDensity / targetDensity).clamp(0.6, 1.9);
+
+    highT = (highT * scale);
+    lowT = 0.7 * highT;
+
+    // Step 4: Run Canny again with adjusted thresholds
+    cv.Mat finalEdges = cv.Mat.zeros(mat.rows, mat.cols, cv.MatType.CV_8UC1);
+    for (cv.Mat channel in channelsVec) {
+      cv.Mat channelEdges = cv.canny(channel, lowT, highT);
+      finalEdges = cv.add(finalEdges, channelEdges);
+    }
+    // Add saturation edges
+    hsv = cv.split(cv.cvtColor(mat, cv.COLOR_BGR2HSV));
+    sEdges = cv.canny(hsv[1], lowT * 0.6, highT * 0.6);
+    finalEdges = cv.add(finalEdges, sEdges);
+
+    return finalEdges;
+  }
+
+  cv.Mat _houghEdges(cv.Mat edges) {
+    final double rhoRes = K * 0.15;
+    final double thetaRes = (math.pi / 180);
+    final int threshold = (K * 20).toInt();
+    final double minLineLength = K / 2;
+    //(K * 5).toDouble();
+    final double maxLineGap = (K * 20).toDouble();
+    cv.Mat houghEdges = cv.Mat.zeros(
+      edges.rows,
+      edges.cols,
+      cv.MatType.CV_8UC1,
+    );
+
+    // Step 2: Get all line segments using HoughLinesP
+    cv.Mat allSegments = cv.HoughLinesP(
+      edges,
+      rhoRes,
+      thetaRes,
+      threshold,
+      minLineLength: minLineLength,
+      maxLineGap: maxLineGap,
+    );
+
+    List<cv.Vec4i> segments = [];
+
+    for (int i = 0; i < allSegments.rows; i++) {
+      final seg = allSegments.at<cv.Vec4i>(i, 0);
+      segments.add(seg);
+
+      //int dx = seg.val3 - seg.val1;
+      //int dy = seg.val4 - seg.val2;
+      //double length = math.sqrt(dx * dx + dy * dy);
+    }
+
+    for (var segment in segments) {
+      int x1 = segment.val1;
+      int y1 = segment.val2;
+      int x2 = segment.val3;
+      int y2 = segment.val4;
+
+      // Extend the line by 25% on each end
+      int dx = x2 - x1;
+      int dy = y2 - y1;
+      int ex1 = (x1 - dx * 0.0).round();
+      int ey1 = (y1 - dy * 0.0).round();
+      int ex2 = (x2 + dx * 0.0).round();
+      int ey2 = (y2 + dy * 0.0).round();
+
+      cv.line(
+        houghEdges,
+        cv.Point(ex1, ey1),
+        cv.Point(ex2, ey2),
+        cv.Scalar.all(255),
+        thickness: 1,
+      );
+    }
+
+    return houghEdges;
+  }
+
+  cv.Mat _hughShape(cv.Mat edges) {
+    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
+    cv.Mat shape1 = edges.clone();
+    cv.floodFill(
+      shape1, // input + output
+      cv.Point(cols ~/ 2, rows ~/ 2),
+      cv.Scalar.all(255),
+      mask: mask, // useless
+    );
+    shape1 = cv.subtract(shape1, edges);
+    cv.Mat kernel2 = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
+    shape1 = cv.dilate(shape1, kernel2, borderType: cv.BORDER_CONSTANT);
+    return shape1;
   }
 
   cv.Mat _tightRiskyShape(cv.Mat edges) {
@@ -360,6 +490,24 @@ class OpenCVHelper {
     );
     shape1 = cv.subtract(shape1, dilEdges);
     cv.Mat kernel2 = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
+    shape1 = cv.dilate(shape1, kernel2, borderType: cv.BORDER_CONSTANT);
+    return shape1;
+  }
+
+  cv.Mat _mediumShape(cv.Mat edges) {
+    int kSize = K ~/ 2 * 2 + 1;
+    cv.Mat kernel1 = cv.Mat.ones(kSize, kSize, cv.MatType.CV_8UC1);
+    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
+    cv.Mat dilEdges = cv.dilate(edges, kernel1, borderType: cv.BORDER_CONSTANT);
+    cv.Mat shape1 = dilEdges.clone();
+    cv.floodFill(
+      shape1, // input + output
+      cv.Point(cols ~/ 2, rows ~/ 2),
+      cv.Scalar.all(255),
+      mask: mask, // useless
+    );
+    shape1 = cv.subtract(shape1, dilEdges);
+    cv.Mat kernel2 = cv.Mat.ones(kSize + 2, kSize + 2, cv.MatType.CV_8UC1);
     shape1 = cv.dilate(shape1, kernel2, borderType: cv.BORDER_CONSTANT);
     return shape1;
   }
@@ -687,11 +835,7 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  double _calculateTransformation(
-    cv.Mat shape,
-    List<List<int>> corners, {
-    bool noBoderCutin = false,
-  }) {
+  double _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
     // Estimate aspect ratio
     double calculatedRatio = _calculateAspectRatio(corners);
     final matchedRatio = matchAspectRatioAndOrientation(calculatedRatio);
@@ -699,16 +843,12 @@ class OpenCVHelper {
 
     _setHeightFromCorners(corners, calculatedRatio);
 
-    _calculateBorderSize(shape, corners, noBoderCutin: noBoderCutin);
+    _calculateBorderSize(shape, corners);
 
     return calculatedRatio;
   }
 
-  void _calculateBorderSize(
-    cv.Mat shape,
-    List<List<int>> corners, {
-    bool noBoderCutin = false,
-  }) {
+  void _calculateBorderSize(cv.Mat shape, List<List<int>> corners) {
     cv.Mat warpedShape = _transformImage(shape, corners);
 
     final int maxBorderSize = (K ~/ 2).clamp(1, -1 >>> 1);
@@ -724,7 +864,7 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(0, depths, noBoderCutin: noBoderCutin);
+    _setTransformation(0, depths);
 
     // Bottom border
     depths = List<int>.generate(width, (_) => 0);
@@ -738,7 +878,7 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(1, depths, noBoderCutin: noBoderCutin);
+    _setTransformation(1, depths);
 
     // Left border
     depths = List<int>.generate(height, (_) => 0);
@@ -752,7 +892,7 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(2, depths, noBoderCutin: noBoderCutin);
+    _setTransformation(2, depths);
 
     // Right border
     depths = List<int>.generate(height, (_) => 0);
@@ -766,7 +906,7 @@ class OpenCVHelper {
         }
       }
     }
-    _setTransformation(3, depths, noBoderCutin: noBoderCutin);
+    _setTransformation(3, depths);
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
@@ -864,40 +1004,46 @@ class OpenCVHelper {
   }
 
   // Step 4.1.1: Set Border Corrections
-  void _setTransformation(
-    int borderIndex,
-    List<int> depths, {
-    bool noBoderCutin = false,
-  }) {
+  void _setTransformation(int borderIndex, List<int> depths) {
     final int borderTolerance = 6 + (K ~/ 9);
-    borderCutIn[borderIndex * 2] = noBoderCutin
-        ? 0
-        : _percentileValueInt(depths.sublist(0, depths.length ~/ 2), 0.67);
-    borderCutIn[borderIndex * 2 + 1] = noBoderCutin
-        ? 0
-        : _percentileValueInt(depths.sublist(depths.length ~/ 2), 0.67);
+    if (borderCutIn != null) {
+      borderCutIn![borderIndex * 2] = _percentileValueInt(
+        depths.sublist(0, depths.length ~/ 2),
+        0.67,
+      );
+      borderCutIn![borderIndex * 2 + 1] = _percentileValueInt(
+        depths.sublist(depths.length ~/ 2),
+        0.67,
+      );
+    }
     borderCorrectionDepth[borderIndex] =
         depths
             .sublist(depths.length ~/ 10, depths.length * 9 ~/ 10)
             .reduce(math.max) -
-        (borderCutIn[borderIndex * 2] + borderCutIn[borderIndex * 2 + 1]) ~/ 2 +
+        (borderCutIn == null
+            ? 0
+            : (borderCutIn![borderIndex * 2] +
+                      borderCutIn![borderIndex * 2 + 1]) ~/
+                  2) +
         borderTolerance;
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
   cv.Mat _correctedTransformImage(cv.Mat imageMat, List<List<int>> corners) {
-    //top
-    corners[0][0] += borderCutIn[0];
-    corners[2][0] += borderCutIn[1];
-    //bottom
-    corners[1][0] -= borderCutIn[2];
-    corners[3][0] -= borderCutIn[3];
-    //left
-    corners[0][1] += borderCutIn[4];
-    corners[1][1] += borderCutIn[5];
-    //right
-    corners[2][1] -= borderCutIn[6];
-    corners[3][1] -= borderCutIn[7];
+    if (borderCutIn != null) {
+      //top
+      corners[0][0] += borderCutIn![0];
+      corners[2][0] += borderCutIn![1];
+      //bottom
+      corners[1][0] -= borderCutIn![2];
+      corners[3][0] -= borderCutIn![3];
+      //left
+      corners[0][1] += borderCutIn![4];
+      corners[1][1] += borderCutIn![5];
+      //right
+      corners[2][1] -= borderCutIn![6];
+      corners[3][1] -= borderCutIn![7];
+    }
 
     //dev.log("correctedCorners = $corners");
 

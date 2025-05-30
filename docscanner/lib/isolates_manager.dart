@@ -183,6 +183,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final T message;
   final Completer<TaskKiller> completer;
   IsolatePriority prio;
+  bool _cleanedUp = false;
 
   final void Function(Object error, StackTrace stack)? onErrorFunction;
 
@@ -218,10 +219,9 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         .then((isolate) {
           worker.isolate = isolate;
 
-          bool cleanedUp = false;
           void cleanup() {
-            if (cleanedUp) return;
-            cleanedUp = true;
+            if (_cleanedUp) return;
+            _cleanedUp = true;
             _runtimeTimer?.cancel();
             receivePort.close();
             errorPort.close();
@@ -283,6 +283,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   }
 
   void onBadExit(void Function()? cleanup, e) {
+    if (_cleanedUp) return;
     if (cleanup != null) cleanup();
     Object error = e;
     StackTrace stack = StackTrace.current;
