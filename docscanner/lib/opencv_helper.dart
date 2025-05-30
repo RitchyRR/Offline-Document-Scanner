@@ -294,6 +294,20 @@ class OpenCVHelper {
     return imageMat;
   }
 
+  bool _testNoSpillover(cv.Mat testShape) {
+    if (testShape.at<int>(0, 0) == 0 &&
+        testShape.at<int>(0, cols ~/ 2) == 0 &&
+        testShape.at<int>(0, cols - 1) == 0 &&
+        testShape.at<int>(rows - 1, 0) == 0 &&
+        testShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
+        testShape.at<int>(rows - 1, cols - 1) == 0 &&
+        testShape.at<int>(rows ~/ 2, 0) == 0 &&
+        testShape.at<int>(rows ~/ 2, cols - 1) == 0) {
+      return true;
+    }
+    return false;
+  }
+
   /// Step 2: Edge Detection & Filling -> Shape of document
   cv.Mat _documentMask(cv.Mat imageMat) {
     if (imageMat.isEmpty) {
@@ -301,49 +315,46 @@ class OpenCVHelper {
     }
 
     cv.Mat edges = _rgbEdges(imageMat);
+    cv.Mat houghEdges1 = _houghEdges1(edges);
+    cv.Mat houghEdges2 = _houghEdges2(edges);
     //return edges;
-    cv.Mat hughEdges = _houghEdges(edges); //.add(edges);
-    //return hughEdges;
-    cv.Mat hughShape = _hughShape(hughEdges);
-    if (hughShape.at<int>(0, 0) == 0 &&
-        hughShape.at<int>(0, cols ~/ 2) == 0 &&
-        hughShape.at<int>(0, cols - 1) == 0 &&
-        hughShape.at<int>(rows - 1, 0) == 0 &&
-        hughShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
-        hughShape.at<int>(rows - 1, cols - 1) == 0 &&
-        hughShape.at<int>(rows ~/ 2, 0) == 0 &&
-        hughShape.at<int>(rows ~/ 2, cols - 1) == 0) {
-      //dev.log("Good, _documentMask: Returning documentMask from hugh edges");
+
+    bool hough1good = false;
+    cv.Mat houghShape1 = _houghShape(houghEdges1);
+    if (_testNoSpillover(houghShape1)) {
       borderCutIn = null;
-      //return hughEdges;
-      return hughShape;
+      hough1good = true;
     }
-    edges = edges.add(hughEdges);
+    bool hough2good = false;
+    cv.Mat houghShape2 = _houghShape(houghEdges2);
+    if (_testNoSpillover(houghShape2)) {
+      borderCutIn = null;
+      hough2good = true;
+    }
+    if (hough1good && hough2good) {
+      if (houghShape1.countNoneZero > houghShape2.countNoneZero) {
+        return houghShape1;
+      } else {
+        return houghShape2;
+      }
+    } else if (hough1good) {
+      return houghShape1;
+    } else if (hough2good) {
+      return houghShape2;
+    }
+
+    edges = edges.add(houghEdges2);
     //return edges;
     // 1. try just filling edges
     cv.Mat tightRiskyShape = _tightRiskyShape(edges);
-    if (tightRiskyShape.at<int>(0, 0) == 0 &&
-        tightRiskyShape.at<int>(0, cols ~/ 2) == 0 &&
-        tightRiskyShape.at<int>(0, cols - 1) == 0 &&
-        tightRiskyShape.at<int>(rows - 1, 0) == 0 &&
-        tightRiskyShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
-        tightRiskyShape.at<int>(rows - 1, cols - 1) == 0 &&
-        tightRiskyShape.at<int>(rows ~/ 2, 0) == 0 &&
-        tightRiskyShape.at<int>(rows ~/ 2, cols - 1) == 0) {
-      //dev.log("Good, _documentMask: Returning documentMask from simple edges + hugh edges");
+    if (_testNoSpillover(tightRiskyShape)) {
+      //dev.log("Good, _documentMask: Returning documentMask from simple edges + hough edges");
       return tightRiskyShape;
     }
 
     cv.Mat mediumShape = _mediumShape(edges);
-    if (mediumShape.at<int>(0, 0) == 0 &&
-        mediumShape.at<int>(0, cols ~/ 2) == 0 &&
-        mediumShape.at<int>(0, cols - 1) == 0 &&
-        mediumShape.at<int>(rows - 1, 0) == 0 &&
-        mediumShape.at<int>(rows - 1, cols ~/ 2) == 0 &&
-        mediumShape.at<int>(rows - 1, cols - 1) == 0 &&
-        mediumShape.at<int>(rows ~/ 2, 0) == 0 &&
-        mediumShape.at<int>(rows ~/ 2, cols - 1) == 0) {
-      //dev.log("Good, _documentMask: Returning mediumShape from simple edges + hugh edges");
+    if (_testNoSpillover(mediumShape)) {
+      //dev.log("Good, _documentMask: Returning mediumShape from simple edges + hough edges");
       return mediumShape;
     }
 
@@ -402,12 +413,58 @@ class OpenCVHelper {
     return finalEdges;
   }
 
-  cv.Mat _houghEdges(cv.Mat edges) {
+  cv.Mat _houghEdges1(cv.Mat edges) {
+    final double rhoRes = K * 0.15;
+    final double thetaRes = (math.pi / 180);
+    final int threshold = (K * 20).toInt();
+    cv.Mat houghEdges = cv.Mat.zeros(
+      edges.rows,
+      edges.cols,
+      cv.MatType.CV_8UC1,
+    );
+
+    cv.Mat allLines = cv.HoughLines(edges, rhoRes, thetaRes, threshold);
+
+    int linesCount = math.min(10, allLines.rows);
+    List<cv.Vec2f> lines = [];
+    for (int i = 0; i < linesCount; i++) {
+      final seg = allLines.at<cv.Vec2f>(i, 0);
+      lines.add(seg);
+    }
+
+    for (var line in lines) {
+      double rho = line.val1;
+      double theta = line.val2;
+
+      double a = math.cos(theta);
+      double b = math.sin(theta);
+      double x0 = a * rho;
+      double y0 = b * rho;
+
+      // Extend length
+      int x1 = (x0 + K * 100 * (-b)).round();
+      int y1 = (y0 + K * 100 * (a)).round();
+      int x2 = (x0 - K * 100 * (-b)).round();
+      int y2 = (y0 - K * 100 * (a)).round();
+
+      // Draw line
+      cv.line(
+        houghEdges,
+        cv.Point(x1, y1),
+        cv.Point(x2, y2),
+        cv.Scalar.all(255),
+        thickness: 2,
+      );
+    }
+
+    return houghEdges;
+  }
+
+  cv.Mat _houghEdges2(cv.Mat edges) {
     final double rhoRes = K * 0.15;
     final double thetaRes = (math.pi / 180);
     final int threshold = (K * 20).toInt();
     final double minLineLength = (K / 2).clamp(4.0, double.nan);
-    //(K * 5).toDouble();
     final double maxLineGap = (K * 20).toDouble();
     cv.Mat houghEdges = cv.Mat.zeros(
       edges.rows,
@@ -415,7 +472,6 @@ class OpenCVHelper {
       cv.MatType.CV_8UC1,
     );
 
-    // Step 2: Get all line segments using HoughLinesP
     cv.Mat allSegments = cv.HoughLinesP(
       edges,
       rhoRes,
@@ -426,14 +482,9 @@ class OpenCVHelper {
     );
 
     List<cv.Vec4i> segments = [];
-
     for (int i = 0; i < allSegments.rows; i++) {
       final seg = allSegments.at<cv.Vec4i>(i, 0);
       segments.add(seg);
-
-      //int dx = seg.val3 - seg.val1;
-      //int dy = seg.val4 - seg.val2;
-      //double length = math.sqrt(dx * dx + dy * dy);
     }
 
     for (var segment in segments) {
@@ -450,6 +501,7 @@ class OpenCVHelper {
       int ex2 = (x2 + dx * 0.0).round();
       int ey2 = (y2 + dy * 0.0).round();
 
+      // Draw segments
       cv.line(
         houghEdges,
         cv.Point(ex1, ey1),
@@ -462,7 +514,7 @@ class OpenCVHelper {
     return houghEdges;
   }
 
-  cv.Mat _hughShape(cv.Mat edges) {
+  cv.Mat _houghShape(cv.Mat edges) {
     cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
     cv.Mat shape1 = edges.clone();
     cv.floodFill(
