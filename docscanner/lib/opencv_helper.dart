@@ -406,7 +406,7 @@ class OpenCVHelper {
     final double rhoRes = K * 0.15;
     final double thetaRes = (math.pi / 180);
     final int threshold = (K * 20).toInt();
-    final double minLineLength = K / 2;
+    final double minLineLength = (K / 2).clamp(4.0, double.nan);
     //(K * 5).toDouble();
     final double maxLineGap = (K * 20).toDouble();
     cv.Mat houghEdges = cv.Mat.zeros(
