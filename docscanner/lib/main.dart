@@ -3111,6 +3111,7 @@ class PagePreviewState extends State<PagePreview> {
   ];
   // Widget
   int _selectedVersion = 0;
+  int _selectedThumbnail = 0;
   List<String> _versionPaths = ["", "", "", ""];
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
@@ -3286,8 +3287,9 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
-    setState(() => _selectedVersion = versionIndex);
-    _pageController.jumpToPage(_selectedVersion);
+    _selectedThumbnail = _selectedVersion = versionIndex;
+    setState(() {});
+    _pageController.jumpToPage(versionIndex);
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
@@ -3464,7 +3466,7 @@ class PagePreviewState extends State<PagePreview> {
           imageProcessingManager.saveNewThumbnail(
             widget.docIndex,
             widget.pageIndex,
-            _selectedVersion,
+            _selectedThumbnail,
             tmpPro: _pageUnlocked,
           );
           if (!didPop) Navigator.pop(context);
@@ -3605,7 +3607,9 @@ class PagePreviewState extends State<PagePreview> {
               backgroundDecoration: BoxDecoration(color: Colors.transparent),
               pageController: _pageController,
               onPageChanged: (index) {
-                setState(() => _selectedVersion = index);
+                if (index != 0) _selectedThumbnail = index;
+                _selectedVersion = index;
+                setState(() {});
               },
             ),
             // Reprocessing Bar
@@ -3772,7 +3776,9 @@ class PagePreviewState extends State<PagePreview> {
             children: List.generate(4, (index) {
               return GestureDetector(
                 onTap: () {
-                  setState(() => _selectedVersion = index);
+                  if (index != 0) _selectedThumbnail = index;
+                  _selectedVersion = index;
+                  setState(() {});
                   _pageController.jumpToPage(index);
                 },
                 child: Column(
@@ -3783,12 +3789,14 @@ class PagePreviewState extends State<PagePreview> {
                           duration: const Duration(milliseconds: 200),
                           margin: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              _selectedThumbnail == index ? 13.75 : 11.5,
+                            ),
                             border: Border.all(
-                              color: _selectedVersion == index
-                                  ? Colors.white
+                              color: _selectedThumbnail == index
+                                  ? Theme.of(context).colorScheme.primaryFixed
                                   : Colors.white54,
-                              width: 3,
+                              width: _selectedThumbnail == index ? 5 : 3,
                             ),
                             boxShadow: [bigBoxShadow(context)],
                           ),
