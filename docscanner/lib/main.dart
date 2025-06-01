@@ -63,10 +63,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   CameraPlatform.instance = AndroidCameraCameraX();
   MobileAds.instance.initialize();
-  //// Play Test Ads
-  //MobileAds.instance.updateRequestConfiguration(
-  //  RequestConfiguration(testDeviceIds: ["09BF6CED0A634AD6921EF7E4280CFAFC"]),
-  //);
+  // Play Test Ads
+  MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(testDeviceIds: ["09BF6CED0A634AD6921EF7E4280CFAFC"]),
+  );
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
@@ -1805,18 +1805,16 @@ Future<bool> _unlockDocumentWithAd(BuildContext context) async {
     Fluttertoast.showToast(
       msg: "Combined PDF temorarily unlocked for Document!",
     );
-    return true;
   }
-  return false;
+  return adWatched;
 }
 
 Future<bool> _unlockPageWithAd(BuildContext context) async {
   final bool adWatched = await adsHelper.showRewardAd();
   if (adWatched) {
     Fluttertoast.showToast(msg: "PRO filter temorarily unlocked for Page!");
-    return true;
   }
-  return false;
+  return adWatched;
 }
 
 class ImagesScrollPreview extends StatelessWidget {
@@ -3416,17 +3414,19 @@ class PagePreviewState extends State<PagePreview> {
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                bool adWatched = await _unlockPageWithAd(context);
-                _pageUnlocked = adWatched;
-                setState(() {});
-                if (context.mounted) {
-                  Navigator.pop(context, adWatched);
+                final bool adWatched = await _unlockPageWithAd(context);
+                if (adWatched) {
+                  _pageUnlocked = true;
+                  g.metadataHelper.writePageUnlocked(
+                    widget.docIndex,
+                    widget.pageIndex,
+                    true,
+                  );
+                  if (context.mounted) {
+                    setState(() {});
+                    Navigator.pop(context, true);
+                  }
                 }
-                g.metadataHelper.writePageUnlocked(
-                  widget.docIndex,
-                  widget.pageIndex,
-                  adWatched,
-                );
               },
               icon: Icon(Icons.play_arrow),
               label: Text("Watch Ad"),
@@ -5603,15 +5603,17 @@ Future<bool> _pagesPopup(
                                                                   await _unlockDocumentWithAd(
                                                                     context,
                                                                   );
-                                                              setStateDialog(
-                                                                () {},
-                                                              );
-                                                              await g
-                                                                  .metadataHelper
-                                                                  .writeDocUnlocked(
-                                                                    docIndex,
-                                                                    docUnlocked,
-                                                                  );
+                                                              if (docUnlocked) {
+                                                                setStateDialog(
+                                                                  () {},
+                                                                );
+                                                                await g
+                                                                    .metadataHelper
+                                                                    .writeDocUnlocked(
+                                                                      docIndex,
+                                                                      docUnlocked,
+                                                                    );
+                                                              }
                                                             },
                                                             icon: Icon(
                                                               Icons.play_arrow,
@@ -5657,16 +5659,21 @@ Future<bool> _pagesPopup(
                                                         await _unlockPageWithAd(
                                                           context,
                                                         );
-                                                    setStateDialog(() {});
-                                                    await g.metadataHelper
-                                                        .writePageUnlocked(
-                                                          docIndex,
-                                                          pageIndexes.first,
-                                                          pageUnlocked,
-                                                        );
-                                                    globalNotifier.triggerEvent(
-                                                      NotifierEvent.setState,
-                                                    );
+                                                    if (pageUnlocked) {
+                                                      setStateDialog(() {});
+                                                      await g.metadataHelper
+                                                          .writePageUnlocked(
+                                                            docIndex,
+                                                            pageIndexes.first,
+                                                            true,
+                                                          );
+                                                      globalNotifier
+                                                          .triggerEvent(
+                                                            NotifierEvent
+                                                                .setState,
+                                                          );
+                                                      setStateDialog(() {});
+                                                    }
                                                   },
                                                   icon: Icon(Icons.play_arrow),
                                                   label: Text("Watch Ad"),
@@ -6357,13 +6364,11 @@ class ThumbnailWithBadge extends StatelessWidget {
 }
 
 class AdsHelper {
-  late Future<void> _loadFuture;
+  late Future _loadAdFuture;
   AdsHelper() {
-    _loadFuture = _loadRewardAd();
+    _loadAdFuture = _loadRewardAd();
   }
-
-  RewardedAd? _rewardAd;
-  bool _isAdLoaded = false;
+  RewardedAd? _ad;
 
   Future<void> _loadRewardAd() async {
     final completer = Completer<void>();
@@ -6372,10 +6377,9 @@ class AdsHelper {
       request: AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (RewardedAd ad) {
-          _rewardAd = ad;
-          _isAdLoaded = true;
+          _ad = ad;
 
-          _rewardAd?.fullScreenContentCallback = FullScreenContentCallback(
+          _ad?.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (ad) {
               ad.dispose();
               _loadRewardAd(); // Reload after watching
@@ -6398,24 +6402,21 @@ class AdsHelper {
   }
 
   Future<bool> showRewardAd() async {
-    await _loadFuture;
-    final completer = Completer<void>();
-    bool watachedAd = false;
-    if (_isAdLoaded && _rewardAd != null) {
-      _rewardAd!.show(
+    final completer = Completer<bool>();
+    await _loadAdFuture;
+    if (_ad != null) {
+      _ad!.show(
         onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
           dev.log("User earned reward: ${reward.type}"); //${reward.amount}
           //Fluttertoast.showToast(msg: "User earned reward: ${reward.type}");
-          watachedAd = true;
-          completer.complete();
+          completer.complete(true);
         },
       );
     } else {
       dev.log("Warning: Ad not loaded yet.");
       Fluttertoast.showToast(msg: "Error: Ad not loaded.");
-      completer.complete();
+      completer.complete(false);
     }
-    await completer.future;
-    return watachedAd;
+    return completer.future;
   }
 }

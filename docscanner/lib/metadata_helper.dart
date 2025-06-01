@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 // my packages:
@@ -179,8 +180,9 @@ class MetadataHelper {
 
     if (unlocked) {
       // Re-lock after 1 hour
-      Future.delayed(Duration(hours: 1)).then((_) {
-        writeDocUnlocked(docIndex, false);
+      Future.delayed(Duration(hours: 1)).then((_) async {
+        await writeDocUnlocked(docIndex, false);
+        globalNotifier.triggerEvent(NotifierEvent.setState);
       });
     }
   }
@@ -194,11 +196,7 @@ class MetadataHelper {
     }
   }
 
-  Future<void> writePageUnlocked(
-    int docIndex,
-    int pageIndex,
-    bool unlocked,
-  ) async {
+  Future writePageUnlocked(int docIndex, int pageIndex, bool unlocked) async {
     await _writePage(
       docIndex,
       pageIndex,
@@ -208,8 +206,9 @@ class MetadataHelper {
 
     if (unlocked) {
       // Re-lock after 1 hour
-      Future.delayed(Duration(hours: 1)).then((_) {
-        writePageUnlocked(docIndex, pageIndex, false);
+      Future.delayed(Duration(hours: 1)).then((_) async {
+        await writePageUnlocked(docIndex, pageIndex, false);
+        globalNotifier.triggerEvent(NotifierEvent.setState);
       });
     } else {
       if (3 == await readPageThumbnailIndex(docIndex, pageIndex)) {
