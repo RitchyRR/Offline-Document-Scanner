@@ -3111,7 +3111,7 @@ class PagePreviewState extends State<PagePreview> {
   ];
   // Widget
   int _selectedVersion = 0;
-  int _selectedThumbnail = 0;
+  int _selectedThumbnail = g.proUnlocked == true ? 3 : 2;
   List<String> _versionPaths = ["", "", "", ""];
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
