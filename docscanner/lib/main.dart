@@ -63,10 +63,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   CameraPlatform.instance = AndroidCameraCameraX();
   MobileAds.instance.initialize();
-  // Play Test Ads
-  MobileAds.instance.updateRequestConfiguration(
-    RequestConfiguration(testDeviceIds: ["09BF6CED0A634AD6921EF7E4280CFAFC"]),
-  );
+  //// Play Test Ads
+  //MobileAds.instance.updateRequestConfiguration(
+  //  RequestConfiguration(testDeviceIds: ["09BF6CED0A634AD6921EF7E4280CFAFC"]),
+  //);
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     //DeviceOrientation.portraitDown,
