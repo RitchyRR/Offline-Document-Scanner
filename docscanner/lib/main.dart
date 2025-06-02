@@ -3310,8 +3310,9 @@ class PagePreviewState extends State<PagePreview> {
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
       setState(() {
-        _cornerPoints;
-        if (_cornerPoints.isNotEmpty) {
+        if (_cornerPoints.isNotEmpty &&
+            _guiRatioValue != null &&
+            _orientationIndex != null) {
           _hideOverlayReprocessing = false;
           _metadataBlocked = false;
         }
@@ -3338,6 +3339,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _reprocessingSetup() async {
+    _cornerPoints.clear();
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
@@ -3959,8 +3961,9 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
-          ((_guiRatioValue != null && (_ratioValue == _guiRatioValue)) &&
-          (_orientationIndex == _guiOrientationIndex) &&
+          ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
+          (_orientationIndex == null ||
+              (_orientationIndex == _guiOrientationIndex)) &&
           _totalRotation == 0),
       tooltip: "Confirm changes",
       onTap: () async {
@@ -3969,7 +3972,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Future<void> reprocessPhoto({List<List<int>>? newCornerPoints}) async {
+  Future<void> reprocessPhoto({List<List<int>>? newCornerPointsIn}) async {
     if (mounted) {
       setState(() {
         _hideOverlayReprocessing = true;
@@ -3992,13 +3995,15 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
-    if (newCornerPoints == null) {
+    List<List<int>>? newCornerPoints;
+    if (newCornerPointsIn == null) {
       newCornerPoints = await MetadataHelper.readPageCornerPoints(
         widget.docIndex,
         widget.pageIndex,
       );
       newCornerPoints = rotateCornerPoints(newCornerPoints);
     } else {
+      newCornerPoints = List.from(newCornerPointsIn);
       onlyRotation = false;
       customCorners = true;
     }
@@ -4833,7 +4838,7 @@ class _WarpState extends State<Warp> {
       ];
     }
     widget.pagePreviewState.reprocessPhoto(
-      newCornerPoints: widget.cornerPoints,
+      newCornerPointsIn: widget.cornerPoints,
     );
     _allowPop = true;
     Navigator.pop(context);

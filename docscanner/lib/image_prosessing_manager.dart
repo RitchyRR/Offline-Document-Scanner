@@ -725,6 +725,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
   ) async {
+    killIsolatesOfPage(docIndex, pageIndex);
     _processPageWrapper(
       docIndex,
       pageIndex,
