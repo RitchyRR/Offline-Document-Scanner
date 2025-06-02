@@ -1022,8 +1022,10 @@ class ImageProcessingManager {
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.contains("thumbnail")) {
-        String oldThumbnailPath = fse.path;
-        await File(oldThumbnailPath).delete();
+        File oldThumbnail = File(fse.path);
+        if (oldThumbnail.existsSync()) {
+          await oldThumbnail.delete();
+        }
       }
     }
   }
