@@ -85,7 +85,7 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(sendPort, path.dirname(newPhotoPath));
+    _deleteScaledThumbnail(path.dirname(newPhotoPath));
     // Original
     versionPaths[0] = newPhotoPath;
     // Re-use Shape
@@ -807,7 +807,6 @@ class ImageProcessingManager {
 
     // Delete old Thumbnail
     _deleteScaledThumbnail(
-      sendPort,
       await g.filesHelper.getPagePath(docIndex, pageIndex),
     );
 
@@ -1014,17 +1013,15 @@ class ImageProcessingManager {
     return true;
   }
 
-  static Future<void> _deleteScaledThumbnail(
-    SendPort? sendPort,
-    String pagePath,
-  ) async {
+  static _deleteScaledThumbnail(String pagePath) {
     for (FileSystemEntity fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.contains("thumbnail")) {
-        File oldThumbnail = File(fse.path);
-        if (oldThumbnail.existsSync()) {
-          await oldThumbnail.delete();
+        try {
+          File(fse.path).deleteSync();
+        } catch (e) {
+          dev.log("Warning, _deleteScaledThumbnail: $e");
         }
       }
     }
