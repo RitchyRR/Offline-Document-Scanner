@@ -3283,13 +3283,14 @@ class PagePreviewState extends State<PagePreview> {
     for (var versionPath in _versionPaths) {
       if (versionPath.isEmpty) return;
     }
-    int? versionIndex = await MetadataHelper.readPageThumbnailIndex(
+    _selectedVersion = 0;
+    setState(() {});
+    _pageController.jumpToPage(0);
+    _selectedThumbnail = await MetadataHelper.readPageThumbnailIndex(
       widget.docIndex,
       widget.pageIndex,
     );
-    _selectedThumbnail = _selectedVersion = versionIndex;
-    setState(() {});
-    _pageController.jumpToPage(versionIndex);
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
@@ -4196,7 +4197,9 @@ class PagePreviewState extends State<PagePreview> {
     if (_cornerPoints.isEmpty ||
         _photoScale == 0.0 ||
         _rotationOngoing ||
-        _hideOverlayReprocessing) {
+        _hideOverlayReprocessing ||
+        _imagePixelHeight == 0 ||
+        _imagePixelWidth == 0) {
       return SizedBox();
     }
     int quarterTurns = _totalRotation ~/ 90;
@@ -4208,8 +4211,6 @@ class PagePreviewState extends State<PagePreview> {
         _evenPhotoScale = _photoScale;
       } else if (_evenPhotoScale != 0.0) {
         _photoScale = _evenPhotoScale;
-      } else {
-        return SizedBox();
       }
       displayHeight = _imagePixelHeight * _photoScale;
       displayWidth = _imagePixelWidth * _photoScale;
@@ -4218,8 +4219,6 @@ class PagePreviewState extends State<PagePreview> {
         _oddPhotoScale = _photoScale;
       } else if (_oddPhotoScale != 0.0) {
         _photoScale = _oddPhotoScale;
-      } else {
-        return SizedBox();
       }
       displayHeight = _imagePixelWidth * _photoScale;
       displayWidth = _imagePixelHeight * _photoScale;
@@ -4728,7 +4727,11 @@ class _WarpState extends State<Warp> {
   @override
   Widget build(BuildContext context) {
     Rect cropRect =
-        _scaledPoints.isNotEmpty && _currentCorner != null && _screenWidth != 0
+        _scaledPoints.isNotEmpty &&
+            _currentCorner != null &&
+            _imageScale != 0 &&
+            _screenWidth != 0 &&
+            _imagePixelWidth != 0
         ? Rect.fromCenter(
             center: Offset(
               _scaledPoints[_currentCorner!].dx / _pointsScale,
@@ -4805,7 +4808,7 @@ class _WarpState extends State<Warp> {
               ),
               SizedBox(height: 24),
               // Image + CornersOverlay
-              _displayHeigth != 0
+              _displayHeigth != 0 && _imageScale != 0
                   ? Transform.translate(
                       offset: Offset(
                         0,
@@ -4859,7 +4862,7 @@ class _WarpState extends State<Warp> {
   }
 
   Widget _draggableCornersOverlay(double counterScale) {
-    if (_screenWidth == 0) {
+    if (_screenWidth == 0 || counterScale == 0) {
       return SizedBox();
     }
 
@@ -4870,7 +4873,7 @@ class _WarpState extends State<Warp> {
         height: _displayHeigth,
         child: Stack(
           children: [
-            // dark frame
+            // Dark frame
             CustomPaint(
               size: Size(_screenWidth, _displayHeigth),
               painter: _MiddleLinePainter(
@@ -4932,7 +4935,7 @@ class _WarpState extends State<Warp> {
                     double newX = newPos.dx.clamp(0.0, _screenWidth);
                     double newY = newPos.dy.clamp(0.0, _displayHeigth);
 
-                    // limit position
+                    // Limit relative corner positions
                     switch (index) {
                       case 0: // top left
                         double maxX = [
@@ -5035,7 +5038,7 @@ class _WarpState extends State<Warp> {
                 ),
               );
             }),
-            // sharp corners
+            // Sharp corners
             IgnorePointer(
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
@@ -5047,7 +5050,7 @@ class _WarpState extends State<Warp> {
                 ),
               ),
             ),
-            // sharp middle section
+            // Sharp middle section
             IgnorePointer(
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
