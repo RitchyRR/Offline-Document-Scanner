@@ -3560,37 +3560,53 @@ class PagePreviewState extends State<PagePreview> {
                 if (index == 0) {
                   bool isZoomed = false;
                   return PhotoViewGalleryPageOptions.customChild(
-                    child: Stack(
-                      children: [
-                        PhotoView(
-                          controller: _photoViewController,
-                          imageProvider: FileImage(File(_versionPaths[0])),
-                          filterQuality: FilterQuality.high,
-                          minScale: PhotoViewComputedScale.contained,
-                          maxScale: 1.0,
-                          key: ValueKey(_imageRetryKey),
-                          errorBuilder: (context, error, stackTrace) {
-                            _refreshAfterBrokenImage(index);
-                            return IndicatorProcessingImage();
-                          },
-                          backgroundDecoration: BoxDecoration(
-                            color: Colors.transparent,
+                    child: GestureDetector(
+                      onLongPress:
+                          !_hideOverlayReprocessing &&
+                              enableFAB0 &&
+                              !_metadataBlocked
+                          ? () => _openWarpManuallyPage()
+                          : null,
+                      onTap:
+                          !_hideOverlayReprocessing &&
+                              enableFAB0 &&
+                              !_metadataBlocked
+                          ? () => _openWarpManuallyPage()
+                          : null,
+                      child: Stack(
+                        children: [
+                          PhotoView(
+                            controller: _photoViewController,
+                            imageProvider: FileImage(File(_versionPaths[0])),
+                            filterQuality: FilterQuality.high,
+                            minScale: PhotoViewComputedScale.contained,
+                            maxScale: 1.0,
+                            key: ValueKey(_imageRetryKey),
+                            errorBuilder: (context, error, stackTrace) {
+                              _refreshAfterBrokenImage(index);
+                              return IndicatorProcessingImage();
+                            },
+                            backgroundDecoration: BoxDecoration(
+                              color: Colors.transparent,
+                            ),
+                            scaleStateChangedCallback: (scaleState) async {
+                              isZoomed =
+                                  scaleState != PhotoViewScaleState.initial;
+                              if (!isZoomed) {
+                                await Future.delayed(
+                                  Duration(milliseconds: 300),
+                                );
+                              } // delay becuase of zoom animation
+                              setState(() {
+                                _hideOverlayReprocessing = isZoomed;
+                              });
+                            },
                           ),
-                          scaleStateChangedCallback: (scaleState) async {
-                            isZoomed =
-                                scaleState != PhotoViewScaleState.initial;
-                            if (!isZoomed) {
-                              await Future.delayed(Duration(milliseconds: 300));
-                            } // delay becuase of zoom animation
-                            setState(() {
-                              _hideOverlayReprocessing = isZoomed;
-                            });
-                          },
-                        ),
 
-                        // Corner Points
-                        _displayCornerOverlay(context),
-                      ],
+                          // Corner Points
+                          _displayCornerOverlay(context),
+                        ],
+                      ),
                     ),
                   );
                 }
