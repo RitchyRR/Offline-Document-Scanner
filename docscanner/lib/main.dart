@@ -3118,7 +3118,6 @@ class PagePreviewState extends State<PagePreview> {
     (_) => Future<String>.value(""),
   );
   String _photoPath = "";
-  int _imageRetryKey = 0; // to refresh brokenImages
   // Reprocessing Parameters
   double? _ratioValue;
   double? _guiRatioValue;
@@ -3581,10 +3580,11 @@ class PagePreviewState extends State<PagePreview> {
                             filterQuality: FilterQuality.high,
                             minScale: PhotoViewComputedScale.contained,
                             maxScale: 1.0,
-                            key: ValueKey(_imageRetryKey),
                             errorBuilder: (context, error, stackTrace) {
-                              _refreshAfterBrokenImage(index);
-                              return IndicatorProcessingImage();
+                              return Icon(
+                                Icons.broken_image,
+                                color: Theme.of(context).disabledColor,
+                              );
                             },
                             backgroundDecoration: BoxDecoration(
                               color: Colors.transparent,
@@ -3616,10 +3616,11 @@ class PagePreviewState extends State<PagePreview> {
                   filterQuality: FilterQuality.high,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: 1.0,
-                  key: ValueKey(_imageRetryKey),
                   errorBuilder: (context, error, stackTrace) {
-                    _refreshAfterBrokenImage(index);
-                    return IndicatorProcessingImage();
+                    return Icon(
+                      Icons.broken_image,
+                      color: Theme.of(context).disabledColor,
+                    );
                   },
                 );
               },
@@ -3812,53 +3813,51 @@ class PagePreviewState extends State<PagePreview> {
                               _selectedThumbnail == index ? 13.75 : 11.5,
                             ),
                             border: Border.all(
-                              color: _selectedThumbnail == index
+                              color:
+                                  _selectedThumbnail == index &&
+                                      _versionPaths[index].isNotEmpty
                                   ? Theme.of(context).colorScheme.primaryFixed
+                                  : _selectedVersion == index
+                                  ? Colors.white
                                   : Colors.white54,
-                              width: _selectedThumbnail == index ? 5 : 3,
+                              width:
+                                  _selectedThumbnail == index &&
+                                      _versionPaths[index].isNotEmpty
+                                  ? 5
+                                  : 3,
                             ),
                             boxShadow: [bigBoxShadow(context)],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.5),
-                            child: _versionPaths[index].isNotEmpty
-                                ? Image.file(
-                                    File(_versionPaths[index]),
-                                    width: _selectedVersion == index ? 70 : 50,
-                                    height: _selectedVersion == index ? 70 : 50,
-                                    fit: BoxFit.cover,
-                                    key: ValueKey(_imageRetryKey),
-                                    errorBuilder: (context, error, stackTrace) {
-                                      _refreshAfterBrokenImage(index);
-                                      return SizedBox(
-                                        width: _selectedVersion == index
-                                            ? 70
-                                            : 50,
-                                        height: _selectedVersion == index
-                                            ? 70
-                                            : 50,
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(12.0),
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : Container(
-                                    width:
-                                        _selectedVersion == index && index != 0
-                                        ? 70
-                                        : 50,
-                                    height:
-                                        _selectedVersion == index && index != 0
-                                        ? 70
-                                        : 50,
-                                    color: Theme.of(context).disabledColor,
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(12.0),
-                                      child: CircularProgressIndicator(),
+                            child: SizedBox(
+                              width: _selectedVersion == index ? 70 : 50,
+                              height: _selectedVersion == index ? 70 : 50,
+                              child: _versionPaths[index].isNotEmpty
+                                  ? Image.file(
+                                      File(_versionPaths[index]),
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Padding(
+                                              padding: EdgeInsets.all(12.0),
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Theme.of(
+                                                  context,
+                                                ).disabledColor,
+                                              ),
+                                            );
+                                          },
+                                    )
+                                  : Container(
+                                      color: Theme.of(context).disabledColor,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(12.0),
+                                        child: CircularProgressIndicator(),
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                         // Locked Badge
@@ -3905,19 +3904,6 @@ class PagePreviewState extends State<PagePreview> {
         child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
-  }
-
-  Future<void> _refreshAfterBrokenImage(int index) async {
-    dev.log("_refreshAfterBrokenImage");
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        setState(() {
-          _imageRetryKey = (_imageRetryKey - 1) * (-1);
-        });
-      } else {
-        dev.log("Warning, _refreshAfterBrokenImage: not mounted");
-      }
-    });
   }
 
   CustomIconButton _rotateButton(
@@ -5061,8 +5047,20 @@ class _WarpState extends State<Warp> {
                 painter: _CornerLinePainter(
                   points: _scaledPoints,
                   strokeWidth: 1.0 / counterScale,
-                  offset: 50,
+                  offset: _circleSize / 2,
                   normalizedOffset: true,
+                ),
+              ),
+            ),
+            // Sharp corners
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _CornerLinePainter(
+                  points: _scaledPoints,
+                  strokeWidth: 1.0 / counterScale,
+                  offset: 0.25,
+                  normalizedOffset: false,
                 ),
               ),
             ),
