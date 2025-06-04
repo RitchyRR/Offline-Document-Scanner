@@ -400,14 +400,14 @@ class MetadataHelper {
     }
   }
 
-  static Future<int> readPageThumbnailIndex(
+  static Future<int?> readPageThumbnailIndex(
     int docIndex,
     int pageIndex, {
     AppGlobals? gIn,
     bool supressWarnings = false,
   }) async {
-    bool isIsolate = false;
-    if (gIn != null) isIsolate = true;
+    //bool isIsolate = false;
+    //if (gIn != null) isIsolate = true;
 
     dynamic value = await _readPage(
       docIndex,
@@ -418,11 +418,11 @@ class MetadataHelper {
     );
     if (value is String) {
       int thumbnailIndex = versionNames.indexOf(value);
+      if (thumbnailIndex == -1) return null;
       return thumbnailIndex;
     } else {
-      return (isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true)
-          ? 3
-          : 2;
+      return null;
+      //(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) ? 3 : 2;
     }
   }
 

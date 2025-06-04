@@ -348,13 +348,15 @@ class FilesHelper {
     List<String> thumbnailPaths = List.generate(docsCount, (_) => "");
     for (var docIndex = 0; docIndex < docsCount; docIndex++) {
       final page0Path = await getPagePath(docIndex, 0);
-      int thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+      int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         0,
         supressWarnings: true,
       );
       final thumbnailName = "thumbnail";
-      final backupName = versionNames[thumbnailIndex];
+      final backupName = thumbnailIndex != null
+          ? versionNames[thumbnailIndex]
+          : null;
       String? thumbnailPath;
       String? backupPath;
       List<FileSystemEntity> versions = [];
@@ -367,7 +369,7 @@ class FilesHelper {
       for (var version in versions) {
         if (version.path.contains(thumbnailName)) {
           thumbnailPath = version.path;
-        } else if (version.path.contains(backupName)) {
+        } else if (backupName != null && version.path.contains(backupName)) {
           backupPath = version.path;
         }
       }
@@ -407,7 +409,9 @@ class FilesHelper {
         supressWarnings: true,
       );
       final thumbnailName = "thumbnail";
-      final backupName = versionNames[thumbnailIndex];
+      final backupName = thumbnailIndex != null
+          ? versionNames[thumbnailIndex]
+          : null;
       String? thumbnailPath;
       String? backupPath;
       try {
@@ -416,7 +420,7 @@ class FilesHelper {
         for (var version in versions) {
           if (!fullSized && version.path.contains(thumbnailName)) {
             thumbnailPath = version.path;
-          } else if (version.path.contains(backupName)) {
+          } else if (backupName != null && version.path.contains(backupName)) {
             backupPath = version.path;
           }
         }

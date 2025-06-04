@@ -3285,10 +3285,12 @@ class PagePreviewState extends State<PagePreview> {
     _selectedVersion = 0;
     setState(() {});
     _pageController.jumpToPage(0);
-    _selectedThumbnail = await MetadataHelper.readPageThumbnailIndex(
-      widget.docIndex,
-      widget.pageIndex,
-    );
+    _selectedThumbnail =
+        await MetadataHelper.readPageThumbnailIndex(
+          widget.docIndex,
+          widget.pageIndex,
+        ) ??
+        (g.proUnlocked == true ? 3 : 2);
     if (mounted) setState(() {});
   }
 
@@ -4053,7 +4055,6 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
         customCorners ? null : _guiRatioValue,
-        (g.proUnlocked == true ? 3 : 2),
         newCornerPoints,
         _totalRotation,
       );

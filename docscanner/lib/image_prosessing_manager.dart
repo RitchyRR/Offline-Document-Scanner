@@ -36,7 +36,6 @@ class ImageProcessingManager {
       int pageIndex,
       String newPhotoPath,
       double? ratioValueIn,
-      int? pageThumbnailIndex,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
       bool isInitial,
@@ -53,14 +52,10 @@ class ImageProcessingManager {
     String newPhotoPath = data.$5;
 
     double? ratioValueIn = data.$6;
-    int? pageThumbnailIndexIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    int rotationIn = data.$9;
-    bool isInitial = data.$10;
-    if (pageThumbnailIndexIn == 0) {
-      throw StateError("Error, _processPageIsolate: photo cant be thumbnail");
-    }
-    AppGlobals g = data.$11;
+    List<List<int>>? cornerPointsIn = data.$7;
+    int rotationIn = data.$8;
+    bool isInitial = data.$9;
+    AppGlobals g = data.$10;
     if (!File(newPhotoPath).existsSync() ||
         File(newPhotoPath).lengthSync() == 0) {
       final actualPhotoPath = await g.filesHelper.getVersionPath(
@@ -78,8 +73,6 @@ class ImageProcessingManager {
         throw StateError("Error, _processPageIsolate: no photo");
       }
     }
-    int thumbnailIndex =
-        pageThumbnailIndexIn ?? ((g.proUnlocked == true) ? 3 : 2);
 
     List<String> versionPaths = List.generate(4, (index) => "");
     OpenCVHelper cvHelper = OpenCVHelper(g);
@@ -156,6 +149,13 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
     if (isInitial) {
+      int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        gIn: g,
+        supressWarnings: true,
+      );
+
       bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
         sendPort,
         docIndex,
@@ -169,7 +169,7 @@ class ImageProcessingManager {
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
-          thumbnailIndex,
+          thumbnailIndex ?? ((g.proUnlocked == true) ? 3 : 2),
           gIn: g,
         );
       }
@@ -281,7 +281,6 @@ class ImageProcessingManager {
     int pageIndex,
     String photoPath,
     double? ratioValueIn,
-    int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial,
@@ -334,7 +333,6 @@ class ImageProcessingManager {
         pageIndex,
         photoPath,
         ratioValueIn,
-        pageThumbnailIndex,
         cornerPointsIn,
         rotationIn,
         isInitial,
@@ -542,7 +540,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
-      int thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+      int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
         gIn: g,
@@ -559,7 +557,7 @@ class ImageProcessingManager {
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
-          thumbnailIndex,
+          thumbnailIndex ?? (g.proUnlocked == true ? 3 : 2),
           gIn: g,
         );
       }
@@ -687,7 +685,6 @@ class ImageProcessingManager {
       photoPathsIn[0],
       null,
       null,
-      null,
       0,
       true,
       photosAlreadyInPages,
@@ -706,7 +703,6 @@ class ImageProcessingManager {
           path,
           null,
           null,
-          null,
           0,
           true,
           photosAlreadyInPages,
@@ -721,7 +717,6 @@ class ImageProcessingManager {
     int pageIndex,
     String pathIn,
     double? ratioValueIn,
-    int? pageThumbnailIndex,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
   ) async {
@@ -731,7 +726,6 @@ class ImageProcessingManager {
       pageIndex,
       pathIn,
       ratioValueIn,
-      pageThumbnailIndex,
       cornerPointsIn,
       rotationIn,
       false,
@@ -938,10 +932,20 @@ class ImageProcessingManager {
     SendPort? sendPort,
     int docIndex,
     int pageIndex,
-    int thumbnailIndex,
+    int? thumbnailIndex,
     AppGlobals gIn, {
     bool overwrite = true,
   }) async {
+    // if not overwriting and thumbnailIndex exists -> return false
+    if (thumbnailIndex != null) {
+      if (!overwrite) {
+        dev.log("Thumbnail already exists, won't overwrite thumbnail.");
+        return false;
+      }
+    } else {
+      thumbnailIndex = (gIn.proUnlocked == true) ? 3 : 2;
+    }
+
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;
     String versionPath;
@@ -968,6 +972,7 @@ class ImageProcessingManager {
         "Error, writeScaledThumbnail: $versionPath does not exist",
       );
     } else {
+      // if overwriting -> delete existing thumbnail file
       for (FileSystemEntity fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
