@@ -936,15 +936,7 @@ class ImageProcessingManager {
     AppGlobals gIn, {
     bool overwrite = true,
   }) async {
-    // if not overwriting and thumbnailIndex exists -> return false
-    if (thumbnailIndex != null) {
-      if (!overwrite) {
-        dev.log("Thumbnail already exists, won't overwrite thumbnail.");
-        return false;
-      }
-    } else {
-      thumbnailIndex = (gIn.proUnlocked == true) ? 3 : 2;
-    }
+    thumbnailIndex = thumbnailIndex ?? (gIn.proUnlocked == true ? 3 : 2);
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;
