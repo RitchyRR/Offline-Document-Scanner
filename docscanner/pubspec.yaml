@@ -3,31 +3,27 @@ description: "An offline Document Scanner."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 1.5.22+56 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
-
-
-
+version: 1.5.23+57 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
 
 environment:
   sdk: ^3.8.0
 
-
 dependencies:
-  flutter: 
+  flutter:
     sdk: flutter
   # functional:
   provider: # NotifierProvider
-  fluttertoast: 
+  fluttertoast:
   # design:
-  dynamic_color: 
-  photo_view: 
+  dynamic_color:
+  photo_view:
   # image handling:
-  path_provider: 
+  path_provider:
   path:
-  image_picker: 
+  image_picker:
   gal: # save to gallery
   share_plus: # share files
-  pdf: 
+  pdf:
   file_selector: # select directory to save pdfs to
   image:
   # image processing:
@@ -36,13 +32,13 @@ dependencies:
   in_app_purchase:
   flutter_secure_storage: # proUnlocked
   receive_sharing_intent:
-  camera: 
-  camera_android_camerax: 
-  camera_platform_interface: 
+  camera:
+  camera_android_camerax:
+  camera_platform_interface:
   google_mobile_ads:
   encrypt:
   shared_preferences:
-  permission_handler: 
+  permission_handler:
   url_launcher:
   package_info_plus:
   collection:
@@ -50,14 +46,12 @@ dependencies:
   crypto:
   flutter_image_compress:
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
- 
-  flutter_lints: ^5.0.0
-  flutter_launcher_icons: 
 
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons:
 
 flutter_launcher_icons:
   android: true
@@ -67,11 +61,9 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/app_icon_363332_293037_53c5f8_00abf8_282828.png"
   #dart run flutter_launcher_icons
 
-
 flutter:
   uses-material-design: true
-  
+
   # To add assets to your application, add an assets section, like this:
   assets:
-      - assets/arrow.png
-
+    - assets/arrow.png
