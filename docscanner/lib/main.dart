@@ -6345,6 +6345,9 @@ class ThumbnailWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fontSize = 16.0;
+    final containerSize =
+        MediaQuery.of(context).textScaler.scale(fontSize) * 1.5;
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
@@ -6371,17 +6374,18 @@ class ThumbnailWithBadge extends StatelessWidget {
               right: 0,
               top: 0,
               child: Container(
-                width: 22,
-                height: 22,
+                width: containerSize,
+                height: containerSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white, //Theme.of(context).colorScheme.
+                  color: Colors.white,
                 ),
+                alignment: Alignment.center,
                 child: Text(
                   "$count",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: fontSize,
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
