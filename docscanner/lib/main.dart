@@ -569,7 +569,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     int docIndex,
     int displayDocIndex,
   ) async {
-    Future<void> future = imageProcessingManager.awaitAllIsolates();
+    Future<void> isolatesFuture = imageProcessingManager.awaitAllIsolates();
     {
       bool allowChangeDocIndex = false;
       int? selectedIndex = await showDialog<int>(
@@ -595,7 +595,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
             ),
             content: StatefulBuilder(
               builder: (context, setState) {
-                future.whenComplete(() {
+                isolatesFuture.whenComplete(() {
                   setState(() => allowChangeDocIndex = true);
                 });
                 return Column(
@@ -610,9 +610,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         hintText: "Document $displayDocIndex",
                       ),
                       clipBehavior: Clip.hardEdge,
-                      onChanged: (value) => setState(() {
-                        nameController.text = value;
-                      }),
                     ),
                     SizedBox(height: 16),
                     // Dropdown for changing the index
