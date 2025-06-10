@@ -4881,7 +4881,7 @@ class _WarpState extends State<Warp> {
                 color: Colors.black38,
                 strokeWidth: 7.0 / counterScale,
                 normalizedOffset: true,
-                offset: _circleSize / counterScale / 2 + 2,
+                offset: _circleSize / counterScale / 2 + 4,
               ),
             ),
 
@@ -4889,6 +4889,7 @@ class _WarpState extends State<Warp> {
             ..._scaledPoints.asMap().entries.map((entry) {
               final index = entry.key;
               final offset = entry.value;
+              final isCurrent = index == _currentCorner;
 
               return Positioned(
                 left: offset.dx - _circleSize / counterScale / 2,
@@ -5026,13 +5027,24 @@ class _WarpState extends State<Warp> {
                   },
                   onPanEnd: (details) => panOver(index),
                   onPanCancel: () => panOver(index),
+                  // Circle
                   child: Container(
                     width: _circleSize / counterScale,
                     height: _circleSize / counterScale,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.black12,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: isCurrent
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primaryFixed,
+                              width: 3 / counterScale,
+                              strokeAlign: BorderSide.strokeAlignOutside,
+                            )
+                          : Border.all(
+                              color: Colors.white,
+                              width: 2 / counterScale,
+                              strokeAlign: BorderSide.strokeAlignOutside,
+                            ),
                     ),
                   ),
                 ),
