@@ -3603,7 +3603,7 @@ class PagePreviewState extends State<PagePreview> {
                           ),
 
                           // Corner Points
-                          _displayCornerOverlay(context),
+                          _displayCornersOverlay(context),
                         ],
                       ),
                     ),
@@ -4193,7 +4193,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Widget _displayCornerOverlay(BuildContext context) {
+  Widget _displayCornersOverlay(BuildContext context) {
     if (_cornerPoints.isEmpty ||
         _photoScale == 0.0 ||
         _rotationOngoing ||
@@ -4240,16 +4240,45 @@ class PagePreviewState extends State<PagePreview> {
             quarterTurns: quarterTurns,
             child: Stack(
               children: [
+                // BG
+                //CustomPaint(
+                //  size: Size(displayWidth, displayHeight),
+                //  painter: _FrameLinePainter(
+                //    points: scaledPoints,
+                //    color: Theme.of(
+                //      context,
+                //    ).colorScheme.onPrimaryFixed.withAlpha(50),
+                //  ),
+                //),
+                /// Corner
                 CustomPaint(
                   size: Size(displayWidth, displayHeight),
-                  painter: _FrameLinePainter(points: scaledPoints),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 6.0,
+                    color: Colors.black.withAlpha(50),
+                    offset: 0.105,
+                    normalizedOffset: false,
+                  ),
                 ),
                 CustomPaint(
                   size: Size(displayWidth, displayHeight),
                   painter: _CornerLinePainter(
                     points: scaledPoints,
-                    strokeWidth: 2.0,
+                    strokeWidth: 4.0,
+                    color: Theme.of(context).colorScheme.primaryFixed,
                     offset: 0.1,
+                    normalizedOffset: false,
+                  ),
+                ),
+                // Middle Section
+                CustomPaint(
+                  size: Size(displayWidth, displayHeight),
+                  painter: _MiddleLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 3.0,
+                    color: Colors.black.withAlpha(50),
+                    offset: 0.605,
                     normalizedOffset: false,
                   ),
                 ),
@@ -4257,8 +4286,8 @@ class PagePreviewState extends State<PagePreview> {
                   size: Size(displayWidth, displayHeight),
                   painter: _MiddleLinePainter(
                     points: scaledPoints,
-                    strokeWidth: 2.0,
-                    color: Colors.white,
+                    strokeWidth: 1.0,
+                    color: Theme.of(context).colorScheme.primaryFixed,
                     offset: 0.6,
                     normalizedOffset: false,
                   ),
@@ -4272,48 +4301,48 @@ class PagePreviewState extends State<PagePreview> {
   }
 }
 
-class _FrameLinePainter extends CustomPainter {
-  final List<Offset> points;
-  // ignore: prefer_typing_uninitialized_variables
-  final color;
-  // ignore: prefer_typing_uninitialized_variables
-  final strokeWidth;
-
-  _FrameLinePainter({
-    required this.points,
-    // ignore: unused_element_parameter
-    this.color = Colors.black45,
-    // ignore: unused_element_parameter
-    this.strokeWidth = 7.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-
-    final paintEdges = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..isAntiAlias = true;
-
-    var order = [0, 2, 3, 1];
-    List<Offset> orderedPoints = order.map((i) => points[i]).toList();
-
-    // Edges
-    final path = Path();
-    path.moveTo(points[0].dx, points[0].dy);
-    for (int i = 1; i < orderedPoints.length; i++) {
-      path.lineTo(orderedPoints[i].dx, orderedPoints[i].dy);
-    }
-    path.close();
-    canvas.drawPath(path, paintEdges);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FrameLinePainter oldDelegate) =>
-      oldDelegate.points != points;
-}
+//class _FrameLinePainter extends CustomPainter {
+//  final List<Offset> points;
+//  // ignore: prefer_typing_uninitialized_variables
+//  final color;
+//  // ignore: prefer_typing_uninitialized_variables
+//  final strokeWidth;
+//
+//  _FrameLinePainter({
+//    required this.points,
+//    // ignore: unused_element_parameter
+//    this.color = Colors.black45,
+//    // ignore: unused_element_parameter
+//    this.strokeWidth = 7.0,
+//  });
+//
+//  @override
+//  void paint(Canvas canvas, Size size) {
+//    if (points.length < 2) return;
+//
+//    final paintEdges = Paint()
+//      ..color = color
+//      ..strokeWidth = strokeWidth
+//      ..style = PaintingStyle.stroke
+//      ..isAntiAlias = true;
+//
+//    var order = [0, 2, 3, 1];
+//    List<Offset> orderedPoints = order.map((i) => points[i]).toList();
+//
+//    // Edges
+//    final path = Path();
+//    path.moveTo(points[0].dx, points[0].dy);
+//    for (int i = 1; i < orderedPoints.length; i++) {
+//      path.lineTo(orderedPoints[i].dx, orderedPoints[i].dy);
+//    }
+//    path.close();
+//    canvas.drawPath(path, paintEdges);
+//  }
+//
+//  @override
+//  bool shouldRepaint(covariant _FrameLinePainter oldDelegate) =>
+//      oldDelegate.points != points;
+//}
 
 class _CornerLinePainter extends CustomPainter {
   final List<Offset> points;
@@ -4878,10 +4907,38 @@ class _WarpState extends State<Warp> {
               size: Size(_screenWidth, _displayHeigth),
               painter: _MiddleLinePainter(
                 points: _scaledPoints,
-                color: Colors.black38,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimaryFixed.withAlpha(100),
                 strokeWidth: 7.0 / counterScale,
                 normalizedOffset: true,
-                offset: _circleSize / counterScale / 2 + 4,
+                offset: (_circleSize + 8) / counterScale / 2,
+              ),
+            ),
+            // Sharp corners reaching outside circle
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _CornerLinePainter(
+                  points: _scaledPoints,
+                  color: Theme.of(context).colorScheme.primaryFixed,
+                  strokeWidth: 1.0 / counterScale,
+                  offset: 0.25,
+                  normalizedOffset: false,
+                ),
+              ),
+            ),
+            // Sharp middle section
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _MiddleLinePainter(
+                  points: _scaledPoints,
+                  color: Theme.of(context).colorScheme.primaryFixed,
+                  strokeWidth: 1.0,
+                  offset: 0.55,
+                  normalizedOffset: false,
+                ),
               ),
             ),
 
@@ -5033,15 +5090,15 @@ class _WarpState extends State<Warp> {
                     height: _circleSize / counterScale,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black12,
+                      color: Colors.black.withAlpha(50),
                       border: isCurrent
                           ? Border.all(
                               color: Theme.of(context).colorScheme.primaryFixed,
-                              width: 3 / counterScale,
+                              width: 4 / counterScale,
                               strokeAlign: BorderSide.strokeAlignOutside,
                             )
                           : Border.all(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.primaryFixed,
                               width: 2 / counterScale,
                               strokeAlign: BorderSide.strokeAlignOutside,
                             ),
@@ -5050,40 +5107,16 @@ class _WarpState extends State<Warp> {
                 ),
               );
             }),
-            // Sharp corners
+            // Sharp corners inside circle
             IgnorePointer(
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _CornerLinePainter(
-                  points: _scaledPoints,
-                  strokeWidth: 1.0 / counterScale,
-                  offset: _circleSize / 2,
-                  normalizedOffset: true,
-                ),
-              ),
-            ),
-            // Sharp corners
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _CornerLinePainter(
-                  points: _scaledPoints,
-                  strokeWidth: 1.0 / counterScale,
-                  offset: 0.25,
-                  normalizedOffset: false,
-                ),
-              ),
-            ),
-            // Sharp middle section
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _MiddleLinePainter(
                   points: _scaledPoints,
                   color: Colors.white,
-                  strokeWidth: 1.0,
-                  offset: 0.55,
-                  normalizedOffset: false,
+                  strokeWidth: 1.0 / counterScale,
+                  offset: (_circleSize + 2) / counterScale / 2,
+                  normalizedOffset: true,
                 ),
               ),
             ),

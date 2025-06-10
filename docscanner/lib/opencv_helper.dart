@@ -1,5 +1,6 @@
 import 'dart:developer' as dev;
 import 'dart:typed_data';
+import 'package:collection/collection.dart';
 import 'package:docscanner/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart'
     show CompressFormat, FlutterImageCompress;
@@ -314,46 +315,67 @@ class OpenCVHelper {
       throw StateError("Error, Edge Detection & Filling: split channels");
     }
 
+    List<int> maskSizes = [0, 0, 0];
+    // 1. try just filling Edges
     cv.Mat edges = _rgbEdges(imageMat);
-    cv.Mat houghEdges1 = _houghEdges1(edges);
+    cv.Mat edgesShape = _tightRiskyShape(edges);
+    // 2. use Hough Edges
+    cv.Mat houghEdges1 = _houghEdges1(edges, 8);
     cv.Mat houghEdges2 = _houghEdges2(edges);
-    //return edges;
-
-    bool hough1good = false;
     cv.Mat houghShape1 = _houghShape(houghEdges1);
-    if (_testNoSpillover(houghShape1)) {
-      borderCutIn = null;
-      hough1good = true;
-    }
-    bool hough2good = false;
     cv.Mat houghShape2 = _houghShape(houghEdges2);
-    if (_testNoSpillover(houghShape2)) {
-      borderCutIn = null;
-      hough2good = true;
-    }
-    if (hough1good && hough2good) {
-      if (houghShape1.countNoneZero > houghShape2.countNoneZero) {
-        return houghShape1;
-      } else {
-        return houghShape2;
+    // read maskSizes if contained
+    if (_testNoSpillover(edgesShape)) {
+      maskSizes[0] = edgesShape.countNoneZero;
+    } else {
+      edgesShape = _mediumShape(edges);
+      if (_testNoSpillover(edgesShape)) {
+        maskSizes[0] = edgesShape.countNoneZero;
       }
-    } else if (hough1good) {
-      return houghShape1;
-    } else if (hough2good) {
-      return houghShape2;
+    }
+    if (_testNoSpillover(houghShape1)) {
+      maskSizes[1] = houghShape1.countNoneZero;
+    } else {
+      houghShape1 = _houghEdges1(edges, 10);
+      if (_testNoSpillover(edgesShape)) {
+        maskSizes[0] = edgesShape.countNoneZero;
+      } else {
+        houghShape1 = _houghEdges1(edges, 16);
+        if (_testNoSpillover(edgesShape)) {
+          maskSizes[0] = edgesShape.countNoneZero;
+        }
+      }
+    }
+    if (_testNoSpillover(houghShape2)) {
+      maskSizes[2] = houghShape2.countNoneZero;
+    }
+    // return largest shape
+    int largestShapeSize = maskSizes.max;
+    int largestShapeIndex = maskSizes.indexOf(largestShapeSize);
+    if (largestShapeSize != 0) {
+      // disable borderCutIn for huff
+      switch (largestShapeIndex) {
+        case 0:
+          return edgesShape;
+        case 1:
+          borderCutIn = null;
+          return houghShape1;
+        case 2:
+          borderCutIn = null;
+          return houghShape2;
+        default:
+      }
     }
 
+    // Fallback: 3. Combine Edges and Hough Edges
     edges = edges.add(houghEdges2);
-    //return edges;
-    // 1. try just filling edges
-    cv.Mat tightRiskyShape = _tightRiskyShape(edges);
-    if (_testNoSpillover(tightRiskyShape)) {
-      return tightRiskyShape;
+    edgesShape = _tightRiskyShape(edges);
+    if (_testNoSpillover(edgesShape)) {
+      return edgesShape;
     }
-
-    cv.Mat mediumShape = _mediumShape(edges);
-    if (_testNoSpillover(mediumShape)) {
-      return mediumShape;
+    edgesShape = _mediumShape(edges);
+    if (_testNoSpillover(edgesShape)) {
+      return edgesShape;
     }
 
     //cv.Mat looseSafeShape = _looseSafeShape(edges);
@@ -411,7 +433,7 @@ class OpenCVHelper {
     return finalEdges;
   }
 
-  cv.Mat _houghEdges1(cv.Mat edges) {
+  cv.Mat _houghEdges1(cv.Mat edges, int maxLinesCount) {
     final double rhoRes = K * 0.15;
     final double thetaRes = (math.pi / 180);
     final int threshold = (K * 20).toInt();
@@ -423,7 +445,7 @@ class OpenCVHelper {
 
     cv.Mat allLines = cv.HoughLines(edges, rhoRes, thetaRes, threshold);
 
-    int linesCount = math.min(10, allLines.rows);
+    int linesCount = math.min(maxLinesCount, allLines.rows);
     List<cv.Vec2f> lines = [];
     for (int i = 0; i < linesCount; i++) {
       final seg = allLines.at<cv.Vec2f>(i, 0);
@@ -545,19 +567,36 @@ class OpenCVHelper {
   }
 
   cv.Mat _mediumShape(cv.Mat edges) {
-    int kSize = K ~/ 2 * 2 + 1;
-    cv.Mat kernel1 = cv.Mat.ones(kSize, kSize, cv.MatType.CV_8UC1);
+    int kSizeD = K ~/ 2 * 2 + 1;
+    int kSizeE = K ~/ 3 * 2 + 1;
+    cv.Mat kernelDilate = cv.Mat.ones(kSizeD, kSizeD, cv.MatType.CV_8UC1);
+    cv.Mat kernelErode = cv.Mat.ones(kSizeE, kSizeE, cv.MatType.CV_8UC1);
     cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
-    cv.Mat dilEdges = cv.dilate(edges, kernel1, borderType: cv.BORDER_CONSTANT);
-    cv.Mat shape1 = dilEdges.clone();
+    cv.Mat dilEdges = cv.dilate(
+      edges,
+      kernelDilate,
+      borderType: cv.BORDER_CONSTANT,
+      iterations: 1,
+    );
+    cv.Mat edgesClosed = cv.erode(
+      dilEdges,
+      kernelErode,
+      borderType: cv.BORDER_CONSTANT,
+      iterations: 1,
+    );
+    cv.Mat shape1 = edgesClosed.clone();
     cv.floodFill(
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
       mask: mask, // useless
     );
-    shape1 = cv.subtract(shape1, dilEdges);
-    cv.Mat kernel2 = cv.Mat.ones(kSize + 2, kSize + 2, cv.MatType.CV_8UC1);
+    shape1 = cv.subtract(shape1, edgesClosed);
+    cv.Mat kernel2 = cv.Mat.ones(
+      kSizeD - kSizeE + 2,
+      kSizeD - kSizeE + 2,
+      cv.MatType.CV_8UC1,
+    );
     shape1 = cv.dilate(shape1, kernel2, borderType: cv.BORDER_CONSTANT);
     return shape1;
   }
