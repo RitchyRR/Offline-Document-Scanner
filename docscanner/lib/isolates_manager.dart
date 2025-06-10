@@ -48,11 +48,11 @@ class IsolatesManager {
     return busyCount;
   }
 
-  final int maxIsolates = (Platform.numberOfProcessors ~/ 2 - 1).clamp(
+  final int maxIsolates = (Platform.numberOfProcessors - 1).clamp(
     1,
     Platform.numberOfProcessors - 1,
   );
-  final int baseNOfIsolates = ((Platform.numberOfProcessors ~/ 2 - 1) * 5 / 7)
+  final int baseNOfIsolates = ((Platform.numberOfProcessors - 1) * 5 / 7)
       .toInt()
       .clamp(1, Platform.numberOfProcessors - 1);
   final List<_Worker> _workers = [];
