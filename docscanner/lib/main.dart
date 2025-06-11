@@ -2455,6 +2455,28 @@ class _PagesState extends State<Pages> with RouteAware {
                       width: 40,
                       height: 40,
                       child: FloatingActionButton(
+                        heroTag: "selectionChangeThumbnail",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onPressed: () async {
+                          if (await _changeThumbnailIndexesPopup(
+                            context,
+                            _selectedPages,
+                            widget.docIndex,
+                          )) {
+                            _cancelSelectMode();
+                          }
+                        },
+                        tooltip: "Change Thumbnail",
+                        child: const Icon(Icons.image),
+                      ),
+                    ),
+                    SizedBox(height: 18.0),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
                         heroTag: "selectionDeletePage",
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -3058,12 +3080,6 @@ class PagePreview extends StatefulWidget {
 }
 
 class PagePreviewState extends State<PagePreview> {
-  static const List<String> versionNames = [
-    "Photo",
-    "Transformed",
-    "Basic",
-    "PRO",
-  ];
   // Widget
   int _selectedVersion = 0;
   int _selectedThumbnail = g.proUnlocked == true ? 3 : 2;
@@ -3774,11 +3790,9 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             border: Border.all(
                               color:
-                                  _selectedThumbnail == index &&
-                                      _versionPaths[index].isNotEmpty
-                                  ? Theme.of(context).colorScheme.primaryFixed
-                                  : _selectedVersion == index
-                                  ? Colors.white
+                                  _selectedThumbnail == index ||
+                                      _selectedVersion == index
+                                  ? Theme.of(context).colorScheme.secondaryFixed
                                   : Colors.white54,
                               width:
                                   _selectedThumbnail == index &&
@@ -5239,6 +5253,74 @@ class PositionTimestamp {
   final DateTime timestamp;
 
   PositionTimestamp({required this.position, required this.timestamp});
+}
+
+const List<String> versionNames = ["Photo", "Unfiltered", "Basic", "PRO"];
+
+Future<bool> _changeThumbnailIndexesPopup(
+  BuildContext callContext,
+  List<int> pageIndexes,
+  int docIndex,
+) async {
+  int? selectedIndex;
+  await showDialog(
+    context: callContext,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Select Thumbnail Version"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List<Widget>.generate(
+                g.proUnlocked == true
+                    ? versionNames.length - 1
+                    : versionNames.length - 2,
+                (index) => RadioListTile<int>(
+                  title: Text(versionNames[index + 1]),
+                  value: index + 1,
+                  groupValue: selectedIndex,
+                  onChanged: (int? value) {
+                    if (value != null) {
+                      setState(() {
+                        selectedIndex = value;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(), // Cancel
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: selectedIndex != null
+                    ? () {
+                        Navigator.of(context).pop();
+                      }
+                    : null,
+                child: const Text("Apply"),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  if (selectedIndex != null) {
+    for (var pageIndex in pageIndexes) {
+      imageProcessingManager.saveNewThumbnail(
+        docIndex,
+        pageIndex,
+        selectedIndex!,
+      );
+    }
+    return true;
+  }
+  return false;
 }
 
 Future<bool> _pagesPopup(
