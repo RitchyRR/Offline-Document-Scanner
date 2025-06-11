@@ -4149,8 +4149,8 @@ class PagePreviewState extends State<PagePreview> {
                   painter: _CornerLinePainter(
                     points: scaledPoints,
                     strokeWidth: 6.0,
-                    color: Colors.black.withAlpha(50),
-                    offset: 0.105,
+                    color: Colors.black.withAlpha(70),
+                    offset: 0.1025,
                     normalizedOffset: false,
                   ),
                 ),
@@ -4170,7 +4170,7 @@ class PagePreviewState extends State<PagePreview> {
                   painter: _MiddleLinePainter(
                     points: scaledPoints,
                     strokeWidth: 3.0,
-                    color: Colors.black.withAlpha(50),
+                    color: Colors.black.withAlpha(70),
                     offset: 0.605,
                     normalizedOffset: false,
                   ),
@@ -4272,14 +4272,19 @@ class _CornerLinePainter extends CustomPainter {
     for (int i = 0; i < orderedPoints.length; i++) {
       Offset p1 = orderedPoints[i];
       Offset p2 = orderedPoints[(i + 1) % orderedPoints.length];
-      Offset delta = p2 - p1;
-      Offset deltaN = delta / delta.distance;
-      p1 -= delta / delta.distance * strokeWidth / 2;
-      p2 += delta / delta.distance * strokeWidth / 2;
-      Offset startOffset = p1 + (normalizedOffset ? deltaN : delta) * offset;
-      Offset endOffset = p2 - (normalizedOffset ? deltaN : delta) * offset;
-      canvas.drawLine(p1, startOffset, paintCorners);
-      canvas.drawLine(endOffset, p2, paintCorners);
+      Offset p0 = orderedPoints[(i - 1) % orderedPoints.length];
+      Offset delta0 = p2 - p1;
+      Offset delta2 = p0 - p1;
+      Offset deltaN0 = delta0 / delta0.distance;
+      Offset deltaN2 = delta2 / delta2.distance;
+      Offset offset0 = p1 + (normalizedOffset ? deltaN0 : delta0) * offset;
+      Offset offset2 = p1 + (normalizedOffset ? deltaN2 : delta2) * offset;
+
+      final path = Path();
+      path.moveTo(offset0.dx, offset0.dy);
+      path.lineTo(p1.dx, p1.dy);
+      path.lineTo(offset2.dx, offset2.dy);
+      canvas.drawPath(path, paintCorners);
     }
   }
 
