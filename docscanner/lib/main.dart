@@ -3180,11 +3180,17 @@ class PagePreviewState extends State<PagePreview> {
           widget.docIndex,
           widget.pageIndex,
         ) ??
-        (g.proUnlocked == true ? 3 : 2);
+        _selectedThumbnail;
     if (mounted) setState(() {});
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
+    _selectedThumbnail =
+        await MetadataHelper.readPageThumbnailIndex(
+          widget.docIndex,
+          widget.pageIndex,
+        ) ??
+        _selectedThumbnail;
     _guiRatioValue = _ratioValue = await MetadataHelper.readPageRatioValue(
       widget.docIndex,
       widget.pageIndex,
@@ -3194,10 +3200,7 @@ class PagePreviewState extends State<PagePreview> {
       _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
     }
     if (mounted) {
-      setState(() {
-        _guiRatioValue;
-        _guiOrientationIndex;
-      });
+      setState(() {});
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {

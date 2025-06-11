@@ -197,6 +197,16 @@ class ImageProcessingManager {
     Uint8List pngBytes = data.$5;
     AppGlobals g = data.$6;
 
+    // Thumbnail
+    await MetadataHelper.writePageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      1,
+      gIn: g,
+    );
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    sendPort.send(NotifierEvent.loadDocsThumbnails);
+
     // Save Photo
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
 
@@ -225,15 +235,7 @@ class ImageProcessingManager {
       cornerPointsIn,
       gIn: g,
     );
-    // Thumbnail
-    await MetadataHelper.writePageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      0,
-      gIn: g,
-    );
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
+
     await _scaleAndSaveThumbnailIsolate(sendPort, docIndex, pageIndex, 0, g);
 
     sendPort.send("done");
