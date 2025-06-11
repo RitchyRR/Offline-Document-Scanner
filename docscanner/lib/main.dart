@@ -2122,8 +2122,12 @@ class _PagesState extends State<Pages> with RouteAware {
                 child: ListView.builder(
                   controller: _scrollController,
                   cacheExtent: 1000,
-                  itemCount: _pagesCount,
+                  itemCount: _pagesCount + 1,
                   itemBuilder: (BuildContext context, int pageIndex) {
+                    if (pageIndex == _pagesCount) {
+                      // small space at bottom of list
+                      return SizedBox(height: 12);
+                    }
                     if (_deletedPages.contains(pageIndex)) return SizedBox();
                     final displayPageIndex =
                         1 +
