@@ -45,6 +45,7 @@ dependencies:
   pdf_render:
   crypto:
   flutter_image_compress:
+  flutter_staggered_grid_view:
 
 dev_dependencies:
   flutter_test:
