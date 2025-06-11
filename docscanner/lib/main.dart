@@ -1391,7 +1391,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   static const animDuration = Duration(milliseconds: 350);
 
   bool _expanded = false;
-  late Timer _collapseTimer;
+  Timer? _collapseTimer;
 
   static const double _collapsedWidth = 40;
   static const double _buttonHeight = 40;
@@ -1451,7 +1451,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
 
   @override
   void dispose() {
-    _collapseTimer.cancel();
+    _collapseTimer?.cancel();
     routeObserver.unsubscribe(this);
     super.dispose();
   }
