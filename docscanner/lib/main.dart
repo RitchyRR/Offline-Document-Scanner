@@ -1370,12 +1370,14 @@ class CustomExpandingButton extends StatefulWidget {
   final VoidCallback onPressed;
   final IconData icon;
   final String text;
+  final Color? collapsedColor;
 
   const CustomExpandingButton({
     super.key,
     required this.onPressed,
     this.icon = Icons.star_half,
     this.text = "Give Feedback",
+    this.collapsedColor,
   });
 
   @override
@@ -1390,7 +1392,6 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
   late Timer _collapseTimer;
 
   static const double _collapsedWidth = 40;
-  static const double _expandedWidth = 150;
   static const double _buttonHeight = 40;
 
   @override
@@ -1459,59 +1460,78 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     final backgroundColor = _expanded
         ? colorScheme.primaryContainer
         : colorScheme.primaryContainer.withAlpha(0);
-    final textColor = colorScheme.onPrimaryContainer;
+    final textColor = _expanded
+        ? colorScheme.onPrimaryContainer
+        : widget.collapsedColor ?? colorScheme.onPrimaryContainer;
+    final textWidth = _calculateTextWidth(widget.text);
 
-    return AnimatedContainer(
-      duration: animDuration,
-      width: _expanded ? _expandedWidth : _collapsedWidth,
-      height: _buttonHeight,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: _expanded ? [tinyBoxShadow(context)] : [],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(32),
-        child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: AnimatedContainer(
+        duration: animDuration,
+        width: _expanded ? _collapsedWidth * 1.3 + textWidth : _collapsedWidth,
+        height: _buttonHeight,
+        decoration: BoxDecoration(
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(32),
-          onTap: widget.onPressed,
-          onLongPress: _expandTemporarily,
-          child: SizedBox.expand(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(width: 8),
-                  Icon(widget.icon, color: textColor),
-                  if (_expanded)
-                    Expanded(
-                      child: AnimatedOpacity(
-                        duration: animDuration,
-                        opacity: _expanded ? 1.0 : 0.0,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            widget.text,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w500,
+          boxShadow: _expanded ? [tinyBoxShadow(context)] : [],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(32),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(32),
+            onTap: widget.onPressed,
+            onLongPress: _expandTemporarily,
+            child: SizedBox.expand(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(widget.icon, color: textColor),
+                    if (_expanded)
+                      Expanded(
+                        child: AnimatedOpacity(
+                          duration: animDuration,
+                          opacity: _expanded ? 1.0 : 0.0,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Text(
+                              widget.text,
+                              overflow: TextOverflow.fade,
+                              softWrap: false,
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  double _calculateTextWidth(
+    String text, {
+    TextStyle style = const TextStyle(),
+  }) {
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    return textPainter.width * 1.2;
   }
 }
 
@@ -1850,6 +1870,7 @@ class _PagesState extends State<Pages> with RouteAware {
     globalNotifier.addListener(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true, supressWarnings: true);
     _initPushToPreview();
+    _getSelectAllButtonUsed();
   }
 
   @override
@@ -2035,7 +2056,38 @@ class _PagesState extends State<Pages> with RouteAware {
     });
   }
 
+  bool selectAllButtonUsed = true;
+  _getSelectAllButtonUsed() async {
+    final prefs = await SharedPreferences.getInstance();
+    selectAllButtonUsed = prefs.getBool("selectAllButtonUsed") ?? false;
+    // reset if long ago
+    if (selectAllButtonUsed) {
+      final String? dateString = prefs.getString("selectAllButtonUsedDate");
+      if (dateString != null) {
+        final now = DateTime.now();
+        final date = DateTime.tryParse(dateString);
+        if (date != null && now.difference(date).inDays > 45) {
+          dev.log("_getSelectAllButtonUsed: reset to CustomExpandingButton");
+          _setSelectAllButtonUsed(false);
+        }
+      }
+    }
+  }
+
+  _setSelectAllButtonUsed(bool set) async {
+    if (set == selectAllButtonUsed) return;
+    selectAllButtonUsed = set;
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool("selectAllButtonUsed", set);
+    if (set) {
+      String now = DateTime.now().toIso8601String();
+      prefs.setString("selectAllButtonUsedDate", now);
+    }
+  }
+
   _selectAll() async {
+    _setSelectAllButtonUsed(true);
+
     final lengthBefore = _selectedPages.length;
 
     _selectedPages = List.generate(
@@ -2083,11 +2135,20 @@ class _PagesState extends State<Pages> with RouteAware {
             ? AppBar(
                 title: Text("Document ${widget.docIndex + 1}"),
                 actions: [
-                  IconButton(
-                    onPressed: () => _selectAll(),
-                    icon: Icon(Icons.select_all),
-                    tooltip: "Select all",
-                  ),
+                  selectAllButtonUsed
+                      ? IconButton(
+                          onPressed: () => _selectAll(),
+                          icon: Icon(Icons.select_all),
+                          tooltip: "Select all",
+                        )
+                      : CustomExpandingButton(
+                          onPressed: () => _selectAll(),
+                          icon: Icons.select_all,
+                          text: "Select all",
+                          collapsedColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
+                        ),
                 ],
               )
             : AppBar(
