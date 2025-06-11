@@ -4040,11 +4040,7 @@ class PagePreviewState extends State<PagePreview> {
                                       _selectedVersion == index
                                   ? Theme.of(context).colorScheme.secondaryFixed
                                   : Colors.white54,
-                              width:
-                                  _selectedThumbnail == index &&
-                                      _versionPaths[index].isNotEmpty
-                                  ? 5
-                                  : 3,
+                              width: _selectedThumbnail == index ? 5 : 3,
                             ),
                             boxShadow: [bigBoxShadow(context)],
                           ),
