@@ -1700,26 +1700,8 @@ class FilesHelper {
       return;
     }
 
-    final outputFile = File("$selectedDirectory/error_log.txt");
-
-    // Rename old document
-    if (outputFile.existsSync()) {
-      try {
-        outputFile.renameSync(
-          "${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
-        );
-        Fluttertoast.showToast(
-          msg:
-              "Existing $outputFile renamed to ${outputFile}_old_${DateTime.now().millisecondsSinceEpoch}",
-          toastLength: Toast.LENGTH_LONG,
-        );
-      } catch (e) {
-        Fluttertoast.showToast(
-          msg: "Renaming Error Log failed: $e",
-          toastLength: Toast.LENGTH_LONG,
-        );
-      }
-    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final outputFile = File("$selectedDirectory/error_log_$now.txt");
 
     // Save externally
     outputFile.writeAsBytesSync(logFile.readAsBytesSync());
