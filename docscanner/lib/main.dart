@@ -1096,13 +1096,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                       borderRadius: BorderRadius.all(
                                         Radius.circular(12.0),
                                       ),
-                                      onTap: !_deletedDocs.contains(docIndex)
-                                          ? () => _openDocEditDialog(
-                                              context,
-                                              docIndex,
-                                              displayDocIndex,
-                                            )
-                                          : null,
+                                      onTap: () => _openDocEditDialog(
+                                        context,
+                                        docIndex,
+                                        displayDocIndex,
+                                      ),
                                       child: Padding(
                                         padding: EdgeInsets.all(12),
                                         child: Builder(
@@ -1153,44 +1151,41 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                     ),
                                   ),
                                   // Button Column
-                                  !_deletedDocs.contains(docIndex)
-                                      ? Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            // Save
-                                            IconButton(
-                                              onPressed: () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.save,
-                                                docIndex,
-                                              ),
-                                              icon: Icon(Icons.save),
-                                            ),
-                                            // Share
-                                            IconButton(
-                                              onPressed: () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.share,
-                                                docIndex,
-                                              ),
-                                              icon: Icon(Icons.share),
-                                            ),
-                                            // Delete
-                                            IconButton(
-                                              onPressed: () => _pagesPopup(
-                                                context,
-                                                [],
-                                                PopUpType.delete,
-                                                docIndex,
-                                              ),
-                                              icon: Icon(Icons.delete),
-                                            ),
-                                          ],
-                                        )
-                                      : SizedBox(),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Save
+                                      IconButton(
+                                        onPressed: () => _pagesPopup(
+                                          context,
+                                          [],
+                                          PopUpType.save,
+                                          docIndex,
+                                        ),
+                                        icon: Icon(Icons.save),
+                                      ),
+                                      // Share
+                                      IconButton(
+                                        onPressed: () => _pagesPopup(
+                                          context,
+                                          [],
+                                          PopUpType.share,
+                                          docIndex,
+                                        ),
+                                        icon: Icon(Icons.share),
+                                      ),
+                                      // Delete
+                                      IconButton(
+                                        onPressed: () => _pagesPopup(
+                                          context,
+                                          [],
+                                          PopUpType.delete,
+                                          docIndex,
+                                        ),
+                                        icon: Icon(Icons.delete),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -1262,78 +1257,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 ),
                                           Positioned.fill(
                                             child: Material(
-                                              color:
-                                                  _deletedDocs.contains(
-                                                    docIndex,
-                                                  )
-                                                  ? Color.fromRGBO(
-                                                      100,
-                                                      0,
-                                                      10,
-                                                      0.412,
-                                                    )
-                                                  : Colors.transparent,
-                                              child:
-                                                  !_deletedDocs.contains(
-                                                    docIndex,
-                                                  )
-                                                  ? InkWell(
-                                                      onTap: () =>
-                                                          _openDocument(
-                                                            docIndex,
-                                                          ),
-                                                      onLongPress: () =>
-                                                          _openDocEditDialog(
-                                                            context,
-                                                            docIndex,
-                                                            displayDocIndex,
-                                                          ),
-                                                      splashColor:
-                                                          Colors.black26,
-                                                      highlightColor:
-                                                          Colors.black26,
-                                                    )
-                                                  : Center(
-                                                      child: Container(
-                                                        padding: EdgeInsets.all(
-                                                          12,
-                                                        ),
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                          color: Colors.black45,
-                                                        ),
-                                                        child: Column(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            Padding(
-                                                              padding:
-                                                                  const EdgeInsets.all(
-                                                                    8.0,
-                                                                  ),
-                                                              child: SizedBox(
-                                                                width: 24,
-                                                                height: 24,
-                                                                child: CircularProgressIndicator(
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            Text(
-                                                              "  Deleting...",
-                                                              style: TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    _openDocument(docIndex),
+                                                onLongPress: () =>
+                                                    _openDocEditDialog(
+                                                      context,
+                                                      docIndex,
+                                                      displayDocIndex,
                                                     ),
+                                                splashColor: Colors.black26,
+                                                highlightColor: Colors.black26,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -2253,64 +2189,26 @@ class _PagesState extends State<Pages> with RouteAware {
                                             .colorScheme
                                             .primaryContainer
                                             .withAlpha(150)
-                                      : _deletedPages.contains(pageIndex)
-                                      ? Color.fromRGBO(100, 0, 10, 0.412)
                                       : Colors.transparent,
-                                  child: !_deletedPages.contains(pageIndex)
-                                      ? InkWell(
-                                          onTap: !_selectMode
-                                              ? () =>
-                                                    _openPagePreview(pageIndex)
-                                              : () {
-                                                  HapticFeedback.lightImpact();
-                                                  _selectPage(pageIndex);
-                                                },
-                                          onLongPress: () {
+                                  child: InkWell(
+                                    onTap: !_selectMode
+                                        ? () => _openPagePreview(pageIndex)
+                                        : () {
+                                            HapticFeedback.lightImpact();
                                             _selectPage(pageIndex);
                                           },
-                                          splashColor: Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer
-                                              .withAlpha(150),
-                                          highlightColor: Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer
-                                              .withAlpha(150),
-                                        )
-                                      : Center(
-                                          child: Container(
-                                            padding: EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              color: Colors.black45,
-                                            ),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    8.0,
-                                                  ),
-                                                  child: SizedBox(
-                                                    width: 24,
-                                                    height: 24,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          color: Colors.white,
-                                                        ),
-                                                  ),
-                                                ),
-                                                Text(
-                                                  "  Deleting...",
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
+                                    onLongPress: () {
+                                      _selectPage(pageIndex);
+                                    },
+                                    splashColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
+                                    highlightColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withAlpha(150),
+                                  ),
                                 ),
                               ),
                               // Page Index Indicator
@@ -2319,19 +2217,14 @@ class _PagesState extends State<Pages> with RouteAware {
                                 left: 12,
                                 child: GestureDetector(
                                   // Move Page Index Dialog
-                                  onTap: !_deletedPages.contains(pageIndex)
-                                      ? _selectMode
-                                            ? () => _selectPage(pageIndex)
-                                            : () => _openPageEditDialog(
-                                                context,
-                                                pageIndex,
-                                                displayPageIndex,
-                                              )
-                                      : null,
-                                  onLongPress:
-                                      !_deletedPages.contains(pageIndex)
+                                  onTap: _selectMode
                                       ? () => _selectPage(pageIndex)
-                                      : null,
+                                      : () => _openPageEditDialog(
+                                          context,
+                                          pageIndex,
+                                          displayPageIndex,
+                                        ),
+                                  onLongPress: () => _selectPage(pageIndex),
                                   child: Container(
                                     padding: EdgeInsets.fromLTRB(
                                       12,

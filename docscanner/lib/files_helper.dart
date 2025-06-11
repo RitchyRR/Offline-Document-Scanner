@@ -590,28 +590,22 @@ class FilesHelper {
         "Warning, deleteDocument: Document $docIndex nonexistent, moving following Documents up",
       );
     } else {
-      if (!supressInfo) {
-        dev.log("deleteDocument: Deleting document directory: $docPath");
-      }
+      dev.log("deleteDocument: Deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
       imageProcessingManager.killIsolatesOfDocument(docIndex);
 
-      bool deleted = false;
       Future future = imageProcessingManager
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!deleted) {
-          Fluttertoast.showToast(msg: "Deleting Document ${docIndex + 1}...");
-        }
-      });
+      if (!supressInfo) {
+        Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
+      }
       await future;
-      deleted = true;
 
       _removeMarkedDeletedDoc(docIndex);
 
       imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
-      Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
+      dev.log("deleteDocument: Deleted document directory: $docPath");
     }
 
     // rename all with higher docIndex to close the gap
@@ -647,36 +641,27 @@ class FilesHelper {
         "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
       );
     } else {
+      dev.log("_deletePage: Deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
 
-      bool deleted = false;
       Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
         pageIndex,
       );
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!deleted) {
-          Fluttertoast.showToast(
-            msg:
-                "Deleting Page ${pageIndex + 1} of Document ${docIndex + 1}...",
-          );
-        }
-      });
+      Fluttertoast.showToast(
+        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
+      );
       await future;
-      deleted = true;
 
       _removeMarkedDeletedPage(docIndex, pageIndex);
-      dev.log("Deleting page directory: $pagePath");
+      dev.log("Deleted page directory: $pagePath");
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
-      Fluttertoast.showToast(
-        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
-      );
     }
 
     // rename all with higher pageIndex to close the gap
@@ -722,22 +707,16 @@ class FilesHelper {
       _addMarkedDeletedPage(docIndex, pageIndex);
       imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
     }
+    dev.log("_deletePages: Deleting Pages: $pageIndexes");
 
-    bool deleted = false;
     Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
       docIndex,
       pageIndexes,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!deleted) {
-        Fluttertoast.showToast(
-          msg:
-              "Deleting Pages $displayPageIndexes of Document ${docIndex + 1}...",
-        );
-      }
-    });
+    Fluttertoast.showToast(
+      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
+    );
     await future;
-    deleted = true;
 
     for (var pageIndex in pageIndexes) {
       _removeMarkedDeletedPage(docIndex, pageIndex);
@@ -751,7 +730,7 @@ class FilesHelper {
           "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
         );
       } else {
-        dev.log("Deleting page directory: $pagePath");
+        dev.log("_deletePages: Deleting page directory: $pagePath");
         List<FileSystemEntity> files = pageDir.listSync(recursive: true);
         for (var file in files) {
           imageCache.evict(FileImage(File(file.path)), includeLive: true);
@@ -761,9 +740,6 @@ class FilesHelper {
         pageDir.deleteSync(recursive: true);
       }
     }
-    Fluttertoast.showToast(
-      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
-    );
     // rename all with higher pageIndex to close the gap
     // ignore: use_build_context_synchronously
     await _repairDirectoryStructure();
