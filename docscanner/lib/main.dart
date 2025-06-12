@@ -274,6 +274,9 @@ class _MyAppState extends State<MyApp> {
           ),
           themeMode: ThemeMode.system, // device controls theme
           home: const DocumentsHome(title: "Documents"),
+          onUnknownRoute: (_) => MaterialPageRoute(
+            builder: (_) => DocumentsHome(title: "Documents"),
+          ),
         );
       },
     );
@@ -686,7 +689,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  Future<void> _selectAspectRatios(BuildContext context) async {
+  Future<void> _selectAspectRatiosDialog(BuildContext context) async {
     // bool List for selected Ratios
     List<bool> selectedStates = g.commonAspectRatios
         .map((aspect) => g.availableAspectRatios.contains(aspect))
@@ -1027,7 +1030,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   );
                   break;
                 case "ratios":
-                  _selectAspectRatios(context);
+                  _selectAspectRatiosDialog(context);
                   break;
                 case "rate":
                   feedbackHelper.showRatingDialog(context);
@@ -1957,7 +1960,7 @@ class _PagesState extends State<Pages> with RouteAware {
     }
     _thumbnailRatios = newThumbnailRatios;
     if (thumbnailPaths.isEmpty) {
-      if (!onInit && mounted && context.mounted) {
+      if (!onInit && mounted && context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
       return;
@@ -3432,7 +3435,7 @@ class PagePreviewState extends State<PagePreview> {
         setState(() {});
         break;
       case NotifierEvent.imagesDeleted:
-        if (!File(_photoPath).existsSync()) {
+        if (!File(_photoPath).existsSync() && Navigator.canPop(context)) {
           _allowPop = true;
           Navigator.pop(context);
         }
@@ -3739,7 +3742,10 @@ class PagePreviewState extends State<PagePreview> {
                       widget.docIndex,
                       versionIndex: _selectedVersion,
                     );
-                    if (deletionConfirmed && mounted && context.mounted) {
+                    if (deletionConfirmed &&
+                        mounted &&
+                        context.mounted &&
+                        Navigator.canPop(context)) {
                       Navigator.pop(context);
                     }
                     break;
@@ -5100,7 +5106,7 @@ class _WarpState extends State<Warp> {
       newCornerPointsIn: widget.cornerPoints,
     );
     _allowPop = true;
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) Navigator.pop(context);
   }
 
   @override
@@ -5539,13 +5545,13 @@ Future<bool> _changeThumbnailIndexesPopup(
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(), // Cancel
+                onPressed: () => Navigator.pop(context), // Cancel
                 child: const Text("Cancel"),
               ),
               ElevatedButton(
                 onPressed: selectedIndex != null
                     ? () {
-                        Navigator.of(context).pop();
+                        Navigator.pop(context);
                       }
                     : null,
                 child: const Text("Apply"),
@@ -6177,20 +6183,27 @@ class _CameraScreenState extends State<CameraScreen> {
           TextButton(
             child: Text("Cancel"),
             onPressed: () {
-              Navigator.pop(context, false);
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context, false);
+              }
             },
           ),
           ElevatedButton(
             child: Text("Open Settings"),
             onPressed: () {
               openAppSettings();
-              Navigator.pop(context, true);
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context, true);
+              }
             },
           ),
         ],
       ),
     );
-    if (settingsOpened != true && mounted && context.mounted) {
+    if (settingsOpened != true &&
+        mounted &&
+        context.mounted &&
+        Navigator.canPop(context)) {
       Navigator.pop(context);
     }
   }
@@ -6340,7 +6353,10 @@ class _CameraScreenState extends State<CameraScreen> {
       onPopInvokedWithResult: (didPop, _) async {
         if (!allowPop) {
           HapticFeedback.heavyImpact();
-          if (await _leaveConfirmationDialog() && mounted && context.mounted) {
+          if (await _leaveConfirmationDialog() &&
+              mounted &&
+              context.mounted &&
+              Navigator.canPop(context)) {
             allowPop = true;
             Navigator.pop(context);
           }
@@ -6362,7 +6378,9 @@ class _CameraScreenState extends State<CameraScreen> {
               isDisabled: _capturedImages.isEmpty,
               onTap: () {
                 allowPop = true;
-                Navigator.pop(context, _capturedImages);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context, _capturedImages);
+                }
               },
               icon: Icons.check,
             ),

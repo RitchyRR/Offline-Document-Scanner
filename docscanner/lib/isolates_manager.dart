@@ -7,9 +7,11 @@ import 'dart:io';
 import 'package:docscanner/app_globals.dart' show ErrorLogger;
 
 class TaskKiller {
+  final void Function(SendPort controlPort) _setControlPort;
   final void Function() _kill;
   final void Function() _delay;
-  TaskKiller(this._kill, this._delay);
+  TaskKiller(this._setControlPort, this._kill, this._delay);
+  void setControlPort(SendPort controlPort) => _setControlPort(controlPort);
   void kill() => _kill();
   void delay() => _delay();
 }
@@ -86,14 +88,13 @@ class IsolatesManager {
         final freezeDuration = now.difference(lastCheckedTime);
         final toleratedDelay = Duration(seconds: 8);
         if (pingDelay > (toleratedDelay + freezeDuration)) {
-          pinger.kill();
+          pinger.kill(priority: Isolate.immediate);
           pingCheckTimer?.cancel();
           pingPort.close();
           //todo cleanup all isolates and trigger _onBadExit
           for (var task in _taskQueue.toList()) {
             Future.delayed(Duration(seconds: 1), () {
               task.onBadExit(
-                null,
                 Exception(
                   "Isolate missed ping. Likely killed by System, restarting all isolates.",
                 ),
@@ -105,7 +106,6 @@ class IsolatesManager {
             Future.delayed(Duration(seconds: 1), () {
               worker.isolate?.kill(priority: Isolate.immediate);
               worker.task?.onBadExit(
-                null,
                 Exception(
                   "Isolate missed ping. Likely killed by System, restarting all isolates.",
                 ),
@@ -134,19 +134,45 @@ class IsolatesManager {
     void Function(Object error, StackTrace stack)? onErrorFunction,
   }) async {
     await _initFuture;
-    final completer = Completer<TaskKiller>();
-    _taskQueue.add(
-      _QueuedTask<T>(
-        entryPoint,
-        message,
-        completer,
-        prio,
-        maxRuntime,
-        onErrorFunction,
-      ),
+    late _QueuedTask<T> task;
+
+    SendPort? controlPort;
+    final killer = TaskKiller(
+      // setControlPort
+      (SendPort controlPortIn) {
+        controlPort = controlPortIn;
+      },
+      // kill
+      () {
+        // Task queued -> remove from queue
+        if (_taskQueue.remove(task)) {
+          task._cleanedUp = true;
+          return;
+        }
+        // Task running -> kill / cleanup
+        if (task._worker?.isolate != null && controlPort != null) {
+          controlPort!.send('exit');
+          //task._cleanup?.call(); // will cleanup after exitPort
+        }
+      },
+      // delay
+      () {
+        task.prio = IsolatePriority.late;
+      },
     );
+
+    task = _QueuedTask<T>(
+      entryPoint,
+      message,
+      prio,
+      maxRuntime,
+      onErrorFunction,
+      killer,
+    );
+
+    _taskQueue.add(task);
     _tryStartNext();
-    return completer.future;
+    return killer;
   }
 
   void _tryStartNext() {
@@ -181,32 +207,32 @@ class IsolatesManager {
 class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final void Function(T) entryPoint;
   final T message;
-  final Completer<TaskKiller> completer;
   IsolatePriority prio;
   bool _cleanedUp = false;
-
   final void Function(Object error, StackTrace stack)? onErrorFunction;
-
   final Duration maxRuntime;
   Timer? _runtimeTimer;
+  TaskKiller? killer;
+
+  _Worker? _worker;
+  void Function()? _cleanup;
 
   _QueuedTask(
     this.entryPoint,
     this.message,
-    this.completer,
     this.prio,
     this.maxRuntime,
     this.onErrorFunction,
+    this.killer,
   );
 
+  // higher prio first
   @override
-  int compareTo(_QueuedTask other) {
-    // higher priority comes first
-    return other.prio.level.compareTo(prio.level);
-  }
+  int compareTo(_QueuedTask other) => other.prio.level.compareTo(prio.level);
 
   void startIsolate(_Worker worker) {
-    final receivePort = ReceivePort();
+    _worker = worker;
+
     final errorPort = ReceivePort();
     final exitPort = ReceivePort();
 
@@ -219,72 +245,46 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         .then((isolate) {
           worker.isolate = isolate;
 
-          void cleanup() {
+          _cleanup = () {
             if (_cleanedUp) return;
             _cleanedUp = true;
             _runtimeTimer?.cancel();
-            receivePort.close();
-            errorPort.close();
-            exitPort.close();
-            worker.isBusy = false;
-            worker.isolate?.kill(priority: Isolate.immediate);
+            worker.isolate?.kill(priority: Isolate.beforeNextEvent);
             worker.reset();
             if (IsolatesManager()._workers.length >
                 IsolatesManager().maxIsolates - 1) {
               IsolatesManager()._workers.remove(worker);
             }
             IsolatesManager()._tryStartNext();
-          }
+          };
 
           // maxRuntime -> kill
           _runtimeTimer = Timer(maxRuntime, () {
             dev.log("Killing isolate due to timeout: $maxRuntime");
-            cleanup();
+            _cleanup!();
           });
 
           // exit / error
-          exitPort.listen((_) => cleanup());
-          errorPort.listen((e) {
-            onBadExit(cleanup, e);
+          exitPort.listen((_) {
+            exitPort.close();
+            errorPort.close();
+            _cleanup!();
           });
-
-          final killer = TaskKiller(
-            // kill
-            () {
-              if (worker.task != this) {
-                dev.log(
-                  "Warning: TaskKiller,kill: Task is already not running.",
-                );
-                return;
-              }
-              if (worker.isolate != null) {
-                cleanup();
-              }
-            },
-            // delay
-            () {
-              if (worker.task != this) {
-                dev.log(
-                  "Warning: TaskKiller, killResumeLate: Task is already not running.",
-                );
-                return;
-              }
-              prio = IsolatePriority.late;
-            },
-          );
-
-          completer.complete(killer);
+          errorPort.listen((e) {
+            errorPort.close();
+            onBadExit(e);
+          });
         })
         .catchError((e) {
           worker.reset();
-          completer.completeError(e);
+          onBadExit(e);
           IsolatesManager()._tryStartNext();
         });
   }
 
-  void onBadExit(void Function()? cleanup, e) {
+  void onBadExit(e) {
     if (_cleanedUp) return;
-    if (cleanup != null) cleanup();
+    _cleanup?.call();
     Object error = e;
     StackTrace stack = StackTrace.current;
     dev.log("Error in Isolate: $e");

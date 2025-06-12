@@ -282,17 +282,15 @@ class FilesHelper {
       pageIndex,
       supressWarnings: true,
     );
-    if (!File(pagePath).existsSync()) {
-      throw StateError(
-        "Error, saveImage: pagePath '$pagePath' does not exist.",
-      );
-    }
     String versionName = versionNames[versionIndex];
-    for (var fse in Directory(
-      pagePath,
-    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.contains("$versionName.")) {
-        fse.delete();
+    // Delete prior Version
+    if (File(pagePath).existsSync()) {
+      for (var fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        if (fse.path.contains("$versionName.")) {
+          fse.delete();
+        }
       }
     }
     String versionPath =
@@ -446,7 +444,7 @@ class FilesHelper {
           thumbnailPaths[pageIndexes.indexOf(pageIndex)] = backupPath;
         }
       } catch (e) {
-        dev.log("Error: getPagesThumbnails: $e");
+        dev.log("Warning: getPagesThumbnails: $e");
       }
     }
 
@@ -1253,7 +1251,7 @@ class FilesHelper {
     int? versionIndex,
   }) async {
     if (isTmpExternal) return;
-    ReceivePort port = ReceivePort();
+    final port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
 
     ScaffoldMessengerState? messenger;
@@ -1357,6 +1355,8 @@ class FilesHelper {
               SnackBar(content: Text("Error: No PDF available to save.")),
             );
           }
+        } else if (message is SendPort) {
+          killer.setControlPort(message);
         }
         port.close();
         killer.kill();
@@ -1449,8 +1449,8 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
-    ReceivePort port = ReceivePort();
-    RootIsolateToken token = RootIsolateToken.instance!;
+    final port = ReceivePort();
+    final token = RootIsolateToken.instance!;
     ScaffoldMessengerState? messenger;
 
     // Snackbar
@@ -1509,6 +1509,8 @@ class FilesHelper {
             SnackBar(content: Text("Error: No PDF available to SharePlus.")),
           );
         }
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       }
       port.close();
       killer.kill();
