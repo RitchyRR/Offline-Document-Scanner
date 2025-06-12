@@ -938,7 +938,7 @@ class ImageProcessingManager {
     AppGlobals gIn, {
     bool overwrite = true,
   }) async {
-    thumbnailIndex = thumbnailIndex ?? (gIn.proUnlocked == true ? 3 : 2);
+    thumbnailIndex ??= (gIn.proUnlocked == true ? 3 : 2);
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;
@@ -963,10 +963,12 @@ class ImageProcessingManager {
 
     if (!versionFile.existsSync()) {
       throw StateError(
-        "Error, writeScaledThumbnail: $versionPath does not exist",
+        "Error, _scaleAndSaveThumbnailIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist",
       );
-    } else {
-      // if overwriting -> delete existing thumbnail file
+    }
+
+    // if overwriting -> delete existing thumbnail file
+    try {
       for (FileSystemEntity fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -981,6 +983,10 @@ class ImageProcessingManager {
           }
         }
       }
+    } catch (e) {
+      dev.log(
+        "Warning, _scaleAndSaveThumbnailIsolate: Could not delete old thumbnail: $e",
+      );
     }
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);

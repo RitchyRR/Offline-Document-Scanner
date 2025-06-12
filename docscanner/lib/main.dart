@@ -2156,14 +2156,16 @@ class _PagesState extends State<Pages> with RouteAware {
                 // Regular
                 title: Text("Document ${widget.docIndex + 1}"),
                 actions: [
+                  // Grid View Toggle
                   if (_gridView != null)
                     IconButton(
                       onPressed: () => _toggleGridView(),
                       icon: _gridView!
                           ? Icon(Icons.view_agenda_sharp)
                           : Icon(Icons.dashboard_sharp),
-                      tooltip: "Select all",
+                      tooltip: (_gridView! ? "List View" : "Grid View"),
                     ),
+                  // Select All Button
                   selectAllButtonUsed
                       ? IconButton(
                           onPressed: () => _selectAll(),

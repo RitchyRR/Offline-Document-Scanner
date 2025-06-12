@@ -759,16 +759,20 @@ class FilesHelper {
     }
     List<String> processedNames = ["thumbnail"];
     processedNames.addAll(versionNames.getRange(1, 4));
-    for (var fse in Directory(
-      pagePath,
-    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      for (var name in processedNames) {
-        if (fse.path.contains("$name.")) {
-          imageCache.evict(FileImage(File(fse.path)), includeLive: true);
-          fse.delete();
-          //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
+    try {
+      for (var fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        for (var name in processedNames) {
+          if (fse.path.contains("$name.")) {
+            imageCache.evict(FileImage(File(fse.path)), includeLive: true);
+            fse.delete();
+            //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
+          }
         }
       }
+    } catch (e) {
+      dev.log("Warning, deleteProcessedVersionsOfPage: Could not delete: $e");
     }
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
