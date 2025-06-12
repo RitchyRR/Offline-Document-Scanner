@@ -34,7 +34,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String newPhotoPath,
+      String photoPathIn,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -49,28 +49,29 @@ class ImageProcessingManager {
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String newPhotoPath = data.$5;
+    String photoPathIn = data.$5;
 
     double? ratioValueIn = data.$6;
     List<List<int>>? cornerPointsIn = data.$7;
     int rotationIn = data.$8;
     bool isInitial = data.$9;
     AppGlobals g = data.$10;
-    if (!File(newPhotoPath).existsSync() ||
-        File(newPhotoPath).lengthSync() == 0) {
+    if (!File(photoPathIn).existsSync() ||
+        File(photoPathIn).lengthSync() == 0) {
       final actualPhotoPath = await g.filesHelper.getVersionPath(
         docIndex,
         pageIndex,
         0,
+        supressWarnings: true,
       );
-      if (File(actualPhotoPath).existsSync() ||
-          File(actualPhotoPath).lengthSync() == 0) {
-        newPhotoPath = actualPhotoPath;
+      if (File(actualPhotoPath).existsSync() &&
+          File(actualPhotoPath).lengthSync() != 0) {
+        photoPathIn = actualPhotoPath;
         dev.log(
-          "Warning, _processPageIsolate: newPhotoPath was the wrong path, continuing with real path",
+          "Warning, _processPageIsolate: photoPathIn was the wrong path, continuing with actualPhotoPath",
         );
       } else {
-        throw StateError("Error, _processPageIsolate: no photo");
+        throw StateError("Error, _processPageIsolate: No photo");
       }
     }
 
@@ -78,9 +79,9 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(path.dirname(newPhotoPath));
+    _deleteScaledThumbnail(path.dirname(photoPathIn));
     // Original
-    versionPaths[0] = newPhotoPath;
+    versionPaths[0] = photoPathIn;
     // Re-use Shape
     String shapePath = await g.filesHelper.getPageShape(
       docIndex,
@@ -171,6 +172,7 @@ class ImageProcessingManager {
           pageIndex,
           thumbnailIndex ?? ((g.proUnlocked == true) ? 3 : 2),
           gIn: g,
+          supressWarnings: true,
         );
       }
     }
@@ -178,7 +180,7 @@ class ImageProcessingManager {
     sendPort.send("done");
   }
 
-  static void _processPdfPageIsolateThumbnail(
+  static void _processPdfPageIsolatePart1(
     (
       SendPort sendPort,
       RootIsolateToken token,
@@ -203,6 +205,7 @@ class ImageProcessingManager {
       pageIndex,
       1,
       gIn: g,
+      supressWarnings: true,
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
@@ -241,7 +244,7 @@ class ImageProcessingManager {
     sendPort.send("done");
   }
 
-  static void _processPdfPageIsolateFilters(
+  static void _processPdfPageIsolatePart2(
     (
       SendPort sendPort,
       RootIsolateToken token,
@@ -343,7 +346,9 @@ class ImageProcessingManager {
       prio: prio,
       onErrorFunction: (error, stack) async {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
-        repairPage(docIndex, pageIndex);
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
       },
     );
 
@@ -374,14 +379,16 @@ class ImageProcessingManager {
     final token = RootIsolateToken.instance!;
 
     TaskKiller killer = await IsolatesManager().runTask(
-      _processPdfPageIsolateThumbnail,
+      _processPdfPageIsolatePart1,
       (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
       prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
         dev.log(
           "_processPdfPageIsolateThumbnail, onErrorFunction: $error $stack",
         );
-        repairPage(docIndex, pageIndex);
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
       },
     );
     taskKillers[(docIndex, pageIndex)] = killer;
@@ -411,14 +418,16 @@ class ImageProcessingManager {
     g.filesHelper.copyToPageVersion(docIndex, pageIndex, 1, photoPath);
 
     killer = await IsolatesManager().runTask(
-      _processPdfPageIsolateFilters,
+      _processPdfPageIsolatePart2,
       (port2.sendPort, token, docIndex, pageIndex, photoPath, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         dev.log(
           "_processPdfPageIsolateFilters, onErrorFunction: $error $stack",
         );
-        repairPage(docIndex, pageIndex);
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
       },
     );
     taskKillers[(docIndex, pageIndex)] = killer;
@@ -472,7 +481,7 @@ class ImageProcessingManager {
 
     final photoFile = File(versionPaths[0]);
     if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
-      throw StateError("Error, _repairPageIsolate: no photo");
+      throw StateError("Error, _repairPageIsolate: No photo");
     }
 
     // Warped
@@ -584,26 +593,26 @@ class ImageProcessingManager {
   }
 
   Future<void> killIsolatesOfDocument(int docIndex) async {
-    List<(int, int)> secundaryKeys = [];
+    List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
-        secundaryKeys.add(key);
+        keys.add(key);
       }
     }
-    for (var key in secundaryKeys) {
+    for (var key in keys) {
       taskKillers[key]!.kill();
       taskKillers.remove(key);
     }
   }
 
   Future<void> delayIsolatesOfDocument(int docIndex) async {
-    List<(int, int)> secundaryKeys = [];
+    List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
-        secundaryKeys.add(key);
+        keys.add(key);
       }
     }
-    for (var key in secundaryKeys) {
+    for (var key in keys) {
       taskKillers[key]?.delay();
       await Future.delayed(Duration(milliseconds: 20));
     }
@@ -737,6 +746,27 @@ class ImageProcessingManager {
   }
 
   Future<void> repairPage(int docIndex, int pageIndex) async {
+    if (!File(
+      await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        0,
+        supressWarnings: true,
+      ),
+    ).existsSync()) {
+      dev.log("repairPageIsolate: Doc $docIndex, Page $pageIndex: No photo");
+      if (File(
+        await g.filesHelper.getPagePath(
+          docIndex,
+          pageIndex,
+          supressWarnings: true,
+        ),
+      ).existsSync()) {
+        g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
+      }
+      return;
+    }
+
     final repairCompleter = Completer<void>();
     final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     ReceivePort port = ReceivePort();

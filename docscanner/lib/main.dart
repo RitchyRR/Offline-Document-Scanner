@@ -3518,6 +3518,7 @@ class PagePreviewState extends State<PagePreview> {
         await MetadataHelper.readPageThumbnailIndex(
           widget.docIndex,
           widget.pageIndex,
+          supressWarnings: supressWarnings,
         ) ??
         _selectedThumbnail;
     _guiRatioValue = _ratioValue = await MetadataHelper.readPageRatioValue(
@@ -4913,7 +4914,9 @@ class _WarpState extends State<Warp> {
         }
       }
     }
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _initMagnifier() async {
@@ -5576,17 +5579,17 @@ Future<bool> _pagesPopup(
 }) async {
   bool confirmDelete = false;
   final bool isDocument = pageIndexes.isEmpty;
-  late List<String> imagePaths;
+  late List<String> thumbnailPaths;
   late int pagesCount;
   // version
   if (versionIndex != null && pageIndexes.length == 1) {
     if (type == PopUpType.delete) {
-      imagePaths = (await g.filesHelper.getImagePathsForPage(
+      thumbnailPaths = (await g.filesHelper.getImagePathsForPage(
         docIndex,
         pageIndexes.first,
       )).$1;
     } else {
-      imagePaths = [
+      thumbnailPaths = [
         await g.filesHelper.getVersionPath(
           docIndex,
           pageIndexes.first,
@@ -5603,11 +5606,11 @@ Future<bool> _pagesPopup(
       pageIndexes: pageIndexes,
       fullSized: false,
     );
-    imagePaths = thumbs.$1;
+    thumbnailPaths = thumbs.$1;
     pagesCount = thumbs.$2;
   }
   final bool isSinglePage = pagesCount == 1;
-  bool allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
+  bool allPagesLoaded = !thumbnailPaths.any((element) => element.isEmpty);
 
   bool docUnlocked = false;
   bool pageUnlocked = false;
@@ -5631,14 +5634,16 @@ Future<bool> _pagesPopup(
               event == NotifierEvent.loadPagesThumbnails) {
             if (versionIndex != null && pageIndexes.length == 1) {
               Future.microtask(() async {
-                imagePaths = [
+                thumbnailPaths = [
                   await g.filesHelper.getVersionPath(
                     docIndex,
                     pageIndexes.first,
                     versionIndex,
                   ),
                 ];
-                allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
+                allPagesLoaded = !thumbnailPaths.any(
+                  (element) => element.isEmpty,
+                );
               });
             } else {
               Future.microtask(() async {
@@ -5646,9 +5651,12 @@ Future<bool> _pagesPopup(
                   docIndex,
                   pageIndexes: pageIndexes,
                   fullSized: true,
+                  supressWarnings: true,
                 );
-                imagePaths = thumbs.$1;
-                allPagesLoaded = !imagePaths.any((element) => element.isEmpty);
+                thumbnailPaths = thumbs.$1;
+                allPagesLoaded = !thumbnailPaths.any(
+                  (element) => element.isEmpty,
+                );
               });
             }
           }
@@ -5690,7 +5698,7 @@ Future<bool> _pagesPopup(
                   ],
                 ),
                 actions: [
-                  ImagesScrollPreview(pagePaths: imagePaths),
+                  ImagesScrollPreview(pagePaths: thumbnailPaths),
                   SizedBox(height: 12.0),
                   !allPagesLoaded
                       ? Padding(

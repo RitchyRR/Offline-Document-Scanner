@@ -277,7 +277,16 @@ class FilesHelper {
     Uint8List pngBytes,
   ) async {
     await _initializeDocumentsPath();
-    String pagePath = await getPagePath(docIndex, pageIndex);
+    String pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    if (!File(pagePath).existsSync()) {
+      throw StateError(
+        "Error, saveImage: pagePath '$pagePath' does not exist.",
+      );
+    }
     String versionName = versionNames[versionIndex];
     for (var fse in Directory(
       pagePath,
@@ -390,11 +399,15 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     bool fullSized = false,
+    bool supressWarnings = false,
   }) async {
     int pagesCount;
     await _initializeDocumentsPath();
     if (pageIndexes.isEmpty) {
-      pagesCount = await g.filesHelper.getPagesCount(docIndex);
+      pagesCount = await g.filesHelper.getPagesCount(
+        docIndex,
+        supressWarnings: supressWarnings,
+      );
       pageIndexes = List.generate(pagesCount, (index) => index);
     } else {
       pagesCount = pageIndexes.length;
@@ -590,9 +603,9 @@ class FilesHelper {
         "Warning, deleteDocument: Document $docIndex nonexistent, moving following Documents up",
       );
     } else {
-      dev.log("deleteDocument: Deleting document directory: $docPath");
+      dev.log("deleteDocument: Starting deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
-      imageProcessingManager.killIsolatesOfDocument(docIndex);
+      await imageProcessingManager.killIsolatesOfDocument(docIndex);
 
       Future future = imageProcessingManager
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
@@ -602,8 +615,6 @@ class FilesHelper {
       await future;
 
       _removeMarkedDeletedDoc(docIndex);
-
-      imageProcessingManager.killIsolatesOfDocument(docIndex);
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
     }
@@ -643,7 +654,7 @@ class FilesHelper {
     } else {
       dev.log("_deletePage: Deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      await imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
 
       Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
@@ -660,7 +671,6 @@ class FilesHelper {
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
       pageDir.deleteSync(recursive: true);
     }
 
@@ -703,11 +713,15 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
+    List<Future> killIsolatesFutures = [];
     for (var pageIndex in pageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      killIsolatesFutures.add(
+        imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
+      );
     }
     dev.log("_deletePages: Deleting Pages: $pageIndexes");
+    await Future.wait(killIsolatesFutures);
 
     Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
       docIndex,
@@ -736,7 +750,6 @@ class FilesHelper {
           imageCache.evict(FileImage(File(file.path)), includeLive: true);
         }
 
-        imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
         pageDir.deleteSync(recursive: true);
       }
     }
@@ -850,11 +863,17 @@ class FilesHelper {
       supressWarnings: supressWarnings,
     );
 
-    List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
-      ..sort((a, b) => a.path.compareTo(b.path)));
-    for (var fse in versionsFSE) {
-      if (fse.path.contains(versionNames[versionIndex])) {
-        return fse.path;
+    try {
+      List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
+        ..sort((a, b) => a.path.compareTo(b.path)));
+      for (var fse in versionsFSE) {
+        if (fse.path.contains(versionNames[versionIndex])) {
+          return fse.path;
+        }
+      }
+    } catch (e) {
+      if (!supressWarnings) {
+        dev.log("Warning, getVersionPath failed: $e");
       }
     }
     return "";
@@ -975,13 +994,20 @@ class FilesHelper {
     return versionsCount;
   }
 
-  Future<int> getPagesCount(int docIndex) async {
-    final docDir = Directory(await getDocumentPath(docIndex));
+  Future<int> getPagesCount(
+    int docIndex, {
+    bool supressWarnings = false,
+  }) async {
+    final docDir = Directory(
+      await getDocumentPath(docIndex, supressWarnings: true),
+    );
     int? pagesCount;
     if (docDir.existsSync()) {
       pagesCount = docDir.listSync().whereType<Directory>().toList().length;
     } else {
-      dev.log("Warning, getPagesCount: ${docDir.path} does not exist");
+      if (!supressWarnings) {
+        dev.log("Warning, getPagesCount: ${docDir.path} does not exist");
+      }
       pagesCount = 0;
     }
     return pagesCount;

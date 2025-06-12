@@ -117,7 +117,7 @@ class MetadataHelper {
         ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
         : g.filesHelper.getPagePath(docIndex, pageIndex));
     final file = File("$pagePath/metadata.json");
-    if (!Directory(pagePath).existsSync()) {
+    if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
         "Warning, _readPage, $keyIn: Page does not exist: Document $docIndex Page $pageIndex",
       );
@@ -132,7 +132,9 @@ class MetadataHelper {
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
         return metadata[keyIn];
       } catch (e) {
-        dev.log("Warning, _readPage, $keyIn: No existing metadata: $e");
+        if (!supressWarnings) {
+          dev.log("Warning, _readPage, $keyIn: No existing metadata: $e");
+        }
       }
     } else if (!supressWarnings) {
       dev.log("Warning, _readPage, $keyIn: No existing metadata.");
@@ -318,6 +320,7 @@ class MetadataHelper {
     int thumbnailIndexIn, {
     AppGlobals? gIn,
     bool tmpPro = false,
+    bool supressWarnings = false,
   }) async {
     bool isIsolate = false;
     if (gIn != null) isIsolate = true;
@@ -347,9 +350,11 @@ class MetadataHelper {
           );
           oldThumbnailName = metadata["thumbnail"];
         } catch (e) {
-          dev.log("Warning, writePageThumbnailIndex, Read: $e");
+          if (!supressWarnings) {
+            dev.log("Warning, writePageThumbnailIndex, Read: $e");
+          }
         }
-      } else {
+      } else if (!supressWarnings) {
         dev.log(
           "Warning, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
