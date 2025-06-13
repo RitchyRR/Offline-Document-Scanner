@@ -689,97 +689,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  Future<void> _selectAspectRatiosDialog(BuildContext context) async {
-    // bool List for selected Ratios
-    List<bool> selectedStates = g.commonAspectRatios
-        .map((aspect) => g.availableAspectRatios.contains(aspect))
-        .toList();
-
-    bool? selectionConfirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.crop,
-                color: Theme.of(context).colorScheme.onSurface,
-                size: 30,
-              ),
-              SizedBox(width: 12),
-              Flexible(child: const Text("Select Aspect Ratios")),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Select the aspect ratios "
-                  "that you want the app to be able to recognize "
-                  "and that you can manually select.",
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 300,
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: g.commonAspectRatios.length,
-                      itemBuilder: (context, index) {
-                        final aspect = g.commonAspectRatios[index];
-                        return CheckboxListTile(
-                          title: Text(aspect.name),
-                          subtitle: Text(aspect.description),
-                          value: selectedStates[index],
-                          onChanged: (bool? value) {
-                            selectedStates[index] = value ?? false;
-                            (context as Element)
-                                .markNeedsBuild(); // force UI refresh
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text("Cancel"),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            ElevatedButton(
-              child: const Text("Update"),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    // Save only if confirmed
-    if (selectionConfirmed == true) {
-      g.availableAspectRatios = [
-        for (int i = 0; i < g.commonAspectRatios.length; i++)
-          if (selectedStates[i]) g.commonAspectRatios[i],
-      ];
-      saveAvailableAspectRatios();
-    }
-  }
-
-  Future<void> saveAvailableAspectRatios() async {
-    final prefs = await SharedPreferences.getInstance();
-    final values = g.availableAspectRatios
-        .map((e) => e.value.toString())
-        .toList();
-    await prefs.setStringList("availableAspectRatios", values);
-  }
-
   Future<void> loadAvailableAspectRatios() async {
     final prefs = await SharedPreferences.getInstance();
     final savedValues = prefs.getStringList("availableAspectRatios");
@@ -1030,7 +939,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   );
                   break;
                 case "ratios":
-                  _selectAspectRatiosDialog(context);
+                  selectAspectRatiosDialog(context);
                   break;
                 case "rate":
                   feedbackHelper.showRatingDialog(context);
@@ -1369,6 +1278,97 @@ class _DocumentsHomeState extends State<DocumentsHome>
       ),
     );
   }
+}
+
+Future<void> selectAspectRatiosDialog(BuildContext context) async {
+  // bool List for selected Ratios
+  List<bool> selectedStates = g.commonAspectRatios
+      .map((aspect) => g.availableAspectRatios.contains(aspect))
+      .toList();
+
+  bool? selectionConfirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.crop,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 30,
+            ),
+            SizedBox(width: 12),
+            Flexible(child: const Text("Select Aspect Ratios")),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Select the aspect ratios "
+                "that you want the app to be able to recognize "
+                "and that you can manually select.",
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 300,
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: g.commonAspectRatios.length,
+                    itemBuilder: (context, index) {
+                      final aspect = g.commonAspectRatios[index];
+                      return CheckboxListTile(
+                        title: Text(aspect.name),
+                        subtitle: Text(aspect.description),
+                        value: selectedStates[index],
+                        onChanged: (bool? value) {
+                          selectedStates[index] = value ?? false;
+                          (context as Element)
+                              .markNeedsBuild(); // force UI refresh
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          ElevatedButton(
+            child: const Text("Update"),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      );
+    },
+  );
+
+  // Save only if confirmed
+  if (selectionConfirmed == true) {
+    g.availableAspectRatios = [
+      for (int i = 0; i < g.commonAspectRatios.length; i++)
+        if (selectedStates[i]) g.commonAspectRatios[i],
+    ];
+    await saveAvailableAspectRatios();
+  }
+}
+
+Future<void> saveAvailableAspectRatios() async {
+  final prefs = await SharedPreferences.getInstance();
+  final values = g.availableAspectRatios
+      .map((e) => e.value.toString())
+      .toList();
+  await prefs.setStringList("availableAspectRatios", values);
 }
 
 class CustomExpandingButton extends StatefulWidget {
@@ -4332,20 +4332,25 @@ class PagePreviewState extends State<PagePreview> {
               SizedBox.shrink(), //Icon(Icons.arrow_drop_down, color: Colors.black),
           value: initialIndex,
           items: List.generate(
-            g.availableAspectRatios.length,
+            g.availableAspectRatios.length + 1,
             (i) => DropdownMenuItem(
               alignment: Alignment.center,
               value: i,
               child: Text(
-                g.availableAspectRatios[i].name,
+                i == g.availableAspectRatios.length
+                    ? "+"
+                    : g.availableAspectRatios[i].name,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
           onChanged: _versionPaths.first.isEmpty || _metadataBlocked
               ? null
-              : (int? newValue) {
-                  if (newValue != null && newValue != _guiRatioValue) {
+              : (int? newValue) async {
+                  if (newValue == g.availableAspectRatios.length) {
+                    await selectAspectRatiosDialog(context);
+                    setState(() {});
+                  } else if (newValue != null && newValue != _guiRatioValue) {
                     setState(() {
                       final newPortraitValue =
                           g.availableAspectRatios[newValue].value;
