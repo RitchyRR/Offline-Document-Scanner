@@ -2,6 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show WidgetsBinding;
 import 'package:flutter_image_compress/flutter_image_compress.dart'
     show FlutterImageCompress, CompressFormat;
 import 'dart:io';
@@ -107,6 +108,10 @@ class ImageProcessingManager {
       pageIndex,
       supressWarnings: isInitial,
     );
+    // don't use corrupted shape
+    if (shapePath.isNotEmpty && File(shapePath).lengthSync() == 0) {
+      shapePath = "";
+    }
 
     if (shapePath.isNotEmpty && rotationIn != 0) {
       Uint8List rotatedShape = await cvHelper.rotateImage(
@@ -589,7 +594,7 @@ class ImageProcessingManager {
     sendPort.send("done");
   }
 
-  Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+  void killIsolatesOfPage(int docIndex, int pageIndex) {
     var key = (docIndex, pageIndex);
     if (taskKillers.containsKey(key)) {
       (taskKillers[key]!).kill();
@@ -597,14 +602,14 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> delayIsolatesOfPage(int docIndex, int pageIndex) async {
+  void delayIsolatesOfPage(int docIndex, int pageIndex) {
     var key = (docIndex, pageIndex);
     if (taskKillers.containsKey(key)) {
       taskKillers[key]?.delay();
     }
   }
 
-  killIsolatesOfDocument(int docIndex) {
+  void killIsolatesOfDocument(int docIndex) {
     List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
@@ -617,7 +622,7 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> delayIsolatesOfDocument(int docIndex) async {
+  void delayIsolatesOfDocument(int docIndex) {
     List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
@@ -626,7 +631,6 @@ class ImageProcessingManager {
     }
     for (var key in keys) {
       taskKillers[key]?.delay();
-      await Future.delayed(Duration(milliseconds: 20));
     }
   }
 
@@ -743,7 +747,8 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn,
     int rotationIn,
   ) async {
-    await killIsolatesOfPage(docIndex, pageIndex);
+    killIsolatesOfPage(docIndex, pageIndex);
+    Future.delayed(Duration(milliseconds: 100));
     _processPageWrapper(
       docIndex,
       pageIndex,
@@ -752,7 +757,7 @@ class ImageProcessingManager {
       cornerPointsIn,
       rotationIn,
       false,
-      false,
+      rotationIn == 0,
       IsolatePriority.immediate,
     );
   }

@@ -610,7 +610,7 @@ class FilesHelper {
     } else {
       dev.log("deleteDocument: Starting deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
-      await imageProcessingManager.killIsolatesOfDocument(docIndex);
+      imageProcessingManager.killIsolatesOfDocument(docIndex);
 
       Future future = imageProcessingManager
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
@@ -659,7 +659,7 @@ class FilesHelper {
     } else {
       dev.log("_deletePage: Deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
-      await imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
 
       Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
@@ -718,15 +718,11 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
-    List<Future> killIsolatesFutures = [];
     for (var pageIndex in pageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
-      killIsolatesFutures.add(
-        imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
-      );
+      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
     }
     dev.log("_deletePages: Deleting Pages: $pageIndexes");
-    await Future.wait(killIsolatesFutures);
 
     Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
       docIndex,

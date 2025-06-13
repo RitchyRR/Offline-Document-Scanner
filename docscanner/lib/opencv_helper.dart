@@ -1222,10 +1222,20 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
     // 2. Remove colorful blobs like markers (Median)
-    try {
-      bg = cv.medianBlur(bg, (K * 2) + 1);
-    } catch (e) {
-      dev.log("Warning, _warpedBg, medianBlur: $e");
+    int kernelSize = ((K * 2) + 1);
+    kernelSize = kernelSize.clamp(3, kernelSize);
+    bool medianBlurSucceded = false;
+    while (!medianBlurSucceded) {
+      try {
+        bg = cv.medianBlur(bg, kernelSize);
+        medianBlurSucceded = true;
+      } catch (_) {
+        if (kernelSize == 3) break;
+        kernelSize = ((kernelSize * 0.9).toInt() ~/ 2 * 2 + 1).clamp(
+          3,
+          kernelSize,
+        );
+      }
     }
     // 3. Remove dark structures (Closing)
     int k2 = K;

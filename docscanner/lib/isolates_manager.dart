@@ -252,7 +252,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           // maxRuntime -> kill
           _runtimeTimer = Timer(maxRuntime, () {
             dev.log("Killing isolate due to timeout: $maxRuntime");
-            _cleanup!();
+            //_cleanup!(); //toto undo
           });
 
           // exit / error
