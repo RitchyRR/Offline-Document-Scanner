@@ -604,7 +604,7 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> killIsolatesOfDocument(int docIndex) async {
+  killIsolatesOfDocument(int docIndex) {
     List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
