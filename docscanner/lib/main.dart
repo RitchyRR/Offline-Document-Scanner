@@ -2219,14 +2219,11 @@ class _PagesState extends State<Pages> with RouteAware {
                     ? SizedBox()
                     : !_gridView!
                     ? ListView.builder(
+                        padding: EdgeInsets.fromLTRB(15, 6, 15, 24),
                         controller: _scrollController,
                         cacheExtent: 1000,
-                        itemCount: _pagesCount + 1,
+                        itemCount: _pagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
-                          if (pageIndex == _pagesCount) {
-                            // small space at bottom of list
-                            return SizedBox(height: 12);
-                          }
                           if (_deletedPages.contains(pageIndex)) {
                             return SizedBox();
                           }
@@ -2243,10 +2240,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           }
                           File pageThumbnail = File(thumbnailPath);
                           return Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 15,
-                              vertical: 6,
-                            ),
+                            padding: EdgeInsets.only(bottom: 12),
                             child: AspectRatio(
                               aspectRatio: thumbnailRatio,
                               child: Container(
@@ -2399,36 +2393,32 @@ class _PagesState extends State<Pages> with RouteAware {
                           );
                         },
                       )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 15),
-                        child: MasonryGridView.count(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 15,
-                          crossAxisSpacing: 15,
-                          controller: _scrollController,
-                          cacheExtent: 1000,
-                          itemCount: _pagesCount + 2,
-                          itemBuilder: (BuildContext context, int pageIndex) {
-                            if (pageIndex >= _pagesCount) {
-                              // small space at bottom of list
-                              return SizedBox(height: 12);
-                            }
-                            if (_deletedPages.contains(pageIndex)) {
-                              return SizedBox();
-                            }
-                            final displayPageIndex =
-                                1 +
-                                pageIndex -
-                                _deletedPages
-                                    .where((element) => element < pageIndex)
-                                    .length;
-                            String thumbnailPath = _pageThumbnails[pageIndex];
-                            double thumbnailRatio = _thumbnailRatios[pageIndex];
-                            if (thumbnailRatio == 0.0) {
-                              throw StateError("thumbnailRatio == 0.0");
-                            }
-                            File pageThumbnail = File(thumbnailPath);
-                            return AspectRatio(
+                    : MasonryGridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 15,
+                        padding: EdgeInsets.fromLTRB(15, 6, 15, 24),
+                        controller: _scrollController,
+                        cacheExtent: 1000,
+                        itemCount: _pagesCount,
+                        itemBuilder: (BuildContext context, int pageIndex) {
+                          if (_deletedPages.contains(pageIndex)) {
+                            return SizedBox();
+                          }
+                          final displayPageIndex =
+                              1 +
+                              pageIndex -
+                              _deletedPages
+                                  .where((element) => element < pageIndex)
+                                  .length;
+                          String thumbnailPath = _pageThumbnails[pageIndex];
+                          double thumbnailRatio = _thumbnailRatios[pageIndex];
+                          if (thumbnailRatio == 0.0) {
+                            throw StateError("thumbnailRatio == 0.0");
+                          }
+                          File pageThumbnail = File(thumbnailPath);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: AspectRatio(
                               aspectRatio: thumbnailRatio,
                               child: Container(
                                 decoration: BoxDecoration(
@@ -2576,9 +2566,9 @@ class _PagesState extends State<Pages> with RouteAware {
                                   ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
               )
             : const SizedBox(),
