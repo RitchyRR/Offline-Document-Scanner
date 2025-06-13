@@ -2396,7 +2396,7 @@ class _PagesState extends State<Pages> with RouteAware {
                     : MasonryGridView.count(
                         crossAxisCount: 2,
                         crossAxisSpacing: 15,
-                        padding: EdgeInsets.fromLTRB(15, 6, 15, 24),
+                        padding: EdgeInsets.fromLTRB(15, 6, 15, 21),
                         controller: _scrollController,
                         cacheExtent: 1000,
                         itemCount: _pagesCount,
@@ -2417,7 +2417,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           }
                           File pageThumbnail = File(thumbnailPath);
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.only(bottom: 15),
                             child: AspectRatio(
                               aspectRatio: thumbnailRatio,
                               child: Container(
