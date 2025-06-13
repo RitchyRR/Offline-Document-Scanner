@@ -7,11 +7,9 @@ import 'dart:io';
 import 'package:docscanner/app_globals.dart' show ErrorLogger;
 
 class TaskKiller {
-  final void Function(SendPort controlPort) _setControlPort;
   final void Function() _kill;
   final void Function() _delay;
-  TaskKiller(this._setControlPort, this._kill, this._delay);
-  void setControlPort(SendPort controlPort) => _setControlPort(controlPort);
+  TaskKiller(this._kill, this._delay);
   void kill() => _kill();
   void delay() => _delay();
 }
@@ -136,23 +134,16 @@ class IsolatesManager {
     await _initFuture;
     late _QueuedTask<T> task;
 
-    SendPort? controlPort;
     final killer = TaskKiller(
-      // setControlPort
-      (SendPort controlPortIn) {
-        controlPort = controlPortIn;
-      },
       // kill
       () {
         // Task queued -> remove from queue
         if (_taskQueue.remove(task)) {
           task._cleanedUp = true;
-          return;
         }
         // Task running -> kill / cleanup
-        if (task._worker?.isolate != null && controlPort != null) {
-          controlPort!.send('exit');
-          //task._cleanup?.call(); // will cleanup after exitPort
+        else if (task._worker?.isolate != null) {
+          task._cleanup?.call();
         }
       },
       // delay

@@ -1355,8 +1355,6 @@ class FilesHelper {
               SnackBar(content: Text("Error: No PDF available to save.")),
             );
           }
-        } else if (message is SendPort) {
-          killer.setControlPort(message);
         }
         port.close();
         killer.kill();
@@ -1509,8 +1507,6 @@ class FilesHelper {
             SnackBar(content: Text("Error: No PDF available to SharePlus.")),
           );
         }
-      } else if (message is SendPort) {
-        killer.setControlPort(message);
       }
       port.close();
       killer.kill();
