@@ -213,7 +213,7 @@ class FilesHelper {
 
     String newPagePath =
         "$docPath/Page ${(pageIndex).toString().padLeft(4, "0")}";
-    Directory(newPagePath).createSync(recursive: true);
+    await Directory(newPagePath).create(recursive: true);
     return (newPagePath, pageIndex);
   }
 
@@ -235,11 +235,19 @@ class FilesHelper {
     return pagePath;
   }
 
-  Future<String> copyToPageVersion(
+  Future<(Uint8List, String)> readImageRaw(String imagePath) async {
+    final file = File(imagePath);
+    final Future<Uint8List> futureBytes = file.readAsBytes();
+    String extension = imagePath.split(".").last;
+    return (await futureBytes, extension);
+  }
+
+  Future<String> writeImageRaw(
     int docIndex,
     int pageIndex,
     int versionIndex,
-    String imagePath,
+    Uint8List imageBytes,
+    String extension,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(
@@ -247,11 +255,7 @@ class FilesHelper {
       pageIndex,
       supressWarnings: true,
     );
-    Directory(pagePath).createSync(recursive: true);
     String versionName = versionNames[versionIndex];
-    if (imagePath.startsWith(pagePath) && imagePath.contains("$versionName.")) {
-      return imagePath;
-    }
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -259,14 +263,13 @@ class FilesHelper {
         fse.delete();
       }
     }
-    String extension = imagePath.split(".").last;
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
-    File(imagePath).copySync(versionPath);
+    // Write
+    await File(versionPath).writeAsBytes(imageBytes);
     if (!File(versionPath).existsSync()) {
-      throw StateError("Error, saveImage: Failed to copy to $versionPath");
+      throw StateError("Error, writeImageRaw: Failed to save to $versionPath");
     }
-    //dev.log("Image copied to at: $toImagePath");
     return versionPath;
   }
 
@@ -284,7 +287,7 @@ class FilesHelper {
     );
     String versionName = versionNames[versionIndex];
     // Delete prior Version
-    if (File(pagePath).existsSync()) {
+    if (Directory(pagePath).existsSync()) {
       for (var fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -292,12 +295,16 @@ class FilesHelper {
           fse.delete();
         }
       }
+    } else {
+      throw StateError(
+        "Error, savePageVersion: pagePath $pagePath does not exist",
+      );
     }
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
     File(versionPath).writeAsBytesSync(pngBytes);
     if (!File(versionPath).existsSync()) {
-      throw StateError("Error, saveImage: Failed to save $versionPath");
+      throw StateError("Error, savePageVersion: Failed to save $versionPath");
     }
     //dev.log("Image saved at: $toImagePath");
     return versionPath;

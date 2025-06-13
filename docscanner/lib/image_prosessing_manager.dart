@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart'
     show FlutterImageCompress, CompressFormat;
-import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'dart:async';
 // isolates:
@@ -34,7 +33,8 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String photoPathIn,
+      Uint8List? photoBytes,
+      String? photoExtension,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -50,28 +50,45 @@ class ImageProcessingManager {
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String photoPathIn = data.$5;
+    Uint8List? photoBytes = data.$5;
+    String? photoExtension = data.$6;
 
-    double? ratioValueIn = data.$6;
-    List<List<int>>? cornerPointsIn = data.$7;
-    int rotationIn = data.$8;
-    bool isInitial = data.$9;
-    AppGlobals g = data.$10;
-    if (!File(photoPathIn).existsSync() ||
-        File(photoPathIn).lengthSync() == 0) {
-      final actualPhotoPath = await g.filesHelper.getVersionPath(
+    double? ratioValueIn = data.$7;
+    List<List<int>>? cornerPointsIn = data.$8;
+    int rotationIn = data.$9;
+    bool isInitial = data.$10;
+    AppGlobals g = data.$11;
+
+    String pagePath = await g.filesHelper.getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    if (!Directory(pagePath).existsSync()) {
+      throw StateError(
+        "Error, _processPageIsolate: pagePath $pagePath does not exist",
+      );
+    }
+
+    String photoPath;
+    if (photoBytes != null && photoExtension != null) {
+      // Write photo into storage
+      photoPath = await g.filesHelper.writeImageRaw(
+        docIndex,
+        pageIndex,
+        0,
+        photoBytes,
+        photoExtension,
+      );
+    } else {
+      // Use existing version 0
+      photoPath = await g.filesHelper.getVersionPath(
         docIndex,
         pageIndex,
         0,
         supressWarnings: true,
       );
-
-      if (File(actualPhotoPath).existsSync() &&
-          File(actualPhotoPath).lengthSync() != 0) {
-        photoPathIn = actualPhotoPath;
-        dev.log(
-          "Warning, _processPageIsolate: photoPathIn was the wrong path, continuing with actualPhotoPath",
-        );
+      if (File(photoPath).existsSync() && File(photoPath).lengthSync() != 0) {
       } else {
         throw StateError("Error, _processPageIsolate: No photo");
       }
@@ -81,9 +98,9 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
-    _deleteScaledThumbnail(path.dirname(photoPathIn));
+    _deleteScaledThumbnail(pagePath);
     // Original
-    versionPaths[0] = photoPathIn;
+    versionPaths[0] = photoPath;
     // Re-use Shape
     String shapePath = await g.filesHelper.getPageShape(
       docIndex,
@@ -216,11 +233,11 @@ class ImageProcessingManager {
       gIn: g,
       supressWarnings: true,
     );
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     // Save Photo
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     // Generate Metadata
     final imgInfo = AppGlobals.getPngInfo(pngBytes);
@@ -276,6 +293,14 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
+    // Warped
+    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    String versionName = versionNames[1];
+    String extension = photoPath.split(".").last;
+    String versionPath =
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
+    File(photoPath).copySync(versionPath);
+
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = await cvHelper.processImage1(
       ParamsProcessImage1(photoPath),
@@ -304,35 +329,12 @@ class ImageProcessingManager {
   ) async {
     if (photoPath.isEmpty) return;
 
+    Uint8List? photoBytes;
+    String? photoExtension;
     if (!isPhotoAlreadyInPage) {
-      //if (File(photoPath).lengthSync() > 3000000 * 8) // ~ 3 MB
-      //{
-      //  // Save Photo
-      //  final imgInfo = await AppGlobals.getImageInfo(photoPath);
-      //  final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
-      //    photoPath,
-      //    minWidth: imgInfo!.width,
-      //    minHeight: imgInfo.height,
-      //    format: CompressFormat.png,
-      //    quality: 100,
-      //  );
-      //  if (pngBytes == null) {
-      //    throw StateError("photo $photoPath is broken");
-      //  }
-      //  photoPath = await g.filesHelper.savePageVersion(
-      //    docIndex,
-      //    pageIndex,
-      //    0,
-      //    pngBytes,
-      //  );
-      //} else {
-      photoPath = await g.filesHelper.copyToPageVersion(
-        docIndex,
-        pageIndex,
-        0,
-        photoPath,
-      );
-      //}
+      final imageRaw = await g.filesHelper.readImageRaw(photoPath);
+      photoBytes = imageRaw.$1;
+      photoExtension = imageRaw.$2;
     }
 
     final wrapperCompleter = Completer<void>();
@@ -346,7 +348,8 @@ class ImageProcessingManager {
         token,
         docIndex,
         pageIndex,
-        photoPath,
+        photoBytes,
+        photoExtension,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
@@ -419,13 +422,11 @@ class ImageProcessingManager {
     final wrapperCompleter2 = Completer<void>();
     final port2 = ReceivePort();
 
-    // Warped
     final photoPath = await g.filesHelper.getVersionPath(
       docIndex,
       pageIndex,
       0,
     );
-    g.filesHelper.copyToPageVersion(docIndex, pageIndex, 1, photoPath);
 
     TaskKiller killer2 = await IsolatesManager().runTask(
       _processPdfPageIsolatePart2,
