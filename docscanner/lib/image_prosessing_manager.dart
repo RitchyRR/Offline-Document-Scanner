@@ -2,7 +2,6 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show WidgetsBinding;
 import 'package:flutter_image_compress/flutter_image_compress.dart'
     show FlutterImageCompress, CompressFormat;
 import 'dart:io';
