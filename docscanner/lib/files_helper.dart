@@ -235,6 +235,34 @@ class FilesHelper {
     return pagePath;
   }
 
+  //Future<String> copyToPageVersion(
+  //  int docIndex,
+  //  int pageIndex,
+  //  int versionIndex,
+  //  String imagePath,
+  //) async {
+  //  await _initializeDocumentsPath();
+  //  String pagePath = await getPagePath(docIndex, pageIndex);
+  //  String versionName = versionNames[versionIndex];
+  //  for (var fse in Directory(
+  //    pagePath,
+  //  ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+  //    if (fse.path.contains("$versionName.")) {
+  //      fse.delete();
+  //    }
+  //  }
+  //  String extension = imagePath.split(".").last;
+  //  String versionPath =
+  //      "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
+  //  File(imagePath).copySync(versionPath);
+  //  if (!File(versionPath).existsSync()) {
+  //    dev.log("Error, saveImage: Failed to copy to $versionPath");
+  //    return "";
+  //  }
+  //  //dev.log("Image copied to at: $toImagePath");
+  //  return versionPath;
+  //}
+
   Future<String> savePageVersion(
     int docIndex,
     int pageIndex,
@@ -247,7 +275,7 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$versionName.webp")) {
+      if (fse.path.contains("$versionName.")) {
         fse.delete();
       }
     }
@@ -273,7 +301,7 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$fileName.webp")) {
+      if (fse.path.contains("$fileName.")) {
         fse.delete();
       }
     }
@@ -298,7 +326,7 @@ class FilesHelper {
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.endsWith("$fileName.webp")) {
+      if (fse.path.contains("$fileName.")) {
         return fse.path;
       }
     }
@@ -746,7 +774,7 @@ class FilesHelper {
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       for (var name in processedNames) {
-        if (fse.path.endsWith("$name.webp")) {
+        if (fse.path.contains("$name.")) {
           imageCache.evict(FileImage(File(fse.path)), includeLive: true);
           fse.delete();
           //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
@@ -944,9 +972,9 @@ class FilesHelper {
     final pageDir = Directory(await getPagePath(docIndex, pageIndex));
     int versionsCount = 0;
     if (pageDir.existsSync()) {
-      var pageFiles = pageDir.listSync();
+      var pageFiles = pageDir.listSync().whereType<File>();
       for (var file in pageFiles) {
-        if (file.path.endsWith(".webp")) versionsCount++;
+        if (!file.path.endsWith(".json")) versionsCount++;
       }
     } else {
       dev.log(
@@ -1171,7 +1199,7 @@ class FilesHelper {
                 minWidth: imgInfo!.width,
                 minHeight: imgInfo.height,
                 format: CompressFormat.webp,
-                quality: 90,
+                quality: 100,
               );
 
           pdfDoc.addPage(
@@ -1621,13 +1649,13 @@ class FilesHelper {
       if (byteData == null) {
         throw Exception("Failed to get byte data from image");
       }
-
+      final imageBytes = byteData.buffer.asUint8List();
       final Uint8List webpBytes = await FlutterImageCompress.compressWithList(
-        byteData.buffer.asUint8List(),
+        imageBytes,
         minWidth: uiImage.width,
         minHeight: uiImage.height,
         format: CompressFormat.webp,
-        quality: 90,
+        quality: 100,
       );
 
       // Processing
