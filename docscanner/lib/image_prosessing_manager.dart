@@ -58,6 +58,8 @@ class ImageProcessingManager {
     bool isInitial = data.$10;
     AppGlobals g = data.$11;
 
+    OpenCVHelper cvHelper = OpenCVHelper(g);
+
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
       pageIndex,
@@ -68,8 +70,6 @@ class ImageProcessingManager {
         "Error, _processPageIsolate: pagePath $pagePath does not exist",
       );
     }
-
-    OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
     _deleteScaledThumbnail(pagePath);
@@ -110,7 +110,6 @@ class ImageProcessingManager {
     Uint8List processed1Bytes = await cvHelper.processImage1(
       ParamsProcessImage1(warpedBytes),
     );
-
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -122,7 +121,6 @@ class ImageProcessingManager {
     Uint8List processed2Bytes = await cvHelper.processImage2(
       ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
     );
-
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
