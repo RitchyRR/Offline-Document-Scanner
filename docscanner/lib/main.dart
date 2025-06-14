@@ -4524,16 +4524,12 @@ class PagePreviewState extends State<PagePreview> {
 
 //class _FrameLinePainter extends CustomPainter {
 //  final List<Offset> points;
-//  // ignore: prefer_typing_uninitialized_variables
 //  final color;
-//  // ignore: prefer_typing_uninitialized_variables
 //  final strokeWidth;
 //
 //  _FrameLinePainter({
 //    required this.points,
-//    // ignore: unused_element_parameter
 //    this.color = Colors.black45,
-//    // ignore: unused_element_parameter
 //    this.strokeWidth = 7.0,
 //  });
 //
@@ -4567,20 +4563,17 @@ class PagePreviewState extends State<PagePreview> {
 
 class _CornerLinePainter extends CustomPainter {
   final List<Offset> points;
-  // ignore: prefer_typing_uninitialized_variables
-  final color;
-  // ignore: prefer_typing_uninitialized_variables
-  final strokeWidth;
+  final Color color;
+  final double strokeWidth;
   final double offset;
   final bool normalizedOffset;
 
   _CornerLinePainter({
     required this.points,
-    // ignore: unused_element_parameter
-    this.color = Colors.white,
-    this.strokeWidth = 2.0,
-    this.offset = 17.0,
-    this.normalizedOffset = false,
+    required this.color,
+    required this.strokeWidth,
+    required this.offset,
+    required this.normalizedOffset,
   });
 
   @override
@@ -5054,6 +5047,8 @@ class _WarpState extends State<Warp> {
                                     cornerPoints: _scaledPoints,
                                     color: Colors.white,
                                     strokeWidth: 1.0,
+                                    colorBg: Colors.black45,
+                                    strokeWidthBg: 3.0,
                                     currentCorner: _currentCorner!,
                                     zoomSize: _magnifierSize,
                                   ),
@@ -5425,12 +5420,10 @@ class _ZoomLinePainter extends CustomPainter {
 
   _ZoomLinePainter({
     required this.cornerPoints,
-    this.color = Colors.white,
-    this.strokeWidth = 1.0,
-    // ignore: unused_element_parameter
-    this.colorBg = Colors.black45,
-    // ignore: unused_element_parameter
-    this.strokeWidthBg = 3.0,
+    required this.color,
+    required this.strokeWidth,
+    required this.colorBg,
+    required this.strokeWidthBg,
     required this.currentCorner,
     required this.zoomSize,
   });

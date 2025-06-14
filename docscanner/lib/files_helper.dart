@@ -1330,8 +1330,7 @@ class FilesHelper {
       );
 
       // Isolate
-      //TaskKiller killer =
-      await IsolatesManager().runTask(
+      TaskKiller killer = await IsolatesManager().runTask(
         _writePfdToPathIsolate,
         (port.sendPort, token, pdfPath, pdf),
         portIn: port,
@@ -1361,8 +1360,7 @@ class FilesHelper {
             );
           }
         }
-        //port.close();
-        //killer.kill();
+        killer.kill();
       });
       return await completer.future;
     } catch (e) {
@@ -1492,8 +1490,7 @@ class FilesHelper {
     );
 
     // Isolate
-    //TaskKiller killer =
-    await IsolatesManager().runTask(
+    TaskKiller killer = await IsolatesManager().runTask(
       _writePfdToPathIsolate,
       (port.sendPort, token, pdfPath, pdf),
       portIn: port,
@@ -1515,8 +1512,7 @@ class FilesHelper {
           );
         }
       }
-      //port.close();
-      //killer.kill();
+      killer.kill();
     });
     return await completer.future;
   }
@@ -1545,7 +1541,6 @@ class FilesHelper {
         prio: IsolatePriority.immediate,
       );
       await port.first;
-      //port.close();
     }
 
     return rotatedFilePath;

@@ -349,9 +349,8 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        //killer.kill();
+        killer.kill();
       }
     });
   }
@@ -389,11 +388,10 @@ class ImageProcessingManager {
         globalNotifier.triggerEvent(message);
       } else if (message is String) {
         if (message == "done") {
-          //port.close();
           wrapperCompleter.complete();
 
           taskKillers.removeWhere((key, value) => value == killer);
-          //killer.kill();
+          killer.kill();
         } else {
           photoPath = message;
         }
@@ -426,11 +424,10 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        //port2.close();
         wrapperCompleter2.complete();
 
         taskKillers.removeWhere((key, value) => value == killer2);
-        //killer2.kill();
+        killer2.kill();
       }
     });
     await wrapperCompleter2.future;
@@ -792,11 +789,10 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        //port.close();
         repairCompleter.complete();
 
         taskKillers.removeWhere((key, value) => value == killer);
-        //killer.kill();
+        killer.kill();
       }
     });
     await repairCompleter.future;
@@ -934,9 +930,8 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        //killer.kill();
+        killer.kill();
       }
     });
     await rotatePageCompleter.future;
@@ -1103,7 +1098,7 @@ class ImageProcessingManager {
         prio: IsolatePriority.regular,
       );
     } else {
-      //port.close();
+      port.close();
       return;
     }
     taskKillers[(docIndex, pageIndex)] = killer;
@@ -1112,9 +1107,8 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        //killer.kill();
+        killer.kill();
       }
     });
   }
