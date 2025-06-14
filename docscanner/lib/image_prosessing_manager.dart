@@ -722,7 +722,7 @@ class ImageProcessingManager {
     int rotationIn,
   ) async {
     killIsolatesOfPage(docIndex, pageIndex);
-    Future.delayed(Duration(milliseconds: 100));
+    //await Future.delayed(Duration(milliseconds: 100));
     _processPageWrapper(
       docIndex,
       pageIndex,
