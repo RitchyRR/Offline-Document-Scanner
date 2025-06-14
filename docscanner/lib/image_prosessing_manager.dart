@@ -34,7 +34,6 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       Uint8List photoBytes,
-      String photoExtension,
       Uint8List? shapeBytes,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
@@ -45,21 +44,19 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
-
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
     Uint8List? photoBytes = data.$5;
-    String? photoExtension = data.$6;
-    Uint8List? shapeBytes = data.$7;
+    Uint8List? shapeBytes = data.$6;
 
-    double? ratioValueIn = data.$8;
-    List<List<int>>? cornerPointsIn = data.$9;
-    int rotationIn = data.$10;
-    bool isInitial = data.$11;
-    AppGlobals g = data.$12;
+    double? ratioValueIn = data.$7;
+    List<List<int>>? cornerPointsIn = data.$8;
+    int rotationIn = data.$9;
+    bool isInitial = data.$10;
+    AppGlobals g = data.$11;
 
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -71,15 +68,6 @@ class ImageProcessingManager {
         "Error, _processPageIsolate: pagePath $pagePath does not exist",
       );
     }
-
-    // Write photo into storage
-    await g.filesHelper.writeImageRaw(
-      docIndex,
-      pageIndex,
-      0,
-      photoBytes,
-      photoExtension,
-    );
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
@@ -309,6 +297,16 @@ class ImageProcessingManager {
     final imageRaw = await g.filesHelper.readImageRaw(photoPath);
     Uint8List photoBytes = imageRaw.$1;
     String photoExtension = imageRaw.$2;
+    if (!isPhotoAlreadyInPage) {
+      // Write photo into storage
+      g.filesHelper.writeImageRaw(
+        docIndex,
+        pageIndex,
+        0,
+        photoBytes,
+        photoExtension,
+      );
+    }
     // Read Shape if there
     String shapePath = await g.filesHelper.getPageShape(
       docIndex,
@@ -332,7 +330,6 @@ class ImageProcessingManager {
         docIndex,
         pageIndex,
         photoBytes,
-        photoExtension,
         shapeBytes,
         ratioValueIn,
         cornerPointsIn,
