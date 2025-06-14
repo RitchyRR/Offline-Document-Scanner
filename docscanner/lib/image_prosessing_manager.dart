@@ -33,8 +33,9 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List? photoBytes,
-      String? photoExtension,
+      Uint8List photoBytes,
+      String photoExtension,
+      Uint8List? shapeBytes,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -52,12 +53,13 @@ class ImageProcessingManager {
     int pageIndex = data.$4;
     Uint8List? photoBytes = data.$5;
     String? photoExtension = data.$6;
+    Uint8List? shapeBytes = data.$7;
 
-    double? ratioValueIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    int rotationIn = data.$9;
-    bool isInitial = data.$10;
-    AppGlobals g = data.$11;
+    double? ratioValueIn = data.$8;
+    List<List<int>>? cornerPointsIn = data.$9;
+    int rotationIn = data.$10;
+    bool isInitial = data.$11;
+    AppGlobals g = data.$12;
 
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -70,75 +72,38 @@ class ImageProcessingManager {
       );
     }
 
-    String photoPath;
-    if (photoBytes != null && photoExtension != null) {
-      // Write photo into storage
-      photoPath = await g.filesHelper.writeImageRaw(
-        docIndex,
-        pageIndex,
-        0,
-        photoBytes,
-        photoExtension,
-      );
-    } else {
-      // Use existing version 0
-      photoPath = await g.filesHelper.getVersionPath(
-        docIndex,
-        pageIndex,
-        0,
-        supressWarnings: true,
-      );
-      if (File(photoPath).existsSync() && File(photoPath).lengthSync() != 0) {
-      } else {
-        throw StateError("Error, _processPageIsolate: No photo");
-      }
-    }
+    // Write photo into storage
+    await g.filesHelper.writeImageRaw(
+      docIndex,
+      pageIndex,
+      0,
+      photoBytes,
+      photoExtension,
+    );
 
-    List<String> versionPaths = List.generate(4, (index) => "");
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
     _deleteScaledThumbnail(pagePath);
-    // Original
-    versionPaths[0] = photoPath;
-    // Re-use Shape
-    String shapePath = await g.filesHelper.getPageShape(
-      docIndex,
-      pageIndex,
-      supressWarnings: isInitial,
-    );
-    // don't use corrupted shape
-    if (shapePath.isNotEmpty && File(shapePath).lengthSync() == 0) {
-      shapePath = "";
-    }
 
-    if (shapePath.isNotEmpty && rotationIn != 0) {
-      Uint8List rotatedShape = await cvHelper.rotateImage(
-        shapePath,
-        rotationIn,
-      );
-
-      shapePath = await g.filesHelper.savePageShape(
-        docIndex,
-        pageIndex,
-        rotatedShape,
-      );
+    // Rotate shape
+    if (shapeBytes != null && rotationIn != 0) {
+      shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
     }
 
     // Warped + Metadata
     var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
-        versionPaths[0],
-        shapePath,
+        photoBytes,
+        shapeBytes,
         ratioValueIn: ratioValueIn,
         cornerPoints: cornerPointsIn,
       ),
     );
-
-    Uint8List warped = warpedRet.$1;
-    Uint8List shape = warpedRet.$2;
-    if (shapePath.isEmpty) {
-      g.filesHelper.savePageShape(docIndex, pageIndex, shape);
+    Uint8List warpedBytes = warpedRet.$1;
+    if (shapeBytes == null) {
+      Uint8List shapeBytesWarped = warpedRet.$2;
+      await g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     double? ratioValue = warpedRet.$4;
@@ -151,31 +116,34 @@ class ImageProcessingManager {
       cornerPoints,
       gIn: g,
     );
-    versionPaths[1] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      1,
-      warped,
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, warpedBytes);
 
     // Processed1 basierend auf dem Warped-Bild
-    Uint8List processed1 = await cvHelper.processImage1(
-      ParamsProcessImage1(versionPaths[1]),
+    Uint8List processed1Bytes = await cvHelper.processImage1(
+      ParamsProcessImage1(warpedBytes),
     );
 
-    //versionPaths[2] =
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      processed1Bytes,
+    );
 
     // Processed2 basierend auf dem Warped-Bild
-    Uint8List processed2 = await cvHelper.processImage2(
-      ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
+    Uint8List processed2Bytes = await cvHelper.processImage2(
+      ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
     );
 
-    //versionPaths[3] =
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      processed2Bytes,
+    );
 
     // Update thumbnails:
-    Future.microtask(() => sendPort.send(NotifierEvent.loadPagesThumbnails));
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
     if (isInitial) {
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
@@ -206,7 +174,6 @@ class ImageProcessingManager {
     }
 
     sendPort.send("done");
-    //Isolate.exit(sendPort, "done");
   }
 
   static void _processPdfPageIsolatePart1(
@@ -239,7 +206,9 @@ class ImageProcessingManager {
     );
 
     // Save Photo
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
+    sendPort.send(
+      await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes),
+    );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
@@ -280,7 +249,8 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String photoPath,
+      Uint8List photoBytes,
+      String extension,
       AppGlobals g,
     )
     data,
@@ -291,29 +261,31 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String photoPath = data.$5;
-    AppGlobals g = data.$6;
+    Uint8List photoBytes = data.$5;
+    String extension = data.$6;
+    AppGlobals g = data.$7;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
     // Warped
-    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
-    String versionName = versionNames[1];
-    String extension = photoPath.split(".").last;
-    String versionPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
-    File(photoPath).copySync(versionPath);
+    await g.filesHelper.writeImageRaw(
+      docIndex,
+      pageIndex,
+      1,
+      photoBytes,
+      extension,
+    );
 
     // Processed1 basierend auf dem Warped-Bild
     Uint8List processed1 = await cvHelper.processImage1(
-      ParamsProcessImage1(photoPath),
+      ParamsProcessImage1(photoBytes),
     );
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
 
     // Processed2 basierend auf dem Warped-Bild
     Uint8List processed2 = await cvHelper.processImage2(
-      ParamsProcessImage2(photoPath, borderCorrectionDepth),
+      ParamsProcessImage2(photoBytes, borderCorrectionDepth),
     );
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
 
@@ -333,12 +305,19 @@ class ImageProcessingManager {
   ) async {
     if (photoPath.isEmpty) return;
 
-    Uint8List? photoBytes;
-    String? photoExtension;
-    if (!isPhotoAlreadyInPage) {
-      final imageRaw = await g.filesHelper.readImageRaw(photoPath);
-      photoBytes = imageRaw.$1;
-      photoExtension = imageRaw.$2;
+    // Read Photo
+    final imageRaw = await g.filesHelper.readImageRaw(photoPath);
+    Uint8List photoBytes = imageRaw.$1;
+    String photoExtension = imageRaw.$2;
+    // Read Shape if there
+    String shapePath = await g.filesHelper.getPageShape(
+      docIndex,
+      pageIndex,
+      supressWarnings: isInitial,
+    );
+    Uint8List? shapeBytes;
+    if (shapePath.isNotEmpty && File(shapePath).lengthSync() != 0) {
+      shapeBytes = File(shapePath).readAsBytesSync();
     }
 
     final wrapperCompleter = Completer<void>();
@@ -354,6 +333,7 @@ class ImageProcessingManager {
         pageIndex,
         photoBytes,
         photoExtension,
+        shapeBytes,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
@@ -410,15 +390,20 @@ class ImageProcessingManager {
     );
     taskKillers[(docIndex, pageIndex)] = killer;
 
+    String? photoPath;
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
-      } else if (message == "done") {
-        port.close();
-        wrapperCompleter.complete();
+      } else if (message is String) {
+        if (message == "done") {
+          port.close();
+          wrapperCompleter.complete();
 
-        taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
+          taskKillers.removeWhere((key, value) => value == killer);
+          killer.kill();
+        } else {
+          photoPath = message;
+        }
       }
     });
     await wrapperCompleter.future;
@@ -426,15 +411,10 @@ class ImageProcessingManager {
     final wrapperCompleter2 = Completer<void>();
     final port2 = ReceivePort();
 
-    final photoPath = await g.filesHelper.getVersionPath(
-      docIndex,
-      pageIndex,
-      0,
-    );
-
+    String extension = photoPath!.split(".").last;
     TaskKiller killer2 = await IsolatesManager().runTask(
       _processPdfPageIsolatePart2,
-      (port2.sendPort, token, docIndex, pageIndex, photoPath, g),
+      (port2.sendPort, token, docIndex, pageIndex, pngBytes, extension, g),
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         dev.log(
@@ -491,7 +471,7 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
     );
-    List<String> versionPaths = imagePaths.$1;
+    final List<String> versionPaths = imagePaths.$1;
     String shapePath = imagePaths.$2;
     String thumbnailPath = imagePaths.$3;
 
@@ -503,17 +483,17 @@ class ImageProcessingManager {
     // Warped
     var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
-        versionPaths[0],
-        shapePath,
+        File(versionPaths[0]).readAsBytesSync(),
+        shapePath.isNotEmpty ? File(shapePath).readAsBytesSync() : null,
         ratioValueIn: ratioValueIn,
         cornerPoints: cornerPointsIn,
         onlyCalculateBorder: versionPaths[1].isNotEmpty,
       ),
     );
-    Uint8List warped = warpedRet.$1;
-    Uint8List shape = warpedRet.$2;
+    Uint8List warpedBytes = warpedRet.$1;
+    Uint8List shapeBytesWarped = warpedRet.$2;
     if (shapePath.isEmpty) {
-      g.filesHelper.savePageShape(docIndex, pageIndex, shape);
+      g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
@@ -532,14 +512,14 @@ class ImageProcessingManager {
         docIndex,
         pageIndex,
         1,
-        warped,
+        warpedBytes,
       );
     }
 
     // Processed1 basierend auf dem Warped-Bild
     if (versionPaths[2].isEmpty) {
       Uint8List processed1 = await cvHelper.processImage1(
-        ParamsProcessImage1(versionPaths[1]),
+        ParamsProcessImage1(warpedBytes),
       );
       versionPaths[2] = await g.filesHelper.savePageVersion(
         docIndex,
@@ -552,7 +532,7 @@ class ImageProcessingManager {
     // Processed2 basierend auf dem Warped-Bild
     if (versionPaths[3].isEmpty) {
       Uint8List processed2 = await cvHelper.processImage2(
-        ParamsProcessImage2(versionPaths[1], borderCorrectionDepth),
+        ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
       versionPaths[3] = await g.filesHelper.savePageVersion(
         docIndex,
@@ -872,53 +852,36 @@ class ImageProcessingManager {
 
     // Shape
     String? shapePath = await g.filesHelper.getPageShape(docIndex, pageIndex);
+    Uint8List shapeBytes = File(shapePath).readAsBytesSync();
     if (shapePath.isEmpty && rotationIn != 0) {
-      Uint8List rotatedShape = await cvHelper.rotateImage(
-        shapePath,
-        rotationIn,
-      );
+      shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
       shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
-        rotatedShape,
+        shapeBytes,
       );
     }
 
     // Warped
     Uint8List rotatedWarped = await cvHelper.rotateImage(
-      versionPaths[1],
+      File(versionPaths[1]).readAsBytesSync(),
       rotationIn,
     );
-    versionPaths[1] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      1,
-      rotatedWarped,
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, rotatedWarped);
 
     // Processed1
     Uint8List rotatedP1 = await cvHelper.rotateImage(
-      versionPaths[2],
+      File(versionPaths[2]).readAsBytesSync(),
       rotationIn,
     );
-    versionPaths[2] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      2,
-      rotatedP1,
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, rotatedP1);
 
     // Processed2
     Uint8List rotatedP2 = await cvHelper.rotateImage(
-      versionPaths[3],
+      File(versionPaths[3]).readAsBytesSync(),
       rotationIn,
     );
-    versionPaths[3] = await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      3,
-      rotatedP2,
-    );
+    await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, rotatedP2);
 
     // Updates
     sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -1007,6 +970,7 @@ class ImageProcessingManager {
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
     File versionFile = File(versionPath);
     File thumbnailFile = File(thumbnailPath);
+    Uint8List versionBytes = versionFile.readAsBytesSync();
 
     if (!versionFile.existsSync()) {
       throw StateError(
@@ -1038,7 +1002,7 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
     Uint8List scaled = await cvHelper.scaleImageToWidth(
-      versionPath,
+      versionBytes,
       (screenWidth * 0.927083333).toInt(),
     );
 
@@ -1060,7 +1024,7 @@ class ImageProcessingManager {
     return true;
   }
 
-  static _deleteScaledThumbnail(String pagePath) {
+  static void _deleteScaledThumbnail(String pagePath) {
     for (FileSystemEntity fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {

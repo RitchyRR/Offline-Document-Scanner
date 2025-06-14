@@ -1562,7 +1562,8 @@ class FilesHelper {
     //BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    Uint8List rotatedBytes = await cvHelper.rotateImage(imagePath, angle);
+    Uint8List imageBytes = await File(imagePath).readAsBytes();
+    Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
     sendPort.send(true);
   }

@@ -4176,6 +4176,7 @@ class PagePreviewState extends State<PagePreview> {
       isDisabled:
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
+          //_versionPaths[1].isEmpty ||
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:

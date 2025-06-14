@@ -8,15 +8,15 @@ import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
 class ParamsWarpImage {
-  String pathIn = "";
-  String shape;
+  Uint8List imageBytesIn;
+  Uint8List? shapeBytes;
   double? ratioValueIn;
   List<List<int>>? cornerPoints;
   bool onlyCalculateBorder;
 
   ParamsWarpImage(
-    this.pathIn,
-    this.shape, {
+    this.imageBytesIn,
+    this.shapeBytes, {
     this.ratioValueIn,
     this.cornerPoints,
     this.onlyCalculateBorder = false,
@@ -24,16 +24,16 @@ class ParamsWarpImage {
 }
 
 class ParamsProcessImage1 {
-  String pathIn = "";
+  Uint8List imageBytesIn;
 
-  ParamsProcessImage1(this.pathIn);
+  ParamsProcessImage1(this.imageBytesIn);
 }
 
 class ParamsProcessImage2 {
-  String pathIn = "";
+  Uint8List imageBytesIn;
   List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
-  ParamsProcessImage2(this.pathIn, this.borderCorrectionDepth);
+  ParamsProcessImage2(this.imageBytesIn, this.borderCorrectionDepth);
 }
 
 class OpenCVHelper {
@@ -51,8 +51,10 @@ class OpenCVHelper {
   Future<(Uint8List, Uint8List, List<int>, double, List<List<int>>)> warpImage(
     ParamsWarpImage params,
   ) async {
-    cv.Mat imageMat = _loadImage(params.pathIn);
-    cv.Mat? shape = (params.shape.isNotEmpty) ? _loadImage(params.shape) : null;
+    cv.Mat imageMat = _loadImage(params.imageBytesIn);
+    cv.Mat? shape = (params.shapeBytes != null)
+        ? _loadImage(params.shapeBytes!)
+        : null;
 
     final warpedRes = _warpImage(
       imageMat,
@@ -75,7 +77,7 @@ class OpenCVHelper {
   }
 
   Future<Uint8List> processImage1(ParamsProcessImage1 params) {
-    cv.Mat? warped = _loadWarped(params.pathIn);
+    cv.Mat? warped = _loadWarped(params.imageBytesIn);
 
     cv.Mat? filtered1 = _filterImage1(warped);
 
@@ -85,15 +87,15 @@ class OpenCVHelper {
   Future<Uint8List> processImage2(ParamsProcessImage2 params) {
     borderCorrectionDepth = params.borderCorrectionDepth;
 
-    cv.Mat? filtered1 = _loadWarped(params.pathIn);
+    cv.Mat? filtered1 = _loadWarped(params.imageBytesIn);
 
     cv.Mat? filtered2 = _filterImage2(filtered1);
 
     return _returnImage(filtered2);
   }
 
-  Future<Uint8List> rotateImage(String pathIn, int angle) {
-    cv.Mat mat = _loadImage(pathIn);
+  Future<Uint8List> rotateImage(Uint8List imageBytesIn, int angle) {
+    cv.Mat mat = _loadImage(imageBytesIn);
 
     if (angle != 0) {
       mat = mat.rotate(
@@ -108,8 +110,8 @@ class OpenCVHelper {
     return _returnImage(mat, uncompressed: true);
   }
 
-  Future<Uint8List> scaleImageToWidth(String pathIn, int newWidth) {
-    cv.Mat mat = _loadWarped(pathIn);
+  Future<Uint8List> scaleImageToWidth(Uint8List imageBytesIn, int newWidth) {
+    cv.Mat mat = _loadWarped(imageBytesIn);
 
     int newHeight = (height * (newWidth / width)).toInt();
     //dev.log("$width x $height -> $newWidth x $newHeight");
@@ -127,9 +129,9 @@ class OpenCVHelper {
     return _returnImage(scaled);
   }
 
-  cv.Mat _loadImage(String imagePath) {
+  cv.Mat _loadImage(Uint8List imageBytes) {
     // Load image
-    cv.Mat imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
+    cv.Mat? imageMat = cv.imdecode(imageBytes, cv.IMREAD_COLOR);
     if (imageMat.isEmpty) {
       throw StateError("Error: Failed to load photo.");
     }
@@ -145,9 +147,9 @@ class OpenCVHelper {
     return imageMat;
   }
 
-  cv.Mat _loadWarped(String imagePath) {
+  cv.Mat _loadWarped(Uint8List imageBytes) {
     // Load image
-    cv.Mat? imageMat = cv.imread(imagePath, flags: cv.IMREAD_COLOR);
+    cv.Mat? imageMat = cv.imdecode(imageBytes, cv.IMREAD_COLOR);
     if (imageMat.isEmpty) {
       throw StateError(
         "Error: Failed to load warped/processed1/processed2 image.",
@@ -182,11 +184,10 @@ class OpenCVHelper {
     if (uncompressed) {
       return resultImageBytes;
     } else {
-      final imgInfo = AppGlobals.getPngInfo(resultImageBytes);
       final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
         resultImageBytes,
-        minWidth: imgInfo!.width,
-        minHeight: imgInfo.height,
+        minWidth: width != 0 ? width : cols,
+        minHeight: height != 0 ? height : rows,
         format: CompressFormat.png,
         quality: 100,
       );
@@ -1223,7 +1224,7 @@ class OpenCVHelper {
     );
     // 2. Remove colorful blobs like markers (Median)
     int kernelSize = ((K * 2) + 1);
-    kernelSize = kernelSize.clamp(3, kernelSize);
+    kernelSize = kernelSize.clamp(3, -1 >>> 1);
     bool medianBlurSucceded = false;
     while (!medianBlurSucceded) {
       try {
@@ -1233,7 +1234,7 @@ class OpenCVHelper {
         if (kernelSize == 3) break;
         kernelSize = ((kernelSize * 0.9).toInt() ~/ 2 * 2 + 1).clamp(
           3,
-          kernelSize,
+          -1 >>> 1,
         );
       }
     }
