@@ -565,10 +565,10 @@ class ImageProcessingManager {
     sendPort.send("done");
   }
 
-  void killIsolatesOfPage(int docIndex, int pageIndex) {
+  Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
     if (taskKillers.containsKey(key)) {
-      (taskKillers[key]!).kill();
+      await (taskKillers[key]!).kill();
       taskKillers.remove(key);
     }
   }

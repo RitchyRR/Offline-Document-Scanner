@@ -260,7 +260,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
 
             entryPointPort.close();
             _runtimeTimer?.cancel();
-            worker.isolate?.kill(priority: Isolate.immediate);
+            worker.isolate?.kill(priority: Isolate.beforeNextEvent);
             worker.reset();
             if (IsolatesManager()._workers.length >
                 IsolatesManager().maxIsolates - 1) {

@@ -54,7 +54,7 @@ class FilesHelper {
     return _markedDeletedPages[docIndex];
   }
 
-  _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+  Future<void> _addMarkedDeletedPage(int docIndex, int pageIndex) async {
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
@@ -69,7 +69,7 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
-  _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
+  Future<void> _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
     final prefs = await SharedPreferences.getInstance();
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
@@ -93,7 +93,7 @@ class FilesHelper {
     return _markedDeletedDocs;
   }
 
-  _addMarkedDeletedDoc(int docIndex) async {
+  Future<void> _addMarkedDeletedDoc(int docIndex) async {
     if (_markedDeletedDocs.contains(docIndex)) return;
     final prefs = await SharedPreferences.getInstance();
     _markedDeletedDocs.add(docIndex);
@@ -106,14 +106,14 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
-  _removeMarkedDeletedDoc(int docIndex) async {
+  Future<void> _removeMarkedDeletedDoc(int docIndex) async {
     final prefs = await SharedPreferences.getInstance();
     _markedDeletedDocs.remove(docIndex);
     final jsonString = jsonEncode(_markedDeletedDocs);
     prefs.setString("markedDeletedDocs", jsonString);
   }
 
-  _deleteMarkedDeleted() async {
+  Future<void> _deleteMarkedDeleted() async {
     // initialize lists
     await getMarkedDeletedDocs();
     final prefs = await SharedPreferences.getInstance();
@@ -620,6 +620,7 @@ class FilesHelper {
       await future;
 
       await _removeMarkedDeletedDoc(docIndex);
+
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
     }
@@ -659,7 +660,7 @@ class FilesHelper {
     } else {
       dev.log("_deletePage: Deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      await imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
 
       Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
@@ -676,6 +677,7 @@ class FilesHelper {
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
+
       pageDir.deleteSync(recursive: true);
     }
 
@@ -718,10 +720,14 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
+    List<Future<void>> killerFutures = [];
     for (var pageIndex in pageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
-      imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      killerFutures.add(
+        imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
+      );
     }
+    await Future.wait(killerFutures);
     dev.log("_deletePages: Deleting Pages: $pageIndexes");
 
     Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
