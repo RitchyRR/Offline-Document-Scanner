@@ -125,8 +125,9 @@ class IsolatesManager {
   }
 
   Future<TaskKiller> runTask<T>(
-    void Function(T) entryPoint,
-    T message, {
+    void Function(T) functionIn,
+    T parametersIn, {
+    required ReceivePort portIn,
     IsolatePriority prio = IsolatePriority.regular,
     Duration maxRuntime = const Duration(minutes: 5),
     void Function(Object error, StackTrace stack)? onErrorFunction,
@@ -154,12 +155,13 @@ class IsolatesManager {
     );
 
     task = _QueuedTask<T>(
-      entryPoint,
-      message,
+      functionIn,
+      parametersIn,
       prio,
       maxRuntime,
       onErrorFunction,
       killer,
+      portIn,
     );
 
     _taskQueue.add(task);
@@ -205,6 +207,8 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final Duration maxRuntime;
   Timer? _runtimeTimer;
   TaskKiller? killer;
+  ReceivePort entryPointPort;
+
   final exitCompleter = Completer();
 
   _Worker? _worker;
@@ -217,6 +221,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
     this.maxRuntime,
     this.onErrorFunction,
     this.killer,
+    this.entryPointPort,
   );
 
   // higher prio first
@@ -252,6 +257,8 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           _cleanup = () {
             if (_cleanedUp) return;
             _cleanedUp = true;
+
+            entryPointPort.close();
             _runtimeTimer?.cancel();
             worker.isolate?.kill(priority: Isolate.immediate);
             worker.reset();

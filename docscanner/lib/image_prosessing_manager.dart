@@ -334,6 +334,7 @@ class ImageProcessingManager {
         isPhotoAlreadyInPage,
         g,
       ),
+      portIn: port,
       prio: prio,
       onErrorFunction: (error, stack) async {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
@@ -348,9 +349,9 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        port.close();
+        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
+        //killer.kill();
       }
     });
   }
@@ -369,6 +370,7 @@ class ImageProcessingManager {
     TaskKiller killer = await IsolatesManager().runTask(
       _processPdfPageIsolatePart1,
       (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
+      portIn: port,
       prio: IsolatePriority.quick,
       onErrorFunction: (error, stack) async {
         dev.log(
@@ -387,11 +389,11 @@ class ImageProcessingManager {
         globalNotifier.triggerEvent(message);
       } else if (message is String) {
         if (message == "done") {
-          port.close();
+          //port.close();
           wrapperCompleter.complete();
 
           taskKillers.removeWhere((key, value) => value == killer);
-          killer.kill();
+          //killer.kill();
         } else {
           photoPath = message;
         }
@@ -406,6 +408,8 @@ class ImageProcessingManager {
     TaskKiller killer2 = await IsolatesManager().runTask(
       _processPdfPageIsolatePart2,
       (port2.sendPort, token, docIndex, pageIndex, pngBytes, extension, g),
+
+      portIn: port,
       prio: IsolatePriority.late,
       onErrorFunction: (error, stack) async {
         dev.log(
@@ -422,11 +426,11 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        port2.close();
+        //port2.close();
         wrapperCompleter2.complete();
 
         taskKillers.removeWhere((key, value) => value == killer2);
-        killer2.kill();
+        //killer2.kill();
       }
     });
     await wrapperCompleter2.future;
@@ -774,6 +778,8 @@ class ImageProcessingManager {
     TaskKiller killer = await IsolatesManager().runTask(
       _repairPageIsolate,
       (port.sendPort, token, docIndex, pageIndex, ratioValue, cornerPoints, g),
+
+      portIn: port,
       prio: IsolatePriority.regular,
       onErrorFunction: (error, stack) {
         dev.log("_repairPageIsolate, onErrorFunction: $error $stack");
@@ -786,11 +792,11 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        port.close();
+        //port.close();
         repairCompleter.complete();
 
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
+        //killer.kill();
       }
     });
     await repairCompleter.future;
@@ -908,24 +914,29 @@ class ImageProcessingManager {
     final port = ReceivePort();
     final rotatePageCompleter = Completer<void>();
 
-    TaskKiller killer = await IsolatesManager().runTask(_rotatePageIsolate, (
-      port.sendPort,
-      docIndex,
-      pageIndex,
-      versionPaths,
-      angle,
-      pageThumbnailIndexIn,
-      g,
-    ), prio: IsolatePriority.immediate);
+    TaskKiller killer = await IsolatesManager().runTask(
+      _rotatePageIsolate,
+      (
+        port.sendPort,
+        docIndex,
+        pageIndex,
+        versionPaths,
+        angle,
+        pageThumbnailIndexIn,
+        g,
+      ),
+      portIn: port,
+      prio: IsolatePriority.immediate,
+    );
     taskKillers[(docIndex, pageIndex)] = killer;
 
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        port.close();
+        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
+        //killer.kill();
       }
     });
     await rotatePageCompleter.future;
@@ -1085,16 +1096,14 @@ class ImageProcessingManager {
     TaskKiller killer;
     if (isNewIndex) {
       RootIsolateToken token = RootIsolateToken.instance!;
-      killer = await IsolatesManager().runTask(_saveNewThumbnailIsolate, (
-        port.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        thumbnailIndex,
-        g,
-      ), prio: IsolatePriority.regular);
+      killer = await IsolatesManager().runTask(
+        _saveNewThumbnailIsolate,
+        (port.sendPort, token, docIndex, pageIndex, thumbnailIndex, g),
+        portIn: port,
+        prio: IsolatePriority.regular,
+      );
     } else {
-      port.close();
+      //port.close();
       return;
     }
     taskKillers[(docIndex, pageIndex)] = killer;
@@ -1103,9 +1112,9 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
-        port.close();
+        //port.close();
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
+        //killer.kill();
       }
     });
   }

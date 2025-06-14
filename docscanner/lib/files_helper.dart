@@ -1330,9 +1330,11 @@ class FilesHelper {
       );
 
       // Isolate
-      TaskKiller killer = await IsolatesManager().runTask(
+      //TaskKiller killer =
+      await IsolatesManager().runTask(
         _writePfdToPathIsolate,
         (port.sendPort, token, pdfPath, pdf),
+        portIn: port,
         prio: IsolatePriority.quick,
       );
 
@@ -1359,8 +1361,8 @@ class FilesHelper {
             );
           }
         }
-        port.close();
-        killer.kill();
+        //port.close();
+        //killer.kill();
       });
       return await completer.future;
     } catch (e) {
@@ -1490,9 +1492,11 @@ class FilesHelper {
     );
 
     // Isolate
-    TaskKiller killer = await IsolatesManager().runTask(
+    //TaskKiller killer =
+    await IsolatesManager().runTask(
       _writePfdToPathIsolate,
       (port.sendPort, token, pdfPath, pdf),
+      portIn: port,
       prio: IsolatePriority.immediate,
     );
 
@@ -1511,8 +1515,8 @@ class FilesHelper {
           );
         }
       }
-      port.close();
-      killer.kill();
+      //port.close();
+      //killer.kill();
     });
     return await completer.future;
   }
@@ -1527,16 +1531,21 @@ class FilesHelper {
 
     if (!File(rotatedFilePath).existsSync()) {
       //RootIsolateToken token = RootIsolateToken.instance!;
-      IsolatesManager().runTask(_rotateImageInTmpDirIsolate, (
-        port.sendPort,
-        //token,
-        imagePath,
-        rotatedFilePath,
-        rotationIn,
-        g,
-      ), prio: IsolatePriority.immediate);
+      IsolatesManager().runTask(
+        _rotateImageInTmpDirIsolate,
+        (
+          port.sendPort,
+          //token,
+          imagePath,
+          rotatedFilePath,
+          rotationIn,
+          g,
+        ),
+        portIn: port,
+        prio: IsolatePriority.immediate,
+      );
       await port.first;
-      port.close();
+      //port.close();
     }
 
     return rotatedFilePath;
