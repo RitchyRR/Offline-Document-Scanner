@@ -198,7 +198,11 @@ class MetadataHelper {
     }
   }
 
-  Future writePageUnlocked(int docIndex, int pageIndex, bool unlocked) async {
+  Future<void> writePageUnlocked(
+    int docIndex,
+    int pageIndex,
+    bool unlocked,
+  ) async {
     await _writePage(
       docIndex,
       pageIndex,

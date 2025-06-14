@@ -7,10 +7,10 @@ import 'dart:io';
 import 'package:docscanner/app_globals.dart' show ErrorLogger;
 
 class TaskKiller {
-  final void Function() _kill;
+  final Future<void> Function() _kill;
   final void Function() _delay;
   TaskKiller(this._kill, this._delay);
-  void kill() => _kill();
+  Future<void> kill() => _kill();
   void delay() => _delay();
 }
 
@@ -136,7 +136,7 @@ class IsolatesManager {
 
     final killer = TaskKiller(
       // kill
-      () {
+      () async {
         // Task queued -> remove from queue
         if (_taskQueue.remove(task)) {
           task._cleanedUp = true;
@@ -144,6 +144,7 @@ class IsolatesManager {
         // Task running -> kill / cleanup
         else if (task._worker?.isolate != null) {
           task._cleanup?.call();
+          await task.exitCompleter.future;
         }
       },
       // delay
@@ -204,6 +205,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final Duration maxRuntime;
   Timer? _runtimeTimer;
   TaskKiller? killer;
+  final exitCompleter = Completer();
 
   _Worker? _worker;
   void Function()? _cleanup;
@@ -224,8 +226,19 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   void startIsolate(_Worker worker) {
     _worker = worker;
 
-    final errorPort = ReceivePort();
+    // Exit / Error
     final exitPort = ReceivePort();
+    final errorPort = ReceivePort();
+    exitPort.listen((_) {
+      exitPort.close();
+      errorPort.close();
+      _cleanup?.call();
+      exitCompleter.complete();
+    });
+    errorPort.listen((e) {
+      errorPort.close();
+      onBadExit(e);
+    });
 
     Isolate.spawn<T>(
           entryPoint,
@@ -253,17 +266,6 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           _runtimeTimer = Timer(maxRuntime, () {
             dev.log("Killing isolate due to timeout: $maxRuntime");
             //_cleanup!(); //toto undo
-          });
-
-          // exit / error
-          exitPort.listen((_) {
-            exitPort.close();
-            errorPort.close();
-            _cleanup!();
-          });
-          errorPort.listen((e) {
-            errorPort.close();
-            onBadExit(e);
           });
         })
         .catchError((e) {

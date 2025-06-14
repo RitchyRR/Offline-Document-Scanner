@@ -387,7 +387,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       final newDate = "${now.year}-${now.month}-${now.day}";
       g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
       await Future.delayed(Duration(milliseconds: 50));
-      imageProcessingManager.processPages(docIndex, 0, photoPaths, false);
+      await imageProcessingManager.processPages(docIndex, 0, photoPaths, false);
     });
 
     return (docIndex, firstPageIndex);
@@ -2016,9 +2016,8 @@ class _PagesState extends State<Pages> with RouteAware {
       photoPaths.length,
     );
     Future.microtask(() async {
-      g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
-      await Future.delayed(Duration(milliseconds: 25));
-      imageProcessingManager.processPages(
+      await g.metadataHelper.writeDocUnlocked(widget.docIndex, false);
+      await imageProcessingManager.processPages(
         widget.docIndex,
         firstPageIndex,
         photoPaths,
@@ -6755,7 +6754,7 @@ class ThumbnailWithBadge extends StatelessWidget {
 }
 
 class AdsHelper {
-  late Future _loadAdFuture;
+  late Future<void> _loadAdFuture;
   AdsHelper() {
     _loadAdFuture = _loadRewardAd();
   }

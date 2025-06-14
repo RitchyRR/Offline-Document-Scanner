@@ -33,12 +33,12 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List photoBytes,
-      Uint8List? shapeBytes,
+      String photoPath,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
       bool isInitial,
+      bool isPhotoAlreadyInPage,
       AppGlobals g,
     )
     data,
@@ -49,13 +49,13 @@ class ImageProcessingManager {
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    Uint8List? photoBytes = data.$5;
-    Uint8List? shapeBytes = data.$6;
+    String photoPath = data.$5;
 
-    double? ratioValueIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    int rotationIn = data.$9;
-    bool isInitial = data.$10;
+    double? ratioValueIn = data.$6;
+    List<List<int>>? cornerPointsIn = data.$7;
+    int rotationIn = data.$8;
+    bool isInitial = data.$9;
+    bool isPhotoAlreadyInPage = data.$10;
     AppGlobals g = data.$11;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
@@ -74,6 +74,31 @@ class ImageProcessingManager {
     // Delete old Thumbnail
     _deleteScaledThumbnail(pagePath);
 
+    // Read Photo
+    final imageRaw = g.filesHelper.readImageRaw(photoPath);
+    Uint8List photoBytes = imageRaw.$1;
+    String photoExtension = imageRaw.$2;
+    if (!isPhotoAlreadyInPage) {
+      // Write photo into storage
+      await g.filesHelper.writeImageRaw(
+        docIndex,
+        pageIndex,
+        0,
+        photoBytes,
+        photoExtension,
+      );
+    }
+
+    // Read Shape, if it exists
+    String shapePath = await g.filesHelper.getPageShape(
+      docIndex,
+      pageIndex,
+      supressWarnings: isInitial,
+    );
+    Uint8List? shapeBytes;
+    if (shapePath.isNotEmpty && File(shapePath).lengthSync() != 0) {
+      shapeBytes = File(shapePath).readAsBytesSync();
+    }
     // Rotate shape
     if (shapeBytes != null && rotationIn != 0) {
       shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
@@ -291,32 +316,6 @@ class ImageProcessingManager {
   ) async {
     if (photoPath.isEmpty) return;
 
-    // Read Photo
-    final imageRaw = await g.filesHelper.readImageRaw(photoPath);
-    Uint8List photoBytes = imageRaw.$1;
-    String photoExtension = imageRaw.$2;
-    if (!isPhotoAlreadyInPage) {
-      // Write photo into storage
-      g.filesHelper.writeImageRaw(
-        docIndex,
-        pageIndex,
-        0,
-        photoBytes,
-        photoExtension,
-      );
-    }
-    // Read Shape if there
-    String shapePath = await g.filesHelper.getPageShape(
-      docIndex,
-      pageIndex,
-      supressWarnings: isInitial,
-    );
-    Uint8List? shapeBytes;
-    if (shapePath.isNotEmpty && File(shapePath).lengthSync() != 0) {
-      shapeBytes = File(shapePath).readAsBytesSync();
-    }
-
-    final wrapperCompleter = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
 
@@ -327,12 +326,12 @@ class ImageProcessingManager {
         token,
         docIndex,
         pageIndex,
-        photoBytes,
-        shapeBytes,
+        photoPath,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
         isInitial,
+        isPhotoAlreadyInPage,
         g,
       ),
       prio: prio,
@@ -350,13 +349,10 @@ class ImageProcessingManager {
         globalNotifier.triggerEvent(message);
       } else if (message == "done") {
         port.close();
-        wrapperCompleter.complete();
-
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();
       }
     });
-    await wrapperCompleter.future;
   }
 
   Future<void> processPdfPage(
@@ -583,17 +579,19 @@ class ImageProcessingManager {
     }
   }
 
-  void killIsolatesOfDocument(int docIndex) {
+  Future<void> killIsolatesOfDocument(int docIndex) async {
     List<(int, int)> keys = [];
     for (var key in taskKillers.keys) {
       if (key.$1 == docIndex) {
         keys.add(key);
       }
     }
+    List<Future<void>> killerFutures = [];
     for (var key in keys) {
-      taskKillers[key]!.kill();
+      killerFutures.add(taskKillers[key]!.kill());
       taskKillers.remove(key);
     }
+    await Future.wait(killerFutures);
   }
 
   void delayIsolatesOfDocument(int docIndex) {
@@ -680,7 +678,7 @@ class ImageProcessingManager {
     if (photoPathsIn.isEmpty) return;
 
     // First page is opened in PagePreview -> more NotifierEvents
-    _processPageWrapper(
+    await _processPageWrapper(
       docIndex,
       firstPageIndex,
       photoPathsIn[0],
@@ -696,9 +694,7 @@ class ImageProcessingManager {
     photoPathsIn.removeAt(0);
     if (photoPathsIn.isNotEmpty) {
       for (var (index, path) in photoPathsIn.indexed) {
-        // small delay between starts
-        await Future.delayed(Duration(milliseconds: 100));
-        _processPageWrapper(
+        await _processPageWrapper(
           docIndex,
           firstPageIndex + 1 + index,
           path,

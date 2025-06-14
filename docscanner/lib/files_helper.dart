@@ -235,11 +235,11 @@ class FilesHelper {
     return pagePath;
   }
 
-  Future<(Uint8List, String)> readImageRaw(String imagePath) async {
+  (Uint8List, String) readImageRaw(String imagePath) {
     final file = File(imagePath);
-    final Future<Uint8List> futureBytes = file.readAsBytes();
+    final Uint8List futureBytes = file.readAsBytesSync();
     String extension = imagePath.split(".").last;
-    return (await futureBytes, extension);
+    return (futureBytes, extension);
   }
 
   Future<String> writeImageRaw(
@@ -610,7 +610,7 @@ class FilesHelper {
     } else {
       dev.log("deleteDocument: Starting deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
-      imageProcessingManager.killIsolatesOfDocument(docIndex);
+      await imageProcessingManager.killIsolatesOfDocument(docIndex);
 
       Future future = imageProcessingManager
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
@@ -619,7 +619,7 @@ class FilesHelper {
       }
       await future;
 
-      _removeMarkedDeletedDoc(docIndex);
+      await _removeMarkedDeletedDoc(docIndex);
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
     }
