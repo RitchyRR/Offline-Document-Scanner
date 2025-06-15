@@ -54,29 +54,30 @@ class FilesHelper {
     return _markedDeletedPages[docIndex];
   }
 
-  Future<void> _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+  void _addMarkedDeletedPage(int docIndex, int pageIndex) async {
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
     if (_markedDeletedPages[docIndex].contains(pageIndex)) return;
-    final prefs = await SharedPreferences.getInstance();
     _markedDeletedPages[docIndex].add(pageIndex);
     _markedDeletedPages[docIndex].sort();
     _markedDeletedPages[docIndex] = _markedDeletedPages[docIndex].reversed
         .toList();
-    final jsonString = jsonEncode(_markedDeletedPages);
-    prefs.setString("markedDeletedPages", jsonString);
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
+    // prefs
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = jsonEncode(_markedDeletedPages);
+    await prefs.setString("markedDeletedPages", jsonString);
   }
 
   Future<void> _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
-    final prefs = await SharedPreferences.getInstance();
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
-    //while (_markedDeletedPages[docIndex].contains(pageIndex)) {
+    //while (_markedDeletedPages[docIndex].contains(pageIndex)) {}
     _markedDeletedPages[docIndex].remove(pageIndex);
-    //}
+    // prefs
+    final prefs = await SharedPreferences.getInstance();
     final jsonString = jsonEncode(_markedDeletedPages);
     prefs.setString("markedDeletedPages", jsonString);
   }
@@ -93,22 +94,24 @@ class FilesHelper {
     return _markedDeletedDocs;
   }
 
-  Future<void> _addMarkedDeletedDoc(int docIndex) async {
+  void _addMarkedDeletedDoc(int docIndex) async {
     if (_markedDeletedDocs.contains(docIndex)) return;
-    final prefs = await SharedPreferences.getInstance();
     _markedDeletedDocs.add(docIndex);
     List<int> tmp = _markedDeletedDocs;
     tmp.sort();
     _markedDeletedDocs.clear();
     _markedDeletedDocs.addAll(tmp.reversed.toList());
-    final jsonString = jsonEncode(_markedDeletedDocs);
-    prefs.setString("markedDeletedDocs", jsonString);
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
+    // prefs
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = jsonEncode(_markedDeletedDocs);
+    await prefs.setString("markedDeletedDocs", jsonString);
   }
 
   Future<void> _removeMarkedDeletedDoc(int docIndex) async {
-    final prefs = await SharedPreferences.getInstance();
     _markedDeletedDocs.remove(docIndex);
+    // prefs
+    final prefs = await SharedPreferences.getInstance();
     final jsonString = jsonEncode(_markedDeletedDocs);
     prefs.setString("markedDeletedDocs", jsonString);
   }
@@ -624,13 +627,16 @@ class FilesHelper {
     } else {
       dev.log("deleteDocument: Starting deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
-      await imageProcessingManager.killIsolatesOfDocument(docIndex);
-
-      Future future = imageProcessingManager
-          .awaitIsolatesOfHigherIndexedDocuments(docIndex);
       if (!supressInfo) {
         Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
       }
+
+      Future killFuture = imageProcessingManager.killIsolatesOfDocument(
+        docIndex,
+      );
+      Future future = imageProcessingManager
+          .awaitIsolatesOfHigherIndexedDocuments(docIndex);
+      await killFuture;
       await future;
 
       await _removeMarkedDeletedDoc(docIndex);
@@ -672,17 +678,21 @@ class FilesHelper {
         "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
       );
     } else {
-      dev.log("_deletePage: Deleting page directory: $pagePath");
+      dev.log("_deletePage: Starting deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
-      await imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex);
+      Fluttertoast.showToast(
+        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
+      );
 
+      Future killFuture = imageProcessingManager.killIsolatesOfPage(
+        docIndex,
+        pageIndex,
+      );
       Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
         docIndex,
         pageIndex,
       );
-      Fluttertoast.showToast(
-        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
-      );
+      await killFuture;
       await future;
 
       _removeMarkedDeletedPage(docIndex, pageIndex);
@@ -734,23 +744,23 @@ class FilesHelper {
     }
     pageIndexes = pageIndexes.reversed.toList();
 
-    List<Future<void>> killerFutures = [];
+    List<Future<void>> killFutures = [];
     for (var pageIndex in pageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
-      killerFutures.add(
+      killFutures.add(
         imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
       );
     }
-    await Future.wait(killerFutures);
-    dev.log("_deletePages: Deleting Pages: $pageIndexes");
+    Fluttertoast.showToast(
+      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
+    );
+    dev.log("_deletePages: Starting deleting Pages: $pageIndexes");
 
     Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
       docIndex,
       pageIndexes,
     );
-    Fluttertoast.showToast(
-      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
-    );
+    await Future.wait(killFutures);
     await future;
 
     for (var pageIndex in pageIndexes) {
