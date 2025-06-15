@@ -20,7 +20,7 @@ import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pdfw;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 // isolates:
-import 'dart:isolate' show ReceivePort, SendPort;
+import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/image_prosessing_manager.dart';
@@ -1336,7 +1336,7 @@ class FilesHelper {
       );
 
       // Isolate
-      TaskKiller killer = await IsolatesManager().runTask(
+      IsolatesManager().runTask(
         _writePfdToPathIsolate,
         (port.sendPort, token, pdfPath, pdf),
         portIn: port,
@@ -1366,7 +1366,6 @@ class FilesHelper {
             );
           }
         }
-        killer.kill();
       });
       return await completer.future;
     } catch (e) {
@@ -1401,6 +1400,7 @@ class FilesHelper {
     } else {
       sendPort.send(false);
     }
+    Isolate.exit();
   }
 
   Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
@@ -1496,7 +1496,7 @@ class FilesHelper {
     );
 
     // Isolate
-    TaskKiller killer = await IsolatesManager().runTask(
+    await IsolatesManager().runTask(
       _writePfdToPathIsolate,
       (port.sendPort, token, pdfPath, pdf),
       portIn: port,
@@ -1518,7 +1518,6 @@ class FilesHelper {
           );
         }
       }
-      killer.kill();
     });
     return await completer.future;
   }
@@ -1575,7 +1574,7 @@ class FilesHelper {
     Uint8List imageBytes = await File(imagePath).readAsBytes();
     Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
-    sendPort.send(true);
+    Isolate.exit(sendPort, true);
   }
 
   static Future<void> deleteCachedRoatedImages() async {

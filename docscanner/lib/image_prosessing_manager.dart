@@ -9,7 +9,7 @@ import 'dart:async';
 // isolates:
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
-import 'dart:isolate' show ReceivePort, SendPort;
+import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/opencv_helper.dart';
@@ -44,6 +44,16 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
@@ -60,6 +70,7 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
       pageIndex,
@@ -72,14 +83,17 @@ class ImageProcessingManager {
     }
 
     // Delete old Thumbnail
+    isolateExitPoint(kill);
     _deleteScaledThumbnail(pagePath);
 
     // Read Photo
+    isolateExitPoint(kill);
     final imageRaw = g.filesHelper.readImageRaw(photoPath);
     Uint8List photoBytes = imageRaw.$1;
     String photoExtension = imageRaw.$2;
     if (!isPhotoAlreadyInPage) {
       // Write photo into storage
+      isolateExitPoint(kill);
       await g.filesHelper.writeImageRaw(
         docIndex,
         pageIndex,
@@ -90,6 +104,7 @@ class ImageProcessingManager {
     }
 
     // Read Shape, if it exists
+    isolateExitPoint(kill);
     String shapePath = await g.filesHelper.getPageShape(
       docIndex,
       pageIndex,
@@ -97,14 +112,17 @@ class ImageProcessingManager {
     );
     Uint8List? shapeBytes;
     if (shapePath.isNotEmpty && File(shapePath).lengthSync() != 0) {
+      isolateExitPoint(kill);
       shapeBytes = File(shapePath).readAsBytesSync();
     }
     // Rotate shape
     if (shapeBytes != null && rotationIn != 0) {
+      isolateExitPoint(kill);
       shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
     }
 
     // Warped + Metadata
+    isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
         photoBytes,
@@ -116,12 +134,14 @@ class ImageProcessingManager {
     Uint8List warpedBytes = warpedRet.$1;
     if (shapeBytes == null) {
       Uint8List shapeBytesWarped = warpedRet.$2;
+      isolateExitPoint(kill);
       await g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     double? ratioValue = warpedRet.$4;
     List<List<int>>? cornerPoints = warpedRet.$5;
 
+    isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
@@ -129,12 +149,15 @@ class ImageProcessingManager {
       cornerPoints,
       gIn: g,
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, warpedBytes);
 
     // Processed1 basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
     Uint8List processed1Bytes = await cvHelper.processImage1(
       ParamsProcessImage1(warpedBytes),
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -143,9 +166,11 @@ class ImageProcessingManager {
     );
 
     // Processed2 basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
     Uint8List processed2Bytes = await cvHelper.processImage2(
       ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -154,9 +179,11 @@ class ImageProcessingManager {
     );
 
     // Update thumbnails:
+    isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
     if (isInitial) {
+      isolateExitPoint(kill);
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
@@ -164,8 +191,10 @@ class ImageProcessingManager {
         supressWarnings: true,
       );
 
-      bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
+      isolateExitPoint(kill);
+      bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
         sendPort,
+        kill,
         docIndex,
         pageIndex,
         thumbnailIndex,
@@ -174,6 +203,7 @@ class ImageProcessingManager {
       );
 
       if (newThumbnail) {
+        isolateExitPoint(kill);
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
@@ -184,7 +214,13 @@ class ImageProcessingManager {
       }
     }
 
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
+  }
+
+  static void isolateExitPoint(final bool kill) {
+    if (kill) {
+      Isolate.exit();
+    }
   }
 
   static void _processPdfPageIsolatePart1(
@@ -199,6 +235,15 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
 
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
@@ -208,6 +253,7 @@ class ImageProcessingManager {
     AppGlobals g = data.$6;
 
     // Thumbnail
+    isolateExitPoint(kill);
     await MetadataHelper.writePageThumbnailIndex(
       docIndex,
       pageIndex,
@@ -217,6 +263,7 @@ class ImageProcessingManager {
     );
 
     // Save Photo
+    isolateExitPoint(kill);
     sendPort.send(
       await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes),
     );
@@ -224,6 +271,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     // Generate Metadata
+    isolateExitPoint(kill);
     final imgInfo = AppGlobals.getPngInfo(pngBytes);
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
@@ -235,12 +283,14 @@ class ImageProcessingManager {
       [imgInfo.height - 1, imgInfo.width - 1],
     ];
     OpenCVHelper cvHelper = OpenCVHelper(g);
+    isolateExitPoint(kill);
     final matchingValue = cvHelper.matchAspectRatioAndOrientation(
       imgInfo.height / imgInfo.width,
     );
     double ratioValueIn = matchingValue;
 
     // Write Metadata
+    isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
@@ -249,9 +299,17 @@ class ImageProcessingManager {
       gIn: g,
     );
 
-    await _scaleAndSaveThumbnailIsolate(sendPort, docIndex, pageIndex, 0, g);
+    isolateExitPoint(kill);
+    await _scaleAndSaveThumbnailInIsolate(
+      sendPort,
+      kill,
+      docIndex,
+      pageIndex,
+      0,
+      g,
+    );
 
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
   }
 
   static void _processPdfPageIsolatePart2(
@@ -267,6 +325,15 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
 
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
@@ -280,6 +347,7 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
 
     // Warped
+    isolateExitPoint(kill);
     await g.filesHelper.writeImageRaw(
       docIndex,
       pageIndex,
@@ -289,18 +357,22 @@ class ImageProcessingManager {
     );
 
     // Processed1 basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
     Uint8List processed1 = await cvHelper.processImage1(
       ParamsProcessImage1(photoBytes),
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
 
     // Processed2 basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
     Uint8List processed2 = await cvHelper.processImage2(
       ParamsProcessImage2(photoBytes, borderCorrectionDepth),
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
 
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
   }
 
   Future<void> _processPageWrapper(
@@ -348,6 +420,8 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();
@@ -386,6 +460,8 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message is String) {
         if (message == "done") {
           wrapperCompleter.complete();
@@ -423,6 +499,8 @@ class ImageProcessingManager {
     port2.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message == "done") {
         wrapperCompleter2.complete();
 
@@ -446,6 +524,15 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
 
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
@@ -459,6 +546,7 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Original
+    isolateExitPoint(kill);
     var imagePaths = await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
@@ -467,12 +555,14 @@ class ImageProcessingManager {
     String shapePath = imagePaths.$2;
     String thumbnailPath = imagePaths.$3;
 
+    isolateExitPoint(kill);
     final photoFile = File(versionPaths[0]);
     if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
       throw StateError("Error, _repairPageIsolate: No photo");
     }
 
     // Warped
+    isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
       ParamsWarpImage(
         File(versionPaths[0]).readAsBytesSync(),
@@ -484,6 +574,7 @@ class ImageProcessingManager {
     );
     Uint8List warpedBytes = warpedRet.$1;
     Uint8List shapeBytesWarped = warpedRet.$2;
+    isolateExitPoint(kill);
     if (shapePath.isEmpty) {
       g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
     }
@@ -491,6 +582,7 @@ class ImageProcessingManager {
     // Metadata
     double ratioValue = warpedRet.$4;
     List<List<int>> cornerPoints = warpedRet.$5;
+    isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
@@ -500,6 +592,7 @@ class ImageProcessingManager {
     );
 
     if (versionPaths[1].isEmpty) {
+      isolateExitPoint(kill);
       versionPaths[1] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
@@ -510,9 +603,11 @@ class ImageProcessingManager {
 
     // Processed1 basierend auf dem Warped-Bild
     if (versionPaths[2].isEmpty) {
+      isolateExitPoint(kill);
       Uint8List processed1 = await cvHelper.processImage1(
         ParamsProcessImage1(warpedBytes),
       );
+      isolateExitPoint(kill);
       versionPaths[2] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
@@ -523,9 +618,11 @@ class ImageProcessingManager {
 
     // Processed2 basierend auf dem Warped-Bild
     if (versionPaths[3].isEmpty) {
+      isolateExitPoint(kill);
       Uint8List processed2 = await cvHelper.processImage2(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
+      isolateExitPoint(kill);
       versionPaths[3] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
@@ -535,17 +632,21 @@ class ImageProcessingManager {
     }
 
     // Update thumbnails:
+    isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
+      isolateExitPoint(kill);
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
         gIn: g,
       );
-      bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
+      isolateExitPoint(kill);
+      bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
         sendPort,
+        kill,
         docIndex,
         pageIndex,
         thumbnailIndex,
@@ -553,6 +654,7 @@ class ImageProcessingManager {
         overwrite: false,
       );
       if (newThumbnail) {
+        isolateExitPoint(kill);
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
@@ -562,7 +664,7 @@ class ImageProcessingManager {
       }
     }
 
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
   }
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
@@ -719,7 +821,6 @@ class ImageProcessingManager {
     int rotationIn,
   ) async {
     killIsolatesOfPage(docIndex, pageIndex);
-    //await Future.delayed(Duration(milliseconds: 100));
     _processPageWrapper(
       docIndex,
       pageIndex,
@@ -788,6 +889,8 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message == "done") {
         repairCompleter.complete();
 
@@ -811,6 +914,15 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
 
     int docIndex = data.$2;
     int pageIndex = data.$3;
@@ -822,13 +934,16 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     // Delete old Thumbnail
+    isolateExitPoint(kill);
     _deleteScaledThumbnail(
       await g.filesHelper.getPagePath(docIndex, pageIndex),
     );
 
     /// 1. save rotated photo
 
+    isolateExitPoint(kill);
     final imgInfo = await AppGlobals.getImageInfo(versionPaths[0]);
+    isolateExitPoint(kill);
     final Uint8List? pngBytes = await FlutterImageCompress.compressWithFile(
       versionPaths[0],
       minWidth: imgInfo!.width,
@@ -839,15 +954,20 @@ class ImageProcessingManager {
     if (pngBytes == null) {
       throw StateError("photo $versionPaths[0] does not exist");
     }
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes);
 
     /// 2. rotate processed -> save
 
     // Shape
+    isolateExitPoint(kill);
     String? shapePath = await g.filesHelper.getPageShape(docIndex, pageIndex);
+    isolateExitPoint(kill);
     Uint8List shapeBytes = File(shapePath).readAsBytesSync();
     if (shapePath.isEmpty && rotationIn != 0) {
+      isolateExitPoint(kill);
       shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
+      isolateExitPoint(kill);
       shapePath = await g.filesHelper.savePageShape(
         docIndex,
         pageIndex,
@@ -856,13 +976,16 @@ class ImageProcessingManager {
     }
 
     // Warped
+    isolateExitPoint(kill);
     Uint8List rotatedWarped = await cvHelper.rotateImage(
       File(versionPaths[1]).readAsBytesSync(),
       rotationIn,
     );
+    isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, rotatedWarped);
 
     // Processed1
+    isolateExitPoint(kill);
     Uint8List rotatedP1 = await cvHelper.rotateImage(
       File(versionPaths[2]).readAsBytesSync(),
       rotationIn,
@@ -870,6 +993,7 @@ class ImageProcessingManager {
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, rotatedP1);
 
     // Processed2
+    isolateExitPoint(kill);
     Uint8List rotatedP2 = await cvHelper.rotateImage(
       File(versionPaths[3]).readAsBytesSync(),
       rotationIn,
@@ -877,11 +1001,14 @@ class ImageProcessingManager {
     await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, rotatedP2);
 
     // Updates
+    isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
 
-    bool newThumbnail = await _scaleAndSaveThumbnailIsolate(
+    isolateExitPoint(kill);
+    bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
       sendPort,
+      kill,
       docIndex,
       pageIndex,
       pageThumbnailIndexIn,
@@ -889,6 +1016,7 @@ class ImageProcessingManager {
       overwrite: false,
     );
     if (newThumbnail) {
+      isolateExitPoint(kill);
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,
@@ -897,7 +1025,7 @@ class ImageProcessingManager {
       );
     }
 
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
   }
 
   Future<void> rotatePage(
@@ -929,6 +1057,8 @@ class ImageProcessingManager {
     port.listen((message) {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();
@@ -937,8 +1067,9 @@ class ImageProcessingManager {
     await rotatePageCompleter.future;
   }
 
-  static Future<bool> _scaleAndSaveThumbnailIsolate(
+  static Future<bool> _scaleAndSaveThumbnailInIsolate(
     SendPort sendPort,
+    bool kill,
     int docIndex,
     int pageIndex,
     int? thumbnailIndex,
@@ -951,6 +1082,7 @@ class ImageProcessingManager {
     String pagePath;
     String versionPath;
     try {
+      isolateExitPoint(kill);
       pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
       versionPath = await gIn.filesHelper.getVersionPath(
         docIndex,
@@ -967,6 +1099,7 @@ class ImageProcessingManager {
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
     File versionFile = File(versionPath);
     File thumbnailFile = File(thumbnailPath);
+    isolateExitPoint(kill);
     Uint8List versionBytes = versionFile.readAsBytesSync();
 
     if (!versionFile.existsSync()) {
@@ -977,6 +1110,7 @@ class ImageProcessingManager {
 
     // if overwriting -> delete existing thumbnail file
     try {
+      isolateExitPoint(kill);
       for (FileSystemEntity fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -984,6 +1118,7 @@ class ImageProcessingManager {
           String oldThumbnailPath = fse.path;
           if (overwrite) {
             //dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+            isolateExitPoint(kill);
             File(oldThumbnailPath).deleteSync();
           } else {
             dev.log("Thumbnail already exists, won't overwrite thumbnail.");
@@ -998,6 +1133,7 @@ class ImageProcessingManager {
     }
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    isolateExitPoint(kill);
     Uint8List scaled = await cvHelper.scaleImageToWidth(
       versionBytes,
       (screenWidth * 0.927083333).toInt(),
@@ -1005,6 +1141,7 @@ class ImageProcessingManager {
 
     try {
       // Save
+      isolateExitPoint(kill);
       thumbnailFile.writeAsBytesSync(scaled); //img.encodePng(resized)
     } catch (e) {
       throw StateError("Error, writeScaledThumbnail, write: :$e");
@@ -1012,6 +1149,7 @@ class ImageProcessingManager {
 
     try {
       // Update thumbnails:
+      isolateExitPoint(kill);
       sendPort.send(NotifierEvent.loadPagesThumbnails);
       sendPort.send(NotifierEvent.loadDocsThumbnails);
     } catch (e) {
@@ -1047,6 +1185,15 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
 
     RootIsolateToken token = data.$2;
     int docIndex = data.$3;
@@ -1056,14 +1203,16 @@ class ImageProcessingManager {
 
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
-    await _scaleAndSaveThumbnailIsolate(
+    isolateExitPoint(kill);
+    await _scaleAndSaveThumbnailInIsolate(
       sendPort,
+      kill,
       docIndex,
       pageIndex,
       thumbnailIndex,
       gIn,
     );
-    sendPort.send("done");
+    Isolate.exit(sendPort, "done");
   }
 
   Future<void> saveNewThumbnail(
@@ -1106,6 +1255,8 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
         killer.kill();

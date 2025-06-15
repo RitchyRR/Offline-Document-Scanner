@@ -9,9 +9,11 @@ import 'package:docscanner/app_globals.dart' show ErrorLogger;
 class TaskKiller {
   final Future<void> Function() _kill;
   final void Function() _delay;
-  TaskKiller(this._kill, this._delay);
+  final void Function(SendPort controlPort) _setControlPort;
+  TaskKiller(this._kill, this._delay, this._setControlPort);
   Future<void> kill() => _kill();
   void delay() => _delay();
+  void setControlPort(SendPort controlPort) => _setControlPort(controlPort);
 }
 
 enum IsolatePriority { late, regular, quick, immediate }
@@ -152,6 +154,10 @@ class IsolatesManager {
       () {
         task.prio = IsolatePriority.late;
       },
+      // setControlPort(SendPort controlPort)
+      (SendPort controlPortIn) {
+        task.controlPort = controlPortIn;
+      },
     );
 
     task = _QueuedTask<T>(
@@ -208,6 +214,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   Timer? _runtimeTimer;
   TaskKiller? killer;
   ReceivePort entryPointPort;
+  SendPort? controlPort;
 
   final exitCompleter = Completer();
 
@@ -260,7 +267,16 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
 
             entryPointPort.close();
             _runtimeTimer?.cancel();
-            worker.isolate?.kill(priority: Isolate.beforeNextEvent);
+            if (controlPort != null) {
+              controlPort!.send("kill");
+            } else {
+              if (worker.isolate != null) {
+                dev.log(
+                  "Warning: killing isolate without controlPort: ${isolate.debugName}",
+                );
+                worker.isolate!.kill(priority: Isolate.beforeNextEvent);
+              }
+            }
             worker.reset();
             if (IsolatesManager()._workers.length >
                 IsolatesManager().maxIsolates - 1) {
