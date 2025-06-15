@@ -63,6 +63,14 @@ class AppGlobals {
     final bytes = await readFile(imagePath);
     return decoder!.startDecode(bytes!);
   }
+
+  static Future<img.DecodeInfo?> getImageBytesInfo(
+    Uint8List bytes,
+    String extension,
+  ) async {
+    final decoder = findDecoderForNamedImage(".$extension");
+    return decoder!.startDecode(bytes);
+  }
 }
 
 final g = AppGlobals();

@@ -15,24 +15,24 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart'
+    show SharedPreferences;
+// images:
+import 'package:flutter_image_compress/flutter_image_compress.dart'
+    show FlutterImageCompress, CompressFormat;
 // pdf:
 import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pdfw;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 // isolates:
 import 'dart:isolate' show ReceivePort, SendPort, Isolate;
-import 'package:docscanner/isolates_manager.dart';
+import 'isolates_manager.dart';
 // my packages:
-import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/main.dart'
-    show globalNotifier, imageProcessingManager, isTmpExternal;
-import 'package:docscanner/metadata_helper.dart';
-import 'package:docscanner/opencv_helper.dart';
-import 'package:shared_preferences/shared_preferences.dart'
-    show SharedPreferences;
+import 'image_prosessing_manager.dart';
+import 'main.dart' show globalNotifier, imageProcessingManager, isTmpExternal;
+import 'metadata_helper.dart';
+import 'opencv_helper.dart';
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
-
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class FilesHelper {
   late String docsPath = "";
@@ -277,7 +277,8 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    Uint8List pngBytes,
+    Uint8List imageBytes,
+    String imageExtension,
   ) async {
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(
@@ -302,11 +303,24 @@ class FilesHelper {
     }
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
-    File(versionPath).writeAsBytesSync(pngBytes);
+    // Compress
+    final imgInfo = await AppGlobals.getImageBytesInfo(
+      imageBytes,
+      imageExtension,
+    );
+    final Uint8List compressedPngBytes =
+        await FlutterImageCompress.compressWithList(
+          imageBytes,
+          minWidth: imgInfo!.width,
+          minHeight: imgInfo.height,
+          format: CompressFormat.png,
+          quality: 100,
+        );
+    // Save
+    File(versionPath).writeAsBytesSync(compressedPngBytes);
     if (!File(versionPath).existsSync()) {
       throw StateError("Error, savePageVersion: Failed to save $versionPath");
     }
-    //dev.log("Image saved at: $toImagePath");
     return versionPath;
   }
 
@@ -1215,12 +1229,6 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          //final imageBytes = imageFile.readAsBytesSync();
-          //final jpegBytes = await FlutterImageCompress.compressWithFile(
-          //  imagePath,
-          //  format: CompressFormat.jpeg,
-          //  quality: 80,
-          //);
           final imgInfo = AppGlobals.getPngInfo(imageFile.readAsBytesSync());
           final Uint8List? pngBytes =
               await FlutterImageCompress.compressWithFile(
@@ -1702,19 +1710,12 @@ class FilesHelper {
     if (byteData == null) {
       throw Exception("Failed to get byte data from image");
     }
-    final imageBytes = byteData.buffer.asUint8List();
-    final futurePngBytes = await FlutterImageCompress.compressWithList(
-      imageBytes,
-      minWidth: uiImage.width,
-      minHeight: uiImage.height,
-      format: CompressFormat.png,
-      quality: 100,
-    );
+    final pngBytes = byteData.buffer.asUint8List();
     // Processing
     imageProcessingManager.processPdfPage(
       docIndex,
       pageIndex + firstPageIndex,
-      futurePngBytes,
+      pngBytes,
     );
   }
 

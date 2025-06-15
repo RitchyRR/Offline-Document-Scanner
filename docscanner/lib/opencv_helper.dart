@@ -2,8 +2,6 @@ import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:docscanner/app_globals.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart'
-    show CompressFormat, FlutterImageCompress;
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
@@ -107,7 +105,7 @@ class OpenCVHelper {
       );
     }
 
-    return _returnImage(mat, uncompressed: true);
+    return _returnImage(mat);
   }
 
   Future<Uint8List> scaleImageToWidth(Uint8List imageBytesIn, int newWidth) {
@@ -167,10 +165,7 @@ class OpenCVHelper {
     return imageMat;
   }
 
-  Future<Uint8List> _returnImage(
-    cv.Mat? imageMat, {
-    bool uncompressed = false,
-  }) async {
+  Future<Uint8List> _returnImage(cv.Mat? imageMat) async {
     if (imageMat == null || imageMat.isEmpty) {
       dev.log("Error: Mat empty, can't convert to Image.");
       return Uint8List(0);
@@ -181,18 +176,7 @@ class OpenCVHelper {
       dev.log("Error: Failed to encode image.");
     }
 
-    if (uncompressed) {
-      return resultImageBytes;
-    } else {
-      final Uint8List pngBytes = await FlutterImageCompress.compressWithList(
-        resultImageBytes,
-        minWidth: width != 0 ? width : cols,
-        minHeight: height != 0 ? height : rows,
-        format: CompressFormat.png,
-        quality: 100,
-      );
-      return pngBytes;
-    }
+    return resultImageBytes;
   }
 
   /// Warp Image: Edge detection, stretch to A4

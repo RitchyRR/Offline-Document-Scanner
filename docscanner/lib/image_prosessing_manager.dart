@@ -2,8 +2,6 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart'
-    show FlutterImageCompress, CompressFormat;
 import 'dart:io';
 import 'dart:async';
 // isolates:
@@ -150,7 +148,13 @@ class ImageProcessingManager {
       gIn: g,
     );
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, warpedBytes);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      1,
+      warpedBytes,
+      ".png",
+    );
 
     // Processed1 basierend auf dem Warped-Bild
     isolateExitPoint(kill);
@@ -163,6 +167,7 @@ class ImageProcessingManager {
       pageIndex,
       2,
       processed1Bytes,
+      ".png",
     );
 
     // Processed2 basierend auf dem Warped-Bild
@@ -176,6 +181,7 @@ class ImageProcessingManager {
       pageIndex,
       3,
       processed2Bytes,
+      ".png",
     );
 
     // Update thumbnails:
@@ -265,7 +271,13 @@ class ImageProcessingManager {
     // Save Photo
     isolateExitPoint(kill);
     sendPort.send(
-      await g.filesHelper.savePageVersion(docIndex, pageIndex, 0, pngBytes),
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        0,
+        pngBytes,
+        ".png",
+      ),
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     sendPort.send(NotifierEvent.loadDocsThumbnails);
@@ -362,7 +374,13 @@ class ImageProcessingManager {
       ParamsProcessImage1(photoBytes),
     );
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, processed1);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      processed1,
+      ".png",
+    );
 
     // Processed2 basierend auf dem Warped-Bild
     isolateExitPoint(kill);
@@ -370,7 +388,13 @@ class ImageProcessingManager {
       ParamsProcessImage2(photoBytes, borderCorrectionDepth),
     );
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, processed2);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      processed2,
+      ".png",
+    );
 
     Isolate.exit(sendPort, "done");
   }
@@ -620,6 +644,7 @@ class ImageProcessingManager {
         pageIndex,
         1,
         warpedBytes,
+        ".png",
       );
     }
 
@@ -635,6 +660,7 @@ class ImageProcessingManager {
         pageIndex,
         2,
         processed1,
+        ".png",
       );
     }
 
@@ -650,6 +676,7 @@ class ImageProcessingManager {
         pageIndex,
         3,
         processed2,
+        ".png",
       );
     }
 
@@ -971,7 +998,13 @@ class ImageProcessingManager {
       rotationIn,
     );
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 1, rotatedWarped);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      1,
+      rotatedWarped,
+      ".png",
+    );
 
     // Processed1
     isolateExitPoint(kill);
@@ -979,7 +1012,13 @@ class ImageProcessingManager {
       File(versionPaths[2]).readAsBytesSync(),
       rotationIn,
     );
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 2, rotatedP1);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      rotatedP1,
+      ".png",
+    );
 
     // Processed2
     isolateExitPoint(kill);
@@ -987,7 +1026,13 @@ class ImageProcessingManager {
       File(versionPaths[3]).readAsBytesSync(),
       rotationIn,
     );
-    await g.filesHelper.savePageVersion(docIndex, pageIndex, 3, rotatedP2);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      rotatedP2,
+      ".png",
+    );
 
     // Updates
     isolateExitPoint(kill);
