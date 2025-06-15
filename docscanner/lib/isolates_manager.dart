@@ -146,7 +146,7 @@ class IsolatesManager {
         }
         // Task running -> kill / cleanup
         else if (task._worker?.isolate != null) {
-          task._cleanup?.call();
+          task._cleanup?.call("kill");
           await task.exitCompleter.future;
         }
       },
@@ -219,7 +219,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   final exitCompleter = Completer();
 
   _Worker? _worker;
-  void Function()? _cleanup;
+  void Function(String reason)? _cleanup;
 
   _QueuedTask(
     this.entryPoint,
@@ -244,7 +244,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
     exitPort.listen((_) {
       exitPort.close();
       errorPort.close();
-      _cleanup?.call();
+      _cleanup?.call("exit");
       exitCompleter.complete();
     });
     errorPort.listen((e) {
@@ -261,7 +261,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         .then((isolate) {
           worker.isolate = isolate;
 
-          _cleanup = () {
+          _cleanup = (String reason) {
             if (_cleanedUp) return;
             _cleanedUp = true;
 
@@ -272,7 +272,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
             } else {
               if (worker.isolate != null) {
                 dev.log(
-                  "Warning: killing isolate without controlPort: ${isolate.debugName}",
+                  "$reason: Ending isolate without controlPort: ${isolate.debugName}",
                 );
                 worker.isolate!.kill(priority: Isolate.beforeNextEvent);
               }
@@ -288,7 +288,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           // maxRuntime -> kill
           _runtimeTimer = Timer(maxRuntime, () {
             dev.log("Killing isolate due to timeout: $maxRuntime");
-            //_cleanup!(); //toto undo
+            _cleanup!("timeout, ${maxRuntime.toString()}");
           });
         })
         .catchError((e) {
@@ -300,7 +300,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
 
   void onBadExit(e) {
     if (_cleanedUp) return;
-    _cleanup?.call();
+    _cleanup?.call("error");
     Object error = e;
     StackTrace stack = StackTrace.current;
     dev.log("Error in Isolate: $e");

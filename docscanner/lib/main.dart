@@ -3366,7 +3366,7 @@ class PagePreviewState extends State<PagePreview> {
     super.initState();
     globalNotifier.addListener(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
-    _pollForImagesAndMetadata();
+    _pollForImagesAndMetadata(_totalRotation != 0);
     _initAsync();
 
     _photoViewController.outputStateStream.listen((
@@ -3433,7 +3433,7 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  void _pollForImagesAndMetadata() {
+  void _pollForImagesAndMetadata(bool photoChanged) {
     // Poll Metadtata
     _pollWhile(
       condition: () {
@@ -3459,6 +3459,10 @@ class PagePreviewState extends State<PagePreview> {
             i,
             supressWarnings: true,
           );
+          // Only load if new
+          if (photoChanged && _photoPath == _versionPaths[i]) {
+            _versionPaths[i] = "";
+          }
         },
         onComplete: () {
           if (i == 0) {
@@ -3560,18 +3564,19 @@ class PagePreviewState extends State<PagePreview> {
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
-    _totalRotation = 0;
     g.filesHelper.deleteProcessedVersionsOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
-    _pollForImagesAndMetadata();
+    setState(() {});
+    _pollForImagesAndMetadata(_totalRotation != 0);
   }
 
   void _reprocessingCleanup() {
     _evenPhotoScale = 0.0;
     _oddPhotoScale = 0.0;
     _versionPaths = ["", "", "", ""];
+    _totalRotation = 0;
     setState(() {});
   }
 
@@ -4209,7 +4214,7 @@ class PagePreviewState extends State<PagePreview> {
     //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
-    imageProcessingManager.killIsolatesOfPage(
+    await imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -4235,35 +4240,37 @@ class PagePreviewState extends State<PagePreview> {
 
     // Compare old and new metadata -> only rotation?
 
-    if (ratioValue != _guiRatioValue) onlyRotation = false;
+    if (_guiRatioValue != null &&
+        ratioValue != _guiRatioValue &&
+        ratioValue != 1.0 / _guiRatioValue!) {
+      onlyRotation = false;
+    }
     int quarterTurns = (_totalRotation ~/ 90) % 4;
     if (quarterTurns.isEven && _orientationIndex != _guiOrientationIndex ||
         quarterTurns.isOdd && _orientationIndex == _guiOrientationIndex) {
       onlyRotation = false;
     }
 
-    if (onlyRotation && _versionPaths.every((key) => File(key).existsSync())) {
-      if (mounted) {
-        setState(() {
-          _metadataBlocked = true;
-        });
-        MetadataHelper.writePageCornerPoints(
-          widget.docIndex,
-          widget.pageIndex,
-          newCornerPoints,
-        );
-      }
-      imageProcessingManager.rotatePage(
+    if (onlyRotation &&
+        _versionPaths.every((path) => File(path).existsSync())) {
+      await MetadataHelper.writePageCornerPoints(
+        widget.docIndex,
+        widget.pageIndex,
+        newCornerPoints,
+      );
+      _metadataBlocked = true;
+      setState(() {});
+      await imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
         (g.proUnlocked == true ? 3 : 2),
       );
-      _totalRotation = 0;
+      _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
       _reprocessingSetup();
-      imageProcessingManager.reprocessPage(
+      await imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image

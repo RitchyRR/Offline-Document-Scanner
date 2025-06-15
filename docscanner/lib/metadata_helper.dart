@@ -283,11 +283,14 @@ class MetadataHelper {
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
+    AppGlobals? gIn,
   }) async {
     double? ratioValue;
     List<List<int>>? cornerPoints;
 
-    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    String pagePath = (gIn != null)
+        ? await gIn.filesHelper.getPagePath(docIndex, pageIndex)
+        : await g.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
