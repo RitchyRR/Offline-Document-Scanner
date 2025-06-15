@@ -424,7 +424,6 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
       }
     });
   }
@@ -465,9 +464,7 @@ class ImageProcessingManager {
       } else if (message is String) {
         if (message == "done") {
           wrapperCompleter.complete();
-
           taskKillers.removeWhere((key, value) => value == killer);
-          killer.kill();
         } else {
           photoPath = message;
         }
@@ -517,8 +514,6 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      double? ratioValueIn,
-      List<List<int>>? cornerPointsIn,
       AppGlobals g,
     )
     data,
@@ -539,11 +534,37 @@ class ImageProcessingManager {
     int docIndex = data.$3;
     int pageIndex = data.$4;
 
-    double? ratioValueIn = data.$5;
-    List<List<int>>? cornerPointsIn = data.$6;
-    AppGlobals g = data.$7;
+    AppGlobals g = data.$5;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
+
+    if (!File(
+      await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        0,
+        supressWarnings: true,
+      ),
+    ).existsSync()) {
+      dev.log("repairPageIsolate: Doc $docIndex, Page $pageIndex: No photo");
+      if (File(
+        await g.filesHelper.getPagePath(
+          docIndex,
+          pageIndex,
+          supressWarnings: true,
+        ),
+      ).existsSync()) {
+        g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
+      }
+      Isolate.exit();
+    }
+    // Read Matadata
+    var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
+      docIndex,
+      pageIndex,
+    );
+    double? ratioValue = processingMetadata.$1;
+    List<List<int>>? cornerPoints = processingMetadata.$2;
 
     // Original
     isolateExitPoint(kill);
@@ -567,8 +588,8 @@ class ImageProcessingManager {
       ParamsWarpImage(
         File(versionPaths[0]).readAsBytesSync(),
         shapePath.isNotEmpty ? File(shapePath).readAsBytesSync() : null,
-        ratioValueIn: ratioValueIn,
-        cornerPoints: cornerPointsIn,
+        ratioValueIn: ratioValue,
+        cornerPoints: cornerPoints,
         onlyCalculateBorder: versionPaths[1].isNotEmpty,
       ),
     );
@@ -580,8 +601,8 @@ class ImageProcessingManager {
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     // Metadata
-    double ratioValue = warpedRet.$4;
-    List<List<int>> cornerPoints = warpedRet.$5;
+    ratioValue = warpedRet.$4;
+    cornerPoints = warpedRet.$5;
     isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
@@ -835,42 +856,13 @@ class ImageProcessingManager {
   }
 
   Future<void> repairPage(int docIndex, int pageIndex) async {
-    if (!File(
-      await g.filesHelper.getVersionPath(
-        docIndex,
-        pageIndex,
-        0,
-        supressWarnings: true,
-      ),
-    ).existsSync()) {
-      dev.log("repairPageIsolate: Doc $docIndex, Page $pageIndex: No photo");
-      if (File(
-        await g.filesHelper.getPagePath(
-          docIndex,
-          pageIndex,
-          supressWarnings: true,
-        ),
-      ).existsSync()) {
-        g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
-      }
-      return;
-    }
-
     final repairCompleter = Completer<void>();
     final port = ReceivePort();
-
-    // Read Matadata
-    var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
-      docIndex,
-      pageIndex,
-    );
-    double? ratioValue = processingMetadata.$1;
-    List<List<int>>? cornerPoints = processingMetadata.$2;
-
     RootIsolateToken token = RootIsolateToken.instance!;
+
     TaskKiller killer = await IsolatesManager().runTask(
       _repairPageIsolate,
-      (port.sendPort, token, docIndex, pageIndex, ratioValue, cornerPoints, g),
+      (port.sendPort, token, docIndex, pageIndex, g),
 
       portIn: port,
       prio: IsolatePriority.regular,
@@ -888,9 +880,7 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         repairCompleter.complete();
-
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
       }
     });
     await repairCompleter.future;
@@ -1056,7 +1046,6 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
       }
     });
     await rotatePageCompleter.future;
@@ -1248,7 +1237,6 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
-        killer.kill();
       }
     });
   }
