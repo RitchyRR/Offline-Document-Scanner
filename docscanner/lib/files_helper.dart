@@ -639,10 +639,9 @@ class FilesHelper {
       await killFuture;
       await future;
 
-      await _removeMarkedDeletedDoc(docIndex);
-
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
+      await _removeMarkedDeletedDoc(docIndex);
     }
 
     // rename all with higher docIndex to close the gap
@@ -695,14 +694,13 @@ class FilesHelper {
       await killFuture;
       await future;
 
-      _removeMarkedDeletedPage(docIndex, pageIndex);
-      dev.log("Deleted page directory: $pagePath");
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
         imageCache.evict(FileImage(File(file.path)), includeLive: true);
       }
-
       pageDir.deleteSync(recursive: true);
+      dev.log("Deleted page directory: $pagePath");
+      _removeMarkedDeletedPage(docIndex, pageIndex);
     }
 
     // rename all with higher pageIndex to close the gap
@@ -763,9 +761,6 @@ class FilesHelper {
     await Future.wait(killFutures);
     await future;
 
-    for (var pageIndex in pageIndexes) {
-      _removeMarkedDeletedPage(docIndex, pageIndex);
-    }
     // delete
     for (var pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
@@ -775,13 +770,14 @@ class FilesHelper {
           "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
         );
       } else {
-        dev.log("_deletePages: Deleting page directory: $pagePath");
         List<FileSystemEntity> files = pageDir.listSync(recursive: true);
         for (var file in files) {
           imageCache.evict(FileImage(File(file.path)), includeLive: true);
         }
 
         pageDir.deleteSync(recursive: true);
+        dev.log("_deletePages: Deleted page directory: $pagePath");
+        _removeMarkedDeletedPage(docIndex, pageIndex);
       }
     }
     // rename all with higher pageIndex to close the gap
