@@ -857,7 +857,6 @@ class ImageProcessingManager {
     }
 
     final repairCompleter = Completer<void>();
-    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     final port = ReceivePort();
 
     // Read Matadata
@@ -867,10 +866,6 @@ class ImageProcessingManager {
     );
     double? ratioValue = processingMetadata.$1;
     List<List<int>>? cornerPoints = processingMetadata.$2;
-
-    while (taskKillers.length >= maxIsolates) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
 
     RootIsolateToken token = RootIsolateToken.instance!;
     TaskKiller killer = await IsolatesManager().runTask(
@@ -1230,13 +1225,7 @@ class ImageProcessingManager {
       tmpPro: tmpPro,
     );
 
-    final int maxIsolates = Platform.numberOfProcessors >= 4 ? 3 : 2;
     final port = ReceivePort();
-
-    while (taskKillers.length >= maxIsolates) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
-
     TaskKiller killer;
     if (isNewIndex) {
       RootIsolateToken token = RootIsolateToken.instance!;
