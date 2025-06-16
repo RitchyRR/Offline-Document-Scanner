@@ -11,12 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # functional:
-  provider: # NotifierProvider
-  fluttertoast:
   # design:
   dynamic_color:
   photo_view:
+  flutter_staggered_grid_view:
   # image handling:
   path_provider:
   path:
@@ -26,17 +24,25 @@ dependencies:
   pdf:
   file_selector: # select directory to save pdfs to
   image:
+  receive_sharing_intent:
   # image processing:
   opencv_core: # image processing
-  # google:
-  in_app_purchase:
-  flutter_secure_storage: # proUnlocked
-  receive_sharing_intent:
+  flutter_image_compress:
+  # camera:
   camera:
   camera_android_camerax:
   camera_platform_interface:
+  # google:
+  in_app_purchase:
   google_mobile_ads:
+  # localisation:
+  #flutter_localizations:
+  intl:
+  # other:
+  provider: # NotifierProvider
+  fluttertoast:
   encrypt:
+  flutter_secure_storage:
   shared_preferences:
   permission_handler:
   url_launcher:
@@ -44,8 +50,6 @@ dependencies:
   collection:
   pdf_render:
   crypto:
-  flutter_image_compress:
-  flutter_staggered_grid_view:
 
 dev_dependencies:
   flutter_test:

@@ -760,6 +760,7 @@ class ImageProcessingManager {
 
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
     while (taskKillers.isNotEmpty) {
+      taskKillers.removeWhere((key, value) => value.exited);
       final otherKeys = taskKillers.keys
           .where((key) => key.$1 > docIndex)
           .toList();
@@ -772,6 +773,7 @@ class ImageProcessingManager {
 
   Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
+      taskKillers.removeWhere((key, value) => value.exited);
       final otherKeys = taskKillers.keys
           .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
           .toList();
@@ -790,6 +792,7 @@ class ImageProcessingManager {
     int smallestIndex = pageIndexes.reduce(math.min);
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
+      taskKillers.removeWhere((key, value) => value.exited);
       final otherKeys = taskKillers.keys
           .where((key) => key.$1 == docIndexIn && key.$2 > smallestIndex)
           .toList();
@@ -805,18 +808,20 @@ class ImageProcessingManager {
 
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
+      taskKillers.removeWhere((key, value) => value.exited);
       final docKeys = taskKillers.keys
           .where((key) => key.$1 == docIndex)
           .toList();
-      final docIsolates = docKeys.map((key) => taskKillers[key]!).toList();
+      final docKillers = docKeys.map((key) => taskKillers[key]!).toList();
 
-      if (docIsolates.isEmpty) return;
+      if (docKillers.isEmpty) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
 
   Future<void> awaitAllIsolates() async {
     while (taskKillers.isNotEmpty) {
+      taskKillers.removeWhere((key, value) => value.exited);
       await Future.delayed(Duration(milliseconds: 200));
     }
   }

@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:docscanner/app_globals.dart' show ErrorLogger;
 
 class TaskKiller {
+  bool exited = false;
   final Future<void> Function() _kill;
   final void Function() _delay;
   final void Function(SendPort controlPort) _setControlPort;
@@ -263,6 +264,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
 
           _cleanup = (String reason) {
             if (_cleanedUp) return;
+            killer?.exited = true;
             _cleanedUp = true;
 
             entryPointPort.close();

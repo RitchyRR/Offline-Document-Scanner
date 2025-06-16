@@ -2775,7 +2775,9 @@ class _PagesState extends State<Pages> with RouteAware {
         return StatefulBuilder(
           builder: (context, setState) {
             future.whenComplete(() {
-              setState(() => allowChangePageIndex = true);
+              if (!allowChangePageIndex) {
+                setState(() => allowChangePageIndex = true);
+              }
             });
             return AlertDialog(
               title: Row(
