@@ -1,0 +1,161 @@
+{
+  "documents": {
+    "title": "Documents",
+    "docIndex": "Document {docIndex}",
+    "menu": {
+      "pro": "PRO Features",
+      "licenses": "Licenses",
+      "ratios": "Aspect Ratios",
+      "feedback": "Give Feedback",
+      "shareApp": "Tell a Friend!",
+      "saveErrors": "Save Errors"
+    },
+    "card": {
+      "date": "Created: {creationDate}",
+      "psgesCount": "Pages: {pagesCount}",
+      "popup": {
+        "title": "Edit Document {docIndex}",
+        "name": "Document Name",
+        "move": "Move Document to new Index"
+      }
+    }
+  },
+  "pages": {
+    "title": "Document {docIndex}",
+    "pageIndex": "Page {pageIndex}",
+    "views": {
+      "gridView": "Grid View",
+      "listView": "List View"
+    },
+    "select": {
+      "selectAll": "Select all",
+      "selected": "{selectedCount} Pages selected",
+      "cancelSelection": "Cancel Selection"
+    },
+    "popup": {
+      "move": "Move Page to new Index",
+      "reverseOrder": "Reverse Order"
+    }
+  },
+  "pagePreview": {
+    "pageIndex": "Page {pageIndex}",
+    "editBar": {
+      "portrait": "Portrait",
+      "landscape": "Landscape",
+      "rotateL": "Rotate 90° left",
+      "rotateR": "Rotate 90° right"
+    },
+    "fabs": { "warp": "Adjust Corner Points" },
+    "menu": { "delete": "Delete Page" }
+  },
+  "warp": {
+    "pageIndex": "Page {pageIndex}"
+  },
+  "popup": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "next": "Next",
+    "send": "Send",
+    "share": "Share",
+    "pro": {
+      "title": "PRO Features"
+    },
+    "aspectRatios": {
+      "title": "Select Aspect Ratios",
+      "text": "Select the aspect ratios that you want the app to be able to recognize and that you can manually select."
+    },
+    "feedback": {
+      "title1": "Rate our App",
+      "title2": "Give Feedback",
+      "hint": "What would you like to see?\nWhat is missing?\nWhat went wrong?\n"
+    },
+    "shareApp": {
+      "title": "Tell a Friend!",
+      "text": "Hey, I found this document scanner app that works without uploading your data.\nThe image processing is really good!\n"
+    },
+    "pagesPopup": {
+      "document": {
+        "save": {
+          "title": "Save Document {docIndex}"
+        },
+        "share": {
+          "title": "Share Document {docIndex}"
+        },
+        "delete": {
+          "title": "Delete Document {docIndex}",
+          "text": "Are you sure you want to \npermanently delete this Document?"
+        }
+      },
+      "pages": {
+        "save": {
+          "title": "Save {pagesCount} Pages",
+          "images": "Save Images to Gallery",
+          "pdf": "Save combined PDF to Directory"
+        },
+        "share": {
+          "title": "Share {pagesCount} Pages",
+          "images": "Share Images",
+          "pdf": "Share combined PDF"
+        },
+        "delete": {
+          "title": "Delete {pagesCount} Pages",
+          "text": "Are you sure you want to \npermanently delete these {pagesCount} Pages?"
+        }
+      },
+      "page": {
+        "save": {
+          "title": "Save Page {pagesIndex}",
+          "images": "Save Image to Gallery",
+          "pdf": "Save PDF to Directory"
+        },
+        "share": {
+          "title": "Share Page {pagesIndex}",
+          "images": "Share Image",
+          "pdf": "Share PDF"
+        },
+        "delete": {
+          "title": "Delete Page {pagesIndex}",
+          "text": "Are you sure you want to \npermanently delete this Page?"
+        }
+      }
+    }
+  },
+  "fabs": {
+    "images": "Pick Images from Gallery",
+    "pdfs": "Pick PDFs from Directory",
+    "camera": "Take Photos",
+    "thumbnail": "Change Thumbnail",
+    "delete": "Delete",
+    "save": "Save",
+    "share": "Share"
+  },
+  "aspectRatios": {
+    "businessCard": "Business Card",
+    "creditCard": "Credit Card",
+    "square": "Square",
+    "description": {
+      "businessCard": "Business Card (3.5x2″)",
+      "creditCard": "Credit Card (ISO/ID-1, 85.6x53.98 mm)",
+      "square": "1:1 Square (Notes, Covers)",
+      "5:4": "5:4 (Photo, Old Monitors)",
+      "4:3": "4:3 (Photo)",
+      "16:9": "16:9 (Video, Widescreen)",
+      "16:10": "16:10 (Widescreen)",
+      "21:9": "21:9 (Ultrawide, Cinema)"
+    }
+  },
+  "versions": {
+    "photo": "Photo",
+    "warped": "Unfiltered",
+    "processed1": "Basic",
+    "processed2": "PRO"
+  },
+  "loading": {
+    "processingImage": "Processing Image...",
+    "processingImages": "Processing Images...",
+    "processingPdf": "Processing PDF...",
+    "waitingImage": "Waiting for Image to process...",
+    "waitingImages": "Waiting for Images to process...",
+    "fetchingImages": "Fetching Images..."
+  }
+}

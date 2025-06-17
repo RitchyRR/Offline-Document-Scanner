@@ -1,6 +1,10 @@
+// my packages:
+import 'app_globals.dart';
+import 'files_helper.dart';
+import 'metadata_helper.dart';
+import 'image_prosessing_manager.dart';
+import 'feedback_helper.dart';
 // design:
-import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:docscanner/isolates_manager.dart' show IsolatesManager;
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -16,30 +20,27 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart'
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// validity:
-import 'package:package_info_plus/package_info_plus.dart';
-// function:
-import 'dart:io';
-import 'dart:async'; // Timer
-import 'dart:developer' as dev;
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 // camera:
 import 'package:camera/camera.dart';
 import 'package:camera_android_camerax/camera_android_camerax.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:permission_handler/permission_handler.dart';
-// local:
+// localisation:
+import 'package:easy_localization/easy_localization.dart';
+// dart:
+import 'dart:io';
+import 'dart:async'; // Timer
+import 'dart:developer' as dev;
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+// other:
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-// my packages:
-import 'package:docscanner/app_globals.dart';
-import 'package:docscanner/files_helper.dart';
-import 'package:docscanner/metadata_helper.dart';
-import 'package:docscanner/image_prosessing_manager.dart';
-import 'package:docscanner/feedback_helper.dart';
 
 final AdsHelper adsHelper = AdsHelper();
 final FeedbackHelper feedbackHelper = FeedbackHelper();
@@ -63,6 +64,7 @@ class GlobalNotifier extends ValueNotifier<NotifierEvent> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
   CameraPlatform.instance = AndroidCameraCameraX();
   MobileAds.instance.initialize();
   //// Play Test Ads
@@ -85,7 +87,18 @@ void main() async {
     return true;
   };
 
-  runApp(ChangeNotifierProvider.value(value: globalNotifier, child: MyApp()));
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [Locale('en'), Locale('de')],
+      fallbackLocale: const Locale('en'),
+      path: 'assets/lang',
+
+      child: ChangeNotifierProvider.value(
+        value: globalNotifier,
+        child: MyApp(),
+      ),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -170,6 +183,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    g.translateAspectRatios(context);
     return FutureBuilder<(ColorScheme, ColorScheme)>(
       future: generateAdaptiveColorSchemes(),
       builder: (context, snapshot) {
@@ -189,6 +203,9 @@ class _MyAppState extends State<MyApp> {
         }
 
         return MaterialApp(
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          locale: context.locale,
           navigatorKey: navigatorKey, // to pop until homepage from anywhere
           navigatorObservers: [routeObserver],
           title: "Offline Document Scanner",
@@ -1533,7 +1550,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     final TextPainter textPainter = TextPainter(
       text: TextSpan(text: text, style: style),
       maxLines: 1,
-      textDirection: TextDirection.ltr,
+      textDirection: ui.TextDirection.ltr,
     )..layout();
 
     return textPainter.width * 1.2;
@@ -2789,7 +2806,14 @@ class _PagesState extends State<Pages> with RouteAware {
                     size: 30,
                   ),
                   SizedBox(width: 12),
-                  Flexible(child: Text("Page $displayPageIndex")),
+                  Flexible(
+                    child: Text(
+                      tr(
+                        'pages.pageIndex',
+                        namedArgs: {'pageIndex': '$displayPageIndex'},
+                      ),
+                    ),
+                  ),
                 ],
               ),
               content: Column(
@@ -5505,7 +5529,12 @@ class PositionTimestamp {
   PositionTimestamp({required this.position, required this.timestamp});
 }
 
-const List<String> versionNames = ["Photo", "Unfiltered", "Basic", "PRO"];
+List<String> versionNames = [
+  "versions.photo".tr(),
+  tr("versions.warped"),
+  tr("versions.processed1"),
+  tr("versions.processed2"),
+];
 
 Future<bool> _changeThumbnailIndexesPopup(
   BuildContext callContext,

@@ -36,8 +36,7 @@ dependencies:
   in_app_purchase:
   google_mobile_ads:
   # localisation:
-  #flutter_localizations:
-  intl:
+  easy_localization:
   # other:
   provider: # NotifierProvider
   fluttertoast:
@@ -71,4 +70,5 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - assets/lang/
     - assets/arrow.png

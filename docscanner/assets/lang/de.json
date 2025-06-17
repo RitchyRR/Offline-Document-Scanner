@@ -1,0 +1,161 @@
+{
+  "documents": {
+    "title": "Dokumente",
+    "docIndex": "Dokument {docIndex}",
+    "menu": {
+      "pro": "PRO-Funktionen",
+      "licenses": "Lizenzen",
+      "ratios": "Seitenverhältnisse",
+      "feedback": "Feedback geben",
+      "shareApp": "Weiterempfehlen!",
+      "saveErrors": "Fehler speichern"
+    },
+    "card": {
+      "date": "Erstellt: {creationDate}",
+      "psgesCount": "Seiten: {pagesCount}",
+      "popup": {
+        "title": "Dokument {docIndex} bearbeiten",
+        "name": "Dokumentenname",
+        "move": "Dokument an neuen Index verschieben"
+      }
+    }
+  },
+  "pages": {
+    "title": "Dokument {docIndex}",
+    "pageIndex": "Seite {pageIndex}",
+    "views": {
+      "gridView": "Rasteransicht",
+      "listView": "Listenansicht"
+    },
+    "select": {
+      "selectAll": "Alle auswählen",
+      "selected": "{selectedCount} Seiten ausgewählt",
+      "cancelSelection": "Auswahl aufheben"
+    },
+    "popup": {
+      "move": "Seite an neuen Index verschieben",
+      "reverseOrder": "Reihenfolge umkehren"
+    }
+  },
+  "pagePreview": {
+    "pageIndex": "Seite {pageIndex}",
+    "editBar": {
+      "portrait": "Hochformat",
+      "landscape": "Querformat",
+      "rotateL": "90° nach links drehen",
+      "rotateR": "90° nach rechts drehen"
+    },
+    "fabs": { "warp": "Eckpunkte anpassen" },
+    "menu": { "delete": "Seite löschen" }
+  },
+  "warp": {
+    "pageIndex": "Seite {pageIndex}"
+  },
+  "popup": {
+    "ok": "OK",
+    "cancel": "Abbrechen",
+    "next": "Weiter",
+    "send": "Senden",
+    "share": "Teilen",
+    "pro": {
+      "title": "PRO-Funktionen"
+    },
+    "aspectRatios": {
+      "title": "Seitenverhältnisse auswählen",
+      "text": "Wähle die Seitenverhältnisse, die die App erkennen und die du manuell auswählen kannst."
+    },
+    "feedback": {
+      "title1": "App bewerten",
+      "title2": "Feedback geben",
+      "hint": "Was möchtest du sehen?\nWas fehlt?\nWas hat nicht funktioniert?\n"
+    },
+    "shareApp": {
+      "title": "Weiterempfehlen!",
+      "text": "Hey, ich habe eine Dokumentenscanner-App gefunden, die deine Daten nicht hochlädt.\nDie Bildverarbeitung ist richtig gut!\n"
+    },
+    "pagesPopup": {
+      "document": {
+        "save": {
+          "title": "Dokument {docIndex} speichern"
+        },
+        "share": {
+          "title": "Dokument {docIndex} teilen"
+        },
+        "delete": {
+          "title": "Dokument {docIndex} löschen",
+          "text": "Willst du dieses Dokument wirklich \ndauerhaft löschen?"
+        }
+      },
+      "pages": {
+        "save": {
+          "title": "{pagesCount} Seiten speichern",
+          "images": "Bilder in Galerie speichern",
+          "pdf": "Kombiniertes PDF im Verzeichnis speichern"
+        },
+        "share": {
+          "title": "{pagesCount} Seiten teilen",
+          "images": "Bilder teilen",
+          "pdf": "Kombiniertes PDF teilen"
+        },
+        "delete": {
+          "title": "{pagesCount} Seiten löschen",
+          "text": "Willst du diese {pagesCount} Seiten wirklich \ndauerhaft löschen?"
+        }
+      },
+      "page": {
+        "save": {
+          "title": "Seite {pagesIndex} speichern",
+          "images": "Bild in Galerie speichern",
+          "pdf": "PDF im Verzeichnis speichern"
+        },
+        "share": {
+          "title": "Seite {pagesIndex} teilen",
+          "images": "Bild teilen",
+          "pdf": "PDF teilen"
+        },
+        "delete": {
+          "title": "Seite {pagesIndex} löschen",
+          "text": "Willst du diese Seite wirklich \ndauerhaft löschen?"
+        }
+      }
+    }
+  },
+  "fabs": {
+    "images": "Bilder aus Galerie wählen",
+    "pdfs": "PDFs aus Verzeichnis wählen",
+    "camera": "Fotos aufnehmen",
+    "thumbnail": "Vorschaubild ändern",
+    "delete": "Löschen",
+    "save": "Speichern",
+    "share": "Teilen"
+  },
+  "aspectRatios": {
+    "businessCard": "Visitenkarte",
+    "creditCard": "Kreditkarte",
+    "square": "Quadrat",
+    "description": {
+      "businessCard": "Visitenkarte (3.5x2″)",
+      "creditCard": "Kreditkarte (ISO/ID-1, 85.6x53.98 mm)",
+      "square": "1:1 Quadrat (Notizen, Cover)",
+      "5:4": "5:4 (Foto, alte Monitore)",
+      "4:3": "4:3 (Foto)",
+      "16:9": "16:9 (Video, Breitbild)",
+      "16:10": "16:10 (Breitbild)",
+      "21:9": "21:9 (Ultrawide, Kino)"
+    }
+  },
+  "versions": {
+    "photo": "Foto",
+    "warped": "Unbearbeitet",
+    "processed1": "Standard",
+    "processed2": "PRO"
+  },
+  "loading": {
+    "processingImage": "Bild wird verarbeitet...",
+    "processingImages": "Bilder werden verarbeitet...",
+    "processingPdf": "PDF wird verarbeitet...",
+    "waitingImage": "Warte auf Bildverarbeitung...",
+    "waitingImages": "Warte auf Verarbeitung der Bilder...",
+    "fetchingImages": "Bilder werden geladen..."
+  }
+}
