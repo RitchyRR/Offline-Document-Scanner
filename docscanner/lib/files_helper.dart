@@ -1403,7 +1403,7 @@ class FilesHelper {
           } else {
             messenger?.hideCurrentSnackBar();
             messenger?.showSnackBar(
-              SnackBar(content: Text("Error: No PDF available to save.")),
+              SnackBar(content: Text(tr("snackbar.e_savePdf"))),
             );
           }
         }
@@ -1457,7 +1457,7 @@ class FilesHelper {
       shareImages(docIndex);
     } else {
       messenger?.showSnackBar(
-        SnackBar(content: Text("No images available to SharePlus.")),
+        SnackBar(content: Text(tr("snackbar.e_shareImages"))),
       );
     }
   }
@@ -1555,7 +1555,7 @@ class FilesHelper {
         } else {
           messenger?.hideCurrentSnackBar();
           messenger?.showSnackBar(
-            SnackBar(content: Text("Error: No PDF available to SharePlus.")),
+            SnackBar(content: Text(tr("snackbar.e_sharePdf"))),
           );
         }
       }

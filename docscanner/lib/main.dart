@@ -773,7 +773,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 TextField(
                   controller: controller,
                   maxLines: 4,
-                  decoration: InputDecoration(hintText: "Your message here.\n"),
+                  decoration: InputDecoration(
+                    hintText: tr("popup.shareApp.hint"),
+                  ),
                   onChanged: (text) {
                     setState(() {});
                   },
@@ -1343,7 +1345,7 @@ Future<void> selectAspectRatiosDialog(BuildContext context) async {
               size: 30,
             ),
             SizedBox(width: 12),
-            Flexible(child: Text(tr("aspectRatios.title"))),
+            Flexible(child: Text(tr("popup.aspectRatios.title"))),
           ],
         ),
         content: SizedBox(
@@ -1351,7 +1353,7 @@ Future<void> selectAspectRatiosDialog(BuildContext context) async {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(tr("aspectRatios.text")),
+              Text(tr("popup.aspectRatios.text")),
               const SizedBox(height: 12),
               SizedBox(
                 height: 300,
@@ -1732,8 +1734,29 @@ Future<bool> proPopup(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(tr("popup.pro.text1")),
-            (g.proUnlocked == true) ? Text(tr("popup.pro.text2")) : SizedBox(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  " •  ",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                ),
+                Expanded(child: Text(tr("popup.pro.bp1"))),
+              ],
+            ),
+            SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  " •  ",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                ),
+                Expanded(child: Text(tr("popup.pro.bp2"))),
+              ],
+            ),
+
+            (g.proUnlocked == true) ? Text(tr("popup.pro.text")) : SizedBox(),
           ],
         ),
         actions: [
@@ -1754,7 +1777,7 @@ Future<bool> proPopup(BuildContext context) async {
               : ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
                   child: Text(
-                    "Purchase",
+                    tr("popup.purchase"),
                     style: TextStyle(color: Colors.green),
                   ),
                 ),
@@ -2194,7 +2217,12 @@ class _PagesState extends State<Pages> with RouteAware {
         appBar: !_selectMode
             ? AppBar(
                 // Regular
-                title: Text("Document ${widget.docIndex + 1}"),
+                title: Text(
+                  tr(
+                    "pages.title",
+                    namedArgs: {"docIndex": "${widget.docIndex + 1}"},
+                  ),
+                ),
                 actions: [
                   // Grid View Toggle
                   if (_gridView != null)
@@ -2203,19 +2231,21 @@ class _PagesState extends State<Pages> with RouteAware {
                       icon: _gridView!
                           ? Icon(Icons.view_agenda_sharp)
                           : Icon(Icons.dashboard_sharp),
-                      tooltip: (_gridView! ? "List View" : "Grid View"),
+                      tooltip: (_gridView!
+                          ? tr("pages.views.listView")
+                          : tr("pages.views.gridView")),
                     ),
                   // Select All Button
                   selectAllButtonUsed
                       ? IconButton(
                           onPressed: () => _selectAll(),
                           icon: Icon(Icons.select_all),
-                          tooltip: "Select all",
+                          tooltip: tr("pages.select.selectAll"),
                         )
                       : CustomExpandingButton(
                           onPressed: () => _selectAll(),
                           icon: Icons.select_all,
-                          text: "Select all",
+                          text: tr("pages.select.selectAll"),
                           collapsedColor: Theme.of(
                             context,
                           ).colorScheme.onSurfaceVariant,
@@ -2224,17 +2254,22 @@ class _PagesState extends State<Pages> with RouteAware {
               )
             : AppBar(
                 // Selecting
-                title: Text("${_selectedPages.length} Pages selected"),
+                title: Text(
+                  tr(
+                    "pages.select.selected",
+                    namedArgs: {"selectedCount": "${_selectedPages.length}"},
+                  ),
+                ),
                 leading: IconButton(
                   onPressed: () => _cancelSelectMode(),
                   icon: Icon(Icons.close),
-                  tooltip: "Cancel Selection",
+                  tooltip: tr("pages.select.cancelSelection"),
                 ),
                 actions: [
                   IconButton(
                     onPressed: () => _selectAll(),
                     icon: Icon(Icons.select_all),
-                    tooltip: "Select all",
+                    tooltip: tr("pages.select.selectAll"),
                   ),
                 ],
               ),
@@ -3660,24 +3695,15 @@ class PagePreviewState extends State<PagePreview> {
                 size: 30,
               ),
               SizedBox(width: 12),
-              Flexible(child: const Text("Unlock PRO filter")),
+              Flexible(child: Text(tr("pagePreview.backPopup.title"))),
             ],
           ),
-          content: Text(
-            "You have selected the PRO filter, by selecting it"
-            "and then trying to leave this page.\n\n"
-            "To get access, first unlock PRO Features.\n\n"
-            "Alternatively select a different version before leaving.",
-          ),
+          content: Text(tr("pagePreview.backPopup.text")),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text(tr("popup.cancel")),
             ),
-            //ElevatedButton(
-            //  onPressed: () => Navigator.pop(context, true),
-            //  child: Text("Purchase", style: TextStyle(color: Colors.green)),
-            //),
             ElevatedButton.icon(
               onPressed: () async {
                 bool purchased = await proPopup(context);
@@ -3686,7 +3712,7 @@ class PagePreviewState extends State<PagePreview> {
                 }
               },
               icon: Icon(Icons.lock),
-              label: Text("Unlock PRO"),
+              label: Text(tr("popup.unlock")),
             ),
             ElevatedButton.icon(
               onPressed: () async {
@@ -3705,7 +3731,7 @@ class PagePreviewState extends State<PagePreview> {
                 }
               },
               icon: Icon(Icons.play_arrow),
-              label: Text("Watch Ad"),
+              label: Text(tr("popup.watchAd")),
             ),
           ],
         );
@@ -3750,7 +3776,12 @@ class PagePreviewState extends State<PagePreview> {
         resizeToAvoidBottomInset: false,
         // Top Bar
         appBar: AppBar(
-          title: Text("Page ${widget.pageIndex + 1}"),
+          title: Text(
+            tr(
+              "pagePreview.pageIndex",
+              namedArgs: {"pageIndex": "${widget.pageIndex + 1}"},
+            ),
+          ),
           actions: [
             PopupMenuButton(
               itemBuilder: (context) => [
@@ -3765,7 +3796,7 @@ class PagePreviewState extends State<PagePreview> {
                       ),
                       SizedBox(width: 10),
                       Text(
-                        "Delete Page",
+                        tr("pagePreview.menu.delete"),
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -5005,12 +5036,10 @@ class _WarpState extends State<Warp> {
                 size: 30,
               ),
               SizedBox(width: 12),
-              Flexible(child: const Text("Discard Corner Adjustments")),
+              Flexible(child: Text(tr("warp.discardPopup.title"))),
             ],
           ),
-          content: Text(
-            "Are you sure you want to discard your corner adjustments?",
-          ),
+          content: Text(tr("warp.discardPopup.text")),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -5018,7 +5047,10 @@ class _WarpState extends State<Warp> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text("Discard", style: TextStyle(color: Colors.red)),
+              child: Text(
+                tr("warp.discardPopup.discard"),
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -5066,12 +5098,12 @@ class _WarpState extends State<Warp> {
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
-          title: const Text("Adjust Corners"),
+          title: Text(tr("warp.title")),
           actions: [
             CustomIconButton(
               onTap: () => _saveCorners(),
               icon: Icons.check,
-              tooltip: "Save adjusted Corners",
+              tooltip: tr("warp.confirm"),
             ),
             SizedBox(width: 12),
           ],
@@ -5574,7 +5606,7 @@ Future<bool> _changeThumbnailIndexesPopup(
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text("Select Thumbnail Version"),
+            title: Text(tr("popup.changeThumbnails.title")),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: List<Widget>.generate(
@@ -5606,7 +5638,7 @@ Future<bool> _changeThumbnailIndexesPopup(
                         Navigator.pop(context);
                       }
                     : null,
-                child: const Text("Apply"),
+                child: Text(tr("popup.ok")),
               ),
             ],
           );
@@ -5718,16 +5750,115 @@ Future<bool> _pagesPopup(
               });
             }
           }
-          String sAction = type == PopUpType.share
-              ? "Share"
-              : type == PopUpType.save
-              ? "Save"
-              : "Delete";
-          String sObject = isDocument
-              ? "Document ${docIndex + 1}"
-              : "${isSinglePage ? "" : "$pagesCount "}"
-                    "Page${isSinglePage ? "" : "s"} ${isSinglePage ? "${pageIndexes.first + 1}"
-                              "${versionIndex != null && type != PopUpType.delete ? ", \n${versionNames[versionIndex]}" : ""}" : ""}";
+          String title;
+          if (isDocument) {
+            switch (type) {
+              case PopUpType.share:
+                title = tr(
+                  "popup.pagesPopup.document.share.title",
+                  namedArgs: {"docIndex": "${docIndex + 1}"},
+                );
+                break;
+              case PopUpType.save:
+                title = tr(
+                  "popup.pagesPopup.document.save.title",
+                  namedArgs: {"docIndex": "${docIndex + 1}"},
+                );
+                break;
+              case PopUpType.delete:
+                title = tr(
+                  "popup.pagesPopup.document.delete.title",
+                  namedArgs: {"docIndex": "${docIndex + 1}"},
+                );
+                break;
+            }
+          } else if (!isSinglePage) {
+            switch (type) {
+              case PopUpType.share:
+                title = tr(
+                  "popup.pagesPopup.pages.share.title",
+                  namedArgs: {"pagesCount": "$pagesCount"},
+                );
+                break;
+              case PopUpType.save:
+                title = tr(
+                  "popup.pagesPopup.pages.save.title",
+                  namedArgs: {"pagesCount": "$pagesCount"},
+                );
+                break;
+              case PopUpType.delete:
+                title = tr(
+                  "popup.pagesPopup.pages.delete.title",
+                  namedArgs: {"pagesCount": "$pagesCount"},
+                );
+                break;
+            }
+          } else {
+            switch (type) {
+              case PopUpType.share:
+                title = tr(
+                  "popup.pagesPopup.page.share.title",
+                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                );
+                break;
+              case PopUpType.save:
+                title = tr(
+                  "popup.pagesPopup.page.save.title",
+                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                );
+                break;
+              case PopUpType.delete:
+                title = tr(
+                  "popup.pagesPopup.page.delete.title",
+                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                );
+                break;
+            }
+            if (versionIndex != null && type != PopUpType.delete) {
+              title += ", \n${versionNames[versionIndex]}";
+            }
+          }
+          String? deleteText;
+          if (type == PopUpType.delete) {
+            if (isDocument) {
+              deleteText = tr("popup.pagesPopup.document.delete.text");
+            } else if (!isSinglePage) {
+              deleteText = tr(
+                "popup.pagesPopup.pages.delete.text",
+                namedArgs: {"pagesCount": "$pagesCount"},
+              );
+            } else {
+              deleteText = tr("popup.pagesPopup.page.delete.text");
+            }
+          }
+          String? buttonTextImage;
+          String? buttonTextPdf;
+          if (!isSinglePage) {
+            switch (type) {
+              case PopUpType.share:
+                buttonTextImage = tr("popup.pagesPopup.pages.share.images");
+                buttonTextPdf = tr("popup.pagesPopup.pages.share.pdf");
+                break;
+              case PopUpType.save:
+                buttonTextImage = tr("popup.pagesPopup.pages.save.images");
+                buttonTextPdf = tr("popup.pagesPopup.pages.save.pdf");
+                break;
+              default:
+            }
+          } else {
+            switch (type) {
+              case PopUpType.share:
+                buttonTextImage = tr("popup.pagesPopup.page.share.image");
+                buttonTextPdf = tr("popup.pagesPopup.page.share.pdf");
+                break;
+              case PopUpType.save:
+                buttonTextImage = tr("popup.pagesPopup.page.save.image");
+                buttonTextPdf = tr("popup.pagesPopup.page.save.pdf");
+                break;
+              default:
+            }
+          }
+
           return StatefulBuilder(
             builder: (context, setStateDialog) {
               IconData icon;
@@ -5752,7 +5883,7 @@ Future<bool> _pagesPopup(
                       size: 30,
                     ),
                     SizedBox(width: 12.0),
-                    Flexible(child: Text("$sAction $sObject")),
+                    Flexible(child: Text(title)),
                   ],
                 ),
                 actions: [
@@ -5781,12 +5912,7 @@ Future<bool> _pagesPopup(
                   type == PopUpType.delete
                       ? Align(
                           alignment: Alignment.center,
-                          child: Text(
-                            "Are you sure you want to \npermanently delete ${isDocument ? ""
-                                      "this document" : ""
-                                      "${isSinglePage ? "this " : "these $pagesCount "}"
-                                      "page${isSinglePage ? "" : "s"}"}?",
-                          ),
+                          child: Text(deleteText!),
                         )
                       : SizedBox(),
                   SizedBox(height: 24.0),
@@ -5878,11 +6004,7 @@ Future<bool> _pagesPopup(
                                           : null,
 
                                       icon: Icon(Icons.image),
-                                      label: Text(
-                                        "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
-                                      ?*/ "Save"} Image${isSinglePage ? "" : "s"} "
-                                        "${type == PopUpType.save ? "to Gallery" : ""}",
-                                      ),
+                                      label: Text(buttonTextImage!),
                                     ),
                                   ),
 
@@ -5997,11 +6119,7 @@ Future<bool> _pagesPopup(
                                                 : null,
 
                                             icon: Icon(Icons.picture_as_pdf),
-                                            label: Text(
-                                              "${type == PopUpType.share ? "Share" : /*type == PopUpType.save
-                                      ?*/ "Save"} ${isSinglePage ? "" : "combined "}PDF"
-                                              "${type == PopUpType.save ? " to Directory" : ""}",
-                                            ),
+                                            label: Text(buttonTextPdf!),
                                           ),
                                         ),
                                         (g.proUnlocked == true ||
@@ -6024,7 +6142,9 @@ Future<bool> _pagesPopup(
                                                         proPopup(context);
                                                       },
                                                       icon: Icon(Icons.lock),
-                                                      label: Text("Unlock PRO"),
+                                                      label: Text(
+                                                        tr("popup.unlock"),
+                                                      ),
                                                     ),
                                                     (isDocument ||
                                                             !isSinglePage)
@@ -6050,7 +6170,9 @@ Future<bool> _pagesPopup(
                                                               Icons.play_arrow,
                                                             ),
                                                             label: Text(
-                                                              "Watch Ad",
+                                                              tr(
+                                                                "popup.watchAd",
+                                                              ),
                                                             ),
                                                           )
                                                         : SizedBox(),
@@ -6081,7 +6203,7 @@ Future<bool> _pagesPopup(
                                               proPopup(context);
                                             },
                                             icon: Icon(Icons.lock),
-                                            label: Text("Unlock PRO"),
+                                            label: Text(tr("popup.unlock")),
                                           ),
                                           (isSinglePage && versionIndex != null)
                                               ? ElevatedButton.icon(
@@ -6107,7 +6229,9 @@ Future<bool> _pagesPopup(
                                                     }
                                                   },
                                                   icon: Icon(Icons.play_arrow),
-                                                  label: Text("Watch Ad"),
+                                                  label: Text(
+                                                    tr("popup.watchAd"),
+                                                  ),
                                                 )
                                               : SizedBox(),
                                         ],
@@ -6139,7 +6263,7 @@ Future<bool> _pagesPopup(
                                   Navigator.pop(context);
                                 },
                                 child: Text(
-                                  "Delete",
+                                  tr("popup.pagesPopup.deleteButton"),
                                   style: TextStyle(color: Colors.red),
                                 ),
                               ),
@@ -6227,10 +6351,10 @@ class _CameraScreenState extends State<CameraScreen> {
               size: 30,
             ),
             SizedBox(width: 12),
-            Flexible(child: const Text("Camera Permission Needed")),
+            Flexible(child: Text(tr("camera.permissionsPopup.title"))),
           ],
         ),
-        content: Text("Please enable camera access from your device settings."),
+        content: Text(tr("camera.permissionsPopup.text")),
         actions: [
           TextButton(
             child: Text(tr("popup.cancel")),
@@ -6241,7 +6365,7 @@ class _CameraScreenState extends State<CameraScreen> {
             },
           ),
           ElevatedButton(
-            child: Text("Open Settings"),
+            child: Text(tr("camera.permissionsPopup.openSettings")),
             onPressed: () {
               openAppSettings();
               if (Navigator.canPop(context)) {
@@ -6374,12 +6498,10 @@ class _CameraScreenState extends State<CameraScreen> {
                 size: 30,
               ),
               SizedBox(width: 12),
-              Flexible(child: const Text("Discard Photos")),
+              Flexible(child: Text(tr("camera.discardPopup.title"))),
             ],
           ),
-          content: Text(
-            "Are you sure you want to discard the photos that you have taken?",
-          ),
+          content: Text(tr("camera.discardPopup.text")),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -6387,7 +6509,10 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text("Discard", style: TextStyle(color: Colors.red)),
+              child: Text(
+                tr("camera.discardPopup.discard"),
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
@@ -6420,13 +6545,13 @@ class _CameraScreenState extends State<CameraScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            tooltip: "Close Camera",
+            tooltip: tr("camera.close"),
             icon: const Icon(Icons.close, color: Colors.white),
             onPressed: () => Navigator.maybePop(context),
           ),
           actions: [
             CustomIconButton(
-              tooltip: "Process Photos",
+              tooltip: tr("camera.confirm"),
               isDisabled: _capturedImages.isEmpty,
               onTap: () {
                 allowPop = true;
@@ -6482,7 +6607,9 @@ class _CameraScreenState extends State<CameraScreen> {
                     border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: IconButton(
-                    tooltip: _isFlashOn ? 'Disable Flash' : "Enable Flash",
+                    tooltip: _isFlashOn
+                        ? tr("camera.flash.disable")
+                        : tr("camera.flash.enable"),
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       _toggleFlash();
@@ -6542,7 +6669,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
 
                 Tooltip(
-                  message: "Preview Photos",
+                  message: tr("camera.viewer.preview"),
                   child: ThumbnailWithBadge(
                     image: _capturedImages.isNotEmpty
                         ? File(_capturedImages.first.path)
@@ -6580,13 +6707,13 @@ class _CameraScreenState extends State<CameraScreen> {
               appBar: AppBar(
                 backgroundColor: Colors.black,
                 leading: IconButton(
-                  tooltip: "Back",
+                  tooltip: tr("camera.viewer.back"),
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
                 actions: [
                   IconButton(
-                    tooltip: "Delete Photo",
+                    tooltip: tr("camera.viewer.delete"),
                     icon: Icon(Icons.delete, color: Colors.white),
                     onPressed: () {
                       HapticFeedback.lightImpact();

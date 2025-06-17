@@ -1,16 +1,16 @@
 {
-  "appName": "Offline Dokumenten-Scanner",
+  "appName": "Offline-Dokumentenscanner",
   "documents": {
     "title": "Dokumente",
     "docIndex": "Dokument {docIndex}",
-    "addDoc": "Füge ein neues Dokument hinzu",
+    "addDoc": "Neues Dokument hinzufügen",
     "menu": {
       "pro1": "PRO-Funktionen",
       "pro2": "PRO freischalten",
       "licenses": "Lizenzen",
       "ratios": "Seitenverhältnisse",
       "feedback": "Feedback geben",
-      "shareApp": "Weiterempfehlen"
+      "shareApp": "App weiterempfehlen"
     },
     "card": {
       "date": "Erstellt: {creationDate}",
@@ -18,7 +18,7 @@
       "popup": {
         "title": "Dokument {docIndex} bearbeiten",
         "name": "Dokument benennen",
-        "move": "Dokument an neuen Index verschieben"
+        "move": "Dokument an neue Position verschieben"
       }
     }
   },
@@ -35,7 +35,7 @@
       "cancelSelection": "Auswahl aufheben"
     },
     "popup": {
-      "move": "Seite an neuen Index verschieben",
+      "move": "Seite an neue Position verschieben",
       "reverseOrder": "Reihenfolge umkehren"
     }
   },
@@ -48,10 +48,46 @@
       "rotateR": "90° nach rechts drehen",
       "confirm": "Änderungen bestätigen"
     },
-    "menu": { "delete": "Seite löschen" }
+    "menu": {
+      "delete": "Seite löschen"
+    },
+    "backPopup": {
+      "title": "PRO-Filter freischalten",
+      "text": "Du hast den PRO-Filter ausgewählt und versuchst nun, diese Seite zu verlassen.\n\nUm darauf zuzugreifen, schalte zuerst die PRO-Funktionen frei.\n\nOder wähle vor dem Verlassen eine andere Version.",
+      "watchAd": "Werbung ansehen"
+    }
   },
   "warp": {
-    "pageIndex": "Seite {pageIndex}"
+    "title": "Ecken anpassen",
+    "confirm": "Angepasste Ecken speichern",
+    "discardPopup": {
+      "title": "Eckanpassungen verwerfen",
+      "text": "Bist du sicher, dass du die Anpassungen der Ecken verwerfen möchtest?",
+      "discard": "Verwerfen"
+    }
+  },
+  "camera": {
+    "close": "Kamera schließen",
+    "confirm": "Fotos verarbeiten",
+    "permissionsPopup": {
+      "title": "Kamerazugriff erforderlich",
+      "text": "Bitte aktiviere den Kamerazugriff in den Einstellungen deines Geräts.",
+      "openSettings": "Einstellungen öffnen"
+    },
+    "discardPopup": {
+      "title": "Fotos verwerfen",
+      "text": "Möchtest du die aufgenommenen Fotos wirklich verwerfen?",
+      "discard": "Verwerfen"
+    },
+    "flash": {
+      "enable": "Blitz aktivieren",
+      "disable": "Blitz deaktivieren"
+    },
+    "viewer": {
+      "preview": "Fotos vorab anschauen",
+      "back": "Zurück",
+      "delete": "Foto löschen"
+    }
   },
   "popup": {
     "ok": "OK",
@@ -59,23 +95,30 @@
     "next": "Weiter",
     "send": "Senden",
     "share": "Teilen",
-    "update": "Updaten",
+    "update": "Aktualisieren",
+    "purchase": "Kaufen",
+    "unlock": "PRO freischalten",
     "pro": {
-      "text1": " •  Speichere und teile mehrseitige PDFs.\n •  Erhalte Zugriff zum PRO-Filter.",
-      "text2": "\nVielen Dank für deinen Support! :)"
+      "bp1": "Mehrseitige PDFs speichern und teilen",
+      "bp2": "Zugriff auf den PRO-Filter",
+      "text": "\nVielen Dank für deine Unterstützung! :)"
     },
     "aspectRatios": {
       "title": "Seitenverhältnisse auswählen",
-      "text": "Wähle die Seitenverhältnisse, die die App erkennen und die du manuell auswählen kannst."
+      "text": "Wähle die Seitenverhältnisse, die die App erkennen und zur manuellen Auswahl zu verfügung stellen kann."
     },
     "feedback": {
       "title1": "App bewerten",
       "title2": "Feedback geben",
-      "hint": "Was möchtest du sehen?\nWas fehlt?\nWas hat nicht funktioniert?\n"
+      "hint": "Was möchtest du dir wünschen?\nWas fehlt?\nWas hat nicht funktioniert?\n"
     },
     "shareApp": {
-      "title": "Weiterempfehlen",
-      "text": "Hey, ich habe eine Dokumentenscanner-App gefunden, die keine Daten an Server schickt.\nDie Bildverarbeitung ist auch sehr gut.\n"
+      "title": "App weiterempfehlen",
+      "text": "Hey, ich habe eine Scanner-App gefunden, die ohne Daten-Upload funktioniert.\nDie Bildverarbeitung ist auch echt gut.\n",
+      "hint": "Deine Nachricht hier.\n"
+    },
+    "changeThumbnails": {
+      "title": "Vorschau-Version auswählen"
     },
     "pagesPopup": {
       "document": {
@@ -87,52 +130,53 @@
         },
         "delete": {
           "title": "Dokument {docIndex} löschen",
-          "text": "Willst du dieses Dokument wirklich \ndauerhaft löschen?"
+          "text": "Möchtest du dieses Dokument wirklich dauerhaft löschen?"
         }
       },
       "pages": {
         "save": {
           "title": "{pagesCount} Seiten speichern",
           "images": "Bilder in Galerie speichern",
-          "pdf": "Kombiniertes PDF im Verzeichnis speichern"
+          "pdf": "Als PDF abspeichern"
         },
         "share": {
           "title": "{pagesCount} Seiten teilen",
           "images": "Bilder teilen",
-          "pdf": "Kombiniertes PDF teilen"
+          "pdf": "Als PDF teilen"
         },
         "delete": {
           "title": "{pagesCount} Seiten löschen",
-          "text": "Willst du diese {pagesCount} Seiten wirklich \ndauerhaft löschen?"
+          "text": "Möchtest du diese {pagesCount} Seiten wirklich dauerhaft löschen?"
         }
       },
       "page": {
         "save": {
-          "title": "Seite {pagesIndex} speichern",
-          "images": "Bild in Galerie speichern",
-          "pdf": "PDF im Verzeichnis speichern"
+          "title": "Seite {pageIndex} speichern",
+          "image": "Bild in Galerie speichern",
+          "pdf": "Als PDF abspeichern"
         },
         "share": {
-          "title": "Seite {pagesIndex} teilen",
-          "images": "Bild teilen",
-          "pdf": "PDF teilen"
+          "title": "Seite {pageIndex} teilen",
+          "image": "Bild teilen",
+          "pdf": "Als PDF teilen"
         },
         "delete": {
-          "title": "Seite {pagesIndex} löschen",
-          "text": "Willst du diese Seite wirklich \ndauerhaft löschen?"
+          "title": "Seite {pageIndex} löschen",
+          "text": "Möchtest du diese Seite wirklich dauerhaft löschen?"
         }
-      }
+      },
+      "deleteButton": "Löschen"
     }
   },
   "fabs": {
-    "images": "Bilder aus Galerie wählen",
-    "pdfs": "PDFs aus Verzeichnis wählen",
+    "images": "Bilder aus Galerie auswählen",
+    "pdfs": "PDFs aus Verzeichnis auswählen",
     "camera": "Fotos aufnehmen",
-    "thumbnail": "Vorschaubild ändern",
+    "thumbnail": "Vorschau ändern",
     "delete": "Löschen",
     "save": "Speichern",
     "share": "Teilen",
-    "warp": "Eckpunkte anpassen"
+    "warp": "Ecken anpassen"
   },
   "aspectRatios": {
     "businessCard": "Visitenkarte",
@@ -151,19 +195,19 @@
   },
   "versions": {
     "photo": "Foto",
-    "warped": "Unbearbeitet",
-    "processed1": "Standard",
+    "warped": "Ungefiltert",
+    "processed1": "Einfach",
     "processed2": "PRO"
   },
   "loading": {
     "processingImage": "Bild wird verarbeitet...",
     "processingImages": "Bilder werden verarbeitet...",
     "processingPdf": "PDF wird verarbeitet...",
-    "waitingImage": "Warte auf Bildverarbeitung...",
-    "waitingImages": "Warte auf Verarbeitung der Bilder...",
-    "waitingPages": "Warte auf Verarbeitung der Seiten dieses Dokuments...",
-    "waitingOtherDocs": "Warte auf Verarbeitung anderer Dokumente...",
-    "waitingOtherPages": "Warte auf Verarbeitung anderer Seiten dieses Dokuments...",
+    "waitingImage": "Warte auf Bild zur Verarbeitung...",
+    "waitingImages": "Warte auf Bilder zur Verarbeitung...",
+    "waitingPages": "Warte auf Seiten dieses Dokuments zur Verarbeitung...",
+    "waitingOtherDocs": "Warte auf andere Dokumente zur Verarbeitung...",
+    "waitingOtherPages": "Warte auf andere Seiten dieses Dokuments zur Verarbeitung...",
     "importingImages": "Bilder werden importiert...",
     "importingPdf": "PDF wird importiert...",
     "importingPdfs": "PDFs werden importiert..."
@@ -181,9 +225,14 @@
     "pdfSaved": "PDF gespeichert unter: {path}",
     "proUnlocked": "PRO-Funktionen freigeschaltet!",
     "proDisabled": "PRO-Funktionen deaktiviert!",
-    "tmp_combiPfd": "Kombiniertes PDF vorübergehend für Dokument freigeschaltet!",
-    "tmp_proFilter": "PRO-Filter vorübergehend für Seite freigeschaltet!",
-    "e_ad": "Fehler: Anzeige konnte nicht geladen werden.",
-    "e_noAd": "Fehler: Keine Anzeigen verfügbar."
+    "tmp_combiPfd": "Kombiniertes PDF vorübergehend freigeschaltet!",
+    "tmp_proFilter": "PRO-Filter vorübergehend freigeschaltet!",
+    "e_ad": "Fehler: Werbung konnte nicht geladen werden.",
+    "e_noAd": "Fehler: Keine Werbung verfügbar."
+  },
+  "snackbar": {
+    "e_savePdf": "Fehler: Kein PDF zum Speichern vorhanden.",
+    "e_shareImages": "Fehler: Keine Bilder zum Teilen vorhanden.",
+    "e_sharePdf": "Fehler: Kein PDF zum Teilen vorhanden."
   }
 }

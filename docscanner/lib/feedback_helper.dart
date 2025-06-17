@@ -115,7 +115,7 @@ class FeedbackHelper {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text("Rate our App"),
+            title: Text(tr("popup.feedback.title1")),
             content: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(5, (index) {
@@ -153,7 +153,7 @@ class FeedbackHelper {
                           _showFeedbackDialog(context, rating);
                         }
                       },
-                child: Text("Next"),
+                child: Text(tr("popup.next")),
               ),
             ],
           );
@@ -169,16 +169,11 @@ class FeedbackHelper {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text("Give Feedback"),
+            title: Text(tr("popup.feedback.title2")),
             content: TextField(
               controller: controller,
               maxLines: 4,
-              decoration: InputDecoration(
-                hintText:
-                    "What would you like to see?\n"
-                    "What is missing?\n"
-                    "What went wrong?\n",
-              ),
+              decoration: InputDecoration(hintText: tr("popup.feedback.hint")),
               onChanged: (text) {
                 setState(() {});
               },
@@ -197,7 +192,7 @@ class FeedbackHelper {
                         _sendFeedbackByEmail(feedback, rating);
                         Navigator.pop(context);
                       },
-                child: Text("Send"),
+                child: Text(tr("popup.send")),
               ),
             ],
           );

@@ -16,7 +16,7 @@
       "date": "Created: {creationDate}",
       "pagesCount": "Pages: {pagesCount}",
       "popup": {
-        "title": "Edit Document {}",
+        "title": "Edit Document {docIndex}",
         "name": "Name Document",
         "move": "Move Document to new Index"
       }
@@ -48,10 +48,45 @@
       "rotateR": "Rotate 90° right",
       "confirm": "Confirm Changes"
     },
-    "menu": { "delete": "Delete Page" }
+    "menu": { "delete": "Delete Page" },
+    "backPopup": {
+      "title": "Unlock PRO filter",
+      "text": "You have selected the PRO filter, by selecting it and then trying to leave this page.\n\nTo get access, first unlock PRO Features.\n\nAlternatively select a different version before leaving.",
+      "watchAd": "Watch Ad"
+    }
   },
   "warp": {
-    "pageIndex": "Page {pageIndex}"
+    "title": "Adjust Corners",
+    "confirm": "Save adjusted Corners",
+    "discardPopup": {
+      "title": "Discard Corner Adjustments",
+      "text": "Are you sure you want to discard your corner adjustments?",
+      "discard": "Discard"
+    }
+  },
+  "camera": {
+    "close": "Close Camera",
+    "confirm": "Process Photos",
+
+    "permissionsPopup": {
+      "title": "Camera Permission Needed",
+      "text": "Please enable camera access from your device settings.",
+      "openSettings": "Open Settings"
+    },
+    "discardPopup": {
+      "title": "Discard Photos",
+      "text": "Are you sure you want to discard the photos that you have taken?",
+      "discard": "Discard"
+    },
+    "flash": {
+      "enable": "Enable Flash",
+      "disable": "Disable Flash"
+    },
+    "viewer": {
+      "preview": "Preview Photos",
+      "back": "Back",
+      "delete": "Delete Photo"
+    }
   },
   "popup": {
     "ok": "OK",
@@ -60,9 +95,12 @@
     "send": "Send",
     "share": "Share",
     "update": "Update",
+    "purchase": "Purchase",
+    "unlock": "Unlock PRO",
     "pro": {
-      "text1": " •  Save and share multi page PDFs.\n •  Get access to the PRO filter.",
-      "text2": "\nThank you for your support! :)"
+      "bp1": "Save and share multi page PDFs",
+      "bp2": "Get access to the PRO filter",
+      "text": "\nThank you for your support! :)"
     },
     "aspectRatios": {
       "title": "Select Aspect Ratios",
@@ -75,7 +113,11 @@
     },
     "shareApp": {
       "title": "Tell a Friend",
-      "text": "Hey, I found this document scanner app that works without uploading your data.\nThe image processing is also really good.\n"
+      "text": "Hey, I found this document scanner app that works without uploading your data.\nThe image processing is also really good.\n",
+      "hint": "Your message here.\n"
+    },
+    "changeThumbnails": {
+      "title": "Select Thumbnail Version"
     },
     "pagesPopup": {
       "document": {
@@ -108,20 +150,21 @@
       },
       "page": {
         "save": {
-          "title": "Save Page {pagesIndex}",
-          "images": "Save Image to Gallery",
+          "title": "Save Page {pageIndex}",
+          "image": "Save Image to Gallery",
           "pdf": "Save PDF to Directory"
         },
         "share": {
-          "title": "Share Page {pagesIndex}",
-          "images": "Share Image",
+          "title": "Share Page {pageIndex}",
+          "image": "Share Image",
           "pdf": "Share PDF"
         },
         "delete": {
-          "title": "Delete Page {pagesIndex}",
+          "title": "Delete Page {pageIndex}",
           "text": "Are you sure you want to \npermanently delete this Page?"
         }
-      }
+      },
+      "deleteButton": "Delete"
     }
   },
   "fabs": {
@@ -185,5 +228,10 @@
     "tmp_proFilter": "PRO filter temorarily unlocked for Page!",
     "e_ad": "Error: Failed to load ad.",
     "e_noAd": "Error: No ads available."
+  },
+  "snackbar": {
+    "e_savePdf": "Error: No PDF available to save.",
+    "e_shareImages": "Error: No Images available to share.",
+    "e_sharePdf": "Error: No PDF available to share."
   }
 }

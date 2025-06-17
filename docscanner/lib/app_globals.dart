@@ -46,12 +46,12 @@ class AppGlobals {
       //// Cards & Paper
       AspectRatioInfo(
         tr("aspectRatios.businessCard"),
-        "Business Card (3.5x2″)",
+        tr("aspectRatios.description.businessCard"),
         3.5 / 2,
       ), // 1.75
       AspectRatioInfo(
         tr("aspectRatios.creditCard"),
-        "Credit Card (ISO/ID-1, 85.6x53.98 mm)",
+        tr("aspectRatios.description.creditCard"),
         85.6 / 53.98,
       ), // ~1.586
       AspectRatioInfo(
