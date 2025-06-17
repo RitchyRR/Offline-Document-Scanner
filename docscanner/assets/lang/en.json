@@ -51,8 +51,7 @@
     "menu": { "delete": "Delete Page" },
     "backPopup": {
       "title": "Unlock PRO filter",
-      "text": "You have selected the PRO filter, by selecting it and then trying to leave this page.\n\nTo get access, first unlock PRO Features.\n\nAlternatively select a different version before leaving.",
-      "watchAd": "Watch Ad"
+      "text": "You have selected the PRO filter, by selecting it and then trying to leave this page.\n\nTo get access, first unlock PRO Features.\n\nAlternatively select a different version before leaving."
     }
   },
   "warp": {
@@ -97,6 +96,7 @@
     "update": "Update",
     "purchase": "Purchase",
     "unlock": "Unlock PRO",
+    "watchAd": "Watch Ad",
     "pro": {
       "bp1": "Save and share multi page PDFs",
       "bp2": "Get access to the PRO filter",
