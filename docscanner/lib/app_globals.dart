@@ -21,7 +21,6 @@ class AppGlobals {
     filesHelper;
   } // private constructor
 
-  BuildContext? context;
   bool? proUnlocked;
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();
@@ -31,7 +30,6 @@ class AppGlobals {
   List<AspectRatioInfo> commonAspectRatios = [];
   List<AspectRatioInfo> availableAspectRatios = [];
   void translateAspectRatios(BuildContext contextIn) {
-    context = contextIn;
     commonAspectRatios = [
       //// International Standard (ISO 216 - A, B, C series)
       AspectRatioInfo("DIN", "DIN A/B/C (√2:1)", math.sqrt2), // ~1.414
