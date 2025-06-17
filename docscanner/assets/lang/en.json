@@ -1,21 +1,23 @@
 {
+  "appName": "Offline Document Scanner",
   "documents": {
     "title": "Documents",
     "docIndex": "Document {docIndex}",
+    "addDoc": "Add a new Document",
     "menu": {
-      "pro": "PRO Features",
+      "pro1": "PRO Features",
+      "pro2": "Unlock PRO",
       "licenses": "Licenses",
       "ratios": "Aspect Ratios",
       "feedback": "Give Feedback",
-      "shareApp": "Tell a Friend!",
-      "saveErrors": "Save Errors"
+      "shareApp": "Tell a Friend"
     },
     "card": {
       "date": "Created: {creationDate}",
-      "psgesCount": "Pages: {pagesCount}",
+      "pagesCount": "Pages: {pagesCount}",
       "popup": {
-        "title": "Edit Document {docIndex}",
-        "name": "Document Name",
+        "title": "Edit Document {}",
+        "name": "Name Document",
         "move": "Move Document to new Index"
       }
     }
@@ -43,9 +45,9 @@
       "portrait": "Portrait",
       "landscape": "Landscape",
       "rotateL": "Rotate 90° left",
-      "rotateR": "Rotate 90° right"
+      "rotateR": "Rotate 90° right",
+      "confirm": "Confirm Changes"
     },
-    "fabs": { "warp": "Adjust Corner Points" },
     "menu": { "delete": "Delete Page" }
   },
   "warp": {
@@ -57,8 +59,10 @@
     "next": "Next",
     "send": "Send",
     "share": "Share",
+    "update": "Update",
     "pro": {
-      "title": "PRO Features"
+      "text1": " •  Save and share multi page PDFs.\n •  Get access to the PRO filter.",
+      "text2": "\nThank you for your support! :)"
     },
     "aspectRatios": {
       "title": "Select Aspect Ratios",
@@ -70,8 +74,8 @@
       "hint": "What would you like to see?\nWhat is missing?\nWhat went wrong?\n"
     },
     "shareApp": {
-      "title": "Tell a Friend!",
-      "text": "Hey, I found this document scanner app that works without uploading your data.\nThe image processing is really good!\n"
+      "title": "Tell a Friend",
+      "text": "Hey, I found this document scanner app that works without uploading your data.\nThe image processing is also really good.\n"
     },
     "pagesPopup": {
       "document": {
@@ -127,7 +131,8 @@
     "thumbnail": "Change Thumbnail",
     "delete": "Delete",
     "save": "Save",
-    "share": "Share"
+    "share": "Share",
+    "warp": "Adjust Corner Points"
   },
   "aspectRatios": {
     "businessCard": "Business Card",
@@ -156,6 +161,29 @@
     "processingPdf": "Processing PDF...",
     "waitingImage": "Waiting for Image to process...",
     "waitingImages": "Waiting for Images to process...",
-    "fetchingImages": "Fetching Images..."
+    "waitingPages": "Waiting for Pages of this Document to process...",
+    "waitingOtherDocs": "Waiting for other Documents to process...",
+    "waitingOtherPages": "Waiting for other Pages of this Document to process...",
+    "importingImages": "Importing Images...",
+    "importingPdf": "Importing PDF...",
+    "importingPdfs": "Importing PDFs..."
+  },
+  "toast": {
+    "feedback": "Thank you for your feedback!",
+    "e_connection": "Error: No connection",
+    "e_playStore": "Error: Can't launch Play Store.",
+    "docDeleted": "Document {docIndex} deleted",
+    "pageDeleted": "Page {pageIndex} of Document {docIndex} deleted",
+    "pagesDeleted": "Pages {pageIndexes} of Document {docIndex} deleted",
+    "imagesSaved": "Saved {imagesCount} images in album {albumName}",
+    "imageSaved": "Saved in album {albumName}",
+    "docRenamed": "Existing {from} renamed to {to}",
+    "pdfSaved": "PDF saved at: {path}",
+    "proUnlocked": "PRO Features unlocked!",
+    "proDisabled": "PRO Features disabled!",
+    "tmp_combiPfd": "Combined PDF temorarily unlocked for Document!",
+    "tmp_proFilter": "PRO filter temorarily unlocked for Page!",
+    "e_ad": "Error: Failed to load ad.",
+    "e_noAd": "Error: No ads available."
   }
 }

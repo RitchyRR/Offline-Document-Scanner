@@ -290,10 +290,9 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
           themeMode: ThemeMode.system, // device controls theme
-          home: const DocumentsHome(title: "Documents"),
-          onUnknownRoute: (_) => MaterialPageRoute(
-            builder: (_) => DocumentsHome(title: "Documents"),
-          ),
+          home: const DocumentsHome(),
+          onUnknownRoute: (_) =>
+              MaterialPageRoute(builder: (_) => DocumentsHome()),
         );
       },
     );
@@ -301,9 +300,7 @@ class _MyAppState extends State<MyApp> {
 }
 
 class DocumentsHome extends StatefulWidget {
-  const DocumentsHome({super.key, this.title});
-
-  final String? title;
+  const DocumentsHome({super.key});
 
   @override
   State<DocumentsHome> createState() => _DocumentsHomeState();
@@ -612,7 +609,14 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   size: 30,
                 ),
                 SizedBox(width: 12),
-                Flexible(child: Text("Edit Document $displayDocIndex")),
+                Flexible(
+                  child: Text(
+                    tr(
+                      "documents.card.popup.title",
+                      namedArgs: {"docIndex": "$displayDocIndex"},
+                    ),
+                  ),
+                ),
               ],
             ),
             content: StatefulBuilder(
@@ -628,8 +632,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
-                        labelText: "Document Name",
-                        hintText: "Document $displayDocIndex",
+                        labelText: tr("documents.card.popup.name"),
+                        hintText: tr(
+                          "documents.docIndex",
+                          namedArgs: {"docIndex": "$displayDocIndex"},
+                        ),
                       ),
                       clipBehavior: Clip.hardEdge,
                     ),
@@ -638,13 +645,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     TextButton(
                       onPressed: !allowChangeDocIndex
                           ? () => Fluttertoast.showToast(
-                              msg:
-                                  "Blocked while other Documents are processing...",
+                              msg: tr("loading.waitingOtherDocs"),
                             )
                           : null,
                       child: DropdownButtonFormField<int>(
                         decoration: InputDecoration(
-                          labelText: "Move Document to new Index",
+                          labelText: tr("documents.card.popup.move"),
                         ),
                         value: currentIndex,
                         isExpanded: true,
@@ -657,10 +663,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
                               (i == docIndex)
                                   ? (nameController.text.trim().isNotEmpty)
                                         ? nameController.text.trim()
-                                        : "Document ${i + 1}"
+                                        : tr(
+                                            "documents.docIndex",
+                                            namedArgs: {"docIndex": "${i + 1}"},
+                                          )
                                   : _docNames[i].isNotEmpty
                                   ? _docNames[i]
-                                  : "Document ${i + 1}",
+                                  : tr(
+                                      "documents.docIndex",
+                                      namedArgs: {"docIndex": "${i + 1}"},
+                                    ),
                             ),
                           ),
                         ),
@@ -680,7 +692,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
+                child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -691,7 +703,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
                   Navigator.pop(context, currentIndex);
                 },
-                child: Text("OK"),
+                child: Text(tr("popup.ok")),
               ),
             ],
           );
@@ -731,9 +743,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _shareAppDialog(BuildContext context) async {
     final TextEditingController controller = TextEditingController();
-    controller.text =
-        "Hey, I found this document scanner app that works without uploading your data.\n"
-        "The image processing is really good!\n";
+    controller.text = tr("popup.shareApp.text");
     final url = Uri(
       scheme: "https",
       host: "play.google.com",
@@ -754,7 +764,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   size: 30,
                 ),
                 SizedBox(width: 12),
-                Flexible(child: const Text("Tell a Friend!")),
+                Flexible(child: Text(tr("popup.shareApp.title"))),
               ],
             ),
             content: Column(
@@ -779,7 +789,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
+                child: Text(tr("popup.cancel")),
               ),
               ElevatedButton.icon(
                 icon: Icon(Icons.share),
@@ -793,7 +803,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                           ShareParams(text: fullMessage),
                         );
                       },
-                label: Text("Share"),
+                label: Text(tr("popup.share")),
               ),
             ],
           );
@@ -809,7 +819,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Documents"),
+        title: Text(tr("documents.title")),
         actions: [
           if (feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
@@ -818,7 +828,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 setState(() {});
               },
               icon: Icons.star_half,
-              text: "Give Feedback",
+              text: tr("documents.menu.feedback"),
             ),
           PopupMenuButton(
             itemBuilder: (context) => [
@@ -833,7 +843,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      g.proUnlocked == true ? "PRO Features" : "Unlock PRO",
+                      g.proUnlocked == true
+                          ? tr("documents.menu.pro1")
+                          : tr("documents.menu.pro2"),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -852,7 +864,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      "Licenses",
+                      tr("documents.menu.licenses"),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -871,7 +883,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      "Aspect Ratios",
+                      tr("documents.menu.ratios"),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -881,7 +893,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
               ),
               if (!feedbackHelper.isHidden())
                 PopupMenuItem(
-                  value: "rate",
+                  value: "feedback",
                   child: Row(
                     children: [
                       SizedBox(width: 8),
@@ -891,7 +903,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       ),
                       SizedBox(width: 10),
                       Text(
-                        "Give Feedback",
+                        tr("documents.menu.feedback"),
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -912,7 +924,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ),
                     SizedBox(width: 10),
                     Text(
-                      "Tell a Friend!",
+                      tr("documents.menu.shareApp"),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -932,7 +944,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       ),
                       SizedBox(width: 10),
                       Text(
-                        "Save Errors",
+                        "Save Error Log",
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -950,7 +962,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 case "licenses":
                   showLicensePage(
                     context: context,
-                    applicationName: "Offline Document Scanner",
+                    applicationName: tr("appName"),
                     applicationVersion:
                         "${_packageInfo.version}+${_packageInfo.buildNumber}",
                   );
@@ -958,7 +970,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 case "ratios":
                   selectAspectRatiosDialog(context);
                   break;
-                case "rate":
+                case "feedback":
                   feedbackHelper.showRatingDialog(context);
                   break;
                 case "shareApp":
@@ -998,7 +1010,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                           .length;
                   String docName = _docNames[docIndex].isNotEmpty
                       ? _docNames[docIndex]
-                      : "Document $displayDocIndex";
+                      : tr(
+                          "documents.docIndex",
+                          namedArgs: {"docIndex": "$displayDocIndex"},
+                        );
                   String creationDate = _docDates[docIndex];
                   int pagesCount = _docPageCounts.isNotEmpty
                       ? _docPageCounts[docIndex]
@@ -1054,7 +1069,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 ),
                                                 SizedBox(height: 6),
                                                 Text(
-                                                  "Created: $creationDate",
+                                                  tr(
+                                                    "documents.card.date",
+                                                    namedArgs: {
+                                                      "creationDate":
+                                                          creationDate,
+                                                    },
+                                                  ),
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     color: Theme.of(context)
@@ -1065,7 +1086,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 ),
                                                 SizedBox(height: 4),
                                                 Text(
-                                                  "Pages: $pagesCount",
+                                                  tr(
+                                                    "documents.card.pagesCount",
+                                                    namedArgs: {
+                                                      "pagesCount":
+                                                          "$pagesCount",
+                                                    },
+                                                  ),
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     color: Theme.of(context)
@@ -1221,7 +1248,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 Center(
                   child: Text(
                     textAlign: TextAlign.center,
-                    "Add a new Document",
+                    tr("documents.addDoc"),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 24,
@@ -1259,7 +1286,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 onPressed: () {
                   _openImagePicker(ImageSource.gallery, isMultiImage: true);
                 },
-                tooltip: "Pick Images from Gallery",
+                tooltip: tr("fabs.images"),
                 child: const Icon(Icons.photo_library),
               ),
             ),
@@ -1276,7 +1303,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   final indexPairsList = await g.filesHelper.pickPdfToDoc();
                   _openDocument(indexPairsList.first.$1!);
                 },
-                tooltip: "Pick PDF from Directory",
+                tooltip: tr("fabs.pdfs"),
                 child: const Icon(Icons.picture_as_pdf),
               ),
             ),
@@ -1287,7 +1314,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 onPressed: () {
                   _openImagePicker(ImageSource.camera);
                 },
-                tooltip: "Take a Photo",
+                tooltip: tr("fabs.camera"),
                 child: const Icon(Icons.camera_alt),
               ),
           ],
@@ -1316,7 +1343,7 @@ Future<void> selectAspectRatiosDialog(BuildContext context) async {
               size: 30,
             ),
             SizedBox(width: 12),
-            Flexible(child: const Text("Select Aspect Ratios")),
+            Flexible(child: Text(tr("aspectRatios.title"))),
           ],
         ),
         content: SizedBox(
@@ -1324,11 +1351,7 @@ Future<void> selectAspectRatiosDialog(BuildContext context) async {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                "Select the aspect ratios "
-                "that you want the app to be able to recognize "
-                "and that you can manually select.",
-              ),
+              Text(tr("aspectRatios.text")),
               const SizedBox(height: 12),
               SizedBox(
                 height: 300,
@@ -1358,11 +1381,11 @@ Future<void> selectAspectRatiosDialog(BuildContext context) async {
         ),
         actions: [
           TextButton(
-            child: const Text("Cancel"),
+            child: Text(tr("popup.cancel")),
             onPressed: () => Navigator.of(context).pop(false),
           ),
           ElevatedButton(
-            child: const Text("Update"),
+            child: Text(tr("popup.update")),
             onPressed: () => Navigator.of(context).pop(true),
           ),
         ],
@@ -1397,8 +1420,8 @@ class CustomExpandingButton extends StatefulWidget {
   const CustomExpandingButton({
     super.key,
     required this.onPressed,
-    this.icon = Icons.star_half,
-    this.text = "Give Feedback",
+    required this.icon,
+    required this.text,
     this.collapsedColor,
   });
 
@@ -1697,9 +1720,11 @@ Future<bool> proPopup(BuildContext context) async {
             ),
             SizedBox(width: 12),
             Flexible(
-              child: g.proUnlocked == true
-                  ? Text("PRO Features:")
-                  : Text("Unlock PRO Features"),
+              child: Text(
+                g.proUnlocked == true
+                    ? tr("documents.menu.pro1")
+                    : tr("documents.menu.pro2"),
+              ),
             ),
           ],
         ),
@@ -1707,24 +1732,22 @@ Future<bool> proPopup(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              " •  Save and share multi page PDFs.\n"
-              " •  Get access to the PRO filter.",
-            ),
-            (g.proUnlocked == true)
-                ? Text("\nThank you for your support! :)")
-                : SizedBox(),
+            Text(tr("popup.pro.text1")),
+            (g.proUnlocked == true) ? Text(tr("popup.pro.text2")) : SizedBox(),
           ],
         ),
         actions: [
           g.proUnlocked == true
               ? ElevatedButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text("OK", style: TextStyle(color: Colors.green)),
+                  child: Text(
+                    tr("popup.ok"),
+                    style: TextStyle(color: Colors.green),
+                  ),
                 )
               : TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text("Cancel"),
+                  child: Text(tr("popup.cancel")),
                 ),
           g.proUnlocked == true
               ? SizedBox()
@@ -1768,7 +1791,7 @@ setPro(final bool proUnlockedIn) async {
 
   if (showMessages) {
     Fluttertoast.showToast(
-      msg: proUnlockedIn ? 'PRO Features unlocked!' : "PRO Features disabled!",
+      msg: proUnlockedIn ? tr("toast.proUnlocked") : tr("toast.proDisabled"),
     );
   }
   globalNotifier.triggerEvent(NotifierEvent.setState);
@@ -1777,9 +1800,7 @@ setPro(final bool proUnlockedIn) async {
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
   final bool adWatched = await adsHelper.showRewardAd();
   if (adWatched) {
-    Fluttertoast.showToast(
-      msg: "Combined PDF temorarily unlocked for Document!",
-    );
+    Fluttertoast.showToast(msg: tr("toast.tmp_combiPfd"));
   }
   return adWatched;
 }
@@ -1787,7 +1808,7 @@ Future<bool> _unlockDocumentWithAd(BuildContext context) async {
 Future<bool> _unlockPageWithAd(BuildContext context) async {
   final bool adWatched = await adsHelper.showRewardAd();
   if (adWatched) {
-    Fluttertoast.showToast(msg: "PRO filter temorarily unlocked for Page!");
+    Fluttertoast.showToast(msg: tr("toast.tmp_proFilter"));
   }
   return adWatched;
 }
@@ -2610,7 +2631,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             isMultiImage: true,
                           );
                         },
-                        tooltip: "Pick Images from Gallery",
+                        tooltip: tr("fabs.images"),
                         child: const Icon(Icons.photo_library),
                       ),
                     ),
@@ -2637,7 +2658,9 @@ class _PagesState extends State<Pages> with RouteAware {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    "Importing PDF${(pdfsCount > 1) ? "s" : ""}...",
+                                    (pdfsCount == 1)
+                                        ? tr("loading.importingPdf")
+                                        : tr("loading.importingPdfs"),
                                   ),
                                   SizedBox(
                                     width: 20,
@@ -2668,7 +2691,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             );
                           }
                         },
-                        tooltip: "Pick PDF from Directory",
+                        tooltip: tr("fabs.pdfs"),
                         child: const Icon(Icons.picture_as_pdf),
                       ),
                     ),
@@ -2680,7 +2703,7 @@ class _PagesState extends State<Pages> with RouteAware {
                         onPressed: () {
                           _openImagePicker(ImageSource.camera);
                         },
-                        tooltip: "Take a Photo",
+                        tooltip: tr("fabs.camera"),
                         child: const Icon(Icons.camera_alt),
                       ),
                   ],
@@ -2705,7 +2728,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             _cancelSelectMode();
                           }
                         },
-                        tooltip: "Change Thumbnail",
+                        tooltip: tr("fabs.thumbnail"),
                         child: const Icon(Icons.image),
                       ),
                     ),
@@ -2729,7 +2752,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             _cancelSelectMode();
                           }
                         },
-                        tooltip: "Delete",
+                        tooltip: tr("fabs.delete"),
                         child: const Icon(Icons.delete),
                       ),
                     ),
@@ -2750,7 +2773,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             widget.docIndex,
                           );
                         },
-                        tooltip: "Save",
+                        tooltip: tr("fabs.save"),
                         child: const Icon(Icons.save),
                       ),
                     ),
@@ -2766,7 +2789,7 @@ class _PagesState extends State<Pages> with RouteAware {
                             widget.docIndex,
                           );
                         },
-                        tooltip: "Share",
+                        tooltip: tr("fabs.share"),
                         child: const Icon(Icons.share),
                       ),
                   ],
@@ -2823,13 +2846,12 @@ class _PagesState extends State<Pages> with RouteAware {
                   TextButton(
                     onPressed: !allowChangePageIndex
                         ? () => Fluttertoast.showToast(
-                            msg:
-                                "Blocked while other Pages of this Document are processing...",
+                            msg: tr("loading.waitingOtherPages"),
                           )
                         : null,
                     child: DropdownButtonFormField<int>(
                       decoration: InputDecoration(
-                        labelText: "Move Page to new Index",
+                        labelText: tr("pages.popup.move"),
                       ),
                       value: currentIndex,
                       isExpanded: true,
@@ -2839,7 +2861,10 @@ class _PagesState extends State<Pages> with RouteAware {
                           value: i,
                           child: Text(
                             overflow: TextOverflow.ellipsis,
-                            "Page ${i + 1}",
+                            tr(
+                              "pages.pageIndex",
+                              namedArgs: {"pageIndex": "${i + 1}"},
+                            ),
                           ),
                         ),
                       ),
@@ -2865,11 +2890,10 @@ class _PagesState extends State<Pages> with RouteAware {
                             _loadPagesThumbnails();
                           }
                         : () => Fluttertoast.showToast(
-                            msg:
-                                "Blocked while Pages of this Document are processing...",
+                            msg: tr("loading.waitingPages"),
                           ),
                     label: Text(
-                      "Reverse Order",
+                      tr("pages.popup.reverseOrder"),
                       style: TextStyle(
                         color: allowChangePageIndex
                             ? null
@@ -2897,13 +2921,13 @@ class _PagesState extends State<Pages> with RouteAware {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: Text("Cancel"),
+                  child: Text(tr("popup.cancel")),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context, currentIndex);
                   },
-                  child: Text("OK"),
+                  child: Text(tr("popup.ok")),
                 ),
               ],
             );
@@ -3648,7 +3672,7 @@ class PagePreviewState extends State<PagePreview> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
+              child: Text(tr("popup.cancel")),
             ),
             //ElevatedButton(
             //  onPressed: () => Navigator.pop(context, true),
@@ -3913,13 +3937,13 @@ class PagePreviewState extends State<PagePreview> {
                                   context,
                                   -90,
                                   Icons.rotate_left,
-                                  "Rotate 90° left",
+                                  tr("pagePreview.editBar.rotateL"),
                                 ),
                                 _rotateButton(
                                   context,
                                   90,
                                   Icons.rotate_right,
-                                  "Rotate 90° right",
+                                  tr("pagePreview.editBar.rotateR"),
                                 ),
                               ],
                             ),
@@ -3949,8 +3973,8 @@ class PagePreviewState extends State<PagePreview> {
                           ? () => _openWarpManuallyPage()
                           : null,
                       tooltip: enableFAB0 && !_metadataBlocked
-                          ? 'Adjust Corner Points'
-                          : "Waiting for image to load...",
+                          ? tr("fabs.warp")
+                          : tr("loading.waitingImage"),
                       backgroundColor: enableFAB0 && !_metadataBlocked
                           ? null
                           : Theme.of(context).disabledColor,
@@ -3999,8 +4023,8 @@ class PagePreviewState extends State<PagePreview> {
                       )
                     : null,
                 tooltip: enableFABs
-                    ? 'Save Image'
-                    : "Waiting for image to load...",
+                    ? tr("fabs.save")
+                    : tr("loading.waitingImage"),
                 backgroundColor: enableFABs
                     ? null
                     : Theme.of(context).disabledColor,
@@ -4014,7 +4038,6 @@ class PagePreviewState extends State<PagePreview> {
             SizedBox(height: 18.0),
             FloatingActionButton(
               heroTag: "sharePageVersion",
-
               onPressed: enableFABs
                   ? () => _pagesPopup(
                       context,
@@ -4025,8 +4048,8 @@ class PagePreviewState extends State<PagePreview> {
                     )
                   : null,
               tooltip: enableFABs
-                  ? 'Share Image'
-                  : "Waiting for image to load...",
+                  ? tr("fabs.share")
+                  : tr("loading.waitingImage"),
               backgroundColor: enableFABs
                   ? null
                   : Theme.of(context).disabledColor,
@@ -4214,7 +4237,7 @@ class PagePreviewState extends State<PagePreview> {
           (_orientationIndex == null ||
               (_orientationIndex == _guiOrientationIndex)) &&
           _totalRotation == 0),
-      tooltip: "Confirm changes",
+      tooltip: tr("pagePreview.editBar.confirm"),
       onTap: () async {
         await reprocessPhoto();
       },
@@ -4400,7 +4423,10 @@ class PagePreviewState extends State<PagePreview> {
 
   Container _orientationDropDown(BuildContext context) {
     const double height = 30;
-    List<String> orientationsList = ["Portrait", "Landscape"];
+    List<String> orientationsList = [
+      tr("pagePreview.editBar.portrait"),
+      tr("pagePreview.editBar.landscape"),
+    ];
     return Container(
       constraints: const BoxConstraints(maxHeight: height, minHeight: height),
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -4704,7 +4730,7 @@ class IndicatorProcessingImage extends StatelessWidget {
       children: [
         const CircularProgressIndicator(),
         const SizedBox(height: 16),
-        const Text("Processing image..."),
+        Text(tr("loading.processingImage")),
       ],
     );
   }
@@ -4988,7 +5014,7 @@ class _WarpState extends State<Warp> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
+              child: Text(tr("popup.cancel")),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
@@ -5572,7 +5598,7 @@ Future<bool> _changeThumbnailIndexesPopup(
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context), // Cancel
-                child: const Text("Cancel"),
+                child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
                 onPressed: selectedIndex != null
@@ -5746,7 +5772,7 @@ Future<bool> _pagesPopup(
                               SizedBox(width: 8.0),
                               SizedBox(
                                 width: 190,
-                                child: Text("Processing images..."),
+                                child: Text(tr("loading.processingImages")),
                               ),
                             ],
                           ),
@@ -6097,7 +6123,7 @@ Future<bool> _pagesPopup(
                       // Cancel Button
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text("Cancel"),
+                        child: Text(tr("popup.cancel")),
                       ),
                       type == PopUpType.delete
                           ? Padding(
@@ -6207,7 +6233,7 @@ class _CameraScreenState extends State<CameraScreen> {
         content: Text("Please enable camera access from your device settings."),
         actions: [
           TextButton(
-            child: Text("Cancel"),
+            child: Text(tr("popup.cancel")),
             onPressed: () {
               if (Navigator.canPop(context)) {
                 Navigator.pop(context, false);
@@ -6357,7 +6383,7 @@ class _CameraScreenState extends State<CameraScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text("Cancel"),
+              child: Text(tr("popup.cancel")),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
@@ -6814,7 +6840,7 @@ class AdsHelper {
         },
         onAdFailedToLoad: (LoadAdError error) {
           dev.log("Warning: Failed to load reward ad: $error");
-          Fluttertoast.showToast(msg: "Error: Failed to load ad.");
+          Fluttertoast.showToast(msg: tr("toast.e_ad"));
           completer.complete();
         },
       ),
@@ -6829,13 +6855,12 @@ class AdsHelper {
       _ad!.show(
         onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
           dev.log("User earned reward: ${reward.type}"); //${reward.amount}
-          //Fluttertoast.showToast(msg: "User earned reward: ${reward.type}");
           completer.complete(true);
         },
       );
     } else {
       dev.log("Warning: Ad not loaded yet.");
-      Fluttertoast.showToast(msg: "Error: Ad not loaded.");
+      Fluttertoast.showToast(msg: tr("toast.e_noAd"));
       completer.complete(false);
     }
     return completer.future;

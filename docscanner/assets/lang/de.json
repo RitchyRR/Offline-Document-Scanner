@@ -1,21 +1,23 @@
 {
+  "appName": "Offline Dokumenten-Scanner",
   "documents": {
     "title": "Dokumente",
     "docIndex": "Dokument {docIndex}",
+    "addDoc": "Füge ein neues Dokument hinzu",
     "menu": {
-      "pro": "PRO-Funktionen",
+      "pro1": "PRO-Funktionen",
+      "pro2": "PRO freischalten",
       "licenses": "Lizenzen",
       "ratios": "Seitenverhältnisse",
       "feedback": "Feedback geben",
-      "shareApp": "Weiterempfehlen!",
-      "saveErrors": "Fehler speichern"
+      "shareApp": "Weiterempfehlen"
     },
     "card": {
       "date": "Erstellt: {creationDate}",
-      "psgesCount": "Seiten: {pagesCount}",
+      "pagesCount": "Seiten: {pagesCount}",
       "popup": {
         "title": "Dokument {docIndex} bearbeiten",
-        "name": "Dokumentenname",
+        "name": "Dokument benennen",
         "move": "Dokument an neuen Index verschieben"
       }
     }
@@ -43,9 +45,9 @@
       "portrait": "Hochformat",
       "landscape": "Querformat",
       "rotateL": "90° nach links drehen",
-      "rotateR": "90° nach rechts drehen"
+      "rotateR": "90° nach rechts drehen",
+      "confirm": "Änderungen bestätigen"
     },
-    "fabs": { "warp": "Eckpunkte anpassen" },
     "menu": { "delete": "Seite löschen" }
   },
   "warp": {
@@ -57,8 +59,10 @@
     "next": "Weiter",
     "send": "Senden",
     "share": "Teilen",
+    "update": "Updaten",
     "pro": {
-      "title": "PRO-Funktionen"
+      "text1": " •  Speichere und teile mehrseitige PDFs.\n •  Erhalte Zugriff zum PRO-Filter.",
+      "text2": "\nVielen Dank für deinen Support! :)"
     },
     "aspectRatios": {
       "title": "Seitenverhältnisse auswählen",
@@ -70,8 +74,8 @@
       "hint": "Was möchtest du sehen?\nWas fehlt?\nWas hat nicht funktioniert?\n"
     },
     "shareApp": {
-      "title": "Weiterempfehlen!",
-      "text": "Hey, ich habe eine Dokumentenscanner-App gefunden, die deine Daten nicht hochlädt.\nDie Bildverarbeitung ist richtig gut!\n"
+      "title": "Weiterempfehlen",
+      "text": "Hey, ich habe eine Dokumentenscanner-App gefunden, die keine Daten an Server schickt.\nDie Bildverarbeitung ist auch sehr gut.\n"
     },
     "pagesPopup": {
       "document": {
@@ -127,7 +131,8 @@
     "thumbnail": "Vorschaubild ändern",
     "delete": "Löschen",
     "save": "Speichern",
-    "share": "Teilen"
+    "share": "Teilen",
+    "warp": "Eckpunkte anpassen"
   },
   "aspectRatios": {
     "businessCard": "Visitenkarte",
@@ -156,6 +161,29 @@
     "processingPdf": "PDF wird verarbeitet...",
     "waitingImage": "Warte auf Bildverarbeitung...",
     "waitingImages": "Warte auf Verarbeitung der Bilder...",
-    "fetchingImages": "Bilder werden geladen..."
+    "waitingPages": "Warte auf Verarbeitung der Seiten dieses Dokuments...",
+    "waitingOtherDocs": "Warte auf Verarbeitung anderer Dokumente...",
+    "waitingOtherPages": "Warte auf Verarbeitung anderer Seiten dieses Dokuments...",
+    "importingImages": "Bilder werden importiert...",
+    "importingPdf": "PDF wird importiert...",
+    "importingPdfs": "PDFs werden importiert..."
+  },
+  "toast": {
+    "feedback": "Danke für dein Feedback!",
+    "e_connection": "Fehler: Keine Verbindung",
+    "e_playStore": "Fehler: Play Store konnte nicht geöffnet werden.",
+    "docDeleted": "Dokument {docIndex} gelöscht",
+    "pageDeleted": "Seite {pageIndex} von Dokument {docIndex} gelöscht",
+    "pagesDeleted": "Seiten {pageIndexes} von Dokument {docIndex} gelöscht",
+    "imagesSaved": "{imagesCount} Bilder im Album {albumName} gespeichert",
+    "imageSaved": "Im Album {albumName} gespeichert",
+    "docRenamed": "{from} wurde in {to} umbenannt",
+    "pdfSaved": "PDF gespeichert unter: {path}",
+    "proUnlocked": "PRO-Funktionen freigeschaltet!",
+    "proDisabled": "PRO-Funktionen deaktiviert!",
+    "tmp_combiPfd": "Kombiniertes PDF vorübergehend für Dokument freigeschaltet!",
+    "tmp_proFilter": "PRO-Filter vorübergehend für Seite freigeschaltet!",
+    "e_ad": "Fehler: Anzeige konnte nicht geladen werden.",
+    "e_noAd": "Fehler: Keine Anzeigen verfügbar."
   }
 }

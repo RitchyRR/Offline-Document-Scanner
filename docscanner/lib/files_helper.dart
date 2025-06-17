@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:developer' as dev;
 
+import 'package:easy_localization/easy_localization.dart' show tr;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -628,7 +629,12 @@ class FilesHelper {
       dev.log("deleteDocument: Starting deleting document directory: $docPath");
       _addMarkedDeletedDoc(docIndex);
       if (!supressInfo) {
-        Fluttertoast.showToast(msg: "Document ${docIndex + 1} deleted");
+        Fluttertoast.showToast(
+          msg: tr(
+            "toast.docDeleted",
+            namedArgs: {"docIndex": "${docIndex + 1}"},
+          ),
+        );
       }
 
       Future killFuture = imageProcessingManager.killIsolatesOfDocument(
@@ -680,7 +686,13 @@ class FilesHelper {
       dev.log("_deletePage: Starting deleting page directory: $pagePath");
       _addMarkedDeletedPage(docIndex, pageIndex);
       Fluttertoast.showToast(
-        msg: "Page ${pageIndex + 1} of Document ${docIndex + 1} deleted",
+        msg: tr(
+          "toast.pageDeleted",
+          namedArgs: {
+            "docIndex": "${docIndex + 1}",
+            "pageIndex": "${pageIndex + 1}",
+          },
+        ),
       );
 
       Future killFuture = imageProcessingManager.killIsolatesOfPage(
@@ -750,7 +762,13 @@ class FilesHelper {
       );
     }
     Fluttertoast.showToast(
-      msg: "Pages $displayPageIndexes of Document ${docIndex + 1} deleted",
+      msg: tr(
+        "toast.pagesDeleted",
+        namedArgs: {
+          "docIndex": "${docIndex + 1}",
+          "pageIndexes": "$displayPageIndexes",
+        },
+      ),
     );
     dev.log("_deletePages: Starting deleting Pages: $pageIndexes");
 
@@ -1061,7 +1079,12 @@ class FilesHelper {
       await Gal.putImage(imagePath, album: albumName);
       i++;
     }
-    Fluttertoast.showToast(msg: "Saved $i images in album $albumName");
+    Fluttertoast.showToast(
+      msg: tr(
+        "toast.imagesSaved",
+        namedArgs: {"imagesCount": "$i", "albumName": albumName},
+      ),
+    );
   }
 
   Future<void> saveImagesToGallery(
@@ -1091,7 +1114,9 @@ class FilesHelper {
 
     for (String imagePath in imagePaths) {
       await Gal.putImage(imagePath, album: albumName);
-      Fluttertoast.showToast(msg: "Saved in album $albumName");
+      Fluttertoast.showToast(
+        msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
+      );
     }
   }
 
@@ -1109,7 +1134,7 @@ class FilesHelper {
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("Fetching Images..."),
+          Text(tr("loading.importingImages")),
           SizedBox(
             width: 20,
             height: 20,
@@ -1285,7 +1310,7 @@ class FilesHelper {
         content: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Processing PDF..."),
+            Text(tr("loading.processingPdf")),
             SizedBox(
               width: 20,
               height: 20,
@@ -1332,12 +1357,14 @@ class FilesHelper {
 
       final File file = File(pdfPath);
       if (file.existsSync()) {
-        file.renameSync(
-          "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}",
-        );
+        final newName =
+            "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}";
+        file.renameSync(newName);
         Fluttertoast.showToast(
-          msg:
-              "Existing $docName renamed to ${docName}_old_${DateTime.now().millisecondsSinceEpoch}",
+          msg: tr(
+            "toast.docRenamed",
+            namedArgs: {"from": docName, "to": newName},
+          ),
           toastLength: Toast.LENGTH_LONG,
         );
       }
@@ -1370,7 +1397,7 @@ class FilesHelper {
                 : pdfPath;
             dev.log("PDF saved at: $readablePath");
             Fluttertoast.showToast(
-              msg: "PDF saved at: $readablePath",
+              msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
               toastLength: Toast.LENGTH_LONG,
             );
           } else {
@@ -1482,7 +1509,7 @@ class FilesHelper {
       content: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text("Processing PDF..."),
+          Text(tr("loading.processingPdf")),
           SizedBox(
             width: 20,
             height: 20,

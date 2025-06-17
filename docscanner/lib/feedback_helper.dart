@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert' show utf8;
 import 'dart:developer' as dev;
 import 'dart:io' show Platform;
+import 'package:easy_localization/easy_localization.dart' show tr;
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart' show Fluttertoast;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -137,7 +138,7 @@ class FeedbackHelper {
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: Text("Cancel"),
+                child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
                 onPressed: rating == 0
@@ -185,7 +186,7 @@ class FeedbackHelper {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
+                child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
                 onPressed: controller.text.trim().isEmpty
@@ -219,10 +220,10 @@ class FeedbackHelper {
 
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
-      Fluttertoast.showToast(msg: "Thank you for your feedback!");
+      Fluttertoast.showToast(msg: tr("toast.feedback"));
       dev.log("To $email: $message");
     } else {
-      Fluttertoast.showToast(msg: "Error: No connection :(");
+      Fluttertoast.showToast(msg: tr("toast.e_connection"));
       throw StateError("Error, sendFeedbackByEmail: No connection :(");
     }
   }
@@ -248,7 +249,7 @@ class FeedbackHelper {
       await launchUrl(url);
       return true;
     } else {
-      Fluttertoast.showToast(msg: "Error: Can't launch Play Store.");
+      Fluttertoast.showToast(msg: tr("toast.e_playStore"));
     }
     return false;
   }
