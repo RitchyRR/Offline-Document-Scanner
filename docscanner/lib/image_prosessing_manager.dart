@@ -2,6 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:async';
 // isolates:
@@ -187,7 +188,6 @@ class ImageProcessingManager {
     // Update thumbnails:
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
     if (isInitial) {
       isolateExitPoint(kill);
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
@@ -280,7 +280,6 @@ class ImageProcessingManager {
       ),
     );
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     // Generate Metadata
     isolateExitPoint(kill);
@@ -441,9 +440,15 @@ class ImageProcessingManager {
     );
 
     taskKillers[(docIndex, pageIndex)] = killer;
-    port.listen((message) {
+    port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
@@ -480,9 +485,15 @@ class ImageProcessingManager {
     taskKillers[(docIndex, pageIndex)] = killer;
 
     String? photoPath;
-    port.listen((message) {
+    port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message is String) {
@@ -683,7 +694,6 @@ class ImageProcessingManager {
     // Update thumbnails:
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     if (thumbnailPath.isEmpty) {
       isolateExitPoint(kill);
@@ -909,6 +919,12 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
@@ -1042,7 +1058,6 @@ class ImageProcessingManager {
     // Updates
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-    sendPort.send(NotifierEvent.loadDocsThumbnails);
 
     isolateExitPoint(kill);
     //bool newThumbnail =
@@ -1096,9 +1111,15 @@ class ImageProcessingManager {
     );
     taskKillers[(docIndex, pageIndex)] = killer;
 
-    port.listen((message) {
+    port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
@@ -1192,7 +1213,6 @@ class ImageProcessingManager {
       // Update thumbnails:
       isolateExitPoint(kill);
       sendPort.send(NotifierEvent.loadPagesThumbnails);
-      sendPort.send(NotifierEvent.loadDocsThumbnails);
     } catch (e) {
       throw StateError("Error, writeScaledThumbnail, notify: :$e");
     }
@@ -1290,6 +1310,12 @@ class ImageProcessingManager {
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
