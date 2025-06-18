@@ -414,15 +414,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
     bool isMultiImage = false,
   }) async {
     List<String> photoPaths;
+    ScaffoldMessengerState? messenger;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       photoPaths = await _openCamera();
     } else {
-      photoPaths = await g.filesHelper.pickImage(
+      final picked = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
       );
+      photoPaths = picked.$1;
+      messenger = picked.$2;
     }
     if (photoPaths.isEmpty) return;
 
@@ -430,6 +433,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     int docIndex = newIndexes.$1;
     int firstPageIndex = newIndexes.$2;
     // only open PagePreview for first page
+    messenger?.hideCurrentSnackBar();
     _openNewPagePreview(docIndex, firstPageIndex);
   }
 
@@ -2086,15 +2090,18 @@ class _PagesState extends State<Pages> with RouteAware {
     bool isMultiImage = false,
   }) async {
     List<String> photoPaths;
+    ScaffoldMessengerState? messenger;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       photoPaths = await _openCamera();
     } else {
-      photoPaths = await g.filesHelper.pickImage(
+      final picked = await g.filesHelper.pickImage(
         context,
         source,
         isMultiImage: isMultiImage,
       );
+      photoPaths = picked.$1;
+      messenger = picked.$2;
     }
     if (photoPaths.isEmpty) return;
 
@@ -2104,6 +2111,7 @@ class _PagesState extends State<Pages> with RouteAware {
     );
 
     // Only open PagePreview for first page
+    messenger?.hideCurrentSnackBar();
     _openPagePreview(firstPageIndex);
   }
 

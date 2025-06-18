@@ -1121,12 +1121,12 @@ class FilesHelper {
   }
 
   bool pickingImage = false;
-  Future<List<String>> pickImage(
+  Future<(List<String>, ScaffoldMessengerState?)> pickImage(
     BuildContext context,
     ImageSource source, {
     bool isMultiImage = false,
   }) async {
-    if (pickingImage) return [];
+    if (pickingImage) return (<String>[], null);
     pickingImage = true;
 
     ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
@@ -1181,9 +1181,7 @@ class FilesHelper {
     }
 
     pickingImage = false;
-    messenger.hideCurrentSnackBar();
-
-    return imagePaths;
+    return (imagePaths, messenger);
   }
 
   Future<pdfw.Document?> _convertImagesToPdf(
