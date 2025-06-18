@@ -4761,7 +4761,7 @@ class IndicatorProcessingImage extends StatelessWidget {
       children: [
         const CircularProgressIndicator(),
         const SizedBox(height: 16),
-        Text(tr("loading.processingImage")),
+        Text(tr("loading.processingImage"), textAlign: TextAlign.center),
       ],
     );
   }
@@ -5720,8 +5720,7 @@ Future<bool> _pagesPopup(
       return ValueListenableBuilder<NotifierEvent>(
         valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
         builder: (context, event, _) {
-          if (event == NotifierEvent.loadDocsThumbnails ||
-              event == NotifierEvent.loadPagesThumbnails) {
+          if (event == NotifierEvent.loadPagesThumbnails) {
             if (versionIndex != null && pageIndexes.length == 1) {
               Future.microtask(() async {
                 thumbnailPaths = [

@@ -1133,22 +1133,21 @@ class ImageProcessingManager {
       );
     } catch (e) {
       throw StateError(
-        "Error, _scaleAndSaveThumbnail, getPagePath, getVersionPath: $e",
+        "Error, _scaleAndSaveThumbnailInIsolate, getPagePath, getVersionPath: $e",
+      );
+    }
+    File versionFile = File(versionPath);
+    if (versionPath == "" || !versionFile.existsSync()) {
+      throw StateError(
+        "Error, _scaleAndSaveThumbnailInIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist ",
       );
     }
 
     String thumbnailPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
-    File versionFile = File(versionPath);
     File thumbnailFile = File(thumbnailPath);
     isolateExitPoint(kill);
     Uint8List versionBytes = versionFile.readAsBytesSync();
-
-    if (!versionFile.existsSync()) {
-      throw StateError(
-        "Error, _scaleAndSaveThumbnailIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist",
-      );
-    }
 
     // if overwriting -> delete existing thumbnail file
     try {
