@@ -7,7 +7,6 @@ import 'feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
 import 'package:docscanner/isolates_manager.dart' show IsolatesManager;
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
@@ -51,14 +50,16 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalNotifier globalNotifier = GlobalNotifier();
 bool isTmpExternal = false;
 
-class GlobalNotifier extends ValueNotifier<NotifierEvent> {
-  GlobalNotifier() : super(NotifierEvent.loadPagesThumbnails);
+class GlobalNotifier {
+  final _controller = StreamController<NotifierEvent>.broadcast();
+  Stream<NotifierEvent> get stream => _controller.stream;
 
   void triggerEvent(NotifierEvent event) {
-    if (event == value) {
-      notifyListeners(); // so that multiple triggers of the same type can work
-    }
-    value = event;
+    _controller.add(event);
+  }
+
+  void dispose() {
+    _controller.close();
   }
 }
 
@@ -93,7 +94,7 @@ void main() async {
       fallbackLocale: const Locale('en'),
       path: 'assets/lang',
 
-      child: ChangeNotifierProvider.value(
+      child: Provider<GlobalNotifier>.value(
         value: globalNotifier,
         child: MyApp(),
       ),
@@ -323,7 +324,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   void initState() {
     super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
+    _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     WidgetsBinding.instance.addObserver(this);
     initAsync();
   }
@@ -355,7 +356,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   @override
   void dispose() {
-    globalNotifier.removeListener(_handleGlobalEvent);
+    _eventSubscription.cancel();
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -373,9 +374,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   List<int> _deletedDocs = [];
-  Future<void> _handleGlobalEvent() async {
+  late final StreamSubscription<NotifierEvent> _eventSubscription;
+  Future<void> _handleGlobalEvent(NotifierEvent event) async {
     if (!mounted) return;
-    switch (globalNotifier.value) {
+    switch (event) {
       case NotifierEvent.loadDocsThumbnails:
         _loadDocsDisplay();
         break;
@@ -1303,7 +1305,43 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 heroTag: "pickPdfDoc",
                 onPressed: () async {
                   final indexPairsList = await g.filesHelper.pickPdfToDoc();
-                  _openDocument(indexPairsList.first.$1!);
+                  int pdfsCount = indexPairsList.length;
+                  if (pdfsCount != 0 && context.mounted) {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final snackBar = SnackBar(
+                      content: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(tr("loading.importingPdf")),
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Theme.of(context).colorScheme.surface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      duration: const Duration(days: 1),
+                    );
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(snackBar);
+
+                    // Hide snackbar when page is loaded
+                    StreamSubscription<NotifierEvent>?
+                    eventSubscriptionSnackbar;
+                    hideSnackbarOnPageReload(NotifierEvent event) {
+                      if (event == NotifierEvent.loadPagesThumbnails) {
+                        messenger.hideCurrentSnackBar();
+                        eventSubscriptionSnackbar?.cancel();
+                        _openDocument(indexPairsList.first.$1!);
+                      }
+                    }
+
+                    eventSubscriptionSnackbar = globalNotifier.stream.listen(
+                      hideSnackbarOnPageReload,
+                    );
+                  }
                 },
                 tooltip: tr("fabs.pdfs"),
                 child: const Icon(Icons.picture_as_pdf),
@@ -1933,7 +1971,7 @@ class _PagesState extends State<Pages> with RouteAware {
   @override
   void initState() {
     super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
+    _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true, supressWarnings: true);
     _initPushToPreview();
     _loadSelectAllButtonUsed();
@@ -1942,15 +1980,16 @@ class _PagesState extends State<Pages> with RouteAware {
 
   @override
   void dispose() {
-    globalNotifier.removeListener(_handleGlobalEvent);
+    _eventSubscription.cancel();
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
   List<int> _deletedPages = [];
-  Future<void> _handleGlobalEvent() async {
+  late final StreamSubscription<NotifierEvent> _eventSubscription;
+  Future<void> _handleGlobalEvent(NotifierEvent event) async {
     if (!mounted) return;
-    switch (globalNotifier.value) {
+    switch (event) {
       case NotifierEvent.loadPagesThumbnails:
         _loadPagesThumbnails();
         break;
@@ -2685,18 +2724,13 @@ class _PagesState extends State<Pages> with RouteAware {
                               .pickPdfToDoc(addToDocWithIndex: widget.docIndex);
                           int pdfsCount = indexPairsList.length;
                           if (pdfsCount != 0 && context.mounted) {
-                            ScaffoldMessengerState messenger =
-                                ScaffoldMessenger.of(context);
-                            SnackBar snackBar = SnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            final snackBar = SnackBar(
                               content: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    (pdfsCount == 1)
-                                        ? tr("loading.importingPdf")
-                                        : tr("loading.importingPdfs"),
-                                  ),
+                                  Text(tr("loading.importingPdf")),
                                   SizedBox(
                                     width: 20,
                                     height: 20,
@@ -2711,19 +2745,19 @@ class _PagesState extends State<Pages> with RouteAware {
                               duration: const Duration(days: 1),
                             );
                             messenger.showSnackBar(snackBar);
-                            hideSnackbarOnPageReload() {
-                              if (globalNotifier.value ==
-                                  NotifierEvent.loadPagesThumbnails) {
+
+                            // Hide snackbar when page is loaded
+                            StreamSubscription<NotifierEvent>?
+                            eventSubscriptionSnackbar;
+                            hideSnackbarOnPageReload(NotifierEvent event) {
+                              if (event == NotifierEvent.loadPagesThumbnails) {
                                 messenger.hideCurrentSnackBar();
-                                globalNotifier.removeListener(
-                                  hideSnackbarOnPageReload,
-                                );
+                                eventSubscriptionSnackbar?.cancel();
                               }
                             }
 
-                            globalNotifier.addListener(
-                              hideSnackbarOnPageReload,
-                            );
+                            eventSubscriptionSnackbar = globalNotifier.stream
+                                .listen(hideSnackbarOnPageReload);
                           }
                         },
                         tooltip: tr("fabs.pdfs"),
@@ -3449,7 +3483,7 @@ class PagePreviewState extends State<PagePreview> {
   @override
   void initState() {
     super.initState();
-    globalNotifier.addListener(_handleGlobalEvent);
+    _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
     _pollForImagesAndMetadata(_totalRotation != 0);
     _initAsync();
@@ -3493,14 +3527,15 @@ class PagePreviewState extends State<PagePreview> {
   void dispose() {
     _pageController.dispose();
     _photoViewController.dispose();
-    globalNotifier.removeListener(_handleGlobalEvent);
+    _eventSubscription.cancel();
     FilesHelper.deleteCachedRoatedImages();
     super.dispose();
   }
 
-  Future<void> _handleGlobalEvent() async {
+  late final StreamSubscription<NotifierEvent> _eventSubscription;
+  Future<void> _handleGlobalEvent(NotifierEvent event) async {
     if (!mounted) return;
-    switch (globalNotifier.value) {
+    switch (event) {
       case NotifierEvent.setState:
         _pageUnlocked = await g.metadataHelper.readPageUnlocked(
           widget.docIndex,
@@ -5717,9 +5752,10 @@ Future<bool> _pagesPopup(
     // ignore: use_build_context_synchronously
     context: callContext,
     builder: (BuildContext context) {
-      return ValueListenableBuilder<NotifierEvent>(
-        valueListenable: (globalNotifier as ValueListenable<NotifierEvent>),
-        builder: (context, event, _) {
+      return StreamBuilder<NotifierEvent>(
+        stream: globalNotifier.stream,
+        builder: (context, snapshot) {
+          final event = snapshot.data;
           if (event == NotifierEvent.loadPagesThumbnails) {
             if (versionIndex != null && pageIndexes.length == 1) {
               Future.microtask(() async {
