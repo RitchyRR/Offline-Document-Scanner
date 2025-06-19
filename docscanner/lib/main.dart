@@ -4623,6 +4623,26 @@ class PagePreviewState extends State<PagePreview> {
                   size: Size(displayWidth, displayHeight),
                   painter: _CornerLinePainter(
                     points: scaledPoints,
+                    strokeWidth: 8.0,
+                    color: Colors.black.withAlpha(20),
+                    offset: 0.105,
+                    normalizedOffset: false,
+                  ),
+                ),
+                CustomPaint(
+                  size: Size(displayWidth, displayHeight),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 10.0,
+                    color: Colors.black.withAlpha(10),
+                    offset: 0.1075,
+                    normalizedOffset: false,
+                  ),
+                ),
+                CustomPaint(
+                  size: Size(displayWidth, displayHeight),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
                     strokeWidth: 4.0,
                     color: Theme.of(context).colorScheme.primaryFixed,
                     offset: 0.1,
@@ -4644,7 +4664,27 @@ class PagePreviewState extends State<PagePreview> {
                   size: Size(displayWidth, displayHeight),
                   painter: _MiddleLinePainter(
                     points: scaledPoints,
-                    strokeWidth: 1.0,
+                    strokeWidth: 4.5,
+                    color: Colors.black.withAlpha(20),
+                    offset: 0.61,
+                    normalizedOffset: false,
+                  ),
+                ),
+                CustomPaint(
+                  size: Size(displayWidth, displayHeight),
+                  painter: _MiddleLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 6.0,
+                    color: Colors.black.withAlpha(10),
+                    offset: 0.615,
+                    normalizedOffset: false,
+                  ),
+                ),
+                CustomPaint(
+                  size: Size(displayWidth, displayHeight),
+                  painter: _MiddleLinePainter(
+                    points: scaledPoints,
+                    strokeWidth: 1.5,
                     color: Theme.of(context).colorScheme.primaryFixed,
                     offset: 0.6,
                     normalizedOffset: false,
