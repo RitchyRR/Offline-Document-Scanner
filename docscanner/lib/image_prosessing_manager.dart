@@ -1430,7 +1430,7 @@ class ImageProcessingManager {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
       } else if (message is SendPort) {
-        killer.setControlPort(message);
+        killer2.setControlPort(message);
       } else if (message == "done") {
         wrapperCompleter2.complete();
 

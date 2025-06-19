@@ -105,7 +105,7 @@ class IsolatesManager {
           }
           for (var worker in _workers) {
             Future.delayed(Duration(seconds: 1), () {
-              worker.isolate?.kill(priority: Isolate.immediate);
+              //worker.isolate?.kill(priority: Isolate.immediate);
               worker.task?.onBadExit(
                 Exception(
                   "Isolate missed ping. Likely killed by System, restarting all isolates.",
