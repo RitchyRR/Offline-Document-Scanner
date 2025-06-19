@@ -399,8 +399,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
     Future.microtask(() async {
       // Creation Date
       final now = DateTime.now();
-      final newDate = "${now.year}-${now.month}-${now.day}";
-      g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
+      g.metadataHelper.writeDocDate(
+        docIndex,
+        now.toString(),
+        supressWarnings: true,
+      );
       await Future.delayed(Duration(milliseconds: 50));
       await imageProcessingManager.processPages(docIndex, 0, photoPaths, false);
     });
@@ -1022,7 +1025,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                           "documents.docIndex",
                           namedArgs: {"docIndex": "$displayDocIndex"},
                         );
-                  String creationDate = _docDates[docIndex];
+                  final String creationDate = _docDates[docIndex];
+                  String displayCreationDate = formatDateLocalized(
+                    creationDate,
+                    context,
+                  );
                   int pagesCount = _docPageCounts.isNotEmpty
                       ? _docPageCounts[docIndex]
                       : -1;
@@ -1081,7 +1088,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                     "documents.card.date",
                                                     namedArgs: {
                                                       "creationDate":
-                                                          creationDate,
+                                                          displayCreationDate,
                                                     },
                                                   ),
                                                   style: TextStyle(
@@ -1366,6 +1373,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
       ),
     );
   }
+}
+
+String formatDateLocalized(String dateString, BuildContext context) {
+  final DateTime dateTime;
+  try {
+    dateTime = DateTime.parse(dateString);
+  } catch (e) {
+    dev.log("Warning, formatDateLocalized: wrong format");
+    return dateString;
+  }
+  final locale = context.locale.toString();
+  final localizedDateFormat = DateFormat.yMd(locale);
+  return localizedDateFormat.format(dateTime);
 }
 
 Future<void> selectAspectRatiosDialog(BuildContext context) async {

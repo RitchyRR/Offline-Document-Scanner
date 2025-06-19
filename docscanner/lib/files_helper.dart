@@ -1689,8 +1689,11 @@ class FilesHelper {
       _savePdfAsPages(firstPageIndex, pageCount, doc, docIndex);
       // Creation Date
       final now = DateTime.now();
-      final newDate = "${now.year}-${now.month}-${now.day}";
-      g.metadataHelper.writeDocDate(docIndex, newDate, supressWarnings: true);
+      g.metadataHelper.writeDocDate(
+        docIndex,
+        now.toString(),
+        supressWarnings: true,
+      );
     });
     return (docIndex, firstPageIndex);
   }
