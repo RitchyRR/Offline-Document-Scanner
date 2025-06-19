@@ -1,6 +1,7 @@
 // function:
 import 'dart:developer' as dev;
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:async';
@@ -14,6 +15,7 @@ import 'package:docscanner/opencv_helper.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/app_globals.dart';
+import 'package:pdf_render/pdf_render.dart' as pdfr;
 
 const List<String> versionNames = [
   "photo",
@@ -454,92 +456,6 @@ class ImageProcessingManager {
         taskKillers.removeWhere((key, value) => value == killer);
       }
     });
-  }
-
-  Future<void> processPdfPage(
-    int docIndex,
-    int pageIndex,
-    Uint8List pngBytes,
-  ) async {
-    if (pngBytes.isEmpty) return;
-
-    final wrapperCompleter = Completer<void>();
-    final port = ReceivePort();
-    final token = RootIsolateToken.instance!;
-
-    TaskKiller killer = await IsolatesManager().runTask(
-      _processPdfPageIsolatePart1,
-      (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
-      portIn: port,
-      prio: IsolatePriority.quick,
-      onErrorFunction: (error, stack) async {
-        dev.log(
-          "_processPdfPageIsolateThumbnail, onErrorFunction: $error $stack",
-        );
-        if (!error.toString().contains("No photo")) {
-          repairPage(docIndex, pageIndex);
-        }
-      },
-    );
-    taskKillers[(docIndex, pageIndex)] = killer;
-
-    String? photoPath;
-    port.listen((message) async {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-        if (message == NotifierEvent.loadPagesThumbnails) {
-          if (pageIndex == 0) {
-            await Future.delayed(Duration(milliseconds: 100));
-            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-          }
-        }
-      } else if (message is SendPort) {
-        killer.setControlPort(message);
-      } else if (message is String) {
-        if (message == "done") {
-          wrapperCompleter.complete();
-          taskKillers.removeWhere((key, value) => value == killer);
-        } else {
-          photoPath = message;
-        }
-      }
-    });
-    await wrapperCompleter.future;
-
-    final wrapperCompleter2 = Completer<void>();
-    final port2 = ReceivePort();
-
-    String extension = photoPath!.split(".").last;
-    TaskKiller killer2 = await IsolatesManager().runTask(
-      _processPdfPageIsolatePart2,
-      (port2.sendPort, token, docIndex, pageIndex, pngBytes, extension, g),
-
-      portIn: port,
-      prio: IsolatePriority.late,
-      onErrorFunction: (error, stack) async {
-        dev.log(
-          "_processPdfPageIsolateFilters, onErrorFunction: $error $stack",
-        );
-        if (!error.toString().contains("No photo")) {
-          repairPage(docIndex, pageIndex);
-        }
-      },
-    );
-    taskKillers[(docIndex, pageIndex)] = killer2;
-
-    port2.listen((message) {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-      } else if (message is SendPort) {
-        killer.setControlPort(message);
-      } else if (message == "done") {
-        wrapperCompleter2.complete();
-
-        taskKillers.removeWhere((key, value) => value == killer2);
-        killer2.kill();
-      }
-    });
-    await wrapperCompleter2.future;
   }
 
   static Future<void> _repairPageIsolate(
@@ -1321,5 +1237,207 @@ class ImageProcessingManager {
         taskKillers.removeWhere((key, value) => value == killer);
       }
     });
+  }
+
+  Future<(int, int)> pdfToDoc(String pdfPath, {int? addToDocWithIndex}) async {
+    // Open and render PDF
+    final doc = await pdfr.PdfDocument.openFile(pdfPath);
+    final pageCount = doc.pageCount;
+    // Create Page directories
+    int docIndex;
+    int firstPageIndex;
+    if (addToDocWithIndex != null) {
+      docIndex = addToDocWithIndex;
+      firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
+        docIndex,
+        pageCount,
+      );
+    } else {
+      var newDoc = await g.filesHelper.createNewDocument(pageCount);
+      docIndex = newDoc.$1;
+      firstPageIndex = newDoc.$2;
+    }
+    pdfProcessingFuture = _savePdfAsPages(
+      firstPageIndex,
+      pageCount,
+      doc,
+      docIndex,
+    );
+    // Creation Date
+    final now = DateTime.now();
+    g.metadataHelper.writeDocDate(
+      docIndex,
+      now.toString(),
+      supressWarnings: true,
+    );
+    return (docIndex, firstPageIndex);
+  }
+
+  Future<void>? pdfProcessingFuture;
+  Future<bool> _pdfProcessingExitpoint(int docIndex, {int? pageIndex}) async {
+    if ((await g.filesHelper.getMarkedDeletedDocs()).contains(docIndex) ||
+        (pageIndex != null &&
+            (await g.filesHelper.getMarkedDeletedPages(
+              docIndex,
+            )).contains(pageIndex))) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _savePdfAsPages(
+    int firstPageIndex,
+    int pageCount,
+    pdfr.PdfDocument doc,
+    int docIndex,
+  ) async {
+    await Future.delayed(Duration(milliseconds: 100)); // wait for navigation
+    if (await _pdfProcessingExitpoint(docIndex)) return;
+    List<Future> futures = [];
+    for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      if (await _pdfProcessingExitpoint(docIndex, pageIndex: pageIndex)) return;
+      futures.add(
+        _savePdfAsPageAsync(doc, docIndex, pageIndex, firstPageIndex),
+      );
+    }
+    // Cleanup
+    await Future.wait(futures);
+    doc.dispose();
+    Future.microtask(() async {
+      await Future.delayed(Duration(microseconds: 100));
+      pdfProcessingFuture = null;
+    });
+  }
+
+  Future<void> _savePdfAsPageAsync(
+    pdfr.PdfDocument doc,
+    int docIndex,
+    int pageIndex,
+    int firstPageIndex,
+  ) async {
+    final page = await doc.getPage(pageIndex + 1);
+    // render Page at 300 DPI (max 4048 pixel)
+    const targetDpi = 300;
+    const deafaultAssumedDpi = 72;
+    final dpiScale = targetDpi / deafaultAssumedDpi;
+    const maxSize = 4048;
+    final pageSize = page.width > page.height ? page.width : page.height;
+    final limitingScale = (maxSize / pageSize * dpiScale).clamp(
+      double.minPositive,
+      1.0,
+    );
+    if (await _pdfProcessingExitpoint(
+      docIndex,
+      pageIndex: pageIndex + firstPageIndex,
+    )) {
+      return;
+    }
+    final renderedPage = await page.render(
+      width: (page.width * limitingScale * dpiScale).toInt(),
+      height: (page.height * limitingScale * dpiScale).toInt(),
+    );
+    // -> Uint8List
+    final ui.Image uiImage = await renderedPage.createImageDetached();
+    final ByteData? byteData = await uiImage.toByteData(
+      format: ui.ImageByteFormat.png, // first to png, then to png
+    );
+    if (byteData == null) {
+      throw Exception("Failed to get byte data from image");
+    }
+    final pngBytes = byteData.buffer.asUint8List();
+    // Processing
+    if (await _pdfProcessingExitpoint(
+      docIndex,
+      pageIndex: pageIndex + firstPageIndex,
+    )) {
+      return;
+    }
+    processPdfPage(docIndex, pageIndex + firstPageIndex, pngBytes);
+  }
+
+  Future<void> processPdfPage(
+    int docIndex,
+    int pageIndex,
+    Uint8List pngBytes,
+  ) async {
+    if (pngBytes.isEmpty) return;
+
+    final wrapperCompleter = Completer<void>();
+    final port = ReceivePort();
+    final token = RootIsolateToken.instance!;
+
+    TaskKiller killer = await IsolatesManager().runTask(
+      _processPdfPageIsolatePart1,
+      (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
+      portIn: port,
+      prio: IsolatePriority.quick,
+      onErrorFunction: (error, stack) async {
+        dev.log(
+          "_processPdfPageIsolateThumbnail, onErrorFunction: $error $stack",
+        );
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
+      },
+    );
+    taskKillers[(docIndex, pageIndex)] = killer;
+
+    String? photoPath;
+    port.listen((message) async {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
+      } else if (message is String) {
+        if (message == "done") {
+          wrapperCompleter.complete();
+          taskKillers.removeWhere((key, value) => value == killer);
+        } else {
+          photoPath = message;
+        }
+      }
+    });
+    await wrapperCompleter.future;
+
+    final wrapperCompleter2 = Completer<void>();
+    final port2 = ReceivePort();
+
+    String extension = photoPath!.split(".").last;
+    TaskKiller killer2 = await IsolatesManager().runTask(
+      _processPdfPageIsolatePart2,
+      (port2.sendPort, token, docIndex, pageIndex, pngBytes, extension, g),
+
+      portIn: port,
+      prio: IsolatePriority.late,
+      onErrorFunction: (error, stack) async {
+        dev.log(
+          "_processPdfPageIsolateFilters, onErrorFunction: $error $stack",
+        );
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
+      },
+    );
+    taskKillers[(docIndex, pageIndex)] = killer2;
+
+    port2.listen((message) {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
+      } else if (message == "done") {
+        wrapperCompleter2.complete();
+
+        taskKillers.removeWhere((key, value) => value == killer2);
+        killer2.kill();
+      }
+    });
+    await wrapperCompleter2.future;
   }
 }

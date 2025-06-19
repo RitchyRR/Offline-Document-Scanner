@@ -3,7 +3,6 @@ import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'dart:developer' as dev;
 
 import 'package:easy_localization/easy_localization.dart' show tr;
@@ -24,7 +23,6 @@ import 'package:flutter_image_compress/flutter_image_compress.dart'
 // pdf:
 import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pdfw;
-import 'package:pdf_render/pdf_render.dart' as pdfr;
 // isolates:
 import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'isolates_manager.dart';
@@ -52,6 +50,7 @@ class FilesHelper {
     }
     _markedDeletedPages.clear();
     _markedDeletedPages.addAll(decoded);
+    if (_markedDeletedPages.length <= docIndex) return [];
     return _markedDeletedPages[docIndex];
   }
 
@@ -644,6 +643,7 @@ class FilesHelper {
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
       await killFuture;
       await future;
+      await imageProcessingManager.pdfProcessingFuture;
 
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
@@ -705,6 +705,7 @@ class FilesHelper {
       );
       await killFuture;
       await future;
+      await imageProcessingManager.pdfProcessingFuture;
 
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
@@ -778,6 +779,7 @@ class FilesHelper {
     );
     await Future.wait(killFutures);
     await future;
+    await imageProcessingManager.pdfProcessingFuture;
 
     // delete
     for (var pageIndex in pageIndexes) {
@@ -1644,16 +1646,14 @@ class FilesHelper {
     final pdfType = XTypeGroup(label: "PDF", extensions: ["pdf"]);
     isTmpExternal = true;
     final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
-    Future.delayed(Duration(seconds: 1), () {
-      isTmpExternal = false;
-    });
     if (xFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
+      isTmpExternal = false;
       return indexPairsList;
     }
     // Process multiple PDFs
     for (var xFile in xFiles) {
-      final docData = await pdfToDoc(
+      final docData = await imageProcessingManager.pdfToDoc(
         xFile.path,
         addToDocWithIndex: addToDocWithIndex,
       );
@@ -1662,95 +1662,11 @@ class FilesHelper {
           : null;
       indexPairsList.add((docData.$1, docData.$2));
     }
-    return indexPairsList;
-  }
-
-  Future<(int, int)> pdfToDoc(String pdfPath, {int? addToDocWithIndex}) async {
-    // Open and render PDF
-    final doc = await pdfr.PdfDocument.openFile(pdfPath);
-    final pageCount = doc.pageCount;
-    // Create Page directories
-    int docIndex;
-    int firstPageIndex;
-    if (addToDocWithIndex != null) {
-      docIndex = addToDocWithIndex;
-      firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
-        docIndex,
-        pageCount,
-      );
-    } else {
-      var newDoc = await g.filesHelper.createNewDocument(pageCount);
-      docIndex = newDoc.$1;
-      firstPageIndex = newDoc.$2;
-    }
-    // Process delayed
     Future.microtask(() async {
-      await Future.delayed(Duration(milliseconds: 100));
-      _savePdfAsPages(firstPageIndex, pageCount, doc, docIndex);
-      // Creation Date
-      final now = DateTime.now();
-      g.metadataHelper.writeDocDate(
-        docIndex,
-        now.toString(),
-        supressWarnings: true,
-      );
+      await imageProcessingManager.pdfProcessingFuture;
+      isTmpExternal = false;
     });
-    return (docIndex, firstPageIndex);
-  }
-
-  Future<void> _savePdfAsPages(
-    int firstPageIndex,
-    int pageCount,
-    pdfr.PdfDocument doc,
-    int docIndex,
-  ) async {
-    List<Future> futures = [];
-    for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-      futures.add(
-        _savePdfAsPageAsync(doc, docIndex, pageIndex, firstPageIndex),
-      );
-    }
-    // Cleanup
-    await Future.wait(futures);
-    doc.dispose();
-  }
-
-  _savePdfAsPageAsync(
-    pdfr.PdfDocument doc,
-    int docIndex,
-    int pageIndex,
-    int firstPageIndex,
-  ) async {
-    final page = await doc.getPage(pageIndex + 1);
-    // render Page at 300 DPI (max 4048 pixel)
-    const targetDpi = 300;
-    const deafaultAssumedDpi = 72;
-    final dpiScale = targetDpi / deafaultAssumedDpi;
-    const maxSize = 4048;
-    final pageSize = page.width > page.height ? page.width : page.height;
-    final limitingScale = (maxSize / pageSize * dpiScale).clamp(
-      double.minPositive,
-      1.0,
-    );
-    final renderedPage = await page.render(
-      width: (page.width * limitingScale * dpiScale).toInt(),
-      height: (page.height * limitingScale * dpiScale).toInt(),
-    );
-    // -> Uint8List
-    final ui.Image uiImage = await renderedPage.createImageDetached();
-    final ByteData? byteData = await uiImage.toByteData(
-      format: ui.ImageByteFormat.png, // first to png, then to png
-    );
-    if (byteData == null) {
-      throw Exception("Failed to get byte data from image");
-    }
-    final pngBytes = byteData.buffer.asUint8List();
-    // Processing
-    imageProcessingManager.processPdfPage(
-      docIndex,
-      pageIndex + firstPageIndex,
-      pngBytes,
-    );
+    return indexPairsList;
   }
 
   Future<void> exportErrorLog() async {

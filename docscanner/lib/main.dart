@@ -328,14 +328,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
     initAsync();
   }
 
+  bool wasHidden = false;
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !isTmpExternal) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (IsolatesManager().getIsolatesCount() == 0) {
-          g.filesHelper.repairDirectoryStructure();
-        }
-      });
+    if (state == AppLifecycleState.hidden) wasHidden = true;
+    if (state == AppLifecycleState.resumed) {
+      if (wasHidden && !isTmpExternal) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (IsolatesManager().getIsolatesCount() == 0) {
+            g.filesHelper.repairDirectoryStructure();
+          }
+        });
+      }
+      wasHidden = false;
     }
   }
 
@@ -429,11 +434,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
       photoPaths = picked.$1;
       messenger = picked.$2;
     }
-    if (photoPaths.isEmpty) return;
+    if (photoPaths.isEmpty) {
+      messenger?.hideCurrentSnackBar();
+      return;
+    }
 
     final newIndexes = await _processDocument(photoPaths);
     int docIndex = newIndexes.$1;
     int firstPageIndex = newIndexes.$2;
+
     // only open PagePreview for first page
     messenger?.hideCurrentSnackBar();
     _openNewPagePreview(docIndex, firstPageIndex);
@@ -490,7 +499,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // PDFs
     if (pdfs.isNotEmpty) {
       for (final pdf in pdfs) {
-        final docData = await g.filesHelper.pdfToDoc(pdf.path);
+        final docData = await imageProcessingManager.pdfToDoc(pdf.path);
         _openDocument(docData.$1);
       }
     }
@@ -2127,7 +2136,10 @@ class _PagesState extends State<Pages> with RouteAware {
       photoPaths = picked.$1;
       messenger = picked.$2;
     }
-    if (photoPaths.isEmpty) return;
+    if (photoPaths.isEmpty) {
+      messenger?.hideCurrentSnackBar();
+      return;
+    }
 
     int firstPageIndex = await _processNewPages(
       photoPaths,
