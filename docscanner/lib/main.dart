@@ -1371,7 +1371,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
 Future<void> selectAspectRatiosDialog(BuildContext context) async {
   // bool List for selected Ratios
   List<bool> selectedStates = g.commonAspectRatios
-      .map((aspect) => g.availableAspectRatios.contains(aspect))
+      .map(
+        (ratioInfo) => g.availableAspectRatios.any(
+          (availableRatioInfo) => ratioInfo.value == availableRatioInfo.value,
+        ),
+      )
       .toList();
 
   bool? selectionConfirmed = await showDialog<bool>(
