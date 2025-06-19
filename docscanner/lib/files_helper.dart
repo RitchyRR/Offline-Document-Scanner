@@ -643,7 +643,7 @@ class FilesHelper {
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
       await killFuture;
       await future;
-      await imageProcessingManager.pdfProcessingFuture;
+      await imageProcessingManager.pdfProcessingFutures[docIndex];
 
       Directory(docPath).deleteSync(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
@@ -705,7 +705,7 @@ class FilesHelper {
       );
       await killFuture;
       await future;
-      await imageProcessingManager.pdfProcessingFuture;
+      await imageProcessingManager.pdfProcessingFutures[docIndex];
 
       List<FileSystemEntity> files = pageDir.listSync(recursive: true);
       for (var file in files) {
@@ -779,7 +779,7 @@ class FilesHelper {
     );
     await Future.wait(killFutures);
     await future;
-    await imageProcessingManager.pdfProcessingFuture;
+    await imageProcessingManager.pdfProcessingFutures[docIndex];
 
     // delete
     for (var pageIndex in pageIndexes) {
@@ -1663,7 +1663,9 @@ class FilesHelper {
       indexPairsList.add((docData.$1, docData.$2));
     }
     Future.microtask(() async {
-      await imageProcessingManager.pdfProcessingFuture;
+      for (var element in indexPairsList) {
+        await imageProcessingManager.pdfProcessingFutures[element.$1];
+      }
       isTmpExternal = false;
     });
     return indexPairsList;

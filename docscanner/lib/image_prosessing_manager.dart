@@ -1257,7 +1257,7 @@ class ImageProcessingManager {
       docIndex = newDoc.$1;
       firstPageIndex = newDoc.$2;
     }
-    pdfProcessingFuture = _savePdfAsPages(
+    pdfProcessingFutures[docIndex] = _savePdfAsPages(
       firstPageIndex,
       pageCount,
       doc,
@@ -1273,7 +1273,7 @@ class ImageProcessingManager {
     return (docIndex, firstPageIndex);
   }
 
-  Future<void>? pdfProcessingFuture;
+  Map<int, Future<void>> pdfProcessingFutures = {};
   Future<bool> _pdfProcessingExitpoint(int docIndex, {int? pageIndex}) async {
     if ((await g.filesHelper.getMarkedDeletedDocs()).contains(docIndex) ||
         (pageIndex != null &&
@@ -1305,7 +1305,7 @@ class ImageProcessingManager {
     doc.dispose();
     Future.microtask(() async {
       await Future.delayed(Duration(microseconds: 100));
-      pdfProcessingFuture = null;
+      pdfProcessingFutures.remove(docIndex);
     });
   }
 
