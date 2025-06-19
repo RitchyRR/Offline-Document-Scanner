@@ -184,7 +184,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    g.translateAspectRatios(context);
     return FutureBuilder<(ColorScheme, ColorScheme)>(
       future: generateAdaptiveColorSchemes(),
       builder: (context, snapshot) {
@@ -824,6 +823,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   // Documents
   @override
   Widget build(BuildContext context) {
+    g.translateAspectRatios(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
