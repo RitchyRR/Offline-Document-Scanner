@@ -3980,12 +3980,13 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             scaleStateChangedCallback: (scaleState) async {
                               // if zoomed in / out: hide overlay
-                              _overlayZoomed =
-                                  scaleState != PhotoViewScaleState.initial;
-                              setState(() {});
-                              if (!_overlayZoomed) {
+                              if (scaleState == PhotoViewScaleState.initial &&
+                                  _photoViewController.scale != 1.0) {
                                 _unZoomedScale ??= _photoViewController.scale;
                               }
+                              _overlayZoomed =
+                                  _photoViewController.scale != _unZoomedScale;
+                              setState(() {});
                               if (_unZoomedScale == null) return;
                               WidgetsBinding.instance.addPostFrameCallback((
                                 _,
