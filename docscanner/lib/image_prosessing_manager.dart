@@ -70,6 +70,14 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    //await MetadataHelper.writePageThumbnailIndex(
+    //  docIndex,
+    //  pageIndex,
+    //  1,
+    //  gIn: g,
+    //  supressWarnings: true,
+    //);
+
     isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
