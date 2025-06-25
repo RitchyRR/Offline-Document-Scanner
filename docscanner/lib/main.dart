@@ -1145,6 +1145,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                           docIndex,
                                         ),
                                         icon: Icon(Icons.save),
+                                        tooltip: tr("fabs.save"),
                                       ),
                                       // Share
                                       IconButton(
@@ -1155,6 +1156,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                           docIndex,
                                         ),
                                         icon: Icon(Icons.share),
+                                        tooltip: tr("fabs.share"),
                                       ),
                                       // Delete
                                       IconButton(
@@ -1165,6 +1167,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                           docIndex,
                                         ),
                                         icon: Icon(Icons.delete),
+                                        tooltip: tr("fabs.delete"),
                                       ),
                                     ],
                                   ),
@@ -1176,86 +1179,81 @@ class _DocumentsHomeState extends State<DocumentsHome>
                               constraints: BoxConstraints(
                                 maxWidth: 184,
                               ), // space for creation date
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  boxShadow: [bigBoxShadow(context)],
-                                ),
-                                child: _docThumbnails.length <= docIndex
-                                    ? SizedBox()
-                                    : Stack(
-                                        children: [
-                                          (_docThumbnails[docIndex].isNotEmpty)
-                                              ? AnimatedSwitcher(
-                                                  duration: Duration(
-                                                    milliseconds: 200,
-                                                  ),
-                                                  child: Image.file(
-                                                    File(
-                                                      _docThumbnails[docIndex],
-                                                    ),
-                                                    key: ValueKey(
-                                                      _docThumbnails[docIndex],
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) {
-                                                      return AspectRatio(
-                                                        aspectRatio:
-                                                            (_thumbnailRatios
-                                                                    .length >
-                                                                docIndex)
-                                                            ? _thumbnailRatios[docIndex]
-                                                            : 1.0 / math.sqrt2,
-                                                        child: Builder(
-                                                          builder: (context) {
-                                                            return Material(
-                                                              color: Theme.of(context)
+                              child: AspectRatio(
+                                aspectRatio: _thumbnailRatios[docIndex],
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    boxShadow: [bigBoxShadow(context)],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      (_docThumbnails[docIndex].isNotEmpty)
+                                          ? AnimatedSwitcher(
+                                              duration: Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              child: Image.file(
+                                                File(_docThumbnails[docIndex]),
+                                                key: ValueKey(
+                                                  _docThumbnails[docIndex],
+                                                ),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return AspectRatio(
+                                                    aspectRatio:
+                                                        (_thumbnailRatios
+                                                                .length >
+                                                            docIndex)
+                                                        ? _thumbnailRatios[docIndex]
+                                                        : 1.0 / math.sqrt2,
+                                                    child: Builder(
+                                                      builder: (context) {
+                                                        return Material(
+                                                          color:
+                                                              Theme.of(context)
                                                                   .colorScheme
                                                                   .surfaceBright,
-                                                              child: const Icon(
-                                                                Icons
-                                                                    .broken_image,
-                                                              ),
-                                                            );
-                                                          },
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                )
-                                              : AspectRatio(
-                                                  aspectRatio:
-                                                      _thumbnailRatios[docIndex],
-                                                  child: Builder(
-                                                    builder: (context) {
-                                                      return Material(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .surfaceBright,
-                                                        child:
-                                                            IndicatorProcessingImage(),
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                          Positioned.fill(
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                onTap: () =>
-                                                    _openDocument(docIndex),
-                                                onLongPress: () =>
-                                                    _openDocEditDialog(
-                                                      context,
-                                                      docIndex,
-                                                      displayDocIndex,
+                                                          child: const Icon(
+                                                            Icons.broken_image,
+                                                          ),
+                                                        );
+                                                      },
                                                     ),
-                                                splashColor: Colors.black26,
-                                                highlightColor: Colors.black26,
+                                                  );
+                                                },
                                               ),
+                                            )
+                                          : Builder(
+                                              builder: (context) {
+                                                return Material(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.surfaceBright,
+                                                  child:
+                                                      IndicatorProcessingImage(),
+                                                );
+                                              },
                                             ),
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () =>
+                                                _openDocument(docIndex),
+                                            onLongPress: () =>
+                                                _openDocEditDialog(
+                                                  context,
+                                                  docIndex,
+                                                  displayDocIndex,
+                                                ),
+                                            splashColor: Colors.black26,
+                                            highlightColor: Colors.black26,
                                           ),
-                                        ],
+                                        ),
                                       ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ],
