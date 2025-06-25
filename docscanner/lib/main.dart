@@ -3505,6 +3505,8 @@ class PagePreviewState extends State<PagePreview> {
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   bool _hideOverlayReprocessing = false;
+  bool _overlayZoomed = true;
+  double? _unZoomedScale;
   // Status
   bool _rotationOngoing = false;
   bool _metadataBlocked = true;
@@ -3701,6 +3703,7 @@ class PagePreviewState extends State<PagePreview> {
             _guiRatioValue != null &&
             _orientationIndex != null) {
           _hideOverlayReprocessing = false;
+          _unZoomedScale = null;
           _metadataBlocked = false;
         }
       });
@@ -3944,7 +3947,6 @@ class PagePreviewState extends State<PagePreview> {
                 }
                 // Photo
                 if (index == 0) {
-                  bool isZoomed = false;
                   return PhotoViewGalleryPageOptions.customChild(
                     child: GestureDetector(
                       onLongPress:
@@ -3977,15 +3979,30 @@ class PagePreviewState extends State<PagePreview> {
                               color: Colors.transparent,
                             ),
                             scaleStateChangedCallback: (scaleState) async {
-                              isZoomed =
-                                  scaleState != PhotoViewScaleState.initial;
-                              if (!isZoomed) {
+                              // if zoomed in / out: hide overlay
+                              if (scaleState == PhotoViewScaleState.initial) {
+                                _unZoomedScale ??= _photoViewController.scale;
+                              }
+                              _overlayZoomed =
+                                  _photoViewController.scale != _unZoomedScale;
+                              setState(() {});
+                              WidgetsBinding.instance.addPostFrameCallback((
+                                _,
+                              ) async {
+                                // one frame delay to recheck when zooming in
+                                _overlayZoomed =
+                                    _photoViewController.scale !=
+                                    _unZoomedScale;
+                                setState(() {});
+                                // delay to update after zoom animation
+                                // (inconsistenttly triggers sometimes after animation, sometimes before)
                                 await Future.delayed(
                                   Duration(milliseconds: 300),
                                 );
-                              } // delay becuase of zoom animation
-                              setState(() {
-                                _hideOverlayReprocessing = isZoomed;
+                                _overlayZoomed =
+                                    _photoViewController.scale !=
+                                    _unZoomedScale;
+                                setState(() {});
                               });
                             },
                           ),
@@ -4590,6 +4607,7 @@ class PagePreviewState extends State<PagePreview> {
         _photoScale == 0.0 ||
         _rotationOngoing ||
         _hideOverlayReprocessing ||
+        _overlayZoomed ||
         _imagePixelHeight == 0 ||
         _imagePixelWidth == 0) {
       return SizedBox();
