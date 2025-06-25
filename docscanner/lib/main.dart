@@ -90,8 +90,8 @@ void main() async {
 
   runApp(
     EasyLocalization(
-      supportedLocales: const [Locale('en'), Locale('de')],
-      fallbackLocale: const Locale('en'),
+      supportedLocales: const [Locale("en"), Locale("de")],
+      fallbackLocale: const Locale("en"),
       path: 'assets/lang',
 
       child: Provider<GlobalNotifier>.value(
@@ -346,9 +346,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   late PackageInfo _packageInfo;
   Future<void> initAsync() async {
+    await loadAvailableAspectRatios(context);
     _packageInfo = await PackageInfo.fromPlatform();
     await _loadDocsDisplay(onInit: true);
-    await loadAvailableAspectRatios();
     Completer repairCompleter = Completer();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await g.filesHelper.repairDirectoryStructure();
@@ -735,21 +735,25 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  Future<void> loadAvailableAspectRatios() async {
+  Future<void> loadAvailableAspectRatios(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     final savedValues = prefs.getStringList("availableAspectRatios");
 
     if (savedValues == null || savedValues.isEmpty) {
-      // Default selection
+      // localisation
+      final deviceLocale = ui.PlatformDispatcher.instance.locale;
+      final String? country = deviceLocale.countryCode;
+      const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
+      // Default values
+      final List<double> defaultValues = [1, 4 / 3, 16 / 9, 21 / 9];
+      if (imperialCountries.contains(country)) {
+        defaultValues.add(11 / 8.5); // Letter US
+        defaultValues.add(14 / 8.5); // Legal US
+      } else {
+        defaultValues.add(math.sqrt2); // DIN EU
+      }
       g.availableAspectRatios = g.commonAspectRatios
-          .where(
-            (e) =>
-                e.value == math.sqrt2 || // DIN
-                e.value == 1 || // Square
-                e.value == 4 / 3 || // 4:3
-                e.value == 16 / 9 || // 16:9
-                e.value == 21 / 9, // 21:9
-          )
+          .where((e) => defaultValues.contains(e.value))
           .toList();
     } else {
       g.availableAspectRatios = g.commonAspectRatios
@@ -1390,8 +1394,8 @@ String formatDateLocalized(String dateString, BuildContext context) {
     dev.log("Warning, formatDateLocalized: wrong format");
     return dateString;
   }
-  final locale = context.locale.toString();
-  final localizedDateFormat = DateFormat.yMd(locale);
+  final deviceLocale = ui.PlatformDispatcher.instance.locale;
+  final localizedDateFormat = DateFormat.yMd(deviceLocale);
   return localizedDateFormat.format(dateTime);
 }
 
