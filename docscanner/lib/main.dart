@@ -3505,7 +3505,7 @@ class PagePreviewState extends State<PagePreview> {
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   bool _hideOverlayReprocessing = false;
-  bool _overlayZoomed = true;
+  bool _overlayZoomed = false;
   double? _unZoomedScale;
   // Status
   bool _rotationOngoing = false;
@@ -3955,12 +3955,12 @@ class PagePreviewState extends State<PagePreview> {
                               !_metadataBlocked
                           ? () => _openWarpManuallyPage()
                           : null,
-                      onTap:
-                          !_hideOverlayReprocessing &&
-                              enableFAB0 &&
-                              !_metadataBlocked
-                          ? () => _openWarpManuallyPage()
-                          : null,
+                      //onTap:
+                      //    !_hideOverlayReprocessing &&
+                      //        enableFAB0 &&
+                      //        !_metadataBlocked
+                      //    ? () => _openWarpManuallyPage()
+                      //    : null,
                       child: Stack(
                         children: [
                           PhotoView(
@@ -3980,12 +3980,13 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             scaleStateChangedCallback: (scaleState) async {
                               // if zoomed in / out: hide overlay
-                              if (scaleState == PhotoViewScaleState.initial) {
+                              _overlayZoomed =
+                                  scaleState != PhotoViewScaleState.initial;
+                              setState(() {});
+                              if (!_overlayZoomed) {
                                 _unZoomedScale ??= _photoViewController.scale;
                               }
-                              _overlayZoomed =
-                                  _photoViewController.scale != _unZoomedScale;
-                              setState(() {});
+                              if (_unZoomedScale == null) return;
                               WidgetsBinding.instance.addPostFrameCallback((
                                 _,
                               ) async {
@@ -3997,7 +3998,7 @@ class PagePreviewState extends State<PagePreview> {
                                 // delay to update after zoom animation
                                 // (inconsistenttly triggers sometimes after animation, sometimes before)
                                 await Future.delayed(
-                                  Duration(milliseconds: 300),
+                                  Duration(milliseconds: 400),
                                 );
                                 _overlayZoomed =
                                     _photoViewController.scale !=
