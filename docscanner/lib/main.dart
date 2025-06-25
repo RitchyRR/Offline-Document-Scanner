@@ -1395,7 +1395,7 @@ String formatDateLocalized(String dateString, BuildContext context) {
     return dateString;
   }
   final deviceLocale = ui.PlatformDispatcher.instance.locale;
-  final localizedDateFormat = DateFormat.yMd(deviceLocale);
+  final localizedDateFormat = DateFormat.yMd(deviceLocale.toString());
   return localizedDateFormat.format(dateTime);
 }
 

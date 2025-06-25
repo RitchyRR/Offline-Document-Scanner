@@ -3,7 +3,7 @@ description: "An offline Document Scanner."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 1.9.0+71 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
+version: 1.9.1+72 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
 
 environment:
   sdk: ^3.8.0
