@@ -3533,7 +3533,6 @@ class PagePreviewState extends State<PagePreview> {
     super.initState();
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     FilesHelper.deleteCachedRoatedImages();
-    _pollForImagesAndMetadata(_totalRotation != 0);
     _initAsync();
 
     _photoViewController.outputStateStream.listen((
@@ -3553,7 +3552,7 @@ class PagePreviewState extends State<PagePreview> {
     _versionPaths = imagePaths.$1;
     _photoPath = _versionPaths.first;
     _showAllImages();
-    _loadPageMetadata(supressWarnings: true);
+    _pollForImagesAndMetadata(_totalRotation != 0);
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
@@ -3569,6 +3568,9 @@ class PagePreviewState extends State<PagePreview> {
         feedbackHelper.showRatingDialog(context);
       }
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _unZoomedScale = _photoViewController.scale;
+    });
   }
 
   @override
@@ -3610,8 +3612,9 @@ class PagePreviewState extends State<PagePreview> {
       onTick: () {
         _loadPageMetadata(supressWarnings: true);
       },
-      onComplete: () {
-        _loadPageMetadata(supressWarnings: true);
+      onComplete: () async {
+        await _loadPageMetadata(supressWarnings: true);
+        _unZoomedScale = _photoViewController.scale;
       },
     );
     // Poll Images
@@ -3660,12 +3663,13 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  _showAllImages() async {
+  Future<void> _showAllImages() async {
     if (!mounted || _versionPaths.isEmpty) return;
     for (var versionPath in _versionPaths) {
       if (versionPath.isEmpty) return;
     }
     _selectedVersion = 0;
+    if (!mounted) return;
     setState(() {});
     _pageController.jumpToPage(0);
     _selectedThumbnail =
@@ -3674,7 +3678,8 @@ class PagePreviewState extends State<PagePreview> {
           widget.pageIndex,
         ) ??
         _selectedThumbnail;
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
@@ -3698,15 +3703,14 @@ class PagePreviewState extends State<PagePreview> {
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
-      setState(() {
-        if (_cornerPoints.isNotEmpty &&
-            _guiRatioValue != null &&
-            _orientationIndex != null) {
-          _hideOverlayReprocessing = false;
-          _unZoomedScale = null;
-          _metadataBlocked = false;
-        }
-      });
+      if (_cornerPoints.isNotEmpty &&
+          _guiRatioValue != null &&
+          _orientationIndex != null) {
+        _hideOverlayReprocessing = false;
+        _unZoomedScale = null;
+        _metadataBlocked = false;
+      }
+      setState(() {});
     }
   }
 
@@ -3950,13 +3954,22 @@ class PagePreviewState extends State<PagePreview> {
                   return PhotoViewGalleryPageOptions.customChild(
                     child: GestureDetector(
                       onLongPress:
-                          !_hideOverlayReprocessing &&
+                          !_overlayZoomed &&
+                              !_hideOverlayReprocessing &&
                               enableFAB0 &&
                               !_metadataBlocked
                           ? () => _openWarpManuallyPage()
                           : null,
+                      //onVerticalDragStart:
+                      //    !_overlayZoomed &&
+                      //        !_hideOverlayReprocessing &&
+                      //        enableFAB0 &&
+                      //        !_metadataBlocked
+                      //    ? (_) => _openWarpManuallyPage()
+                      //    : null,
                       //onTap:
-                      //    !_hideOverlayReprocessing &&
+                      //    !_overlayZoomed &&
+                      //        !_hideOverlayReprocessing &&
                       //        enableFAB0 &&
                       //        !_metadataBlocked
                       //    ? () => _openWarpManuallyPage()
@@ -3980,8 +3993,9 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             scaleStateChangedCallback: (scaleState) async {
                               // if zoomed in / out: hide overlay
-                              if (scaleState == PhotoViewScaleState.initial &&
-                                  _photoViewController.scale != 1.0) {
+                              if (scaleState == PhotoViewScaleState.initial ||
+                                  scaleState == PhotoViewScaleState.covering &&
+                                      _photoViewController.scale != 1.0) {
                                 _unZoomedScale ??= _photoViewController.scale;
                               }
                               _overlayZoomed =
@@ -3991,19 +4005,24 @@ class PagePreviewState extends State<PagePreview> {
                               WidgetsBinding.instance.addPostFrameCallback((
                                 _,
                               ) async {
+                                if (!mounted) return;
                                 // one frame delay to recheck when zooming in
                                 _overlayZoomed =
                                     _photoViewController.scale !=
                                     _unZoomedScale;
                                 setState(() {});
+                                if (!_overlayZoomed) return;
                                 // delay to update after zoom animation
                                 // (inconsistenttly triggers sometimes after animation, sometimes before)
-                                await Future.delayed(
-                                  Duration(milliseconds: 400),
-                                );
-                                _overlayZoomed =
-                                    _photoViewController.scale !=
-                                    _unZoomedScale;
+                                while (_overlayZoomed && mounted) {
+                                  await Future.delayed(
+                                    Duration(milliseconds: 300),
+                                  );
+                                  if (!mounted) return;
+                                  _overlayZoomed =
+                                      _photoViewController.scale !=
+                                      _unZoomedScale;
+                                }
                                 setState(() {});
                               });
                             },
