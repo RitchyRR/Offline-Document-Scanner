@@ -741,8 +741,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
     if (savedValues == null || savedValues.isEmpty) {
       // localisation
-      final deviceLocale = ui.PlatformDispatcher.instance.locale;
-      final String? country = deviceLocale.countryCode;
+      Locale? deviceLocale;
+      try {
+        deviceLocale = ui.PlatformDispatcher.instance.locale;
+      } catch (e) {
+        dev.log("Error, loadAvailableAspectRatios: deviceLocale not available");
+      }
+      final String? country = deviceLocale?.countryCode;
       const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
       // Default values
       final List<double> defaultValues = [1, 4 / 3, 16 / 9, 21 / 9];
@@ -1394,8 +1399,16 @@ String formatDateLocalized(String dateString, BuildContext context) {
     dev.log("Warning, formatDateLocalized: wrong format");
     return dateString;
   }
-  final deviceLocale = ui.PlatformDispatcher.instance.locale;
-  final localizedDateFormat = DateFormat.yMd(deviceLocale.toString());
+  final Locale deviceLocale;
+  try {
+    deviceLocale = ui.PlatformDispatcher.instance.locale;
+  } catch (e) {
+    dev.log("Error, formatDateLocalized: deviceLocale not available");
+    return dateString;
+  }
+  final DateFormat localizedDateFormat = DateFormat.yMd(
+    deviceLocale.toString(),
+  );
   return localizedDateFormat.format(dateTime);
 }
 

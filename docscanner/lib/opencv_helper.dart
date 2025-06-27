@@ -1158,7 +1158,7 @@ class OpenCVHelper {
 
   // Step 4.1.1: Set Border Corrections
   void _setTransformation(int borderIndex, List<int> depths) {
-    final int borderTolerance = 4 + (K ~/ 11);
+    final int borderTolerance = 4 + (K ~/ 12);
     if (borderCutIn != null) {
       borderCutIn![borderIndex * 2] = _percentileValueInt(
         depths.sublist(0, depths.length ~/ 2),
