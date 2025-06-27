@@ -743,7 +743,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       // localisation
       String? country;
       try {
-        Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+        final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
         country = deviceLocale.countryCode;
       } catch (e) {
         dev.log("Error, loadAvailableAspectRatios: deviceLocale not available");
@@ -1399,16 +1399,15 @@ String formatDateLocalized(String dateString, BuildContext context) {
     dev.log("Warning, formatDateLocalized: wrong format");
     return dateString;
   }
-  final Locale deviceLocale;
+  final String deviceLocaleString;
   try {
-    deviceLocale = ui.PlatformDispatcher.instance.locale;
+    final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+    deviceLocaleString = deviceLocale.toString();
   } catch (e) {
     dev.log("Error, formatDateLocalized: deviceLocale not available");
     return dateString;
   }
-  final DateFormat localizedDateFormat = DateFormat.yMd(
-    deviceLocale.toString(),
-  );
+  final DateFormat localizedDateFormat = DateFormat.yMd(deviceLocaleString);
   return localizedDateFormat.format(dateTime);
 }
 
