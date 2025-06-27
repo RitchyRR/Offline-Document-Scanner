@@ -741,13 +741,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
     if (savedValues == null || savedValues.isEmpty) {
       // localisation
-      Locale? deviceLocale;
+      String? country;
       try {
-        deviceLocale = ui.PlatformDispatcher.instance.locale;
+        Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+        country = deviceLocale.countryCode;
       } catch (e) {
         dev.log("Error, loadAvailableAspectRatios: deviceLocale not available");
       }
-      final String? country = deviceLocale?.countryCode;
       const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
       // Default values
       final List<double> defaultValues = [1, 4 / 3, 16 / 9, 21 / 9];
