@@ -196,18 +196,19 @@
   "versions": {
     "photo": "Foto",
     "warped": "Ungefiltert",
-    "processed1": "Einfach",
+    "contrast": "Kontrast",
+    "processed1": "Dokument",
     "processed2": "PRO"
   },
   "loading": {
     "processingImage": "Bild wird verarbeitet...",
     "processingImages": "Bilder werden verarbeitet...",
     "processingPdf": "PDF wird verarbeitet...",
-    "waitingImage": "Warte auf Bild zur Verarbeitung...",
-    "waitingImages": "Warte auf Bilder zur Verarbeitung...",
-    "waitingPages": "Warte auf Seiten dieses Dokuments zur Verarbeitung...",
-    "waitingOtherDocs": "Warte auf andere Dokumente zur Verarbeitung...",
-    "waitingOtherPages": "Warte auf andere Seiten dieses Dokuments zur Verarbeitung...",
+    "waitingImage": "Warte bis das Bild verarbeitet ist...",
+    "waitingImages": "Warte bis alle Bilder verarbeitet sind...",
+    "waitingPages": "Warte bis alle Seiten dieses Dokuments verarbeitet sind...",
+    "waitingOtherDocs": "Warte bis andere Dokumente verarbeitet sind...",
+    "waitingOtherPages": "Warte bis andere Seiten dieses Dokuments verarbeitet sind...",
     "importingImages": "Bilder werden importiert...",
     "importingPdf": "PDF wird importiert...",
     "importingPdfs": "PDFs werden importiert..."

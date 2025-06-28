@@ -73,6 +73,14 @@ class OpenCVHelper {
     );
   }
 
+  Future<Uint8List> processImageContrast(ParamsProcessImage1 params) {
+    cv.Mat? warped = _loadWarped(params.imageBytesIn);
+
+    cv.Mat? filtered1 = _filterImage0(warped);
+
+    return _returnImage(filtered1);
+  }
+
   Future<Uint8List> processImage1(ParamsProcessImage1 params) {
     cv.Mat? warped = _loadWarped(params.imageBytesIn);
 
@@ -225,6 +233,16 @@ class OpenCVHelper {
     imageMat.dispose();
 
     return (warped, mask, ratioValue, corners);
+  }
+
+  /// Filter Image 0: contrast
+  cv.Mat? _filterImage0(cv.Mat? imageMat) {
+    if (imageMat == null) return null;
+
+    // 5. Simple background subtraction
+    imageMat = _contrastImage(imageMat);
+
+    return imageMat;
   }
 
   /// Filter Image 1: subtract background quickly
@@ -1227,6 +1245,17 @@ class OpenCVHelper {
     ));
 
     return warped;
+  }
+
+  /// Step 5: Background Subtraction 1
+  cv.Mat _contrastImage(cv.Mat warped) {
+    cv.Mat stretched = _stretchMat(
+      warped,
+      lowPercentile: 0.005,
+      highValue: 255,
+      gamma: null,
+    );
+    return stretched;
   }
 
   /// Step 5: Background Subtraction 1

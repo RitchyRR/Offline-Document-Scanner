@@ -195,7 +195,8 @@
   "versions": {
     "photo": "Photo",
     "warped": "Unfiltered",
-    "processed1": "Basic",
+    "contrast": "Contrast",
+    "processed1": "Document",
     "processed2": "PRO"
   },
   "loading": {

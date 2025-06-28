@@ -1044,10 +1044,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                           namedArgs: {"docIndex": "$displayDocIndex"},
                         );
                   final String creationDate = _docDates[docIndex];
-                  String displayCreationDate = formatDateLocalized(
-                    creationDate,
-                    context,
-                  );
+                  String displayCreationDate = creationDate.isNotEmpty
+                      ? formatDateLocalized(creationDate, context)
+                      : creationDate;
                   int pagesCount = _docPageCounts.isNotEmpty
                       ? _docPageCounts[docIndex]
                       : -1;
@@ -1101,23 +1100,34 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   maxLines: 5,
                                                 ),
                                                 SizedBox(height: 6),
-                                                Text(
-                                                  tr(
-                                                    "documents.card.date",
-                                                    namedArgs: {
-                                                      "creationDate":
-                                                          displayCreationDate,
-                                                    },
-                                                  ),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withAlpha(150),
-                                                  ),
+                                                displayCreationDate.isNotEmpty
+                                                    ? Text(
+                                                        tr(
+                                                          "documents.card.date",
+                                                          namedArgs: {
+                                                            "creationDate":
+                                                                displayCreationDate,
+                                                          },
+                                                        ),
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withAlpha(
+                                                                    150,
+                                                                  ),
+                                                        ),
+                                                      )
+                                                    : SizedBox(),
+                                                SizedBox(
+                                                  height:
+                                                      displayCreationDate
+                                                          .isNotEmpty
+                                                      ? 4
+                                                      : 0,
                                                 ),
-                                                SizedBox(height: 4),
                                                 Text(
                                                   tr(
                                                     "documents.card.pagesCount",
@@ -1396,7 +1406,7 @@ String formatDateLocalized(String dateString, BuildContext context) {
   try {
     dateTime = DateTime.parse(dateString);
   } catch (e) {
-    dev.log("Warning, formatDateLocalized: wrong format");
+    dev.log("Warning, formatDateLocalized: '$dateString' wrong format");
     return dateString;
   }
   final String deviceLocaleString;
@@ -3499,8 +3509,10 @@ class PagePreview extends StatefulWidget {
 class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
-  int _selectedThumbnail = g.proUnlocked == true ? 3 : 2;
-  List<String> _versionPaths = ["", "", "", ""];
+  int _selectedThumbnail = g.proUnlocked == true
+      ? versionNames.length - 1
+      : versionNames.length - 2;
+  List<String> _versionPaths = List.generate(versionNames.length, (_) => "");
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
     (_) => Future<String>.value(""),
@@ -3534,7 +3546,7 @@ class PagePreviewState extends State<PagePreview> {
   final double _thumbnailBarSizeSelected = 70;
   final double _thumbnailBarBoder = 3;
   final double _thumbnailBarBoderThumbnail = 5;
-  final double _thumbnailBarPadding = 24;
+  final double _thumbnailBarPadding = 12;
   double _barWidth = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
@@ -3639,7 +3651,7 @@ class PagePreviewState extends State<PagePreview> {
       },
     );
     // Poll Images
-    for (int i = 0; i <= 3; i++) {
+    for (int i = 0; i <= _versionPaths.length; i++) {
       _pollWhile(
         condition: () {
           return _versionPaths[i].isEmpty;
@@ -3769,7 +3781,7 @@ class PagePreviewState extends State<PagePreview> {
   void _reprocessingCleanup() {
     _evenPhotoScale = 0.0;
     _oddPhotoScale = 0.0;
-    _versionPaths = ["", "", "", ""];
+    _versionPaths = List.generate(versionNames.length, (_) => "");
     _totalRotation = 0;
     setState(() {});
   }
@@ -3857,7 +3869,8 @@ class PagePreviewState extends State<PagePreview> {
 
   void _scrollToThumbnail(int index) {
     final int itemCount = _versionPaths.length;
-    final double itemWidth = _barWidth / itemCount;
+    final double itemWidth =
+        (_barWidth - MediaQuery.of(context).size.width) / (itemCount - 1);
     final double targetScrollOffset = (itemWidth * index);
 
     _thumbnailScrollController.animateTo(
@@ -3871,9 +3884,8 @@ class PagePreviewState extends State<PagePreview> {
   bool _allowPop = true;
   @override
   Widget build(BuildContext context) {
-    // Thumbnail Bar
     _barWidth =
-        _thumbnailBarPadding * _versionPaths.length +
+        (_thumbnailBarPadding * 2) * _versionPaths.length +
         (_thumbnailBarSize + _thumbnailBarBoder * 2) *
             (_versionPaths.length - 1) +
         (_thumbnailBarSizeSelected + _thumbnailBarBoderThumbnail * 2);
@@ -3882,7 +3894,7 @@ class PagePreviewState extends State<PagePreview> {
     bool enableFABs = _selectedVersion == 0
         ? enableFAB0
         : _versionPaths[_selectedVersion].isNotEmpty;
-    _allowPop = g.proUnlocked == true || _selectedVersion != 3 || _pageUnlocked;
+    _allowPop = g.proUnlocked == true || _selectedVersion != 4 || _pageUnlocked;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -3971,7 +3983,7 @@ class PagePreviewState extends State<PagePreview> {
                         color: Theme.of(context).shadowColor.withAlpha(25),
                         blurRadius: 50,
                         spreadRadius: -20,
-                        offset: const Offset(0, 4),
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
@@ -4257,115 +4269,114 @@ class PagePreviewState extends State<PagePreview> {
         bottomNavigationBar: Container(
           height: 130,
           alignment: Alignment.center,
-          child: ListView.builder(
-            controller: _thumbnailScrollController,
-            scrollDirection: Axis.horizontal,
-            itemExtentBuilder: (index, dimensions) =>
-                _thumbnailBarPadding +
-                (_selectedVersion == index
-                    ? (_thumbnailBarSizeSelected +
-                          _thumbnailBarBoderThumbnail * 2)
-                    : (_thumbnailBarSize + _thumbnailBarBoder * 2)),
-            clipBehavior: Clip.none,
-            shrinkWrap: true,
-            itemCount: _versionPaths.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () {
-                  if (index != 0) _selectedThumbnail = index;
-                  _selectedVersion = index;
-                  setState(() {});
-                  _pageController.jumpToPage(index);
-                },
-                child: Column(
-                  children: [
-                    Stack(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              _selectedThumbnail == index ? 13.75 : 11.5,
-                            ),
-                            border: Border.all(
-                              color:
-                                  _selectedThumbnail == index ||
-                                      _selectedVersion == index
-                                  ? Theme.of(context).colorScheme.secondaryFixed
-                                  : Colors.white54,
-                              width: _selectedThumbnail == index
-                                  ? _thumbnailBarBoderThumbnail
-                                  : _thumbnailBarBoder,
-                            ),
-                            boxShadow: [bigBoxShadow(context)],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8.5),
-                            child: SizedBox(
-                              width: _selectedVersion == index
-                                  ? _thumbnailBarSizeSelected
-                                  : _thumbnailBarSize,
-                              height: _selectedVersion == index
-                                  ? _thumbnailBarSizeSelected
-                                  : _thumbnailBarSize,
-                              child: _versionPaths[index].isNotEmpty
-                                  ? Image.file(
-                                      File(_versionPaths[index]),
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Padding(
-                                              padding: EdgeInsets.all(
-                                                _thumbnailBarPadding,
-                                              ),
-                                              child: Icon(
-                                                Icons.broken_image,
-                                                color: Theme.of(
-                                                  context,
-                                                ).disabledColor,
-                                              ),
-                                            );
-                                          },
-                                    )
-                                  : Container(
-                                      color: Theme.of(context).disabledColor,
-                                      child: Padding(
-                                        padding: EdgeInsets.all(
-                                          _thumbnailBarPadding,
-                                        ),
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                        // Locked Badge
-                        (g.proUnlocked == true || index != 3 || _pageUnlocked)
-                            ? SizedBox()
-                            : Positioned(
-                                top: 0,
-                                right: 0,
-                                child: CustomIconButton(
-                                  onTap: null,
-                                  icon: Icons.lock,
-                                ),
+          child: ScrollConfiguration(
+            behavior: NoStretchScrollBehavior(),
+            child: ListView.builder(
+              controller: _thumbnailScrollController,
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              shrinkWrap: true,
+              itemCount: _versionPaths.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    if (index != 0) _selectedThumbnail = index;
+                    _selectedVersion = index;
+                    setState(() {});
+                    _pageController.jumpToPage(index);
+                  },
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(
+                                _selectedThumbnail == index ? 13.75 : 11.5,
                               ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      versionNames[index],
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        overflow: TextOverflow.visible,
+                              border: Border.all(
+                                color:
+                                    _selectedThumbnail == index ||
+                                        _selectedVersion == index
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.secondaryFixed
+                                    : Colors.white54,
+                                width: _selectedThumbnail == index
+                                    ? _thumbnailBarBoderThumbnail
+                                    : _thumbnailBarBoder,
+                              ),
+                              boxShadow: [bigBoxShadow(context)],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.5),
+                              child: SizedBox(
+                                width: _selectedVersion == index
+                                    ? _thumbnailBarSizeSelected
+                                    : _thumbnailBarSize,
+                                height: _selectedVersion == index
+                                    ? _thumbnailBarSizeSelected
+                                    : _thumbnailBarSize,
+                                child: _versionPaths[index].isNotEmpty
+                                    ? Image.file(
+                                        File(_versionPaths[index]),
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Padding(
+                                                padding: EdgeInsets.all(
+                                                  _thumbnailBarPadding,
+                                                ),
+                                                child: Icon(
+                                                  Icons.broken_image,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).disabledColor,
+                                                ),
+                                              );
+                                            },
+                                      )
+                                    : Container(
+                                        color: Theme.of(context).disabledColor,
+                                        child: Padding(
+                                          padding: EdgeInsets.all(
+                                            _thumbnailBarPadding,
+                                          ),
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          // Locked Badge
+                          (g.proUnlocked == true || index != 4 || _pageUnlocked)
+                              ? SizedBox()
+                              : Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: CustomIconButton(
+                                    onTap: null,
+                                    icon: Icons.lock,
+                                  ),
+                                ),
+                        ],
                       ),
-                      softWrap: false,
-                    ),
-                  ],
-                ),
-              );
-            },
+                      SizedBox(height: 4),
+                      Text(
+                        versionNames[index],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          overflow: TextOverflow.visible,
+                        ),
+                        softWrap: false,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -4530,7 +4541,9 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        (g.proUnlocked == true ? 3 : 2),
+        (g.proUnlocked == true
+            ? versionNames.length - 1
+            : versionNames.length - 2),
       );
       _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
@@ -4837,6 +4850,8 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 }
+
+class NoStretchScrollBehavior extends MaterialScrollBehavior {}
 
 class SelectableListView extends StatefulWidget {
   final int initialSelected;
@@ -5892,8 +5907,9 @@ class PositionTimestamp {
 }
 
 List<String> versionNames = [
-  "versions.photo".tr(),
+  tr("versions.photo"),
   tr("versions.warped"),
+  tr("versions.contrast"),
   tr("versions.processed1"),
   tr("versions.processed2"),
 ];

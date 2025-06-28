@@ -434,7 +434,6 @@ class MetadataHelper {
       return thumbnailIndex;
     } else {
       return null;
-      //(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) ? 3 : 2;
     }
   }
 

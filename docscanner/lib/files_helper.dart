@@ -818,7 +818,7 @@ class FilesHelper {
       );
     }
     List<String> processedNames = ["thumbnail"];
-    processedNames.addAll(versionNames.getRange(1, 4));
+    processedNames.addAll(versionNames.getRange(1, versionNames.length));
     try {
       for (var fse in Directory(
         pagePath,
@@ -871,7 +871,7 @@ class FilesHelper {
     int pageIndex,
   ) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
-    List<String> versionPaths = ["", "", "", ""];
+    List<String> versionPaths = List.generate(versionNames.length, (_) => "");
     String shapePath = "";
     String thumbnailPath = "";
     try {
