@@ -3528,6 +3528,14 @@ class PagePreviewState extends State<PagePreview> {
   double _photoScale = 0.0;
   double _evenPhotoScale = 0.0;
   double _oddPhotoScale = 0.0;
+  // Thumbnail Bar
+  final ScrollController _thumbnailScrollController = ScrollController();
+  final double _thumbnailBarSize = 50;
+  final double _thumbnailBarSizeSelected = 70;
+  final double _thumbnailBarBoder = 3;
+  final double _thumbnailBarBoderThumbnail = 5;
+  final double _thumbnailBarPadding = 24;
+  double _barWidth = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
 
@@ -3589,6 +3597,7 @@ class PagePreviewState extends State<PagePreview> {
   void dispose() {
     _pageController.dispose();
     _photoViewController.dispose();
+    _thumbnailScrollController.dispose();
     _eventSubscription.cancel();
     FilesHelper.deleteCachedRoatedImages();
     super.dispose();
@@ -3846,10 +3855,29 @@ class PagePreviewState extends State<PagePreview> {
     //}
   }
 
+  void _scrollToThumbnail(int index) {
+    final int itemCount = _versionPaths.length;
+    final double itemWidth = _barWidth / itemCount;
+    final double targetScrollOffset = (itemWidth * index);
+
+    _thumbnailScrollController.animateTo(
+      targetScrollOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   // Page Preview
   bool _allowPop = true;
   @override
   Widget build(BuildContext context) {
+    // Thumbnail Bar
+    _barWidth =
+        _thumbnailBarPadding * _versionPaths.length +
+        (_thumbnailBarSize + _thumbnailBarBoder * 2) *
+            (_versionPaths.length - 1) +
+        (_thumbnailBarSizeSelected + _thumbnailBarBoderThumbnail * 2);
+    // Flags
     bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
     bool enableFABs = _selectedVersion == 0
         ? enableFAB0
@@ -3952,6 +3980,7 @@ class PagePreviewState extends State<PagePreview> {
             ),
             // Images (Page Versions)
             PhotoViewGallery.builder(
+              pageController: _pageController,
               scrollPhysics: const PageScrollPhysics(),
               itemCount: _versionPaths.length,
               builder: (context, index) {
@@ -4062,11 +4091,11 @@ class PagePreviewState extends State<PagePreview> {
                 );
               },
               backgroundDecoration: BoxDecoration(color: Colors.transparent),
-              pageController: _pageController,
               onPageChanged: (index) {
                 if (index != 0) _selectedThumbnail = index;
                 _selectedVersion = index;
                 setState(() {});
+                _scrollToThumbnail(index);
               },
             ),
             // Reprocessing Bar
@@ -4225,11 +4254,22 @@ class PagePreviewState extends State<PagePreview> {
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: SizedBox(
+        bottomNavigationBar: Container(
           height: 130,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (index) {
+          alignment: Alignment.center,
+          child: ListView.builder(
+            controller: _thumbnailScrollController,
+            scrollDirection: Axis.horizontal,
+            itemExtentBuilder: (index, dimensions) =>
+                _thumbnailBarPadding +
+                (_selectedVersion == index
+                    ? (_thumbnailBarSizeSelected +
+                          _thumbnailBarBoderThumbnail * 2)
+                    : (_thumbnailBarSize + _thumbnailBarBoder * 2)),
+            clipBehavior: Clip.none,
+            shrinkWrap: true,
+            itemCount: _versionPaths.length,
+            itemBuilder: (context, index) {
               return GestureDetector(
                 onTap: () {
                   if (index != 0) _selectedThumbnail = index;
@@ -4254,15 +4294,21 @@ class PagePreviewState extends State<PagePreview> {
                                       _selectedVersion == index
                                   ? Theme.of(context).colorScheme.secondaryFixed
                                   : Colors.white54,
-                              width: _selectedThumbnail == index ? 5 : 3,
+                              width: _selectedThumbnail == index
+                                  ? _thumbnailBarBoderThumbnail
+                                  : _thumbnailBarBoder,
                             ),
                             boxShadow: [bigBoxShadow(context)],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.5),
                             child: SizedBox(
-                              width: _selectedVersion == index ? 70 : 50,
-                              height: _selectedVersion == index ? 70 : 50,
+                              width: _selectedVersion == index
+                                  ? _thumbnailBarSizeSelected
+                                  : _thumbnailBarSize,
+                              height: _selectedVersion == index
+                                  ? _thumbnailBarSizeSelected
+                                  : _thumbnailBarSize,
                               child: _versionPaths[index].isNotEmpty
                                   ? Image.file(
                                       File(_versionPaths[index]),
@@ -4270,7 +4316,9 @@ class PagePreviewState extends State<PagePreview> {
                                       errorBuilder:
                                           (context, error, stackTrace) {
                                             return Padding(
-                                              padding: EdgeInsets.all(12.0),
+                                              padding: EdgeInsets.all(
+                                                _thumbnailBarPadding,
+                                              ),
                                               child: Icon(
                                                 Icons.broken_image,
                                                 color: Theme.of(
@@ -4282,8 +4330,10 @@ class PagePreviewState extends State<PagePreview> {
                                     )
                                   : Container(
                                       color: Theme.of(context).disabledColor,
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(12.0),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(
+                                          _thumbnailBarPadding,
+                                        ),
                                         child: CircularProgressIndicator(),
                                       ),
                                     ),
@@ -4306,12 +4356,16 @@ class PagePreviewState extends State<PagePreview> {
                     SizedBox(height: 4),
                     Text(
                       versionNames[index],
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.visible,
+                      ),
+                      softWrap: false,
                     ),
                   ],
                 ),
               );
-            }),
+            },
           ),
         ),
       ),
@@ -4779,6 +4833,84 @@ class PagePreviewState extends State<PagePreview> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class SelectableListView extends StatefulWidget {
+  final int initialSelected;
+  final Function(int index)? onSelectionChanged;
+
+  const SelectableListView({
+    super.key,
+    this.initialSelected = 0,
+    this.onSelectionChanged,
+  });
+
+  @override
+  State<SelectableListView> createState() => _SelectableListViewState();
+}
+
+class _SelectableListViewState extends State<SelectableListView> {
+  final ScrollController _scrollController = ScrollController();
+  int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialSelected;
+    // Ensure initial item is visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToIndex(_selectedIndex);
+    });
+  }
+
+  void _scrollToIndex(int index) {
+    const double itemWidth = 100.0; // Customize for your item width
+    _scrollController.animateTo(
+      index * itemWidth,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void selectIndex(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    _scrollToIndex(index);
+    widget.onSelectionChanged?.call(index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 120,
+      child: ListView.builder(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        itemCount: 20,
+        itemBuilder: (context, index) {
+          final isSelected = index == _selectedIndex;
+          return GestureDetector(
+            onTap: () => selectIndex(index),
+            child: Container(
+              width: 100,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.blue : Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? Colors.black : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text('Item $index'),
+            ),
+          );
+        },
       ),
     );
   }
