@@ -1247,18 +1247,18 @@ class OpenCVHelper {
     return warped;
   }
 
-  /// Step 5: Background Subtraction 1
+  /// Contrast
   cv.Mat _contrastImage(cv.Mat warped) {
     cv.Mat stretched = _stretchMat(
       warped,
       lowPercentile: 0.005,
-      highValue: 255,
+      highPercentile: 0.995,
       gamma: null,
     );
     return stretched;
   }
 
-  /// Step 5: Background Subtraction 1
+  /// Background Subtraction 1
   cv.Mat _isolateAndSubtractBGSimple(cv.Mat warped) {
     cv.Mat? bg = _warpedBgSimple(warped);
     //return bg;
@@ -1266,7 +1266,7 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(
+    subtracted = _stretchMatSubtracted(
       subtracted,
       lowPercentile: 0.005,
       highValue: 255,
@@ -1275,7 +1275,7 @@ class OpenCVHelper {
     return subtracted;
   }
 
-  /// Step 7: Background Subtraction 2
+  /// Background Subtraction 2
   cv.Mat _isolateAndSubtractBG(cv.Mat warped) {
     cv.Mat bg = _warpedBg(warped);
     //return bg;
@@ -1283,7 +1283,7 @@ class OpenCVHelper {
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMat(
+    subtracted = _stretchMatSubtracted(
       subtracted,
       lowPercentile: 0.15,
       highValue: 230,
@@ -1544,7 +1544,7 @@ class OpenCVHelper {
     return a[index];
   }
 
-  cv.Mat _stretchMat(
+  cv.Mat _stretchMatSubtracted(
     cv.Mat mat, {
     final double lowPercentile = 0.02,
     final double highValue = 230,
@@ -1557,12 +1557,47 @@ class OpenCVHelper {
       ref = mat;
     }
     ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
-    List<int> a = ref.data.toList();
-    a.removeWhere((value) => value == 255);
-    if (a.isEmpty) return mat;
-    a.sort();
-    int lowIndex = (a.length.toDouble() * lowPercentile).toInt();
-    double lowValue = a[lowIndex].toDouble();
+    List<int> refList = ref.data.toList();
+    refList.removeWhere((value) => value == 255);
+    if (refList.isEmpty) return mat;
+    refList.sort();
+    int lowIndex = (refList.length.toDouble() * lowPercentile).toInt();
+    double lowValue = refList[lowIndex].toDouble();
+
+    cv.normalize(
+      mat,
+      mat,
+      normType: cv.NORM_MINMAX,
+      alpha: -lowValue,
+      beta: (255 - highValue) + 255,
+    );
+
+    if (gamma != null) mat = _applyGammaCorrection(mat, gamma);
+
+    return mat;
+  }
+
+  cv.Mat _stretchMat(
+    cv.Mat mat, {
+    final double lowPercentile = 0.02,
+    final double highPercentile = 0.98,
+    final double? gamma,
+  }) {
+    cv.Mat ref;
+    if (height > 1000 && width > 1000) {
+      ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
+    } else {
+      ref = mat;
+    }
+    ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
+    List<int> refList = ref.data.toList();
+    refList.removeWhere((value) => value == 255);
+    if (refList.isEmpty) return mat;
+    refList.sort();
+    int lowIndex = (refList.length.toDouble() * lowPercentile).toInt();
+    double lowValue = refList[lowIndex].toDouble();
+    int highIndex = (refList.length.toDouble() * highPercentile).toInt();
+    double highValue = refList[highIndex].toDouble();
 
     cv.normalize(
       mat,
