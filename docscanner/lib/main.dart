@@ -4264,116 +4264,124 @@ class PagePreviewState extends State<PagePreview> {
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: Container(
-          height: 130,
-          alignment: Alignment.center,
-          child: ScrollConfiguration(
-            behavior: NoStretchScrollBehavior(),
-            child: ListView.builder(
-              controller: _thumbnailScrollController,
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              shrinkWrap: true,
-              itemCount: _versionPaths.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    if (index != 0) _selectedThumbnail = index;
-                    _selectedVersion = index;
-                    setState(() {});
-                    _pageController.jumpToPage(index);
-                  },
-                  child: Column(
-                    children: [
-                      Stack(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                _selectedThumbnail == index ? 13.75 : 11.5,
+        bottomNavigationBar: SafeArea(
+          child: Container(
+            height: 120,
+            alignment: Alignment.topCenter,
+            child: ScrollConfiguration(
+              behavior: NoStretchScrollBehavior(),
+              child: ListView.builder(
+                controller: _thumbnailScrollController,
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                shrinkWrap: true,
+                itemCount: _versionPaths.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      if (index != 0) _selectedThumbnail = index;
+                      _selectedVersion = index;
+                      setState(() {});
+                      _pageController.jumpToPage(index);
+                    },
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
                               ),
-                              border: Border.all(
-                                color:
-                                    _selectedThumbnail == index ||
-                                        _selectedVersion == index
-                                    ? Theme.of(
-                                        context,
-                                      ).colorScheme.secondaryFixed
-                                    : Colors.white54,
-                                width: _selectedThumbnail == index
-                                    ? _thumbnailBarBoderThumbnail
-                                    : _thumbnailBarBoder,
-                              ),
-                              boxShadow: [bigBoxShadow(context)],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.5),
-                              child: SizedBox(
-                                width: _selectedVersion == index
-                                    ? _thumbnailBarSizeSelected
-                                    : _thumbnailBarSize,
-                                height: _selectedVersion == index
-                                    ? _thumbnailBarSizeSelected
-                                    : _thumbnailBarSize,
-                                child: _versionPaths[index].isNotEmpty
-                                    ? Image.file(
-                                        File(_versionPaths[index]),
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return Padding(
-                                                padding: EdgeInsets.all(
-                                                  _thumbnailBarPadding,
-                                                ),
-                                                child: Icon(
-                                                  Icons.broken_image,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).disabledColor,
-                                                ),
-                                              );
-                                            },
-                                      )
-                                    : Container(
-                                        color: Theme.of(context).disabledColor,
-                                        child: Padding(
-                                          padding: EdgeInsets.all(
-                                            _thumbnailBarPadding,
-                                          ),
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                          // Locked Badge
-                          (g.proUnlocked == true || index != 4 || _pageUnlocked)
-                              ? SizedBox()
-                              : Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: CustomIconButton(
-                                    onTap: null,
-                                    icon: Icons.lock,
-                                  ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  _selectedThumbnail == index ? 13.75 : 11.5,
                                 ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        versionNames[index],
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          overflow: TextOverflow.visible,
+                                border: Border.all(
+                                  color:
+                                      _selectedThumbnail == index ||
+                                          _selectedVersion == index
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.secondaryFixed
+                                      : Colors.white54,
+                                  width: _selectedThumbnail == index
+                                      ? _thumbnailBarBoderThumbnail
+                                      : _thumbnailBarBoder,
+                                ),
+                                boxShadow: [bigBoxShadow(context)],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8.5),
+                                child: SizedBox(
+                                  width: _selectedVersion == index
+                                      ? _thumbnailBarSizeSelected
+                                      : _thumbnailBarSize,
+                                  height: _selectedVersion == index
+                                      ? _thumbnailBarSizeSelected
+                                      : _thumbnailBarSize,
+                                  child: _versionPaths[index].isNotEmpty
+                                      ? Image.file(
+                                          File(_versionPaths[index]),
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Padding(
+                                                  padding: EdgeInsets.all(
+                                                    _thumbnailBarPadding,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).disabledColor,
+                                                  ),
+                                                );
+                                              },
+                                        )
+                                      : Container(
+                                          color: Theme.of(
+                                            context,
+                                          ).disabledColor,
+                                          child: Padding(
+                                            padding: EdgeInsets.all(
+                                              _thumbnailBarPadding,
+                                            ),
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                            // Locked Badge
+                            (g.proUnlocked == true ||
+                                    index != 4 ||
+                                    _pageUnlocked)
+                                ? SizedBox()
+                                : Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: CustomIconButton(
+                                      onTap: null,
+                                      icon: Icons.lock,
+                                    ),
+                                  ),
+                          ],
                         ),
-                        softWrap: false,
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        SizedBox(height: 4),
+                        Text(
+                          versionNames[index],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            overflow: TextOverflow.visible,
+                          ),
+                          softWrap: false,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -4849,7 +4857,17 @@ class PagePreviewState extends State<PagePreview> {
   }
 }
 
-class NoStretchScrollBehavior extends MaterialScrollBehavior {}
+class NoStretchScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Don't show any overscroll indicators (no stretch/glow)
+    return child;
+  }
+}
 
 class SelectableListView extends StatefulWidget {
   final int initialSelected;

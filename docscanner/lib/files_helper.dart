@@ -478,24 +478,29 @@ class FilesHelper {
   repairDirectoryStructure() async {
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
-    //var i = 0;
-    //for (; i < 5; i++) {
-    try {
-      // ignore: use_build_context_synchronously
-      //if (!(
-      // ignore: use_build_context_synchronously
-      await _deleteMarkedDeleted();
-      await _repairDirectoryStructure();
-      //  )) break;
-    } catch (e) {
-      throw StateError("Error, repairDirectoryStructure: $e");
+    var i = 0;
+    bool deletedMarked = false;
+    bool changeHappened = true;
+    for (; i < 5; i++) {
+      try {
+        if (!deletedMarked) {
+          await _deleteMarkedDeleted();
+          deletedMarked = true;
+        }
+        if (changeHappened == true) {
+          changeHappened = await _repairDirectoryStructure();
+        } else {
+          break;
+        }
+      } catch (e) {
+        throw StateError("Error, repairDirectoryStructure: $e");
+      }
     }
-    //}
-    //if (i == 5) {
-    //  dev.log(
-    //    "Warning, repairDirectoryStructure: Could not repair after $i tries.",
-    //  );
-    //}
+    if (i == 5) {
+      dev.log(
+        "Warning, repairDirectoryStructure: Could not repair after $i tries.",
+      );
+    }
   }
 
   Future<bool> _repairDirectoryStructure() async {
@@ -553,8 +558,9 @@ class FilesHelper {
                 countVersionsAndThumbnail++;
               }
             }
-            // 4 versions + 1 thumbnail (ignoring shape and metadata)
-            pageIncomplete = countVersionsAndThumbnail < 5;
+            // versions + 1 for thumbnail (ignoring shape and metadata)
+            pageIncomplete =
+                countVersionsAndThumbnail < versionNames.length + 1;
           }
 
           if (pageIncomplete) {
