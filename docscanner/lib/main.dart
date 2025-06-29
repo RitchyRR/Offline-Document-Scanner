@@ -3736,9 +3736,7 @@ class PagePreviewState extends State<PagePreview> {
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
-      if (_cornerPoints.isNotEmpty &&
-          _guiRatioValue != null &&
-          _orientationIndex != null) {
+      if (_cornerPoints.isNotEmpty && _guiRatioValue != null) {
         _hideOverlayReprocessing = false;
         _unZoomedScale = null;
         _metadataBlocked = false;
