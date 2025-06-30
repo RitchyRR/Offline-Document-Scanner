@@ -148,7 +148,7 @@ class MetadataHelper {
 
   Future<String?> readDocName(int docIndex) async {
     dynamic value = await _readDoc(docIndex, "name");
-    if (value is String) {
+    if (value is String && value.isNotEmpty) {
       return value;
     } else {
       return null;
@@ -339,7 +339,7 @@ class MetadataHelper {
         !tmpPro) {
       thumbnailIndexIn = 2;
     }
-    String newThumbnailName = versionNames[thumbnailIndexIn];
+    String newThumbnailName = versionNamesInternal[thumbnailIndexIn];
     String pagePath = await (isIsolate
         ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
         : g.filesHelper.getPagePath(docIndex, pageIndex));
@@ -429,7 +429,7 @@ class MetadataHelper {
       gIn: gIn,
     );
     if (value is String) {
-      int thumbnailIndex = versionNames.indexOf(value);
+      int thumbnailIndex = versionNamesInternal.indexOf(value);
       if (thumbnailIndex == -1) return null;
       return thumbnailIndex;
     } else {

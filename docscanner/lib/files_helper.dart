@@ -29,7 +29,8 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'isolates_manager.dart';
 // my packages:
 import 'image_prosessing_manager.dart';
-import 'main.dart' show globalNotifier, imageProcessingManager, isTmpExternal;
+import 'main.dart'
+    show globalNotifier, imageProcessingManager, isTmpExternal, versionNames;
 import 'metadata_helper.dart';
 import 'opencv_helper.dart';
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
@@ -259,7 +260,7 @@ class FilesHelper {
       pageIndex,
       supressWarnings: true,
     );
-    String versionName = versionNames[versionIndex];
+    String versionName = versionNamesInternal[versionIndex];
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -290,7 +291,7 @@ class FilesHelper {
       pageIndex,
       supressWarnings: true,
     );
-    String versionName = versionNames[versionIndex];
+    String versionName = versionNamesInternal[versionIndex];
     // Delete prior Version
     if (Directory(pagePath).existsSync()) {
       for (var fse in Directory(
@@ -387,7 +388,7 @@ class FilesHelper {
       );
       final thumbnailName = "thumbnail";
       final backupName = thumbnailIndex != null
-          ? versionNames[thumbnailIndex]
+          ? versionNamesInternal[thumbnailIndex]
           : null;
       String? thumbnailPath;
       String? backupPath;
@@ -446,7 +447,7 @@ class FilesHelper {
       );
       final thumbnailName = "thumbnail";
       final backupName = thumbnailIndex != null
-          ? versionNames[thumbnailIndex]
+          ? versionNamesInternal[thumbnailIndex]
           : null;
       String? thumbnailPath;
       String? backupPath;
@@ -553,7 +554,7 @@ class FilesHelper {
           if (!pageIncomplete) {
             for (var imageFse in pageFseL) {
               if (imageFse.path.contains("thumbnail") ||
-                  versionNames.any(
+                  versionNamesInternal.any(
                     (element) => imageFse.path.contains(element),
                   )) {
                 countVersionsAndThumbnail++;
@@ -561,7 +562,7 @@ class FilesHelper {
             }
             // versions + 1 for thumbnail (ignoring shape and metadata)
             pageIncomplete =
-                countVersionsAndThumbnail < versionNames.length + 1;
+                countVersionsAndThumbnail < versionNamesInternal.length + 1;
           }
 
           if (pageIncomplete) {
@@ -571,7 +572,7 @@ class FilesHelper {
               dev.log("Deleting empty Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex, isBroken: true);
             } else {
-              String photoName = versionNames[0];
+              String photoName = versionNamesInternal[0];
               for (var pageFse in Directory(
                 expectedPagePath,
               ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -825,7 +826,9 @@ class FilesHelper {
       );
     }
     List<String> processedNames = ["thumbnail"];
-    processedNames.addAll(versionNames.getRange(1, versionNames.length));
+    processedNames.addAll(
+      versionNamesInternal.getRange(1, versionNamesInternal.length),
+    );
     try {
       for (var fse in Directory(
         pagePath,
@@ -878,14 +881,17 @@ class FilesHelper {
     int pageIndex,
   ) async {
     String pagePath = await getPagePath(docIndex, pageIndex);
-    List<String> versionPaths = List.generate(versionNames.length, (_) => "");
+    List<String> versionPaths = List.generate(
+      versionNamesInternal.length,
+      (_) => "",
+    );
     String shapePath = "";
     String thumbnailPath = "";
     try {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
-        for (var (versionIndex, versionName) in versionNames.indexed) {
+        for (var (versionIndex, versionName) in versionNamesInternal.indexed) {
           if (fse.path.contains(versionName)) {
             versionPaths[versionIndex] = fse.path;
             break;
@@ -921,7 +927,7 @@ class FilesHelper {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
-        if (fse.path.contains(versionNames[versionIndex])) {
+        if (fse.path.contains(versionNamesInternal[versionIndex])) {
           return fse.path;
         }
       }
@@ -1076,26 +1082,6 @@ class FilesHelper {
     return dirList.length;
   }
 
-  Future<void> saveDocumentImagesToGallery(int docIndex) async {
-    List<String> imagePaths = (await getPagesThumbnails(
-      docIndex,
-      fullSized: true,
-    )).$1;
-    final albumName = "Scanned Documents";
-
-    int i = 0;
-    for (String imagePath in imagePaths) {
-      await Gal.putImage(imagePath, album: albumName);
-      i++;
-    }
-    Fluttertoast.showToast(
-      msg: tr(
-        "toast.imagesSaved",
-        namedArgs: {"imagesCount": "$i", "albumName": albumName},
-      ),
-    );
-  }
-
   Future<void> saveImagesToGallery(
     int docIndex, {
     List<int> pageIndexes = const [],
@@ -1120,9 +1106,18 @@ class FilesHelper {
     }
 
     final albumName = "Scanned Documents";
-
-    for (String imagePath in imagePaths) {
-      await Gal.putImage(imagePath, album: albumName);
+    for (var (pageIndex, imagePath) in imagePaths.indexed) {
+      final extension = imagePath.split(".").last;
+      final newName = await _generateFileName(
+        docIndex,
+        [pageIndex],
+        versionIndex,
+        ".$extension",
+      );
+      final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
+      await File(imagePath).copy(renamedPath);
+      await Gal.putImage(renamedPath, album: albumName);
+      await File(renamedPath).delete();
       Fluttertoast.showToast(
         msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
       );
@@ -1347,31 +1342,24 @@ class FilesHelper {
 
       // SnackBar
       messenger?.showSnackBar(snackBar!);
-      List<int> displayPageIndexes = [];
-      for (var pageIndex in pageIndexes) {
-        displayPageIndexes.add(pageIndex + 1);
-      }
+      // PDF Name
+      String docFileName = await _generateFileName(
+        docIndex,
+        pageIndexes,
+        versionIndex,
+        ".pdf",
+      );
+      final String pdfPath = "$selectedDirectory/$docFileName";
       // Save PDF
-      final String? versionName = versionIndex != null
-          ? versionNames[versionIndex]
-          : null;
-      final String docName =
-          "doc${docIndex + 1}${pageIndexes.length == 1
-              ? ("_page${pageIndexes.first + 1}${versionName != null ? "_$versionName" : ""}")
-              : pageIndexes.isNotEmpty
-              ? "_pages${displayPageIndexes.toString()}"
-              : ""}.pdf";
-      final String pdfPath = "$selectedDirectory/$docName";
-
       final File file = File(pdfPath);
       if (file.existsSync()) {
-        final newName =
+        final renamedTo =
             "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}";
-        file.renameSync(newName);
+        file.renameSync(renamedTo);
         Fluttertoast.showToast(
           msg: tr(
             "toast.docRenamed",
-            namedArgs: {"from": docName, "to": newName},
+            namedArgs: {"from": docFileName, "to": renamedTo},
           ),
           toastLength: Toast.LENGTH_LONG,
         );
@@ -1533,11 +1521,14 @@ class FilesHelper {
 
     // Save PDF
     final docsDir = await _getDocumentsPath();
-    final String? versionName = versionIndex != null
-        ? versionNames[versionIndex]
-        : null;
-    String pdfPath =
-        "$docsDir/doc${docIndex + 1}${pageIndexes.length == 1 ? "_page${pageIndexes.isNotEmpty ? pageIndexes.first + 1 : 1}" : ""}${versionName != null ? "_$versionName" : ""}.pdf";
+    // PDF Name
+    String docFileName = await _generateFileName(
+      docIndex,
+      pageIndexes,
+      versionIndex,
+      ".pdf",
+    );
+    final String pdfPath = "$docsDir/$docFileName";
     pdfw.Document? pdf = await _convertImagesToPdf(
       docIndex,
       pageIndexes: pageIndexes,
@@ -1569,6 +1560,36 @@ class FilesHelper {
       }
     });
     return await completer.future;
+  }
+
+  Future<String> _generateFileName(
+    int docIndex,
+    List<int> pageIndexes,
+    int? versionIndex,
+    String extension,
+  ) async {
+    List<int> displayPageIndexes = [];
+    for (var pageIndex in pageIndexes) {
+      displayPageIndexes.add(pageIndex + 1);
+    }
+    bool isWholeDoc = false;
+    if (pageIndexes.isEmpty ||
+        pageIndexes.length == await g.filesHelper.getPagesCount(docIndex)) {
+      isWholeDoc = true;
+    }
+    String docName =
+        await g.metadataHelper.readDocName(docIndex) ??
+        tr("documents.docIndex", namedArgs: {"docIndex": "${docIndex + 1}"});
+    final String? versionName = versionIndex != null
+        ? versionNames[versionIndex]
+        : null;
+    final String docFileName =
+        "$docName${pageIndexes.length == 1
+            ? ", ${tr("pages.pageIndex", namedArgs: {"pageIndex": "${pageIndexes.first + 1}"})}${versionName != null ? ", $versionName" : ""}"
+            : !isWholeDoc
+            ? ", $displayPageIndexes"
+            : ""}$extension";
+    return docFileName;
   }
 
   static Future<String> rotateImageInTmpDir(

@@ -17,7 +17,7 @@ import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/app_globals.dart';
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 
-const List<String> versionNames = [
+const List<String> versionNamesInternal = [
   "photo",
   "warped",
   "contrast",
@@ -238,8 +238,8 @@ class ImageProcessingManager {
         pageIndex,
         thumbnailIndex ??
             ((g.proUnlocked == true)
-                ? versionNames.length - 1
-                : versionNames.length - 2),
+                ? versionNamesInternal.length - 1
+                : versionNamesInternal.length - 2),
         gIn: g,
         supressWarnings: true,
       );
@@ -689,8 +689,8 @@ class ImageProcessingManager {
           pageIndex,
           thumbnailIndex ??
               (g.proUnlocked == true
-                  ? versionNames.length - 1
-                  : versionNames.length - 2),
+                  ? versionNamesInternal.length - 1
+                  : versionNamesInternal.length - 2),
           gIn: g,
         );
       }
@@ -1086,8 +1086,8 @@ class ImageProcessingManager {
     bool overwrite = true,
   }) async {
     thumbnailIndex ??= (gIn.proUnlocked == true
-        ? versionNames.length - 1
-        : versionNames.length - 2);
+        ? versionNamesInternal.length - 1
+        : versionNamesInternal.length - 2);
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;
