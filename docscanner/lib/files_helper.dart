@@ -1365,7 +1365,7 @@ class FilesHelper {
       if (file.existsSync()) {
         final newName =
             "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}";
-        file.renameSync(newName); //file.copySync(newName); //
+        file.renameSync(newName);
         Fluttertoast.showToast(
           msg: tr(
             "toast.docRenamed",
