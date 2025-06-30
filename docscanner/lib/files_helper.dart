@@ -1115,12 +1115,12 @@ class FilesHelper {
         ".$extension",
       );
       final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
-      await File(imagePath).copy(renamedPath);
+      final renamedFile = await File(imagePath).copy(renamedPath);
       await Gal.putImage(renamedPath, album: albumName);
-      await File(renamedPath).delete();
-      Fluttertoast.showToast(
+      await Fluttertoast.showToast(
         msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
       );
+      await renamedFile.delete();
     }
   }
 
