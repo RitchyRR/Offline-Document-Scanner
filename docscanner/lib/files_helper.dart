@@ -1216,7 +1216,7 @@ class FilesHelper {
     }
 
     // Metadata
-    List<double> ratioValues = [];
+    List<double?> ratioValues = [];
     if (pageIndexes.isEmpty) {
       pageIndexes = List.generate(imagePaths.length, (index) => index);
     }
@@ -1232,7 +1232,7 @@ class FilesHelper {
       // Select Aspect ratio
       double width = 21.0 * pdf.PdfPageFormat.cm;
       // 1. Get common width (shared across pages)
-      for (double ratioValue in ratioValues) {
+      for (double? ratioValue in ratioValues) {
         if (ratioValue == math.sqrt2) // DIN A4
         {
           width = 21.0 * pdf.PdfPageFormat.cm;
@@ -1256,7 +1256,7 @@ class FilesHelper {
               imgInfo!.height.toDouble() / imgInfo.width.toDouble();
           height = width * photoRatio;
         } else {
-          height = width * ratioValue;
+          height = width * (ratioValue ?? math.sqrt2);
         }
         pageFormats.add(pdf.PdfPageFormat(width, height));
       }
@@ -1365,7 +1365,7 @@ class FilesHelper {
       if (file.existsSync()) {
         final newName =
             "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}";
-        file.renameSync(newName);
+        file.renameSync(newName); //file.copySync(newName); //
         Fluttertoast.showToast(
           msg: tr(
             "toast.docRenamed",
