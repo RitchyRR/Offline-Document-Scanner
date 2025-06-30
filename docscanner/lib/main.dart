@@ -4416,14 +4416,16 @@ class PagePreviewState extends State<PagePreview> {
     return CustomIconButton(
       isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
       onTap: () async {
+        _totalRotation = (_totalRotation + rotation) % 360;
+        int quarterTurns = _totalRotation ~/ 90;
+        //_photoViewController.rotation = math.pi / 2 * quarterTurns;
+
         setState(() {
           _rotationOngoing = true;
           _guiOrientationIndex =
               ((_guiOrientationIndex ?? 0) - 1) * (-1); // toggle
           _guiRatioValue = 1.0 / _guiRatioValue!;
         });
-        _totalRotation = (_totalRotation + rotation) % 360;
-        int quarterTurns = _totalRotation ~/ 90;
         if (_totalRotation == 0) {
           setState(() {
             _versionPaths[0] = _photoPath;
