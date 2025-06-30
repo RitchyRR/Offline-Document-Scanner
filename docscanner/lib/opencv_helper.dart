@@ -944,6 +944,7 @@ class OpenCVHelper {
         cv.Point(cols - 1, 0),
         cv.Point(cols - 1, rows - 1),
       ];
+      borderCutIn = null;
     } else if (fallbacks.isNotEmpty) {
       for (var cornerIndex in fallbacks) {
         int? xRef;
@@ -1083,7 +1084,7 @@ class OpenCVHelper {
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
   }
 
-  void _setHeightFromCorners(List<List<int>> corners, double ratio) {
+  void _setHeightFromCorners(final List<List<int>> corners, double ratio) {
     // New pixel count without data loss
     height = math.max(
       (corners[1][0] - corners[0][0]).abs(),
@@ -1102,7 +1103,7 @@ class OpenCVHelper {
     width = width.clamp(10, -1 >>> 1);
   }
 
-  double _calculateAspectRatio(List<List<int>> corners) {
+  double _calculateAspectRatio(final List<List<int>> corners) {
     // Compute Euclidean distances
     double widthTop = math.sqrt(
       math.pow(corners[2][0] - corners[0][0], 2) +
@@ -1221,7 +1222,7 @@ class OpenCVHelper {
     return _transformImage(imageMat, corners);
   }
 
-  cv.Mat _transformImage(cv.Mat imageMat, List<List<int>> corners) {
+  cv.Mat _transformImage(cv.Mat imageMat, final List<List<int>> corners) {
     cv.VecPoint srcPoints = cv.VecPoint.fromList([
       cv.Point(corners[0][1], corners[0][0]),
       cv.Point(corners[1][1], corners[1][0]),

@@ -3651,7 +3651,7 @@ class PagePreviewState extends State<PagePreview> {
       },
     );
     // Poll Images
-    for (int i = 0; i <= _versionPaths.length; i++) {
+    for (int i = 0; i < _versionPaths.length; i++) {
       _pollWhile(
         condition: () {
           return _versionPaths[i].isEmpty;

@@ -11,6 +11,7 @@ import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
+import 'package:image/image.dart' show DecodeInfo;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_selector/file_selector.dart';
@@ -1244,16 +1245,18 @@ class FilesHelper {
           break;
         }
       }
+      // Image Info
+      List<DecodeInfo> imageInfos = [];
+      for (var path in imagePaths) {
+        imageInfos.add((await AppGlobals.getImageInfo(path))!);
+      }
       // 2. Set correct aspect ratio
       List<pdf.PdfPageFormat> pageFormats = [];
       for (var (i, ratioValue) in ratioValues.indexed) {
         late double height;
         if (versionIndex == 0) {
-          final imgInfo = AppGlobals.getPngInfo(
-            File(imagePaths[i]).readAsBytesSync(),
-          );
           double photoRatio =
-              imgInfo!.height.toDouble() / imgInfo.width.toDouble();
+              imageInfos[i].height.toDouble() / imageInfos[i].width.toDouble();
           height = width * photoRatio;
         } else {
           height = width * (ratioValue ?? math.sqrt2);
@@ -1266,12 +1269,11 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          final imgInfo = AppGlobals.getPngInfo(imageFile.readAsBytesSync());
           final Uint8List? pngBytes =
               await FlutterImageCompress.compressWithFile(
                 imagePath,
-                minWidth: imgInfo!.width,
-                minHeight: imgInfo.height,
+                minWidth: imageInfos[i].width,
+                minHeight: imageInfos[i].height,
                 format: CompressFormat.png,
                 quality: 100,
               );
@@ -1294,7 +1296,7 @@ class FilesHelper {
 
       return pdfDoc;
     } catch (e) {
-      throw StateError("Error, _convertImageToPdf: $e");
+      throw StateError("Error, _convertImagesToPdf: $e");
     }
   }
 
