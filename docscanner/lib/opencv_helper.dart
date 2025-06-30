@@ -1260,17 +1260,16 @@ class OpenCVHelper {
 
   /// Background Subtraction 1
   cv.Mat _isolateAndSubtractBGSimple(cv.Mat warped) {
-    cv.Mat? bg = _warpedBgSimple(warped);
+    cv.Mat bg = _warpedBgSimple(warped);
     //return bg;
 
     cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
     //return subtracted;
 
-    subtracted = _stretchMatSubtracted(
+    subtracted = _stretchMat(
       subtracted,
       lowPercentile: 0.005,
-      highValue: 255,
-      gamma: null,
+      highPercentile: 0.995,
     );
     return subtracted;
   }
@@ -1278,21 +1277,42 @@ class OpenCVHelper {
   /// Background Subtraction 2
   cv.Mat _isolateAndSubtractBG(cv.Mat warped) {
     cv.Mat bg = _warpedBg(warped);
-    //return bg;
 
-    cv.Mat subtracted = cv.addWeighted(warped, 1, bg, -1, 255);
-    //return subtracted;
-
-    subtracted = _stretchMatSubtracted(
-      subtracted,
-      lowPercentile: 0.15,
-      highValue: 230,
-      gamma: 0.45,
+    cv.Mat subtracted = cv.addWeighted(
+      warped.convertTo(cv.MatType.CV_32FC3, alpha: 1 / 255),
+      1,
+      bg.convertTo(cv.MatType.CV_32FC3, alpha: 1 / 255),
+      -1,
+      0.5,
     );
 
-    // Median blur color
+    subtracted = _stretchMatF32(subtracted);
+    subtracted = subtracted.convertTo(cv.MatType.CV_8UC3, alpha: 255);
+
+    // Clip brighness + gamma correction
+    cv.VecMat hsv = cv.split(cv.cvtColor(subtracted, cv.COLOR_BGR2HSV));
+    // Clip percentage wise (0.5%)
+    hsv[2] = _stretchMat(hsv[2], lowPercentile: 0.005, highPercentile: 0.995);
+    // Clip more if light or dark background
+    int medianBrightness = _medianBrightness(hsv[2]);
+    int highVal = 255;
+    int lowVal = 0;
+    if (medianBrightness > 155) {
+      highVal = medianBrightness - (255 - medianBrightness) * 2;
+    } else if (medianBrightness < 100) {
+      lowVal = medianBrightness + (medianBrightness) * 2;
+    }
+    hsv[2] = _stretchMatValues(
+      hsv[2],
+      lowValue: lowVal,
+      highValue: highVal,
+      gamma: null,
+    );
+    subtracted = cv.cvtColor(cv.merge(hsv), cv.COLOR_HSV2BGR);
+
+    // Median blur saturation -> less color noise
     try {
-      int k1 = (K ~/ 70) * 2 + 3;
+      int k1 = 3;
       cv.VecMat hsv = cv.split(cv.cvtColor(subtracted, cv.COLOR_BGR2HSV));
       //hsv[0] = cv.medianBlur(hsv[0], k1 * 2 + 1);
       hsv[1] = cv.min(cv.medianBlur(hsv[1], k1), hsv[1]);
@@ -1544,10 +1564,10 @@ class OpenCVHelper {
     return a[index];
   }
 
-  cv.Mat _stretchMatSubtracted(
+  cv.Mat _stretchMatValues(
     cv.Mat mat, {
-    final double lowPercentile = 0.02,
-    final double highValue = 230,
+    final int lowValue = 5,
+    final int highValue = 230,
     final double? gamma,
   }) {
     cv.Mat ref;
@@ -1556,20 +1576,16 @@ class OpenCVHelper {
     } else {
       ref = mat;
     }
-    ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
-    List<int> refList = ref.data.toList();
-    refList.removeWhere((value) => value == 255);
-    if (refList.isEmpty) return mat;
-    refList.sort();
-    int lowIndex = (refList.length.toDouble() * lowPercentile).toInt();
-    double lowValue = refList[lowIndex].toDouble();
+    if (ref.channels == 3) {
+      ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
+    }
 
     cv.normalize(
       mat,
       mat,
       normType: cv.NORM_MINMAX,
-      alpha: -lowValue,
-      beta: (255 - highValue) + 255,
+      alpha: -(lowValue.toDouble()),
+      beta: (255.0 - highValue.toDouble()) + 255.0,
     );
 
     if (gamma != null) mat = _applyGammaCorrection(mat, gamma);
@@ -1579,20 +1595,20 @@ class OpenCVHelper {
 
   cv.Mat _stretchMat(
     cv.Mat mat, {
-    final double lowPercentile = 0.02,
-    final double highPercentile = 0.98,
+    final double lowPercentile = 0.005,
+    final double highPercentile = 0.995,
     final double? gamma,
   }) {
     cv.Mat ref;
-    if (height > 1000 && width > 1000) {
+    if (height > 1000 || width > 1000) {
       ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
     } else {
       ref = mat;
     }
-    ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
+    if (ref.channels == 3) {
+      ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
+    }
     List<int> refList = ref.data.toList();
-    refList.removeWhere((value) => value == 255);
-    if (refList.isEmpty) return mat;
     refList.sort();
     int lowIndex = (refList.length.toDouble() * lowPercentile).toInt();
     double lowValue = refList[lowIndex].toDouble();
@@ -1610,6 +1626,33 @@ class OpenCVHelper {
     if (gamma != null) mat = _applyGammaCorrection(mat, gamma);
 
     return mat;
+  }
+
+  cv.Mat _stretchMatF32(cv.Mat matF32) {
+    cv.normalize(
+      matF32,
+      matF32,
+      normType: cv.NORM_MINMAX,
+      alpha: 0.0,
+      beta: 1.0,
+    );
+    return matF32;
+  }
+
+  int _medianBrightness(cv.Mat mat) {
+    cv.Mat ref;
+    if (height > 1000 || width > 1000) {
+      ref = cv.resize(mat, (height ~/ 4, width ~/ 4));
+    } else {
+      ref = mat;
+    }
+    if (ref.channels == 3) {
+      ref = cv.cvtColor(ref, cv.COLOR_BGR2GRAY);
+    }
+    List<int> refList = ref.data.toList();
+    refList.sort();
+
+    return refList[refList.length ~/ 2];
   }
 
   cv.Mat _applyGammaCorrection(cv.Mat img, double gamma) {
