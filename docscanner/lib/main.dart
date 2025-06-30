@@ -2857,13 +2857,15 @@ class _PagesState extends State<Pages> with RouteAware {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          if (await _changeThumbnailIndexesPopup(
+                          //if (
+                          await _changeThumbnailVersionsPopup(
                             context,
                             _selectedPages,
                             widget.docIndex,
-                          )) {
-                            _cancelSelectMode();
-                          }
+                          );
+                          //) {
+                          //  _cancelSelectMode();
+                          //}
                         },
                         tooltip: tr("fabs.thumbnail"),
                         child: const Icon(Icons.image),
@@ -2903,12 +2905,15 @@ class _PagesState extends State<Pages> with RouteAware {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () async {
-                          _pagesPopup(
-                            context,
-                            _selectedPages,
-                            PopUpType.save,
-                            widget.docIndex,
-                          );
+                          if (await _pagesPopup(
+                                context,
+                                _selectedPages,
+                                PopUpType.save,
+                                widget.docIndex,
+                              ) &&
+                              mounted) {
+                            _cancelSelectMode();
+                          }
                         },
                         tooltip: tr("fabs.save"),
                         child: const Icon(Icons.save),
@@ -5932,7 +5937,7 @@ List<String> versionNames = [
   tr("versions.processed2"),
 ];
 
-Future<bool> _changeThumbnailIndexesPopup(
+Future<bool> _changeThumbnailVersionsPopup(
   BuildContext callContext,
   List<int> pageIndexes,
   int docIndex,
@@ -6005,7 +6010,7 @@ Future<bool> _pagesPopup(
   int docIndex, {
   int? versionIndex,
 }) async {
-  bool confirmDelete = false;
+  bool confirmAction = false;
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> thumbnailPaths;
   late int pagesCount;
@@ -6293,6 +6298,7 @@ Future<bool> _pagesPopup(
                                                   pageUnlocked ||
                                                   versionIndex != 3)
                                           ? () async {
+                                              confirmAction = true;
                                               Navigator.pop(context);
                                               Future? afterExport;
                                               switch (type) {
@@ -6401,6 +6407,7 @@ Future<bool> _pagesPopup(
                                                             versionIndex != 3 &&
                                                                 isSinglePage))
                                                 ? () async {
+                                                    confirmAction = true;
                                                     Navigator.pop(context);
                                                     Future? afterExport;
                                                     switch (type) {
@@ -6592,7 +6599,7 @@ Future<bool> _pagesPopup(
                               padding: const EdgeInsets.only(left: 8),
                               child: ElevatedButton(
                                 onPressed: () {
-                                  confirmDelete = true;
+                                  confirmAction = true;
                                   g.filesHelper.deleteImages(
                                     context,
                                     docIndex,
@@ -6617,7 +6624,7 @@ Future<bool> _pagesPopup(
       );
     },
   );
-  return confirmDelete;
+  return confirmAction;
 }
 
 class CameraScreen extends StatefulWidget {
