@@ -1328,7 +1328,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   _openImagePicker(ImageSource.gallery, isMultiImage: true);
                 },
                 tooltip: tr("fabs.images"),
-                child: const Icon(Icons.photo_library),
+                child: IconWithPlusBadge(icon: Icons.photo_library),
               ),
             ),
             SizedBox(height: 18.0),
@@ -1381,7 +1381,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   }
                 },
                 tooltip: tr("fabs.pdfs"),
-                child: const Icon(Icons.picture_as_pdf),
+                child: IconWithPlusBadge(icon: Icons.picture_as_pdf),
               ),
             ),
             SizedBox(height: 18.0),
@@ -1397,6 +1397,132 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ],
         ),
       ),
+    );
+  }
+}
+
+class IconWithPlusBadge extends StatelessWidget {
+  final IconData icon;
+
+  const IconWithPlusBadge({super.key, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final double containerSize = 16.0;
+    final double textScaleFactor = MediaQuery.of(context).textScaler.scale(1.0);
+    final double fontSize = containerSize / textScaleFactor;
+
+    return Stack(
+      children: [
+        Align(
+          alignment:
+              Alignment.center +
+              Alignment(
+                0.25 / textScaleFactor / textScaleFactor,
+                0.25 / textScaleFactor / textScaleFactor,
+              ),
+          child: Icon(icon),
+        ),
+        Align(
+          alignment:
+              Alignment.topLeft +
+              Alignment(
+                -1 / textScaleFactor / textScaleFactor,
+                -1 / textScaleFactor / textScaleFactor,
+              ),
+          child: SizedBox(
+            width: containerSize + fontSize,
+            height: containerSize + fontSize,
+            child: Stack(
+              children: [
+                Center(
+                  child: Container(
+                    width: containerSize,
+                    height: containerSize,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    "+",
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class IconWithBadge extends StatelessWidget {
+  final IconData icon;
+  final IconData badgeIcon;
+
+  const IconWithBadge({super.key, required this.icon, required this.badgeIcon});
+
+  @override
+  Widget build(BuildContext context) {
+    final double containerSize = 20.0;
+    final double textScaleFactor = MediaQuery.of(context).textScaler.scale(1.0);
+    //final double fontSize = containerSize / textScaleFactor;
+
+    return Stack(
+      children: [
+        Align(
+          alignment:
+              Alignment.center +
+              Alignment(0.25 / textScaleFactor, 0.25 / textScaleFactor),
+          child: Icon(icon),
+        ),
+        Align(
+          alignment:
+              Alignment.topLeft +
+              Alignment(
+                0.25 / textScaleFactor / textScaleFactor,
+                0.25 / textScaleFactor / textScaleFactor,
+              ),
+          child: SizedBox(
+            width: containerSize + 2,
+            height: containerSize + 2,
+            child: Stack(
+              children: [
+                Center(
+                  child: Container(
+                    width: containerSize,
+                    height: containerSize,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Icon(
+                    badgeIcon,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2774,7 +2900,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           );
                         },
                         tooltip: tr("fabs.images"),
-                        child: const Icon(Icons.photo_library),
+                        child: IconWithPlusBadge(icon: Icons.photo_library),
                       ),
                     ),
                     SizedBox(height: 18.0),
@@ -2829,7 +2955,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           }
                         },
                         tooltip: tr("fabs.pdfs"),
-                        child: const Icon(Icons.picture_as_pdf),
+                        child: IconWithPlusBadge(icon: Icons.picture_as_pdf),
                       ),
                     ),
                     SizedBox(height: 18.0),
@@ -2868,7 +2994,10 @@ class _PagesState extends State<Pages> with RouteAware {
                           //}
                         },
                         tooltip: tr("fabs.thumbnail"),
-                        child: const Icon(Icons.image),
+                        child: IconWithBadge(
+                          icon: Icons.image,
+                          badgeIcon: Icons.change_circle,
+                        ),
                       ),
                     ),
                     SizedBox(height: 18.0),
