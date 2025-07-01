@@ -1315,10 +1315,15 @@ class OpenCVHelper {
     subtracted = _stretchMatF32(subtracted);
     subtracted = subtracted.convertTo(cv.MatType.CV_8UC3, alpha: 255);
 
+    // Clip percentage wise (0.5%)
+    subtracted = _stretchMat(
+      subtracted,
+      lowPercentile: 0.005,
+      highPercentile: 0.995,
+    );
+
     // Clip brighness + gamma correction
     cv.VecMat hsv = cv.split(cv.cvtColor(subtracted, cv.COLOR_BGR2HSV));
-    // Clip percentage wise (0.5%)
-    hsv[2] = _stretchMat(hsv[2], lowPercentile: 0.005, highPercentile: 0.995);
     // Clip more if light or dark background
     int medianBrightness = _medianBrightness(hsv[2]);
     int highVal = 255;
