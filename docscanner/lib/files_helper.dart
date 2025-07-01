@@ -1356,7 +1356,6 @@ class FilesHelper {
         try {
           pdfPath = await FilePicker.platform.saveFile(
             fileName: docFileName,
-            dialogTitle: "Select a Folder to save the PDF to", //todo tr
             allowedExtensions: ["pdf"],
             bytes: await pdf.save(),
           );
@@ -1381,9 +1380,10 @@ class FilesHelper {
 
       messenger?.hideCurrentSnackBar();
       // Saved Toast
-      const String basePath = "/storage/emulated/0";
-      final readablePath = pdfPath.startsWith(basePath)
-          ? pdfPath.substring(basePath.length)
+      const String basePath = "/document/primary:";
+      final int filenamePos = pdfPath.lastIndexOf("/");
+      final String readablePath = pdfPath.startsWith(basePath)
+          ? pdfPath.substring(basePath.length, filenamePos)
           : pdfPath;
       dev.log("PDF saved at: $readablePath");
       Fluttertoast.showToast(
