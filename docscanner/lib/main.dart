@@ -2017,7 +2017,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
