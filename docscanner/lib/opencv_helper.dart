@@ -195,7 +195,7 @@ class OpenCVHelper {
 
   Future<Uint8List> _returnImage(cv.Mat? imageMat) async {
     if (imageMat == null || imageMat.isEmpty) {
-      dev.log("Error: Mat empty, can't convert to Image.");
+      dev.log("Warning: Mat empty, can't convert to Image.");
       return Uint8List(0);
     }
     // Convert final Mat to Uint8List for Flutter
