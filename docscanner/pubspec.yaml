@@ -22,7 +22,7 @@ dependencies:
   gal: # save to gallery
   share_plus: # share files
   pdf:
-  file_selector: # select directory to save pdfs to
+  file_picker:
   image:
   receive_sharing_intent:
   # image processing:

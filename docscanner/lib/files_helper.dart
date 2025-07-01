@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:developer' as dev;
 
 import 'package:easy_localization/easy_localization.dart' show tr;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -14,7 +15,6 @@ import 'package:gal/gal.dart';
 import 'package:image/image.dart' show DecodeInfo;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
@@ -1302,8 +1302,6 @@ class FilesHelper {
     int? versionIndex,
   }) async {
     if (isTmpExternal) return;
-    final port = ReceivePort();
-    RootIsolateToken token = RootIsolateToken.instance!;
 
     ScaffoldMessengerState? messenger;
     SnackBar? snackBar;
@@ -1328,20 +1326,6 @@ class FilesHelper {
     }
 
     try {
-      // Ask user to pick a folder
-      isTmpExternal = true;
-      String? selectedDirectory = await getDirectoryPath(
-        confirmButtonText: "Select a Folder to Save PDF",
-      );
-      Future.delayed(Duration(seconds: 1), () {
-        isTmpExternal = false;
-      });
-      if (selectedDirectory == null) {
-        throw StateError("User-Action, pickFolderForDocumentPdf: cancelled");
-      }
-
-      // SnackBar
-      messenger?.showSnackBar(snackBar!);
       // PDF Name
       String docFileName = await _generateFileName(
         docIndex,
@@ -1349,95 +1333,57 @@ class FilesHelper {
         versionIndex,
         ".pdf",
       );
-      final String pdfPath = "$selectedDirectory/$docFileName";
-      // Save PDF
-      final File file = File(pdfPath);
-      if (file.existsSync()) {
-        final renamedTo =
-            "${pdfPath}_old_${DateTime.now().millisecondsSinceEpoch}";
-        file.renameSync(renamedTo);
-        Fluttertoast.showToast(
-          msg: tr(
-            "toast.docRenamed",
-            namedArgs: {"from": docFileName, "to": renamedTo},
-          ),
-          toastLength: Toast.LENGTH_LONG,
-        );
-      }
 
+      Future.delayed(Duration(seconds: 1), () {
+        isTmpExternal = false;
+      });
+      // SnackBar
+      messenger?.showSnackBar(snackBar!);
+
+      // Save PDF
       pdfw.Document? pdf;
       pdf = await _convertImagesToPdf(
         docIndex,
         pageIndexes: pageIndexes,
         versionIndex: versionIndex,
       );
-
-      // Isolate
-      IsolatesManager().runTask(
-        _writePfdToPathIsolate,
-        (port.sendPort, token, pdfPath, pdf),
-        portIn: port,
-        prio: IsolatePriority.quick,
-      );
-
-      final completer = Completer();
-      port.listen((message) {
-        if (message is bool) {
-          if (message) {
-            completer.complete(message);
-            messenger?.hideCurrentSnackBar();
-            // Saved Toast
-            const String basePath = "/storage/emulated/0";
-            final readablePath = pdfPath.startsWith(basePath)
-                ? pdfPath.substring(basePath.length)
-                : pdfPath;
-            dev.log("PDF saved at: $readablePath");
-            Fluttertoast.showToast(
-              msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
-              toastLength: Toast.LENGTH_LONG,
-            );
-          } else {
-            messenger?.hideCurrentSnackBar();
-            messenger?.showSnackBar(
-              SnackBar(content: Text(tr("snackbar.e_savePdf"))),
-            );
-          }
+      // Ask user to pick a folder
+      isTmpExternal = true;
+      String? pdfPath;
+      if (pdf != null) {
+        pdfPath = await FilePicker.platform.saveFile(
+          fileName: docFileName,
+          dialogTitle: "Select a Folder to save the PDF to", //todo tr
+          allowedExtensions: ["pdf"],
+          bytes: await pdf.save(),
+        );
+        if (pdfPath == null) {
+          throw StateError("User-Action, pickFolderForDocumentPdf: cancelled");
         }
-      });
-      return await completer.future;
+        isTmpExternal = false;
+      } else {
+        messenger?.hideCurrentSnackBar();
+        messenger?.showSnackBar(
+          SnackBar(content: Text(tr("snackbar.e_savePdf"))),
+        );
+        isTmpExternal = false;
+        return;
+      }
+
+      messenger?.hideCurrentSnackBar();
+      // Saved Toast
+      const String basePath = "/storage/emulated/0";
+      final readablePath = pdfPath.startsWith(basePath)
+          ? pdfPath.substring(basePath.length)
+          : pdfPath;
+      dev.log("PDF saved at: $readablePath");
+      Fluttertoast.showToast(
+        msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
+        toastLength: Toast.LENGTH_LONG,
+      );
     } catch (e) {
       throw StateError("Error, pickFolderForDocumentPdf: $e");
     }
-  }
-
-  static Future<void> _writePfdToPathIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      String pdfPath,
-      pdfw.Document? pdf,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    RootIsolateToken token = data.$2;
-    String pdfPath = data.$3;
-    pdfw.Document? pdf = data.$4;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    if (pdf != null) {
-      try {
-        final pdfFile = File(pdfPath);
-        await pdfFile.writeAsBytes(await pdf.save());
-        sendPort.send(true);
-      } catch (e) {
-        sendPort.send(false);
-        throw StateError("Error, _writePfdToPathIsolate: $e");
-      }
-    } else {
-      sendPort.send(false);
-    }
-    Isolate.exit();
   }
 
   Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
@@ -1537,7 +1483,7 @@ class FilesHelper {
 
     // Isolate
     await IsolatesManager().runTask(
-      _writePfdToPathIsolate,
+      _writePfdToInternalPathIsolate,
       (port.sendPort, token, pdfPath, pdf),
       portIn: port,
       prio: IsolatePriority.immediate,
@@ -1560,6 +1506,36 @@ class FilesHelper {
       }
     });
     return await completer.future;
+  }
+
+  static Future<void> _writePfdToInternalPathIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      String pdfPath,
+      pdfw.Document? pdf,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    String pdfPath = data.$3;
+    pdfw.Document? pdf = data.$4;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    if (pdf != null) {
+      try {
+        final pdfFile = File(pdfPath);
+        await pdfFile.writeAsBytes(await pdf.save());
+        sendPort.send(true);
+      } catch (e) {
+        sendPort.send(false);
+        throw StateError("Error, _writePfdToInternalPathIsolate: $e");
+      }
+    } else {
+      sendPort.send(false);
+    }
+    Isolate.exit();
   }
 
   Future<String> _generateFileName(
@@ -1672,18 +1648,30 @@ class FilesHelper {
     final List<(int?, int?)> indexPairsList = [];
     if (isTmpExternal) return indexPairsList;
     // User picks PDF
-    final pdfType = XTypeGroup(label: "PDF", extensions: ["pdf"]);
     isTmpExternal = true;
-    final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
-    if (xFiles.isEmpty) {
+    FilePickerResult? filePickerResult = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      allowedExtensions: ["pdf"],
+    );
+    if (filePickerResult == null) {
+      dev.log("User-Error, pickPdfToDocument: cancelled");
+      isTmpExternal = false;
+      return indexPairsList;
+    }
+    List<File> pickedFiles = filePickerResult.paths
+        .map((path) => File(path!))
+        .toList();
+    //final pdfType = XTypeGroup(label: "PDF", extensions: ["pdf"]);
+    //final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
+    if (pickedFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       isTmpExternal = false;
       return indexPairsList;
     }
     // Process multiple PDFs
-    for (var xFile in xFiles) {
+    for (var file in pickedFiles) {
       final docData = await imageProcessingManager.pdfToDoc(
-        xFile.path,
+        file.path,
         addToDocWithIndex: addToDocWithIndex,
       );
       addToDocWithIndex = (addToDocWithIndex != null)
@@ -1711,23 +1699,25 @@ class FilesHelper {
     }
 
     // Let user pick folder
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fileName = "error_log_$now.txt";
+
     isTmpExternal = true;
-    String? selectedDirectory = await getDirectoryPath(
-      confirmButtonText: "Select a Folder to Save PDF",
+    final String? filePath = await FilePicker.platform.saveFile(
+      fileName: fileName,
+      dialogTitle: "Select Error-Log Folder",
+      bytes: logFile.readAsBytesSync(),
     );
+    if (filePath == null) {
+      Fluttertoast.showToast(msg: "Saving Error Log cancelled");
+      isTmpExternal = false;
+      return;
+    }
     Future.delayed(Duration(seconds: 1), () {
       isTmpExternal = false;
     });
-    if (selectedDirectory == null) {
-      Fluttertoast.showToast(msg: "Saving Error Log cancelled");
-      return;
-    }
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final outputFile = File("$selectedDirectory/error_log_$now.txt");
 
     // Save externally
-    outputFile.writeAsBytesSync(logFile.readAsBytesSync());
-    Fluttertoast.showToast(msg: "Log at: $selectedDirectory");
+    Fluttertoast.showToast(msg: "Log at: $filePath");
   }
 }
