@@ -1353,16 +1353,23 @@ class FilesHelper {
       isTmpExternal = true;
       String? pdfPath;
       if (pdf != null) {
-        pdfPath = await FilePicker.platform.saveFile(
-          fileName: docFileName,
-          dialogTitle: "Select a Folder to save the PDF to", //todo tr
-          allowedExtensions: ["pdf"],
-          bytes: await pdf.save(),
-        );
-        if (pdfPath == null) {
-          throw StateError("User-Action, pickFolderForDocumentPdf: cancelled");
+        try {
+          pdfPath = await FilePicker.platform.saveFile(
+            fileName: docFileName,
+            dialogTitle: "Select a Folder to save the PDF to", //todo tr
+            allowedExtensions: ["pdf"],
+            bytes: await pdf.save(),
+          );
+        } catch (e) {
+          dev.log("Error, pickFolderForDocumentPdf: $e");
+          isTmpExternal = false;
+          throw StateError("Error, pickFolderForDocumentPdf: $e");
         }
-        isTmpExternal = false;
+        if (pdfPath == null) {
+          dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
+          isTmpExternal = false;
+          return;
+        }
       } else {
         messenger?.hideCurrentSnackBar();
         messenger?.showSnackBar(
