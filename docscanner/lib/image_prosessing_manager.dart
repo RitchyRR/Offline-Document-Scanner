@@ -72,14 +72,6 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
-    //await MetadataHelper.writePageThumbnailIndex(
-    //  docIndex,
-    //  pageIndex,
-    //  1,
-    //  gIn: g,
-    //  supressWarnings: true,
-    //);
-
     isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -247,10 +239,7 @@ class ImageProcessingManager {
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,
-        thumbnailIndex ??
-            ((g.proUnlocked == true)
-                ? versionNamesInternal.length - 1
-                : versionNamesInternal.length - 2),
+        thumbnailIndex ?? ((g.proUnlocked == true) ? 4 : 3),
         gIn: g,
         supressWarnings: true,
       );
@@ -720,10 +709,7 @@ class ImageProcessingManager {
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
-          thumbnailIndex ??
-              (g.proUnlocked == true
-                  ? versionNamesInternal.length - 1
-                  : versionNamesInternal.length - 2),
+          thumbnailIndex ?? (g.proUnlocked == true ? 4 : 3),
           gIn: g,
         );
       }
@@ -1049,15 +1035,6 @@ class ImageProcessingManager {
       g,
       overwrite: false,
     );
-    //if (newThumbnail) {
-    //  isolateExitPoint(kill);
-    //  await MetadataHelper.writePageThumbnailIndex(
-    //    docIndex,
-    //    pageIndex,
-    //    pageThumbnailIndexIn,
-    //    gIn: g,
-    //  );
-    //}
 
     Isolate.exit(sendPort, "done");
   }
@@ -1118,9 +1095,7 @@ class ImageProcessingManager {
     AppGlobals gIn, {
     bool overwrite = true,
   }) async {
-    thumbnailIndex ??= (gIn.proUnlocked == true
-        ? versionNamesInternal.length - 1
-        : versionNamesInternal.length - 2);
+    thumbnailIndex ??= (gIn.proUnlocked == true ? 4 : 3);
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;

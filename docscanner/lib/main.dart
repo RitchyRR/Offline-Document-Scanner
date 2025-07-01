@@ -3643,9 +3643,7 @@ class PagePreview extends StatefulWidget {
 class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
-  int _selectedThumbnail = g.proUnlocked == true
-      ? versionNames.length - 1
-      : versionNames.length - 2;
+  int _selectedThumbnail = g.proUnlocked == true ? 4 : 3;
   List<String> _versionPaths = List.generate(versionNames.length, (_) => "");
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
@@ -4026,7 +4024,10 @@ class PagePreviewState extends State<PagePreview> {
     bool enableFABs = _selectedVersion == 0
         ? enableFAB0
         : _versionPaths[_selectedVersion].isNotEmpty;
-    _allowPop = g.proUnlocked == true || _selectedVersion != 4 || _pageUnlocked;
+    _allowPop =
+        g.proUnlocked == true ||
+        (_selectedVersion != 4 && _selectedVersion != 5) ||
+        _pageUnlocked;
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -4489,7 +4490,7 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             // Locked Badge
                             (g.proUnlocked == true ||
-                                    index != 4 ||
+                                    (index != 4 && index != 5) ||
                                     _pageUnlocked)
                                 ? SizedBox()
                                 : Positioned(
@@ -4683,9 +4684,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        (g.proUnlocked == true
-            ? versionNames.length - 1
-            : versionNames.length - 2),
+        (g.proUnlocked == true ? 4 : 3),
       );
       _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
@@ -6083,9 +6082,7 @@ Future<bool> _changeThumbnailVersionsPopup(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: List<Widget>.generate(
-                g.proUnlocked == true
-                    ? versionNames.length - 1
-                    : versionNames.length - 2,
+                g.proUnlocked == true ? 4 : 3,
                 (index) => RadioListTile<int>(
                   title: Text(versionNames[index + 1]),
                   value: index + 1,
@@ -6396,7 +6393,7 @@ Future<bool> _pagesPopup(
                           decoration:
                               (g.proUnlocked == true ||
                                   pageUnlocked ||
-                                  versionIndex != 3)
+                                  (versionIndex != 4 && versionIndex != 5))
                               ? null
                               : BoxDecoration(
                                   color: Theme.of(
@@ -6416,7 +6413,8 @@ Future<bool> _pagesPopup(
                                       horizontal:
                                           (g.proUnlocked == true ||
                                               pageUnlocked ||
-                                              versionIndex != 3)
+                                              (versionIndex != 4 &&
+                                                  versionIndex != 5))
                                           ? 0
                                           : 4,
                                     ),
@@ -6426,7 +6424,8 @@ Future<bool> _pagesPopup(
                                           allPagesLoaded &&
                                               (g.proUnlocked == true ||
                                                   pageUnlocked ||
-                                                  versionIndex != 3)
+                                                  (versionIndex != 4 &&
+                                                      versionIndex != 5))
                                           ? () async {
                                               confirmAction = true;
                                               Navigator.pop(context);
@@ -6520,7 +6519,9 @@ Future<bool> _pagesPopup(
                                                         (isDocument ||
                                                             !isSinglePage)) ||
                                                     (pageUnlocked ||
-                                                        versionIndex != 3 &&
+                                                        (versionIndex != 4 &&
+                                                                versionIndex !=
+                                                                    5) &&
                                                             isSinglePage))
                                                 ? 0
                                                 : 4,
@@ -6534,7 +6535,10 @@ Future<bool> _pagesPopup(
                                                             (isDocument ||
                                                                 !isSinglePage)) ||
                                                         (pageUnlocked ||
-                                                            versionIndex != 3 &&
+                                                            (versionIndex !=
+                                                                        4 &&
+                                                                    versionIndex !=
+                                                                        5) &&
                                                                 isSinglePage))
                                                 ? () async {
                                                     confirmAction = true;
@@ -6662,7 +6666,7 @@ Future<bool> _pagesPopup(
                               // Unlock PRO
                               (g.proUnlocked == true ||
                                       pageUnlocked ||
-                                      versionIndex != 3)
+                                      (versionIndex != 4 && versionIndex != 5))
                                   ? SizedBox()
                                   : Padding(
                                       padding: const EdgeInsets.fromLTRB(

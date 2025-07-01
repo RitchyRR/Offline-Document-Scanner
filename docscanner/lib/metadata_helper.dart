@@ -334,10 +334,10 @@ class MetadataHelper {
 
     bool isNewIndex = false;
 
-    if (thumbnailIndexIn == 3 &&
+    if ((thumbnailIndexIn == 4 || thumbnailIndexIn == 5) &&
         !(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) &&
         !tmpPro) {
-      thumbnailIndexIn = 2;
+      thumbnailIndexIn = 3;
     }
     String newThumbnailName = versionNamesInternal[thumbnailIndexIn];
     String pagePath = await (isIsolate
