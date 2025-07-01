@@ -715,11 +715,13 @@ class FilesHelper {
       await future;
       await imageProcessingManager.pdfProcessingFutures[docIndex];
 
-      List<FileSystemEntity> files = pageDir.listSync(recursive: true);
-      for (var file in files) {
-        imageCache.evict(FileImage(File(file.path)), includeLive: true);
+      if (pageDir.existsSync()) {
+        List<FileSystemEntity> files = pageDir.listSync(recursive: true);
+        for (var file in files) {
+          imageCache.evict(FileImage(File(file.path)), includeLive: true);
+        }
+        pageDir.deleteSync(recursive: true);
       }
-      pageDir.deleteSync(recursive: true);
       dev.log("Deleted page directory: $pagePath");
       _removeMarkedDeletedPage(docIndex, pageIndex);
     }

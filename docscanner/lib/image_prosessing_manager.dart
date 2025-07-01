@@ -594,6 +594,13 @@ class ImageProcessingManager {
       ),
     );
     Uint8List warpedBytes = warpedRet.$1;
+    if (warpedBytes.lengthInBytes == 0) {
+      if (versionPaths[1].isNotEmpty) {
+        warpedBytes = File(versionPaths[1]).readAsBytesSync();
+      } else {
+        throw StateError("Error, _repairPageIsolate: No warped");
+      }
+    }
     Uint8List shapeBytesWarped = warpedRet.$2;
     isolateExitPoint(kill);
     if (shapePath.isEmpty) {
@@ -615,7 +622,7 @@ class ImageProcessingManager {
     // Warped
     if (versionPaths[1].isEmpty) {
       isolateExitPoint(kill);
-      versionPaths[1] = await g.filesHelper.savePageVersion(
+      await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         1,
@@ -647,7 +654,7 @@ class ImageProcessingManager {
         ParamsProcessImage1(warpedBytes),
       );
       isolateExitPoint(kill);
-      versionPaths[3] = await g.filesHelper.savePageVersion(
+      await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         3,
@@ -657,22 +664,23 @@ class ImageProcessingManager {
     }
 
     // Processed2 basierend auf dem Warped-Bild
-    if (versionPaths[4].isEmpty) {
+    if (versionPaths[4].isEmpty || versionPaths[5].isEmpty) {
       isolateExitPoint(kill);
       Uint8List processed2Bytes;
       Uint8List processed3Bytes;
       (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
-
+      // PRO
       isolateExitPoint(kill);
-      versionPaths[4] = await g.filesHelper.savePageVersion(
+      await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         3,
         processed2Bytes,
         ".png",
       );
+      // PRO 2
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
