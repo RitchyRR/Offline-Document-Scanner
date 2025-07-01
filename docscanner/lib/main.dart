@@ -2017,7 +2017,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -6074,6 +6074,7 @@ Future<bool> _changeThumbnailVersionsPopup(
   int docIndex,
 ) async {
   int? selectedIndex;
+  bool allowed = true;
   bool? confirmed = await showDialog<bool>(
     context: callContext,
     builder: (BuildContext context) {
@@ -6084,15 +6085,30 @@ Future<bool> _changeThumbnailVersionsPopup(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: List<Widget>.generate(
-                g.proUnlocked == true
-                    ? versionNames.length - 1
-                    : versionNames.length - 3,
+                versionNames.length - 1,
                 (index) => RadioListTile<int>(
-                  title: Text(versionNames[index + 1]),
+                  title: Row(
+                    children: [
+                      Text(versionNames[index + 1]),
+                      !(g.proUnlocked == true) &&
+                              g.proFilterIndexes.contains(index + 1)
+                          ? Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Icon(Icons.lock),
+                            )
+                          : SizedBox(),
+                    ],
+                  ),
                   value: index + 1,
                   groupValue: selectedIndex,
                   onChanged: (int? value) {
                     if (value != null) {
+                      if (!(g.proUnlocked == true) &&
+                          g.proFilterIndexes.contains(index + 1)) {
+                        allowed = false;
+                      } else {
+                        allowed = true;
+                      }
                       setState(() {
                         selectedIndex = value;
                       });
@@ -6106,14 +6122,20 @@ Future<bool> _changeThumbnailVersionsPopup(
                 onPressed: () => Navigator.pop(context, false), // Cancel
                 child: Text(tr("popup.cancel")),
               ),
-              ElevatedButton(
-                onPressed: selectedIndex != null
-                    ? () {
-                        Navigator.pop(context, true);
-                      }
-                    : null,
-                child: Text(tr("popup.ok")),
-              ),
+              allowed
+                  ? ElevatedButton(
+                      onPressed: selectedIndex != null
+                          ? () {
+                              Navigator.pop(context, true);
+                            }
+                          : null,
+                      child: Text(tr("popup.ok")),
+                    )
+                  : ElevatedButton.icon(
+                      icon: Icon(Icons.lock),
+                      onPressed: () => proPopup(context),
+                      label: Text(tr("popup.unlock")),
+                    ),
             ],
           );
         },
