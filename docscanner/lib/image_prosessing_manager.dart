@@ -239,7 +239,10 @@ class ImageProcessingManager {
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,
-        thumbnailIndex ?? ((g.proUnlocked == true) ? 4 : 3),
+        thumbnailIndex ??
+            ((g.proUnlocked == true)
+                ? g.defaultIndexes.$2
+                : g.defaultIndexes.$1),
         gIn: g,
         supressWarnings: true,
       );
@@ -717,7 +720,10 @@ class ImageProcessingManager {
         await MetadataHelper.writePageThumbnailIndex(
           docIndex,
           pageIndex,
-          thumbnailIndex ?? (g.proUnlocked == true ? 4 : 3),
+          thumbnailIndex ??
+              (g.proUnlocked == true
+                  ? g.defaultIndexes.$2
+                  : g.defaultIndexes.$1),
           gIn: g,
         );
       }
@@ -1103,7 +1109,9 @@ class ImageProcessingManager {
     AppGlobals gIn, {
     bool overwrite = true,
   }) async {
-    thumbnailIndex ??= (gIn.proUnlocked == true ? 4 : 3);
+    thumbnailIndex ??= (gIn.proUnlocked == true
+        ? gIn.defaultIndexes.$2
+        : gIn.defaultIndexes.$1);
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;

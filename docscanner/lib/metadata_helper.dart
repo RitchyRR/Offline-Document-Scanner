@@ -111,11 +111,8 @@ class MetadataHelper {
     bool supressWarnings = false,
     AppGlobals? gIn,
   }) async {
-    bool isIsolate = false;
-    if (gIn != null) isIsolate = true;
-    final pagePath = await (isIsolate
-        ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
-        : g.filesHelper.getPagePath(docIndex, pageIndex));
+    gIn ??= g;
+    final pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     if (!Directory(pagePath).existsSync() && !supressWarnings) {
       dev.log(
@@ -217,8 +214,9 @@ class MetadataHelper {
         globalNotifier.triggerEvent(NotifierEvent.setState);
       });
     } else {
-      if (3 == await readPageThumbnailIndex(docIndex, pageIndex)) {
-        writePageThumbnailIndex(docIndex, pageIndex, 2);
+      final currentIndex = await readPageThumbnailIndex(docIndex, pageIndex);
+      if (g.proFilterIndexes.contains(currentIndex)) {
+        writePageThumbnailIndex(docIndex, pageIndex, g.defaultIndexes.$1);
       }
     }
   }
@@ -251,10 +249,8 @@ class MetadataHelper {
     if (ratioValue == 0.0) {
       throw StateError("aspectRatio should not be saved as 0");
     }
-    bool isIsolate = false;
-    if (gIn != null) isIsolate = true;
-    String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
-        .getPagePath(docIndex, pageIndex);
+    gIn ??= g;
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
@@ -329,20 +325,17 @@ class MetadataHelper {
     bool tmpPro = false,
     bool supressWarnings = false,
   }) async {
-    bool isIsolate = false;
-    if (gIn != null) isIsolate = true;
+    gIn ??= g;
 
     bool isNewIndex = false;
 
-    if ((thumbnailIndexIn == 4 || thumbnailIndexIn == 5) &&
-        !(isIsolate ? gIn!.proUnlocked == true : g.proUnlocked == true) &&
+    if (gIn.proFilterIndexes.contains(thumbnailIndexIn) &&
+        !(gIn.proUnlocked == true) &&
         !tmpPro) {
-      thumbnailIndexIn = 3;
+      thumbnailIndexIn = gIn.defaultIndexes.$1;
     }
     String newThumbnailName = versionNamesInternal[thumbnailIndexIn];
-    String pagePath = await (isIsolate
-        ? gIn!.filesHelper.getPagePath(docIndex, pageIndex)
-        : g.filesHelper.getPagePath(docIndex, pageIndex));
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 
@@ -372,6 +365,9 @@ class MetadataHelper {
 
       // Write + Encrypt
       if (isNewIndex) {
+        if (newThumbnailName == "contrast") {
+          dev.log("contrast, toto remove");
+        }
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
         await file.writeAsString(encrypted);
@@ -418,9 +414,7 @@ class MetadataHelper {
     AppGlobals? gIn,
     bool supressWarnings = false,
   }) async {
-    //bool isIsolate = false;
-    //if (gIn != null) isIsolate = true;
-
+    gIn ??= g;
     dynamic value = await _readPage(
       docIndex,
       pageIndex,
@@ -443,11 +437,9 @@ class MetadataHelper {
     AppGlobals? gIn,
     bool supressWarnings = false,
   }) async {
-    bool isIsolate = false;
-    if (gIn != null) isIsolate = true;
+    gIn ??= g;
 
-    String pagePath = await (isIsolate ? gIn!.filesHelper : g.filesHelper)
-        .getPagePath(docIndex, pageIndex);
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
 

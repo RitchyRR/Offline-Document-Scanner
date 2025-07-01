@@ -21,6 +21,8 @@ class AppGlobals {
     filesHelper;
   } // private constructor
 
+  List<int> proFilterIndexes = [4, 5];
+  (int, int) defaultIndexes = (3, 4);
   bool? proUnlocked;
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();

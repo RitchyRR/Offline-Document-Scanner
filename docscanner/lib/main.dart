@@ -3643,7 +3643,9 @@ class PagePreview extends StatefulWidget {
 class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
-  int _selectedThumbnail = g.proUnlocked == true ? 4 : 3;
+  int _selectedThumbnail = g.proUnlocked == true
+      ? g.defaultIndexes.$2
+      : g.defaultIndexes.$1;
   List<String> _versionPaths = List.generate(versionNames.length, (_) => "");
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
@@ -4026,7 +4028,7 @@ class PagePreviewState extends State<PagePreview> {
         : _versionPaths[_selectedVersion].isNotEmpty;
     _allowPop =
         g.proUnlocked == true ||
-        (_selectedVersion != 4 && _selectedVersion != 5) ||
+        !g.proFilterIndexes.contains(_selectedVersion) ||
         _pageUnlocked;
     return PopScope(
       canPop: _allowPop,
@@ -4490,7 +4492,7 @@ class PagePreviewState extends State<PagePreview> {
                             ),
                             // Locked Badge
                             (g.proUnlocked == true ||
-                                    (index != 4 && index != 5) ||
+                                    !g.proFilterIndexes.contains(index) ||
                                     _pageUnlocked)
                                 ? SizedBox()
                                 : Positioned(
@@ -4684,7 +4686,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        (g.proUnlocked == true ? 4 : 3),
+        (g.proUnlocked == true ? g.defaultIndexes.$2 : g.defaultIndexes.$1),
       );
       _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
@@ -6395,7 +6397,7 @@ Future<bool> _pagesPopup(
                           decoration:
                               (g.proUnlocked == true ||
                                   pageUnlocked ||
-                                  (versionIndex != 4 && versionIndex != 5))
+                                  !g.proFilterIndexes.contains(versionIndex))
                               ? null
                               : BoxDecoration(
                                   color: Theme.of(
@@ -6415,8 +6417,9 @@ Future<bool> _pagesPopup(
                                       horizontal:
                                           (g.proUnlocked == true ||
                                               pageUnlocked ||
-                                              (versionIndex != 4 &&
-                                                  versionIndex != 5))
+                                              !g.proFilterIndexes.contains(
+                                                versionIndex,
+                                              ))
                                           ? 0
                                           : 4,
                                     ),
@@ -6426,8 +6429,9 @@ Future<bool> _pagesPopup(
                                           allPagesLoaded &&
                                               (g.proUnlocked == true ||
                                                   pageUnlocked ||
-                                                  (versionIndex != 4 &&
-                                                      versionIndex != 5))
+                                                  !g.proFilterIndexes.contains(
+                                                    versionIndex,
+                                                  ))
                                           ? () async {
                                               confirmAction = true;
                                               Navigator.pop(context);
@@ -6521,9 +6525,10 @@ Future<bool> _pagesPopup(
                                                         (isDocument ||
                                                             !isSinglePage)) ||
                                                     (pageUnlocked ||
-                                                        (versionIndex != 4 &&
-                                                                versionIndex !=
-                                                                    5) &&
+                                                        !g.proFilterIndexes
+                                                                .contains(
+                                                                  versionIndex,
+                                                                ) &&
                                                             isSinglePage))
                                                 ? 0
                                                 : 4,
@@ -6668,7 +6673,9 @@ Future<bool> _pagesPopup(
                               // Unlock PRO
                               (g.proUnlocked == true ||
                                       pageUnlocked ||
-                                      (versionIndex != 4 && versionIndex != 5))
+                                      !g.proFilterIndexes.contains(
+                                        versionIndex,
+                                      ))
                                   ? SizedBox()
                                   : Padding(
                                       padding: const EdgeInsets.fromLTRB(
