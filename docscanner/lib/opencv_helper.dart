@@ -326,7 +326,7 @@ class OpenCVHelper {
       kDark3,
       kDark3,
     ));
-
+    // Dilale
     imageMat = cv.morphologyEx(
       imageMat,
       cv.MORPH_DILATE,
@@ -345,12 +345,7 @@ class OpenCVHelper {
       kernelDark3,
       borderType: cv.BORDER_REPLICATE,
     );
-
-    //// Gaussian blur
-    //int blurSize = (K ~/ 4).clamp(3, -1 >>> 1);
-    //blurSize = blurSize.isEven ? blurSize + 1 : blurSize;
-    //imageMat = cv.gaussianBlur(imageMat, (blurSize, blurSize), 0);
-
+    // Erode
     imageMat = cv.morphologyEx(
       imageMat,
       cv.MORPH_ERODE,
@@ -708,165 +703,9 @@ class OpenCVHelper {
     return shape1;
   }
 
-  //  cv.Mat _looseSafeShape(cv.Mat edges) {
-  //    // padding
-  //    int pad = K * 6;
-  //    cv.Mat paddedEdges = cv.copyMakeBorder(
-  //      edges,
-  //      pad,
-  //      pad,
-  //      pad,
-  //      pad, // Add padding on all sides
-  //      cv.BORDER_CONSTANT,
-  //      value: cv.Scalar.all(0), // Extend the background as black
-  //    );
-  //    // 1. close edges
-  //    cv.Mat kernel = cv.getStructuringElement(cv.MORPH_RECT, (pad, pad));
-  //    cv.Mat edgesClosed = cv.morphologyEx(
-  //      paddedEdges,
-  //      cv.MORPH_CLOSE,
-  //      kernel,
-  //      borderType: cv.BORDER_CONSTANT,
-  //      iterations: 1,
-  //    );
-  //    // 2. black rectangle in the center
-  //    int rectWidth = (paddedEdges.cols ~/ 5);
-  //    int rectHeight = (paddedEdges.rows ~/ 5);
-  //    cv.Rect rect = cv.Rect(
-  //      (paddedEdges.cols - rectWidth) ~/ 2,
-  //      (paddedEdges.rows - rectHeight) ~/ 2,
-  //      rectWidth,
-  //      rectHeight,
-  //    );
-  //    edgesClosed = cv.rectangle(
-  //      edgesClosed,
-  //      rect,
-  //      cv.Scalar.all(0),
-  //      thickness: cv.FILLED,
-  //    );
-  //    // 3. fill
-  //    cv.Mat closedShape = edgesClosed.clone();
-  //    cv.Mat mask = cv.Mat.zeros(
-  //      paddedEdges.rows + 2,
-  //      paddedEdges.cols + 2,
-  //      cv.MatType.CV_8UC1,
-  //    );
-  //    cv.floodFill(
-  //      closedShape,
-  //      cv.Point(paddedEdges.cols ~/ 2, paddedEdges.rows ~/ 2),
-  //      cv.Scalar.all(255),
-  //      mask: mask,
-  //    );
-  //    // 4. only keep inside + dilate
-  //    closedShape = cv.subtract(closedShape, edgesClosed);
-  //    cv.Mat kernelLimit = cv.Mat.ones(
-  //      (pad * 0.4).toInt(),
-  //      (pad * 0.4).toInt(),
-  //      cv.MatType.CV_8UC1,
-  //    ); // 0.7 ~= 1/sqrt2 <- when closing with rect is diagonal, but 0,7 is too much if border is unclear
-  //    closedShape = cv.dilate(
-  //      closedShape,
-  //      kernelLimit,
-  //      borderType: cv.BORDER_CONSTANT,
-  //    );
-  //    // remove padding
-  //    cv.Mat newShape = closedShape
-  //        .rowRange(pad, pad + edges.rows)
-  //        .colRange(pad, pad + edges.cols);
-  //    return newShape;
-  //  }
-  //
-  //  cv.Mat _closeEdgesAndFill(cv.Mat edges) {
-  //    // padding, because morophological operations in openvc suck:
-  //    int pad = K * 20;
-  //    cv.Mat paddedEdges = cv.copyMakeBorder(
-  //      edges,
-  //      pad,
-  //      pad,
-  //      pad,
-  //      pad, // Add padding on all sides
-  //      cv.BORDER_CONSTANT,
-  //      value: cv.Scalar.all(0), // Extend the background as black
-  //    );
-  //    // close inside
-  //    cv.Mat kernelDilate = cv.getStructuringElement(cv.MORPH_RECT, (pad, pad));
-  //    cv.Mat kernelErode = kernelDilate;
-  //    //cv.Mat kernelErode1 = cv.Mat.ones(pad ~/ 2, pad ~/ 2, cv.MatType.CV_8UC1);
-  //    cv.Mat paddedEdgesClosed = cv.dilate(
-  //      paddedEdges,
-  //      kernelDilate,
-  //      borderType: cv.BORDER_CONSTANT,
-  //      borderValue: cv.Scalar.all(0),
-  //    );
-  //
-  //    // black rectangle in the center
-  //    int rectWidth = (cols ~/ 4);
-  //    int rectHeight = (rows ~/ 4);
-  //    cv.Rect rect = cv.Rect(
-  //      (paddedEdgesClosed.cols - rectWidth) ~/ 2,
-  //      (paddedEdgesClosed.rows - rectHeight) ~/ 2,
-  //      rectWidth,
-  //      rectHeight,
-  //    );
-  //    paddedEdgesClosed = cv.rectangle(
-  //      paddedEdgesClosed,
-  //      rect,
-  //      cv.Scalar.all(0),
-  //      thickness: cv.FILLED,
-  //    );
-  //
-  //    //return paddedEdgesClosed;
-  //
-  //    // fill
-  //    cv.Mat mask = cv.Mat.zeros(
-  //      paddedEdgesClosed.rows + 2,
-  //      paddedEdgesClosed.cols + 2,
-  //      cv.MatType.CV_8UC1,
-  //    );
-  //    cv.floodFill(
-  //      paddedEdgesClosed,
-  //      cv.Point(paddedEdgesClosed.cols ~/ 2, paddedEdgesClosed.rows ~/ 2),
-  //      cv.Scalar.all(255),
-  //      mask: mask,
-  //    );
-  //
-  //    //return paddedEdgesClosed;
-  //
-  //    cv.Mat paddedShape = cv.erode(
-  //      paddedEdgesClosed,
-  //      kernelErode,
-  //      borderType: cv.BORDER_CONSTANT,
-  //      borderValue: cv.Scalar.all(0),
-  //    );
-  //    cv.Mat shape = paddedShape
-  //        .rowRange(pad, pad + edges.rows)
-  //        .colRange(pad, pad + edges.cols);
-  //
-  //    // remove small appendages
-  //    int k1 = (K ~/ 16).clamp(3, -1 >>> 1);
-  //    cv.Mat kernel2 = cv.Mat.ones(k1, k1, cv.MatType.CV_8UC1);
-  //    shape = cv.erode(shape, kernel2, iterations: 3);
-  //
-  //    return shape;
-  //  }
-
   /// Step 3: Corner Detection (Hit-or-Miss Transformation)
   List<List<int>> _detectCorners(cv.Mat shape) {
     int hitmissSize = (K * 1.5).round() * 2 + 1;
-    //// padding
-    //int pad = hitmissSize ~/ 2;
-    //cv.Mat paddedShape = cv.copyMakeBorder(
-    //  shape,
-    //  pad,
-    //  pad,
-    //  pad,
-    //  pad, // Add padding on all sides
-    //  cv.BORDER_CONSTANT,
-    //  value: cv.Scalar.all(0), // Extend the background as black
-    //);
-    //int rows = paddedShape.rows;
-    //int cols = paddedShape.cols;
-
     // kernels to detect corners -> kernel1,2,3,4
     int hitmissTolerance = (K ~/ 10).clamp(1, -1 >>> 1);
     cv.Mat kernel1 = cv.Mat.zeros(hitmissSize, hitmissSize, cv.MatType.CV_8SC1);
