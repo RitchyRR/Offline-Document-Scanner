@@ -1115,9 +1115,10 @@ class ImageProcessingManager {
     }
     File versionFile = File(versionPath);
     if (versionPath == "" || !versionFile.existsSync()) {
-      throw StateError(
+      dev.log(
         "Error, _scaleAndSaveThumbnailInIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist.",
       );
+      return false;
     }
 
     String thumbnailPath =

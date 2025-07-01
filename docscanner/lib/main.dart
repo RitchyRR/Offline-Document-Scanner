@@ -6072,7 +6072,7 @@ Future<bool> _changeThumbnailVersionsPopup(
   int docIndex,
 ) async {
   int? selectedIndex;
-  await showDialog(
+  bool? confirmed = await showDialog<bool>(
     context: callContext,
     builder: (BuildContext context) {
       return StatefulBuilder(
@@ -6082,7 +6082,9 @@ Future<bool> _changeThumbnailVersionsPopup(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: List<Widget>.generate(
-                g.proUnlocked == true ? 4 : 3,
+                g.proUnlocked == true
+                    ? versionNames.length - 1
+                    : versionNames.length - 3,
                 (index) => RadioListTile<int>(
                   title: Text(versionNames[index + 1]),
                   value: index + 1,
@@ -6099,13 +6101,13 @@ Future<bool> _changeThumbnailVersionsPopup(
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context), // Cancel
+                onPressed: () => Navigator.pop(context, false), // Cancel
                 child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
                 onPressed: selectedIndex != null
                     ? () {
-                        Navigator.pop(context);
+                        Navigator.pop(context, true);
                       }
                     : null,
                 child: Text(tr("popup.ok")),
@@ -6117,7 +6119,7 @@ Future<bool> _changeThumbnailVersionsPopup(
     },
   );
 
-  if (selectedIndex != null) {
+  if (confirmed == true && selectedIndex != null) {
     for (var pageIndex in pageIndexes) {
       imageProcessingManager.saveNewThumbnail(
         docIndex,
