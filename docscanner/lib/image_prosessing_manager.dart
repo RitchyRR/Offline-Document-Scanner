@@ -23,6 +23,7 @@ const List<String> versionNamesInternal = [
   "contrast",
   "processed1",
   "processed2",
+  "processed3",
 ];
 
 class ImageProcessingManager {
@@ -197,7 +198,9 @@ class ImageProcessingManager {
 
     // Processed2 basierend auf dem Warped-Bild
     isolateExitPoint(kill);
-    Uint8List processed2Bytes = await cvHelper.processImage2(
+    Uint8List processed2Bytes;
+    Uint8List processed3Bytes;
+    (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
       ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
     );
     isolateExitPoint(kill);
@@ -206,6 +209,14 @@ class ImageProcessingManager {
       pageIndex,
       4,
       processed2Bytes,
+      ".png",
+    );
+    isolateExitPoint(kill);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      5,
+      processed3Bytes,
       ".png",
     );
 
@@ -422,15 +433,26 @@ class ImageProcessingManager {
 
     // Processed2 basierend auf dem Warped-Bild
     isolateExitPoint(kill);
-    Uint8List processed2 = await cvHelper.processImage2(
+    Uint8List processed2Bytes;
+    Uint8List processed3Bytes;
+    (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
       ParamsProcessImage2(photoBytes, borderCorrectionDepth),
     );
+
     isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
       4,
-      processed2,
+      processed2Bytes,
+      ".png",
+    );
+    isolateExitPoint(kill);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      5,
+      processed3Bytes,
       ".png",
     );
 
@@ -648,15 +670,26 @@ class ImageProcessingManager {
     // Processed2 basierend auf dem Warped-Bild
     if (versionPaths[4].isEmpty) {
       isolateExitPoint(kill);
-      Uint8List processed2 = await cvHelper.processImage2(
+      Uint8List processed2Bytes;
+      Uint8List processed3Bytes;
+      (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
+
       isolateExitPoint(kill);
       versionPaths[4] = await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
         3,
-        processed2,
+        processed2Bytes,
+        ".png",
+      );
+      isolateExitPoint(kill);
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        5,
+        processed3Bytes,
         ".png",
       );
     }

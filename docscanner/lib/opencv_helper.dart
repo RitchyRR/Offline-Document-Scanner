@@ -33,6 +33,13 @@ class ParamsProcessImage2 {
   ParamsProcessImage2(this.imageBytesIn, this.borderCorrectionDepth);
 }
 
+class ParamsProcessImage3 {
+  Uint8List imageBytesIn;
+  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
+
+  ParamsProcessImage3(this.imageBytesIn, this.borderCorrectionDepth);
+}
+
 class OpenCVHelper {
   int K = 0;
   int rows = 0;
@@ -89,15 +96,29 @@ class OpenCVHelper {
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImage2(ParamsProcessImage2 params) {
+  Future<(Uint8List, Uint8List)> processImage2(
+    ParamsProcessImage2 params,
+  ) async {
     borderCorrectionDepth = params.borderCorrectionDepth;
 
-    cv.Mat? filtered1 = _loadWarped(params.imageBytesIn);
+    cv.Mat? warped = _loadWarped(params.imageBytesIn);
 
-    cv.Mat? filtered2 = _filterImage2(filtered1);
+    cv.Mat filtered2;
+    cv.Mat filtered3;
+    (filtered2, filtered3) = _filterImage2(warped);
 
-    return _returnImage(filtered2);
+    return (await _returnImage(filtered2), await _returnImage(filtered3));
   }
+
+  //Future<Uint8List> processImage3(ParamsProcessImage2 params) {
+  //  borderCorrectionDepth = params.borderCorrectionDepth;
+  //
+  //  cv.Mat? filtered1 = _loadWarped(params.imageBytesIn);
+  //
+  //  cv.Mat? filtered2 = _filterImage3(filtered1);
+  //
+  //  return _returnImage(filtered2);
+  //}
 
   Future<Uint8List> rotateImage(Uint8List imageBytesIn, int angle) {
     cv.Mat mat = _loadImage(imageBytesIn);
@@ -256,20 +277,24 @@ class OpenCVHelper {
   }
 
   /// Filter Image 2: subtract background fully
-  cv.Mat? _filterImage2(cv.Mat? imageMat) {
-    if (imageMat == null) return null;
+  (cv.Mat, cv.Mat) _filterImage2(cv.Mat? imageMat) {
+    if (imageMat == null) {
+      throw StateError("Error, _filterImage2: Input is null");
+    }
 
     // 5. Background subtraction
-    imageMat = _isolateAndSubtractBG(imageMat);
+    cv.Mat processed = _isolateAndSubtractBG(imageMat);
 
     // 6. Border correction
-    imageMat = _correctBorder(imageMat);
-    if (imageMat == null) return null;
+    processed = _correctBorder(processed);
 
     // 7. Sharpen
-    imageMat = _sharpenImage(imageMat, sharpeningStrength: 0.5);
+    processed = _sharpenImage(processed, sharpeningStrength: 0.5);
 
-    return imageMat;
+    // Shift hue back to original
+    cv.Mat colorMatched = _matchColor(imageMat, processed);
+
+    return (processed, colorMatched);
   }
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
@@ -1301,7 +1326,7 @@ class OpenCVHelper {
     if (medianBrightness > 155) {
       highVal = medianBrightness - (255 - medianBrightness) * 2;
     } else if (medianBrightness < 100) {
-      lowVal = medianBrightness + (medianBrightness) * 2;
+      lowVal = medianBrightness - medianBrightness ~/ 2;
     }
     hsv[2] = _stretchMatValues(
       hsv[2],
@@ -1323,6 +1348,59 @@ class OpenCVHelper {
     }
 
     return subtracted;
+  }
+
+  cv.Mat _matchColor(cv.Mat mat, cv.Mat sample) {
+    final orig = _medianRGB(mat);
+    final proc = _medianRGB(sample);
+
+    double eps = double.minPositive;
+    double rRatio = math.min(
+      (orig.val1 / math.max(proc.val1, eps)),
+      cv.CV_F32_MAX,
+    );
+    double gRatio = math.min(
+      (orig.val2 / math.max(proc.val2, eps)),
+      cv.CV_F32_MAX,
+    );
+    double bRatio = math.min(
+      (orig.val3 / math.max(proc.val3, eps)),
+      cv.CV_F32_MAX,
+    );
+
+    // Split channels
+    cv.VecMat sampleVecMat = cv.split(sample);
+
+    // Convert and scale each channel
+    cv.Mat r = sampleVecMat[0]
+        .convertTo(cv.MatType.CV_64FC1, alpha: 1 / 255)
+        .multiply(rRatio);
+    cv.Mat g = sampleVecMat[1]
+        .convertTo(cv.MatType.CV_64FC1, alpha: 1 / 255)
+        .multiply(gRatio);
+    cv.Mat b = sampleVecMat[2]
+        .convertTo(cv.MatType.CV_64FC1, alpha: 1 / 255)
+        .multiply(bRatio);
+    cv.VecMat multipliedVecMat = cv.VecMat.fromList([r, g, b]);
+
+    // Merge and convert back to 8-bit image
+    cv.Mat result = cv
+        .merge(multipliedVecMat)
+        .convertTo(cv.MatType.CV_8UC3, alpha: 255);
+    return result;
+  }
+
+  cv.Vec3b _medianRGB(cv.Mat mat) {
+    cv.VecMat channels = cv.split(mat);
+    List<int> r = channels[2].data.toList();
+    List<int> g = channels[1].data.toList();
+    List<int> b = channels[0].data.toList();
+    r.sort();
+    g.sort();
+    b.sort();
+
+    int mid = r.length ~/ 2;
+    return cv.Vec3b(b[mid], g[mid], r[mid]);
   }
 
   cv.Mat _warpedBg(cv.Mat warped) {
@@ -1408,7 +1486,7 @@ class OpenCVHelper {
   }
 
   /// Step 8: Border Correction
-  cv.Mat? _correctBorder(cv.Mat warped) {
+  cv.Mat _correctBorder(cv.Mat warped) {
     final int whiteThreshold = 242;
     cv.Mat borderCorrect = warped.clone();
     warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY);

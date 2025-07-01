@@ -198,7 +198,8 @@
     "warped": "Ungefiltert",
     "contrast": "Kontrast",
     "processed1": "Dokument",
-    "processed2": "PRO"
+    "processed2": "PRO",
+    "processed3": "PRO2"
   },
   "loading": {
     "processingImage": "Bild wird verarbeitet...",

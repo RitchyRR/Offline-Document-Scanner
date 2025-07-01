@@ -6064,6 +6064,7 @@ List<String> versionNames = [
   tr("versions.contrast"),
   tr("versions.processed1"),
   tr("versions.processed2"),
+  tr("versions.processed3"),
 ];
 
 Future<bool> _changeThumbnailVersionsPopup(
