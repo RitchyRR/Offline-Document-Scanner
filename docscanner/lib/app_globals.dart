@@ -32,7 +32,7 @@ class AppGlobals {
     if (!proUnlocked && proFilterIndexes.contains(newDefaultIndex)) {
       newDefaultIndex = 3;
     }
-    defaultIndex = newDefaultIndex ?? ((proUnlocked == true) ? 4 : 3);
+    defaultIndex = newDefaultIndex ?? (proUnlocked ? 4 : 3);
   }
 
   List<AspectRatioInfo> commonAspectRatios = [];

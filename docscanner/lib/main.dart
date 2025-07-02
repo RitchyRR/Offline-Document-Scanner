@@ -171,7 +171,6 @@ class _MyAppState extends State<MyApp> {
     g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
     // Check if PRO unlocked online
     await initStoreInfo();
-    await loadDefaultThumbnailVersion();
     setState(() {});
   }
 
@@ -2094,8 +2093,8 @@ setPro(final bool proUnlockedIn) async {
       msg: proUnlockedIn ? tr("toast.proUnlocked") : tr("toast.proDisabled"),
     );
   }
-  await loadDefaultThumbnailVersion();
   globalNotifier.triggerEvent(NotifierEvent.setState);
+  await loadDefaultThumbnailVersion();
 }
 
 Future<bool> _unlockDocumentWithAd(BuildContext context) async {
