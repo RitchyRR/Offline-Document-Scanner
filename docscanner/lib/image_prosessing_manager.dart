@@ -160,57 +160,133 @@ class ImageProcessingManager {
       ".png",
     );
 
-    // Kontrast basierend auf dem Warped-Bild
-    isolateExitPoint(kill);
-    Uint8List contrastBytes = await cvHelper.processImageContrast(
-      ParamsProcessImage1(warpedBytes),
-    );
-    isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      2,
-      contrastBytes,
-      ".png",
-    );
+    final int initialThumbnailIndex =
+        await MetadataHelper.readPageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          gIn: g,
+          supressWarnings: true,
+        ) ??
+        ((g.proUnlocked == true) ? g.defaultIndexes.$2 : g.defaultIndexes.$1);
 
-    // Processed1 basierend auf dem Warped-Bild
+    // Process (default) Thumbnail version first
     isolateExitPoint(kill);
-    Uint8List processed1Bytes = await cvHelper.processImage1(
-      ParamsProcessImage1(warpedBytes),
-    );
+    Uint8List thumbnailVersionBytes;
+    switch (initialThumbnailIndex) {
+      case 2:
+        // Kontrast
+        isolateExitPoint(kill);
+        thumbnailVersionBytes = await cvHelper.processImageContrast(
+          ParamsProcessImage1(warpedBytes),
+        );
+        break;
+      case 3:
+        // Kontrast basierend auf dem Warped-Bild
+        isolateExitPoint(kill);
+        thumbnailVersionBytes = await cvHelper.processImageContrast(
+          ParamsProcessImage1(warpedBytes),
+        );
+        break;
+      case 4:
+      case 5:
+        Uint8List processed2Bytes;
+        Uint8List processed3Bytes;
+        (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
+          ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+        );
+        isolateExitPoint(kill);
+        await g.filesHelper.savePageVersion(
+          docIndex,
+          pageIndex,
+          4,
+          processed2Bytes,
+          ".png",
+        );
+        isolateExitPoint(kill);
+        await g.filesHelper.savePageVersion(
+          docIndex,
+          pageIndex,
+          5,
+          processed3Bytes,
+          ".png",
+        );
+        thumbnailVersionBytes = initialThumbnailIndex == 4
+            ? processed2Bytes
+            : processed3Bytes;
+        break;
+      default:
+        throw StateError(
+          "Error, _processPageIsolate: Thumbnail Version is not valid",
+        );
+    }
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      3,
-      processed1Bytes,
-      ".png",
-    );
+    if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        initialThumbnailIndex,
+        thumbnailVersionBytes,
+        ".png",
+      );
+    }
 
-    // Processed2 basierend auf dem Warped-Bild
+    // Kontrast
     isolateExitPoint(kill);
-    Uint8List processed2Bytes;
-    Uint8List processed3Bytes;
-    (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
-      ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-    );
+    if (initialThumbnailIndex != 2) {
+      Uint8List contrastBytes = await cvHelper.processImageContrast(
+        ParamsProcessImage1(warpedBytes),
+      );
+      isolateExitPoint(kill);
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        2,
+        contrastBytes,
+        ".png",
+      );
+    }
+
+    // Dokument
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      4,
-      processed2Bytes,
-      ".png",
-    );
+    if (initialThumbnailIndex != 3) {
+      Uint8List processed1Bytes = await cvHelper.processImage1(
+        ParamsProcessImage1(warpedBytes),
+      );
+      isolateExitPoint(kill);
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        3,
+        processed1Bytes,
+        ".png",
+      );
+    }
+
+    // PRO, PRO 2
     isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      5,
-      processed3Bytes,
-      ".png",
-    );
+    if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
+      Uint8List processed2Bytes;
+      Uint8List processed3Bytes;
+      (processed2Bytes, processed3Bytes) = await cvHelper.processImage2(
+        ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+      );
+      isolateExitPoint(kill);
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        4,
+        processed2Bytes,
+        ".png",
+      );
+      isolateExitPoint(kill);
+      await g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        5,
+        processed3Bytes,
+        ".png",
+      );
+    }
 
     // Update thumbnails:
     isolateExitPoint(kill);
@@ -229,17 +305,17 @@ class ImageProcessingManager {
       kill,
       docIndex,
       pageIndex,
-      thumbnailIndex,
+      initialThumbnailIndex,
       g,
       overwrite: !isInitial,
     );
 
-    if (newThumbnail && thumbnailIndex == null) {
+    if (newThumbnail && initialThumbnailIndex == null) {
       isolateExitPoint(kill);
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,
-        thumbnailIndex ??
+        initialThumbnailIndex ??
             ((g.proUnlocked == true)
                 ? g.defaultIndexes.$2
                 : g.defaultIndexes.$1),
