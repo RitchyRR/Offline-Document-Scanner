@@ -216,7 +216,7 @@ class MetadataHelper {
     } else {
       final currentIndex = await readPageThumbnailIndex(docIndex, pageIndex);
       if (g.proFilterIndexes.contains(currentIndex)) {
-        writePageThumbnailIndex(docIndex, pageIndex, g.defaultIndexes.$1);
+        writePageThumbnailIndex(docIndex, pageIndex, g.defaultIndex);
       }
     }
   }
@@ -332,7 +332,7 @@ class MetadataHelper {
     if (gIn.proFilterIndexes.contains(thumbnailIndexIn) &&
         !(gIn.proUnlocked == true) &&
         !tmpPro) {
-      thumbnailIndexIn = gIn.defaultIndexes.$1;
+      thumbnailIndexIn = gIn.defaultIndex;
     }
     String newThumbnailName = versionNamesInternal[thumbnailIndexIn];
     String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);

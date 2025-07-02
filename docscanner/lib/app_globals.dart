@@ -1,3 +1,4 @@
+import 'dart:developer' as dev show log;
 import 'dart:io' show File, FileMode;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
@@ -20,14 +21,19 @@ class AppGlobals {
   AppGlobals._internal() {
     filesHelper;
   } // private constructor
-
   List<int> proFilterIndexes = [4, 5];
-  (int, int) defaultIndexes = (3, 4);
-  bool? proUnlocked;
+  int defaultIndex = 3;
+  bool proUnlocked = false;
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();
   //final ImageProcessingManager imageProcessingManager =
   //    ImageProcessingManager();
+  void setDefaultIndex(int? newDefaultIndex) {
+    if (!proUnlocked && proFilterIndexes.contains(newDefaultIndex)) {
+      newDefaultIndex = 3;
+    }
+    defaultIndex = newDefaultIndex ?? ((proUnlocked == true) ? 4 : 3);
+  }
 
   List<AspectRatioInfo> commonAspectRatios = [];
   List<AspectRatioInfo> availableAspectRatios = [];
@@ -137,10 +143,9 @@ class ErrorLogger {
       final dir = await getApplicationDocumentsDirectory();
       final logFile = File('${dir.path}/error_log.txt');
       final now = DateTime.now().toIso8601String();
-      await logFile.writeAsString(
-        '[$now] ERROR: $error\nSTACKTRACE:\n$stack\n\n',
-        mode: FileMode.append,
-      );
+      final message = '[$now] ERROR: $error\nSTACKTRACE:\n$stack\n\n';
+      dev.log(message);
+      await logFile.writeAsString(message, mode: FileMode.append);
     } catch (e) {
       Fluttertoast.showToast(msg: "Could not log error: $e");
     }

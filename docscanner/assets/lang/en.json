@@ -9,6 +9,7 @@
       "pro2": "Unlock PRO",
       "licenses": "Licenses",
       "ratios": "Aspect Ratios",
+      "defaultFilter": "Default Filter",
       "feedback": "Give Feedback",
       "shareApp": "Tell a Friend"
     },
@@ -118,6 +119,10 @@
     },
     "changeThumbnails": {
       "title": "Select Thumbnail Version"
+    },
+    "defaultThumbnail": {
+      "title": "Select Default Filter",
+      "text": "Select the filter that should be applied per default, when scanning a new document."
     },
     "pagesPopup": {
       "document": {

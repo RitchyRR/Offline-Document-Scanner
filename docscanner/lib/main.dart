@@ -49,6 +49,7 @@ final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final GlobalNotifier globalNotifier = GlobalNotifier();
 bool isTmpExternal = false;
+late PackageInfo packageInfo;
 
 class GlobalNotifier {
   final _controller = StreamController<NotifierEvent>.broadcast();
@@ -153,10 +154,10 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     initAsync();
-    initStoreInfo();
   }
 
   Future<void> initAsync() async {
+    packageInfo = await PackageInfo.fromPlatform();
     Future.microtask(() {
       if (mounted) {
         g.filesHelper.calculateScreenWidth(context);
@@ -164,11 +165,14 @@ class _MyAppState extends State<MyApp> {
         dev.log("Warning, _MyAppState, initAsync(): not mounted");
       }
     });
+    // Check if PRO unlocked
     final sStorage = FlutterSecureStorage();
     final proUnlockedString = await sStorage.read(key: "proUnlocked");
-    setState(() {
-      g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
-    });
+    g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
+    // Check if PRO unlocked online
+    await initStoreInfo();
+    await loadDefaultThumbnailVersion();
+    setState(() {});
   }
 
   @override
@@ -288,6 +292,25 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+Future<void> loadDefaultThumbnailVersion() async {
+  // Set Default Thumbnail Version
+  final prefs = await SharedPreferences.getInstance();
+  final String? defaultThumbnailString = prefs.getString(
+    "defaultThumnailVersion",
+  );
+  int? defaultThumbnailIndex;
+  if (defaultThumbnailString != null) {
+    defaultThumbnailIndex = versionNamesInternal.indexOf(
+      defaultThumbnailString,
+    );
+  }
+  g.setDefaultIndex(defaultThumbnailIndex);
+  prefs.setString(
+    "defaultThumnailVersion",
+    versionNamesInternal[g.defaultIndex],
+  );
+}
+
 class DocumentsHome extends StatefulWidget {
   const DocumentsHome({super.key});
 
@@ -315,6 +338,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     WidgetsBinding.instance.addObserver(this);
     initAsync();
+    loadAvailableAspectRatios(context);
   }
 
   bool wasHidden = false;
@@ -333,10 +357,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  late PackageInfo _packageInfo;
   Future<void> initAsync() async {
-    await loadAvailableAspectRatios(context);
-    _packageInfo = await PackageInfo.fromPlatform();
     await _loadDocsDisplay(onInit: true);
     Completer repairCompleter = Completer();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -864,12 +885,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   children: [
                     SizedBox(width: 8),
                     Icon(
-                      g.proUnlocked == true ? Icons.verified : Icons.lock,
+                      g.proUnlocked ? Icons.verified : Icons.lock,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                     SizedBox(width: 10),
                     Text(
-                      g.proUnlocked == true
+                      g.proUnlocked
                           ? tr("documents.menu.pro1")
                           : tr("documents.menu.pro2"),
                       style: TextStyle(
@@ -917,30 +938,25 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   ],
                 ),
               ),
-              //PopupMenuItem(
-              //  value: "defaultFilter",
-              //  child: Row(
-              //    children: [
-              //      SizedBox(width: 8),
-              //      IconWithBadge(
-              //        icon: Icons.image,
-              //        badgeIcon: Icons.change_circle,
-              //        mainIconSize: 19,
-              //        iconColor: Theme.of(
-              //          context,
-              //        ).colorScheme.onPrimaryContainer,
-              //        bgColor: Theme.of(context).colorScheme.primaryContainer,
-              //      ),
-              //      SizedBox(width: 10),
-              //      Text(
-              //        tr("documents.menu.defaultFilter"),
-              //        style: TextStyle(
-              //          color: Theme.of(context).colorScheme.onPrimaryContainer,
-              //        ),
-              //      ),
-              //    ],
-              //  ),
-              //),
+              PopupMenuItem(
+                value: "defaultFilter",
+                child: Row(
+                  children: [
+                    SizedBox(width: 8),
+                    Icon(
+                      Icons.hide_image,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      tr("documents.menu.defaultFilter"),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               if (!feedbackHelper.isHidden())
                 PopupMenuItem(
                   value: "feedback",
@@ -982,7 +998,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   ],
                 ),
               ),
-              if (_packageInfo.installerStore == "com.android.shell")
+              if (packageInfo.installerStore == "com.android.shell")
                 PopupMenuItem(
                   value: "errorLog",
                   child: Row(
@@ -1014,18 +1030,14 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     context: context,
                     applicationName: tr("appName"),
                     applicationVersion:
-                        "${_packageInfo.version}+${_packageInfo.buildNumber}",
+                        "${packageInfo.version}+${packageInfo.buildNumber}",
                   );
                   break;
                 case "ratios":
                   selectAspectRatiosDialog(context);
                   break;
                 case "defaultFilter":
-                  //_changeThumbnailVersionsPopup(
-                  //  context,
-                  //  _selectedPages,
-                  //  widget.docIndex,
-                  //);
+                  _changeDefaultThumbnailVersionPopup(context);
                   break;
                 case "feedback":
                   feedbackHelper.showRatingDialog(context);
@@ -1863,14 +1875,14 @@ Future<void> initStoreInfo() async {
   }
 
   if (!available || response.notFoundIDs.contains("pro_upgrade")) {
-    deactivateProAfterWeekOffline();
+    await deactivateProAfterWeekOffline();
   }
 
   products.addAll(response.productDetails);
   iap.restorePurchases(); // activate listenToPurchaseUpdates() // does not work for license testing
 }
 
-deactivateProAfterWeekOffline() async {
+Future<void> deactivateProAfterWeekOffline() async {
   final sStorage = FlutterSecureStorage();
 
   final bool isSaved = "true" == await sStorage.read(key: "proUnlocked");
@@ -1975,14 +1987,14 @@ Future<bool> proPopup(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              g.proUnlocked == true ? Icons.verified : Icons.lock,
+              g.proUnlocked ? Icons.verified : Icons.lock,
               color: Theme.of(context).colorScheme.onSurface,
               size: 30,
             ),
             SizedBox(width: 12),
             Flexible(
               child: Text(
-                g.proUnlocked == true
+                g.proUnlocked
                     ? tr("documents.menu.pro1")
                     : tr("documents.menu.pro2"),
               ),
@@ -2015,11 +2027,11 @@ Future<bool> proPopup(BuildContext context) async {
               ],
             ),
 
-            (g.proUnlocked == true) ? Text(tr("popup.pro.text")) : SizedBox(),
+            g.proUnlocked ? Text(tr("popup.pro.text")) : SizedBox(),
           ],
         ),
         actions: [
-          g.proUnlocked == true
+          g.proUnlocked
               ? ElevatedButton(
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(
@@ -2031,7 +2043,7 @@ Future<bool> proPopup(BuildContext context) async {
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(tr("popup.cancel")),
                 ),
-          g.proUnlocked == true
+          g.proUnlocked
               ? SizedBox()
               : ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
@@ -2045,7 +2057,12 @@ Future<bool> proPopup(BuildContext context) async {
     },
   );
   if (selectBuyPro == true) {
-    return buyPro();
+    if (await buyPro()) {
+      if (context.mounted) {
+        _changeDefaultThumbnailVersionPopup(context);
+      }
+      return true;
+    }
   }
   return false;
 }
@@ -2076,6 +2093,7 @@ setPro(final bool proUnlockedIn) async {
       msg: proUnlockedIn ? tr("toast.proUnlocked") : tr("toast.proDisabled"),
     );
   }
+  await loadDefaultThumbnailVersion();
   globalNotifier.triggerEvent(NotifierEvent.setState);
 }
 
@@ -3685,9 +3703,7 @@ class PagePreview extends StatefulWidget {
 class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
-  int _selectedThumbnail = g.proUnlocked == true
-      ? g.defaultIndexes.$2
-      : g.defaultIndexes.$1;
+  int _selectedThumbnail = g.defaultIndex;
   List<String> _versionPaths = List.generate(versionNames.length, (_) => "");
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
@@ -4069,7 +4085,7 @@ class PagePreviewState extends State<PagePreview> {
         ? enableFAB0
         : _versionPaths[_selectedVersion].isNotEmpty;
     _allowPop =
-        g.proUnlocked == true ||
+        g.proUnlocked ||
         !g.proFilterIndexes.contains(_selectedVersion) ||
         _pageUnlocked;
     return PopScope(
@@ -4533,7 +4549,7 @@ class PagePreviewState extends State<PagePreview> {
                               ),
                             ),
                             // Locked Badge
-                            (g.proUnlocked == true ||
+                            (g.proUnlocked ||
                                     !g.proFilterIndexes.contains(index) ||
                                     _pageUnlocked)
                                 ? SizedBox()
@@ -4728,7 +4744,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        (g.proUnlocked == true ? g.defaultIndexes.$2 : g.defaultIndexes.$1),
+        g.defaultIndex,
       );
       _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
@@ -6110,6 +6126,107 @@ List<String> versionNames = [
   tr("versions.processed3"),
 ];
 
+Future<bool> _changeDefaultThumbnailVersionPopup(BuildContext context) async {
+  int selectedIndex = g.defaultIndex;
+  bool allowed = true;
+  bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.hide_image, size: 30),
+                SizedBox(width: 12),
+                Flexible(child: Text(tr("popup.defaultThumbnail.title"))),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(tr("popup.defaultThumbnail.text")),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List<Widget>.generate(
+                    versionNames.length - 1,
+                    (index) => RadioListTile<int>(
+                      title: Row(
+                        children: [
+                          Text(versionNames[index + 1]),
+                          !g.proUnlocked &&
+                                  g.proFilterIndexes.contains(index + 1)
+                              ? Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Icon(Icons.lock),
+                                )
+                              : SizedBox(),
+                        ],
+                      ),
+                      value: index + 1,
+                      groupValue: selectedIndex,
+                      onChanged: (int? value) {
+                        if (value != null) {
+                          if (!g.proUnlocked &&
+                              g.proFilterIndexes.contains(index + 1)) {
+                            allowed = false;
+                          } else {
+                            allowed = true;
+                          }
+                          setStateDialog(() {
+                            selectedIndex = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false), // Cancel
+                child: Text(tr("popup.cancel")),
+              ),
+              allowed
+                  ? ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context, true);
+                      },
+                      child: Text(tr("popup.ok")),
+                    )
+                  : ElevatedButton.icon(
+                      icon: Icon(Icons.lock),
+                      onPressed: () async {
+                        await proPopup(context);
+                        setStateDialog(() {});
+                      },
+                      label: Text(tr("popup.unlock")),
+                    ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  if (confirmed == true && allowed) {
+    _setDefaultThumbnail(selectedIndex);
+    return true;
+  }
+  return false;
+}
+
+Future<bool> _setDefaultThumbnail(final int newDefaultThumnailIndex) async {
+  final prefs = await SharedPreferences.getInstance();
+  g.setDefaultIndex(newDefaultThumnailIndex);
+  return await prefs.setString(
+    "defaultThumnailVersion",
+    versionNamesInternal[g.defaultIndex],
+  );
+}
+
 Future<bool> _changeThumbnailVersionsPopup(
   BuildContext context,
   List<int> pageIndexes,
@@ -6145,8 +6262,7 @@ Future<bool> _changeThumbnailVersionsPopup(
                   title: Row(
                     children: [
                       Text(versionNames[index + 1]),
-                      !(g.proUnlocked == true) &&
-                              g.proFilterIndexes.contains(index + 1)
+                      !g.proUnlocked && g.proFilterIndexes.contains(index + 1)
                           ? Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: Icon(Icons.lock),
@@ -6158,7 +6274,7 @@ Future<bool> _changeThumbnailVersionsPopup(
                   groupValue: selectedIndex,
                   onChanged: (int? value) {
                     if (value != null) {
-                      if (!(g.proUnlocked == true) &&
+                      if (!g.proUnlocked &&
                           g.proFilterIndexes.contains(index + 1)) {
                         allowed = false;
                       } else {
@@ -6202,7 +6318,7 @@ Future<bool> _changeThumbnailVersionsPopup(
   );
 
   List<Future> changeThumbnailFutures = [];
-  if (confirmed == true && selectedIndex != null) {
+  if (confirmed == true && allowed && selectedIndex != null) {
     for (var pageIndex in pageIndexes) {
       changeThumbnailFutures.add(
         imageProcessingManager.saveNewThumbnail(
@@ -6507,7 +6623,7 @@ Future<bool> _pagesPopup(
                       ? SizedBox()
                       : Container(
                           decoration:
-                              (g.proUnlocked == true ||
+                              (g.proUnlocked ||
                                   pageUnlocked ||
                                   !g.proFilterIndexes.contains(versionIndex))
                               ? null
@@ -6527,7 +6643,7 @@ Future<bool> _pagesPopup(
                                   Padding(
                                     padding: EdgeInsets.symmetric(
                                       horizontal:
-                                          (g.proUnlocked == true ||
+                                          (g.proUnlocked ||
                                               pageUnlocked ||
                                               !g.proFilterIndexes.contains(
                                                 versionIndex,
@@ -6539,7 +6655,7 @@ Future<bool> _pagesPopup(
                                     child: ElevatedButton.icon(
                                       onPressed:
                                           allPagesLoaded &&
-                                              (g.proUnlocked == true ||
+                                              (g.proUnlocked ||
                                                   pageUnlocked ||
                                                   !g.proFilterIndexes.contains(
                                                     versionIndex,
@@ -6602,7 +6718,7 @@ Future<bool> _pagesPopup(
                                   // PDF
                                   SizedBox(
                                     height:
-                                        (g.proUnlocked == true ||
+                                        (g.proUnlocked ||
                                             (docUnlocked && !isSinglePage) ||
                                             isSinglePage)
                                         ? 0
@@ -6610,7 +6726,7 @@ Future<bool> _pagesPopup(
                                   ),
                                   Container(
                                     decoration:
-                                        (g.proUnlocked == true ||
+                                        (g.proUnlocked ||
                                             (docUnlocked &&
                                                 (isDocument ||
                                                     !isSinglePage)) ||
@@ -6632,7 +6748,7 @@ Future<bool> _pagesPopup(
                                         Padding(
                                           padding: EdgeInsets.symmetric(
                                             horizontal:
-                                                (g.proUnlocked == true ||
+                                                (g.proUnlocked ||
                                                     (docUnlocked &&
                                                         (isDocument ||
                                                             !isSinglePage)) ||
@@ -6649,7 +6765,7 @@ Future<bool> _pagesPopup(
                                           child: ElevatedButton.icon(
                                             onPressed:
                                                 allPagesLoaded &&
-                                                    (g.proUnlocked == true ||
+                                                    (g.proUnlocked ||
                                                         (docUnlocked &&
                                                             (isDocument ||
                                                                 !isSinglePage)) ||
@@ -6720,7 +6836,7 @@ Future<bool> _pagesPopup(
                                             label: Text(buttonTextPdf!),
                                           ),
                                         ),
-                                        (g.proUnlocked == true ||
+                                        (g.proUnlocked ||
                                                 (docUnlocked &&
                                                     !isSinglePage) ||
                                                 isSinglePage)
@@ -6783,7 +6899,7 @@ Future<bool> _pagesPopup(
                                 ],
                               ),
                               // Unlock PRO
-                              (g.proUnlocked == true ||
+                              (g.proUnlocked ||
                                       pageUnlocked ||
                                       !g.proFilterIndexes.contains(
                                         versionIndex,

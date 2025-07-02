@@ -9,6 +9,7 @@
       "pro2": "PRO freischalten",
       "licenses": "Lizenzen",
       "ratios": "Seitenverhältnisse",
+      "defaultFilter": "Standard Filter",
       "feedback": "Feedback geben",
       "shareApp": "App weiterempfehlen"
     },
@@ -119,6 +120,10 @@
     },
     "changeThumbnails": {
       "title": "Vorschau-Version auswählen"
+    },
+    "defaultThumbnail": {
+      "title": "Standard Filter auswählen",
+      "text": "Wählen Sie den Filter, der beim Scannen eines neuen Dokuments standardmäßig angewandt werden soll."
     },
     "pagesPopup": {
       "document": {
