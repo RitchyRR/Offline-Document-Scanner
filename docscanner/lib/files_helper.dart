@@ -1356,6 +1356,7 @@ class FilesHelper {
         try {
           pdfPath = await FilePicker.platform.saveFile(
             fileName: docFileName,
+            type: FileType.custom,
             allowedExtensions: ["pdf"],
             bytes: await pdf.save(),
           );
@@ -1658,10 +1659,19 @@ class FilesHelper {
     if (isTmpExternal) return indexPairsList;
     // User picks PDF
     isTmpExternal = true;
-    FilePickerResult? filePickerResult = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      allowedExtensions: ["pdf"],
-    );
+    FilePickerResult? filePickerResult;
+    try {
+      filePickerResult = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ["pdf"],
+      );
+    } catch (e) {
+      dev.log("Error, pickPdfToDocument: $e");
+      isTmpExternal = false;
+      throw StateError("Error, pickPdfToDocument: $e");
+    }
+
     if (filePickerResult == null) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       isTmpExternal = false;
@@ -1670,8 +1680,6 @@ class FilesHelper {
     List<File> pickedFiles = filePickerResult.paths
         .map((path) => File(path!))
         .toList();
-    //final pdfType = XTypeGroup(label: "PDF", extensions: ["pdf"]);
-    //final xFiles = await openFiles(acceptedTypeGroups: [pdfType]);
     if (pickedFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       isTmpExternal = false;
