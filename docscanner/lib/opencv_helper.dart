@@ -88,7 +88,7 @@ class OpenCVHelper {
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImage1(ParamsProcessImage1 params) {
+  Future<Uint8List> processImageDocument(ParamsProcessImage1 params) {
     cv.Mat warped = _loadWarped(params.imageBytesIn);
 
     cv.Mat filtered1 = _filterImage1(warped);
@@ -96,7 +96,7 @@ class OpenCVHelper {
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImage2(ParamsProcessImage2 params) async {
+  Future<Uint8List> processImagePro(ParamsProcessImage2 params) async {
     borderCorrectionDepth = params.borderCorrectionDepth;
 
     cv.Mat warped = _loadWarped(params.imageBytesIn);
@@ -106,7 +106,7 @@ class OpenCVHelper {
     return _returnImage(filtered2);
   }
 
-  Future<Uint8List> processImage3(ParamsProcessImage3 params) {
+  Future<Uint8List> processImagePro2(ParamsProcessImage3 params) {
     cv.Mat warped = _loadWarped(params.warpedBytesIn);
     cv.Mat processed2 = _loadWarped(params.processed2BytesIn);
 

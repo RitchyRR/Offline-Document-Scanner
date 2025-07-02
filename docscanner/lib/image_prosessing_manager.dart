@@ -184,20 +184,21 @@ class ImageProcessingManager {
       case 3:
         // Document
         isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImageContrast(
+        thumbnailVersionBytes = await cvHelper.processImageDocument(
           ParamsProcessImage1(warpedBytes),
         );
         break;
       case 4:
         // PRO
         isolateExitPoint(kill);
-        processed2Bytes = thumbnailVersionBytes = await cvHelper.processImage2(
-          ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-        );
+        processed2Bytes = thumbnailVersionBytes = await cvHelper
+            .processImagePro(
+              ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+            );
         break;
       case 5:
         isolateExitPoint(kill);
-        processed2Bytes = await cvHelper.processImage2(
+        processed2Bytes = await cvHelper.processImagePro(
           ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
         );
         await g.filesHelper.savePageVersion(
@@ -209,7 +210,7 @@ class ImageProcessingManager {
         );
         // PRO 2
         isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImage3(
+        thumbnailVersionBytes = await cvHelper.processImagePro2(
           ParamsProcessImage3(warpedBytes, processed2Bytes),
         );
         break;
@@ -246,7 +247,7 @@ class ImageProcessingManager {
     // Dokument
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 3) {
-      Uint8List processed1Bytes = await cvHelper.processImage1(
+      Uint8List processed1Bytes = await cvHelper.processImageDocument(
         ParamsProcessImage1(warpedBytes),
       );
       isolateExitPoint(kill);
@@ -262,7 +263,7 @@ class ImageProcessingManager {
     // PRO
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-      processed2Bytes = await cvHelper.processImage2(
+      processed2Bytes = await cvHelper.processImagePro(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
       isolateExitPoint(kill);
@@ -278,7 +279,7 @@ class ImageProcessingManager {
     // PRO 2
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 5) {
-      Uint8List processed3Bytes = await cvHelper.processImage3(
+      Uint8List processed3Bytes = await cvHelper.processImagePro2(
         ParamsProcessImage3(warpedBytes, processed2Bytes!),
       );
       isolateExitPoint(kill);
@@ -490,7 +491,7 @@ class ImageProcessingManager {
 
     // Document
     isolateExitPoint(kill);
-    Uint8List processed1 = await cvHelper.processImage1(
+    Uint8List processed1 = await cvHelper.processImageDocument(
       ParamsProcessImage1(photoBytes),
     );
     isolateExitPoint(kill);
@@ -504,7 +505,7 @@ class ImageProcessingManager {
 
     // PRO
     isolateExitPoint(kill);
-    Uint8List processed2Bytes = await cvHelper.processImage2(
+    Uint8List processed2Bytes = await cvHelper.processImagePro(
       ParamsProcessImage2(photoBytes, borderCorrectionDepth),
     );
     isolateExitPoint(kill);
@@ -518,7 +519,7 @@ class ImageProcessingManager {
 
     // PRO 2
     isolateExitPoint(kill);
-    Uint8List processed3Bytes = await cvHelper.processImage3(
+    Uint8List processed3Bytes = await cvHelper.processImagePro2(
       ParamsProcessImage3(photoBytes, processed2Bytes),
     );
     isolateExitPoint(kill);
@@ -735,7 +736,7 @@ class ImageProcessingManager {
     // Document
     if (versionPaths[3].isEmpty) {
       isolateExitPoint(kill);
-      Uint8List processed1 = await cvHelper.processImage1(
+      Uint8List processed1 = await cvHelper.processImageDocument(
         ParamsProcessImage1(warpedBytes),
       );
       isolateExitPoint(kill);
@@ -752,7 +753,7 @@ class ImageProcessingManager {
     Uint8List? processed2Bytes;
     if (versionPaths[4].isEmpty) {
       isolateExitPoint(kill);
-      processed2Bytes = await cvHelper.processImage2(
+      processed2Bytes = await cvHelper.processImagePro(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
       isolateExitPoint(kill);
@@ -770,7 +771,7 @@ class ImageProcessingManager {
       isolateExitPoint(kill);
       processed2Bytes ??= File(versionPaths[4]).readAsBytesSync();
       isolateExitPoint(kill);
-      Uint8List processed3Bytes = await cvHelper.processImage3(
+      Uint8List processed3Bytes = await cvHelper.processImagePro2(
         ParamsProcessImage3(warpedBytes, processed2Bytes),
       );
       isolateExitPoint(kill);
