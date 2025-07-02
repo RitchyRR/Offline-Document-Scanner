@@ -917,6 +917,30 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   ],
                 ),
               ),
+              //PopupMenuItem(
+              //  value: "defaultFilter",
+              //  child: Row(
+              //    children: [
+              //      SizedBox(width: 8),
+              //      IconWithBadge(
+              //        icon: Icons.image,
+              //        badgeIcon: Icons.change_circle,
+              //        mainIconSize: 19,
+              //        iconColor: Theme.of(
+              //          context,
+              //        ).colorScheme.onPrimaryContainer,
+              //        bgColor: Theme.of(context).colorScheme.primaryContainer,
+              //      ),
+              //      SizedBox(width: 10),
+              //      Text(
+              //        tr("documents.menu.defaultFilter"),
+              //        style: TextStyle(
+              //          color: Theme.of(context).colorScheme.onPrimaryContainer,
+              //        ),
+              //      ),
+              //    ],
+              //  ),
+              //),
               if (!feedbackHelper.isHidden())
                 PopupMenuItem(
                   value: "feedback",
@@ -995,6 +1019,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   break;
                 case "ratios":
                   selectAspectRatiosDialog(context);
+                  break;
+                case "defaultFilter":
+                  //_changeThumbnailVersionsPopup(
+                  //  context,
+                  //  _selectedPages,
+                  //  widget.docIndex,
+                  //);
                   break;
                 case "feedback":
                   feedbackHelper.showRatingDialog(context);
@@ -1469,57 +1500,63 @@ class IconWithPlusBadge extends StatelessWidget {
 class IconWithBadge extends StatelessWidget {
   final IconData icon;
   final IconData badgeIcon;
+  final double mainIconSize;
+  final Color iconColor;
+  final Color bgColor;
 
-  const IconWithBadge({super.key, required this.icon, required this.badgeIcon});
+  const IconWithBadge({
+    super.key,
+    required this.icon,
+    required this.badgeIcon,
+    required this.iconColor,
+    required this.bgColor,
+    required this.mainIconSize,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final double containerSize = 20.0;
-    final double textScaleFactor = MediaQuery.of(context).textScaler.scale(1.0);
-    //final double fontSize = containerSize / textScaleFactor;
+    final double badgeIconSize = mainIconSize / 1.25;
+    final double constraintsSize = mainIconSize * 1.27;
 
-    return Stack(
-      children: [
-        Align(
-          alignment:
-              Alignment.center +
-              Alignment(0.25 / textScaleFactor, 0.25 / textScaleFactor),
-          child: Icon(icon),
-        ),
-        Align(
-          alignment:
-              Alignment.topLeft +
-              Alignment(
-                0.25 / textScaleFactor / textScaleFactor,
-                0.25 / textScaleFactor / textScaleFactor,
-              ),
-          child: SizedBox(
-            width: containerSize + 2,
-            height: containerSize + 2,
-            child: Stack(
-              children: [
-                Center(
-                  child: Container(
-                    width: containerSize,
-                    height: containerSize,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
+    return SizedBox(
+      width: constraintsSize,
+      height: constraintsSize,
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.bottomRight + Alignment(0, 0),
+            child: Icon(icon, size: mainIconSize, color: iconColor),
+          ),
+          Align(
+            alignment: Alignment.topLeft + Alignment(0, 0),
+            child: SizedBox(
+              width: badgeIconSize + 1,
+              height: badgeIconSize + 1,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Container(
+                      width: badgeIconSize + 1,
+                      height: badgeIconSize + 1,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-                Center(
-                  child: Icon(
-                    badgeIcon,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  Center(
+                    child: Icon(
+                      badgeIcon,
+                      size: badgeIconSize,
+                      color: iconColor,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -2994,6 +3031,13 @@ class _PagesState extends State<Pages> with RouteAware {
                         child: IconWithBadge(
                           icon: Icons.image,
                           badgeIcon: Icons.change_circle,
+                          mainIconSize: 24,
+                          iconColor: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                          bgColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
                         ),
                       ),
                     ),
@@ -6079,7 +6123,20 @@ Future<bool> _changeThumbnailVersionsPopup(
       return StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text(tr("popup.changeThumbnails.title")),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconWithBadge(
+                  icon: Icons.image,
+                  badgeIcon: Icons.change_circle,
+                  mainIconSize: 30,
+                  iconColor: Theme.of(context).colorScheme.onSurface,
+                  bgColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                ),
+                SizedBox(width: 12),
+                Flexible(child: Text(tr("popup.changeThumbnails.title"))),
+              ],
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: List<Widget>.generate(
