@@ -305,17 +305,17 @@ class ImageProcessingManager {
       kill,
       docIndex,
       pageIndex,
-      initialThumbnailIndex,
+      thumbnailIndex,
       g,
       overwrite: !isInitial,
     );
 
-    if (newThumbnail && initialThumbnailIndex == null) {
+    if (newThumbnail && thumbnailIndex == null) {
       isolateExitPoint(kill);
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,
-        initialThumbnailIndex ??
+        thumbnailIndex ??
             ((g.proUnlocked == true)
                 ? g.defaultIndexes.$2
                 : g.defaultIndexes.$1),
