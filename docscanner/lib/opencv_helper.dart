@@ -34,10 +34,10 @@ class ParamsProcessImage2 {
 }
 
 class ParamsProcessImage3 {
-  Uint8List imageBytesIn;
-  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
+  Uint8List warpedBytesIn;
+  Uint8List processed2BytesIn;
 
-  ParamsProcessImage3(this.imageBytesIn, this.borderCorrectionDepth);
+  ParamsProcessImage3(this.warpedBytesIn, this.processed2BytesIn);
 }
 
 class OpenCVHelper {
@@ -89,36 +89,31 @@ class OpenCVHelper {
   }
 
   Future<Uint8List> processImage1(ParamsProcessImage1 params) {
-    cv.Mat? warped = _loadWarped(params.imageBytesIn);
+    cv.Mat warped = _loadWarped(params.imageBytesIn);
 
-    cv.Mat? filtered1 = _filterImage1(warped);
+    cv.Mat filtered1 = _filterImage1(warped);
 
     return _returnImage(filtered1);
   }
 
-  Future<(Uint8List, Uint8List)> processImage2(
-    ParamsProcessImage2 params,
-  ) async {
+  Future<Uint8List> processImage2(ParamsProcessImage2 params) async {
     borderCorrectionDepth = params.borderCorrectionDepth;
 
-    cv.Mat? warped = _loadWarped(params.imageBytesIn);
+    cv.Mat warped = _loadWarped(params.imageBytesIn);
 
-    cv.Mat filtered2;
-    cv.Mat filtered3;
-    (filtered2, filtered3) = _filterImage2(warped);
+    cv.Mat filtered2 = _filterImage2(warped);
 
-    return (await _returnImage(filtered2), await _returnImage(filtered3));
+    return _returnImage(filtered2);
   }
 
-  //Future<Uint8List> processImage3(ParamsProcessImage2 params) {
-  //  borderCorrectionDepth = params.borderCorrectionDepth;
-  //
-  //  cv.Mat? filtered1 = _loadWarped(params.imageBytesIn);
-  //
-  //  cv.Mat? filtered2 = _filterImage3(filtered1);
-  //
-  //  return _returnImage(filtered2);
-  //}
+  Future<Uint8List> processImage3(ParamsProcessImage3 params) {
+    cv.Mat warped = _loadWarped(params.warpedBytesIn);
+    cv.Mat processed2 = _loadWarped(params.processed2BytesIn);
+
+    cv.Mat processed3 = _filterImage3(warped, processed2);
+
+    return _returnImage(processed3);
+  }
 
   Future<Uint8List> rotateImage(Uint8List imageBytesIn, int angle) {
     cv.Mat mat = _loadImage(imageBytesIn);
@@ -267,9 +262,7 @@ class OpenCVHelper {
   }
 
   /// Filter Image 1: subtract background quickly
-  cv.Mat? _filterImage1(cv.Mat? imageMat) {
-    if (imageMat == null) return null;
-
+  cv.Mat _filterImage1(cv.Mat imageMat) {
     // 5. Simple background subtraction
     imageMat = _isolateAndSubtractBGSimple(imageMat);
 
@@ -277,24 +270,28 @@ class OpenCVHelper {
   }
 
   /// Filter Image 2: subtract background fully
-  (cv.Mat, cv.Mat) _filterImage2(cv.Mat? imageMat) {
+  cv.Mat _filterImage2(cv.Mat? imageMat) {
     if (imageMat == null) {
       throw StateError("Error, _filterImage2: Input is null");
     }
 
     // 5. Background subtraction
-    cv.Mat processed = _isolateAndSubtractBG(imageMat);
+    cv.Mat processed2 = _isolateAndSubtractBG(imageMat);
 
     // 6. Border correction
-    processed = _correctBorder(processed);
+    processed2 = _correctBorder(processed2);
 
     // 7. Sharpen
-    processed = _sharpenImage(processed, sharpeningStrength: 0.5);
+    processed2 = _sharpenImage(processed2, sharpeningStrength: 0.5);
 
-    // Shift hue back to original
-    cv.Mat colorMatched = _matchColor(imageMat, processed);
+    return processed2;
+  }
 
-    return (processed, colorMatched);
+  /// Filter Image 3: subtract background fully
+  cv.Mat _filterImage3(cv.Mat warped, cv.Mat processed2) {
+    cv.Mat colorMatched = _matchColor(warped, processed2);
+
+    return colorMatched;
   }
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
