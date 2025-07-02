@@ -211,7 +211,8 @@
     "waitingOtherPages": "Waiting for other Pages of this Document to process...",
     "importingImages": "Importing Images...",
     "importingPdf": "Importing PDF...",
-    "importingPdfs": "Importing PDFs..."
+    "importingPdfs": "Importing PDFs...",
+    "changingThumbnails": "Changing Thumbnails..."
   },
   "toast": {
     "feedback": "Thank you for your feedback!",

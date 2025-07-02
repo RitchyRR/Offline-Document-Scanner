@@ -212,7 +212,8 @@
     "waitingOtherPages": "Warte bis andere Seiten dieses Dokuments verarbeitet sind...",
     "importingImages": "Bilder werden importiert...",
     "importingPdf": "PDF wird importiert...",
-    "importingPdfs": "PDFs werden importiert..."
+    "importingPdfs": "PDFs werden importiert...",
+    "changingThumbnails": "Thumbnails werden geändert..."
   },
   "toast": {
     "feedback": "Danke für dein Feedback!",

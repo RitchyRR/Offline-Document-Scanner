@@ -1256,6 +1256,7 @@ class ImageProcessingManager {
     bool tmpPro = false,
   }) async {
     if (thumbnailIndex == 0) return;
+
     bool isNewIndex = await MetadataHelper.writePageThumbnailIndex(
       docIndex,
       pageIndex,
@@ -1280,6 +1281,7 @@ class ImageProcessingManager {
     }
     taskKillers[(docIndex, pageIndex)] = killer;
 
+    final completer = Completer<void>();
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -1293,8 +1295,10 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
+        completer.complete();
       }
     });
+    await completer.future;
   }
 
   Future<(int, int)> pdfToDoc(String pdfPath, {int? addToDocWithIndex}) async {

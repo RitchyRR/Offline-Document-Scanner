@@ -6078,14 +6078,14 @@ List<String> versionNames = [
 ];
 
 Future<bool> _changeThumbnailVersionsPopup(
-  BuildContext callContext,
+  BuildContext context,
   List<int> pageIndexes,
   int docIndex,
 ) async {
   int? selectedIndex;
   bool allowed = true;
   bool? confirmed = await showDialog<bool>(
-    context: callContext,
+    context: context,
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (context, setStateDialog) {
@@ -6155,17 +6155,49 @@ Future<bool> _changeThumbnailVersionsPopup(
     },
   );
 
+  List<Future> changeThumbnailFutures = [];
   if (confirmed == true && selectedIndex != null) {
     for (var pageIndex in pageIndexes) {
-      imageProcessingManager.saveNewThumbnail(
-        docIndex,
-        pageIndex,
-        selectedIndex!,
+      changeThumbnailFutures.add(
+        imageProcessingManager.saveNewThumbnail(
+          docIndex,
+          pageIndex,
+          selectedIndex!,
+        ),
       );
+    }
+    if (context.mounted) {
+      _changingThumbnailsSnackbar(context, changeThumbnailFutures);
     }
     return true;
   }
   return false;
+}
+
+Future<void> _changingThumbnailsSnackbar(
+  BuildContext context,
+  List<Future> saveThumbnailFutures,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final snackBar = SnackBar(
+    content: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(tr("loading.changingThumbnails")),
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.surface,
+          ),
+        ),
+      ],
+    ),
+    duration: const Duration(days: 1),
+  );
+  messenger.showSnackBar(snackBar);
+  await Future.wait(saveThumbnailFutures);
+  messenger.hideCurrentSnackBar();
 }
 
 Future<bool> _pagesPopup(
