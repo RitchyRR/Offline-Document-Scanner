@@ -6088,7 +6088,7 @@ Future<bool> _changeThumbnailVersionsPopup(
     context: callContext,
     builder: (BuildContext context) {
       return StatefulBuilder(
-        builder: (context, setState) {
+        builder: (context, setStateDialog) {
           return AlertDialog(
             title: Text(tr("popup.changeThumbnails.title")),
             content: Column(
@@ -6118,7 +6118,7 @@ Future<bool> _changeThumbnailVersionsPopup(
                       } else {
                         allowed = true;
                       }
-                      setState(() {
+                      setStateDialog(() {
                         selectedIndex = value;
                       });
                     }
@@ -6142,7 +6142,10 @@ Future<bool> _changeThumbnailVersionsPopup(
                     )
                   : ElevatedButton.icon(
                       icon: Icon(Icons.lock),
-                      onPressed: () => proPopup(context),
+                      onPressed: () async {
+                        await proPopup(context);
+                        setStateDialog(() {});
+                      },
                       label: Text(tr("popup.unlock")),
                     ),
             ],
@@ -6655,7 +6658,7 @@ Future<bool> _pagesPopup(
                                                 child: Column(
                                                   children: [
                                                     ElevatedButton.icon(
-                                                      onPressed: () async {
+                                                      onPressed: () {
                                                         proPopup(context);
                                                       },
                                                       icon: Icon(Icons.lock),
@@ -6718,7 +6721,7 @@ Future<bool> _pagesPopup(
                                       child: Column(
                                         children: [
                                           ElevatedButton.icon(
-                                            onPressed: () async {
+                                            onPressed: () {
                                               proPopup(context);
                                             },
                                             icon: Icon(Icons.lock),
