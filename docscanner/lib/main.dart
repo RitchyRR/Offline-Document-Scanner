@@ -137,18 +137,7 @@ class _MyAppState extends State<MyApp> {
     );
 
     // Adjust specific elements for better contrast
-    return (
-      lightScheme,
-      darkScheme,
-      //.copyWith(
-      //surface: darkScheme.surfaceContainerLow,
-      //surfaceContainerLow: darkScheme.surfaceContainerHigh, // cards + elevated buttons
-      //surfaceContainer: darkScheme.surfaceContainerHighest,
-      //     primary: darkScheme.primary,
-      //     secondary: darkScheme.secondary,
-      //shadow: Color.fromARGB(255, 0, 0, 0),
-      //)
-    );
+    return (lightScheme, darkScheme);
   }
 
   @override
