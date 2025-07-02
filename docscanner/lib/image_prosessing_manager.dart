@@ -160,33 +160,33 @@ class ImageProcessingManager {
       ".png",
     );
 
-    //// Kontrast basierend auf dem Warped-Bild
-    //isolateExitPoint(kill);
-    //Uint8List contrastBytes = await cvHelper.processImageContrast(
-    //  ParamsProcessImage1(warpedBytes),
-    //);
-    //isolateExitPoint(kill);
-    //await g.filesHelper.savePageVersion(
-    //  docIndex,
-    //  pageIndex,
-    //  2,
-    //  contrastBytes,
-    //  ".png",
-    //);
-    //
-    //// Processed1 basierend auf dem Warped-Bild
-    //isolateExitPoint(kill);
-    //Uint8List processed1Bytes = await cvHelper.processImage1(
-    //  ParamsProcessImage1(warpedBytes),
-    //);
-    //isolateExitPoint(kill);
-    //await g.filesHelper.savePageVersion(
-    //  docIndex,
-    //  pageIndex,
-    //  3,
-    //  processed1Bytes,
-    //  ".png",
-    //);
+    // Kontrast basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
+    Uint8List contrastBytes = await cvHelper.processImageContrast(
+      ParamsProcessImage1(warpedBytes),
+    );
+    isolateExitPoint(kill);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      2,
+      contrastBytes,
+      ".png",
+    );
+
+    // Processed1 basierend auf dem Warped-Bild
+    isolateExitPoint(kill);
+    Uint8List processed1Bytes = await cvHelper.processImage1(
+      ParamsProcessImage1(warpedBytes),
+    );
+    isolateExitPoint(kill);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      3,
+      processed1Bytes,
+      ".png",
+    );
 
     // Processed2 basierend auf dem Warped-Bild
     isolateExitPoint(kill);
