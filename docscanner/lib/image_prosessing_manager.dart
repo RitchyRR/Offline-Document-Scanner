@@ -203,7 +203,7 @@ class ImageProcessingManager {
         await g.filesHelper.savePageVersion(
           docIndex,
           pageIndex,
-          initialThumbnailIndex,
+          4,
           processed2Bytes,
           ".png",
         );
@@ -759,7 +759,7 @@ class ImageProcessingManager {
       await g.filesHelper.savePageVersion(
         docIndex,
         pageIndex,
-        3,
+        4,
         processed2Bytes,
         ".png",
       );
