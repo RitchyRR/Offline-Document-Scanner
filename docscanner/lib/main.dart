@@ -169,9 +169,9 @@ class _MyAppState extends State<MyApp> {
     final sStorage = FlutterSecureStorage();
     final proUnlockedString = await sStorage.read(key: "proUnlocked");
     g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
-    // Check if PRO unlocked online
-    await initStoreInfo();
     setState(() {});
+    // Check if PRO unlocked online
+    initStoreInfo();
   }
 
   @override
