@@ -1168,7 +1168,7 @@ class OpenCVHelper {
     int highVal = 255;
     int lowVal = 0;
     if (medianBrightness > 155) {
-      highVal = medianBrightness - (255 - medianBrightness) * 2;
+      highVal = medianBrightness - ((256 - medianBrightness) * 1.5).toInt();
     } else if (medianBrightness < 100) {
       lowVal = medianBrightness - medianBrightness ~/ 2;
     }
@@ -1176,6 +1176,13 @@ class OpenCVHelper {
       hsv[2],
       lowValue: lowVal,
       highValue: highVal,
+      gamma: null,
+    );
+    // low sturation -> no sturation
+    hsv[1] = _stretchMatValues(
+      hsv[1],
+      lowValue: 20,
+      highValue: 255,
       gamma: null,
     );
     subtracted = cv.cvtColor(cv.merge(hsv), cv.COLOR_HSV2BGR);
