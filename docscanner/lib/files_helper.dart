@@ -478,6 +478,7 @@ class FilesHelper {
   }
 
   repairDirectoryStructure() async {
+    StackTrace? st = StackTrace.current;
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
     var i = 0;
@@ -491,6 +492,11 @@ class FilesHelper {
         }
         if (changeHappened == true) {
           changeHappened = await _repairDirectoryStructure();
+          // Give Stacktrace if repair happened
+          if (changeHappened && st != null) {
+            dev.log("repairDirectoryStructure, $st");
+            st = null;
+          }
         } else {
           break;
         }

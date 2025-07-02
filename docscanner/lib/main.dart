@@ -351,7 +351,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
     await _loadDocsDisplay(onInit: true);
     Completer repairCompleter = Completer();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await g.filesHelper.repairDirectoryStructure();
+      if (!isTmpExternal) {
+        await g.filesHelper.repairDirectoryStructure();
+      }
       repairCompleter.complete();
     });
     await repairCompleter.future;
@@ -477,14 +479,20 @@ class _DocumentsHomeState extends State<DocumentsHome>
     WidgetsFlutterBinding.ensureInitialized();
     ReceiveSharingIntent.instance.getInitialMedia().then((
       List<SharedMediaFile> value,
-    ) {
-      _handleSharedFiles(value);
+    ) async {
+      isTmpExternal = true;
+      await _handleSharedFiles(value);
+      await Future.delayed(Duration(milliseconds: 1500));
+      isTmpExternal = false;
     });
     // While app is already running
     ReceiveSharingIntent.instance.getMediaStream().listen((
       List<SharedMediaFile> value,
-    ) {
-      _handleSharedFiles(value);
+    ) async {
+      isTmpExternal = true;
+      await _handleSharedFiles(value);
+      await Future.delayed(Duration(milliseconds: 1500));
+      isTmpExternal = false;
     });
   }
 
@@ -3356,6 +3364,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   List<double> _ratios = [];
   _setRatios() {
     final List<double> priorRatios = List<double>.from(_ratios);
+    if (widget.pageAspectRatios.isEmpty) return;
     _ratios = List<double>.generate(
       widget.pageAspectRatios.length,
       (index) => 1.0 / widget.pageAspectRatios[index],
