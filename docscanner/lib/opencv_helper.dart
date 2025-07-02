@@ -1249,13 +1249,14 @@ class OpenCVHelper {
 
   cv.Mat _warpedBg(cv.Mat warped) {
     // 1. Remove glow (Opening)
-    int k1 = ((K ~/ 18) + 1).clamp(3, -1 >>> 1);
-    cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k1, k1));
+    int k1 = ((K ~/ 30) + 1).clamp(3, -1 >>> 1);
+    cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_CROSS, (k1, k1));
     cv.Mat bg = cv.morphologyEx(
       warped,
       cv.MORPH_OPEN,
       kernel1,
       borderType: cv.BORDER_REPLICATE,
+      iterations: 2,
     );
     // 2. Remove colorful blobs like markers (Median)
     int kernelSize = ((K * 2) + 1);
