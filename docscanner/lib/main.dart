@@ -2058,7 +2058,8 @@ Future<bool> proPopup(BuildContext context) async {
   );
   if (selectBuyPro == true) {
     if (await buyPro()) {
-      if (context.mounted) {
+      await Future.delayed(Duration(milliseconds: 400));
+      if (context.mounted && g.proUnlocked) {
         _changeDefaultThumbnailVersionPopup(context);
       }
       return true;
