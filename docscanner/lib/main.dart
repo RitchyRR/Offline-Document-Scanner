@@ -168,6 +168,7 @@ class _MyAppState extends State<MyApp> {
     // Check if PRO unlocked
     final sStorage = FlutterSecureStorage();
     String? proUnlockedString;
+    Object? error;
     try {
       proUnlockedString = await sStorage.read(key: "proUnlocked");
     } catch (e) {
@@ -175,11 +176,15 @@ class _MyAppState extends State<MyApp> {
       dev.log("SecureStorage read failed: $e");
       await sStorage.deleteAll();
       proUnlockedString = null;
+      error = e;
     }
     g.proUnlocked = proUnlockedString == "true";
     setState(() {});
     // Check if PRO unlocked online
     initStoreInfo();
+    if (error != null) {
+      throw StateError("Error, initAsync, FlutterSecureStorage: $error");
+    }
   }
 
   @override
