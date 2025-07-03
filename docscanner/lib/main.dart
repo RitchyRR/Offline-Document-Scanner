@@ -167,8 +167,16 @@ class _MyAppState extends State<MyApp> {
     });
     // Check if PRO unlocked
     final sStorage = FlutterSecureStorage();
-    final proUnlockedString = await sStorage.read(key: "proUnlocked");
-    g.proUnlocked = proUnlockedString != null && proUnlockedString == "true";
+    String? proUnlockedString;
+    try {
+      proUnlockedString = await sStorage.read(key: "proUnlocked");
+    } catch (e) {
+      // Handle secure storage failure gracefully
+      dev.log("SecureStorage read failed: $e");
+      await sStorage.deleteAll();
+      proUnlockedString = null;
+    }
+    g.proUnlocked = proUnlockedString == "true";
     setState(() {});
     // Check if PRO unlocked online
     initStoreInfo();
