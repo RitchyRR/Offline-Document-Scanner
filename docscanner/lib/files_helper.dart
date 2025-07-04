@@ -1351,9 +1351,6 @@ class FilesHelper {
         ".pdf",
       );
 
-      Future.delayed(Duration(seconds: 1), () {
-        isTmpExternal = false;
-      });
       // SnackBar
       messenger?.showSnackBar(snackBar!);
 
@@ -1393,6 +1390,9 @@ class FilesHelper {
         isTmpExternal = false;
         return;
       }
+      Future.delayed(Duration(seconds: 1), () {
+        isTmpExternal = false;
+      });
 
       messenger?.hideCurrentSnackBar();
       // Saved Toast
