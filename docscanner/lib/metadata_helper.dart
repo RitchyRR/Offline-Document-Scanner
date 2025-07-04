@@ -303,14 +303,18 @@ class MetadataHelper {
           throw StateError("aspectRatio should not be saved as 0");
         }
       } catch (e) {
-        dev.log("Warning, readPageProcessingMetadata, ratioValue: $e");
+        if (!supressWarnings) {
+          dev.log("Warning, readPageProcessingMetadata, ratioValue: $e");
+        }
       }
       try {
         cornerPoints = (metadata["corners"] as List)
             .map<List<int>>((e) => (e as List).map((v) => v as int).toList())
             .toList();
       } catch (e) {
-        dev.log("Warning, readPageProcessingMetadata, cornerPoints: $e");
+        if (!supressWarnings) {
+          dev.log("Warning, readPageProcessingMetadata, cornerPoints: $e");
+        }
       }
     } else if (!supressWarnings) {
       dev.log(

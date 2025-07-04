@@ -1020,7 +1020,6 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
 
     isolateExitPoint(kill);
-    //bool newThumbnail =
     await _scaleAndSaveThumbnailInIsolate(
       sendPort,
       kill,

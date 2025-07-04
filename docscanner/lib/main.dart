@@ -3848,7 +3848,8 @@ class PagePreviewState extends State<PagePreview> {
     // Poll Metadtata
     _pollWhile(
       pollWhileCondition: () {
-        return _ratioValue == null || _cornerPoints == null;
+        return _ratioValue == null ||
+            (!_importedPdfMode && _cornerPoints == null);
       },
       onTick: () async {
         await _loadPageMetadata(supressWarnings: true);
@@ -4725,9 +4726,9 @@ class PagePreviewState extends State<PagePreview> {
     var metadata = await g.metadataHelper.readPageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
+      supressWarnings: _importedPdfMode,
     );
     double? ratioValue = metadata.$1;
-    //List<List<int>>? cornerPoints = metadata.$4;
 
     // use new / rotate old corner points
     await imageProcessingManager.killIsolatesOfPage(
@@ -4767,7 +4768,8 @@ class PagePreviewState extends State<PagePreview> {
     }
 
     if (onlyRotation &&
-        _versionPaths.every((path) => File(path).existsSync())) {
+        (_importedPdfMode ||
+            _versionPaths.every((path) => File(path).existsSync()))) {
       if (newCornerPoints != null) {
         await MetadataHelper.writePageCornerPoints(
           widget.docIndex,
@@ -4782,7 +4784,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        g.defaultIndex,
+        _selectedThumbnail,
       );
       _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
