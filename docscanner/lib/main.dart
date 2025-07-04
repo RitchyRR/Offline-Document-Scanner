@@ -3726,7 +3726,7 @@ class PagePreviewState extends State<PagePreview> {
   int? _guiOrientationIndex;
   int _totalRotation = 0;
   // Corner Points
-  List<List<int>> _cornerPoints = [];
+  List<List<int>>? _cornerPoints;
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   bool _hideOverlayReprocessing = false;
@@ -3752,7 +3752,7 @@ class PagePreviewState extends State<PagePreview> {
   // Unlock page
   bool _pageUnlocked = false;
   // Imported PDF Mode
-  bool importedPdfMode = false;
+  bool _importedPdfMode = false;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -3780,11 +3780,11 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _initAsync() async {
-    importedPdfMode = await MetadataHelper.readPageImportedPdf(
+    _importedPdfMode = await MetadataHelper.readPageImportedPdf(
       widget.docIndex,
       widget.pageIndex,
     );
-    if (importedPdfMode) setState(() {});
+    if (_importedPdfMode) setState(() {});
     var imagePaths = await g.filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
@@ -3944,7 +3944,8 @@ class PagePreviewState extends State<PagePreview> {
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
-      if (_cornerPoints.isNotEmpty && _guiRatioValue != null) {
+      if ((_cornerPoints != null || _importedPdfMode) &&
+          _guiRatioValue != null) {
         _hideOverlayReprocessing = false;
         _unZoomedScale = null;
         _metadataBlocked = false;
@@ -3972,7 +3973,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _reprocessingSetup() async {
-    _cornerPoints.clear();
+    _cornerPoints?.clear();
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
@@ -4203,7 +4204,7 @@ class PagePreviewState extends State<PagePreview> {
             PhotoViewGallery.builder(
               pageController: _pageController,
               scrollPhysics: const PageScrollPhysics(),
-              itemCount: importedPdfMode ? 1 : _versionPaths.length,
+              itemCount: _importedPdfMode ? 1 : _versionPaths.length,
               builder: (context, index) {
                 // Loading indicator
                 if (_versionPaths[index].isEmpty) {
@@ -4216,7 +4217,7 @@ class PagePreviewState extends State<PagePreview> {
                   return PhotoViewGalleryPageOptions.customChild(
                     child: GestureDetector(
                       onLongPress:
-                          !importedPdfMode &&
+                          !_importedPdfMode &&
                               !_overlayZoomed &&
                               !_hideOverlayReprocessing &&
                               enableFAB0 &&
@@ -4346,10 +4347,10 @@ class PagePreviewState extends State<PagePreview> {
                             Row(
                               spacing: 12,
                               children: [
-                                if (importedPdfMode) _pdfBadge(context),
-                                if (!importedPdfMode)
+                                if (_importedPdfMode) _pdfBadge(context),
+                                if (!_importedPdfMode)
                                   _aspectRatioDropDown(context),
-                                if (!importedPdfMode)
+                                if (!_importedPdfMode)
                                   _orientationDropDown(context),
                                 _rotateButton(
                                   context,
@@ -4378,7 +4379,7 @@ class PagePreviewState extends State<PagePreview> {
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _selectedVersion == 0 && !importedPdfMode
+            _selectedVersion == 0 && !_importedPdfMode
                 ? SizedBox(
                     width: 40,
                     height: 40,
@@ -4481,7 +4482,7 @@ class PagePreviewState extends State<PagePreview> {
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: importedPdfMode
+        bottomNavigationBar: _importedPdfMode
             ? null
             : SafeArea(
                 child: Container(
@@ -4734,7 +4735,9 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
       );
-      newCornerPoints = rotateCornerPoints(newCornerPoints);
+      if (newCornerPoints != null) {
+        newCornerPoints = rotateCornerPoints(newCornerPoints);
+      }
     } else {
       newCornerPoints = List.from(newCornerPointsIn);
       onlyRotation = false;
@@ -4763,11 +4766,13 @@ class PagePreviewState extends State<PagePreview> {
 
     if (onlyRotation &&
         _versionPaths.every((path) => File(path).existsSync())) {
-      await MetadataHelper.writePageCornerPoints(
-        widget.docIndex,
-        widget.pageIndex,
-        newCornerPoints,
-      );
+      if (newCornerPoints != null) {
+        await MetadataHelper.writePageCornerPoints(
+          widget.docIndex,
+          widget.pageIndex,
+          newCornerPoints,
+        );
+      }
       _metadataBlocked = true;
       setState(() {});
       await imageProcessingManager.rotatePage(
@@ -4969,8 +4974,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Widget _displayCornersOverlay(BuildContext context) {
-    if (importedPdfMode ||
-        _cornerPoints.isEmpty ||
+    if (_importedPdfMode ||
+        (_cornerPoints == null || _cornerPoints!.isEmpty) ||
         _photoScale == 0.0 ||
         _rotationOngoing ||
         _hideOverlayReprocessing ||
@@ -5002,7 +5007,7 @@ class PagePreviewState extends State<PagePreview> {
     }
 
     // Apply rotation to corner points visually
-    List<Offset> scaledPoints = _cornerPoints.map((point) {
+    List<Offset> scaledPoints = _cornerPoints!.map((point) {
       double x = point[1] * _photoScale;
       double y = point[0] * _photoScale;
       return Offset(x, y);

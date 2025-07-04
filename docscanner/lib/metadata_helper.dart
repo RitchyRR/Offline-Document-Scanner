@@ -471,7 +471,7 @@ class MetadataHelper {
     }
   }
 
-  static Future<List<List<int>>> readPageCornerPoints(
+  static Future<List<List<int>>?> readPageCornerPoints(
     int docIndex,
     int pageIndex, {
     AppGlobals? gIn,
@@ -503,7 +503,7 @@ class MetadataHelper {
         "Warning, readPageCornerPoints: Metadata does not exist for $pagePath",
       );
     }
-    return [];
+    return null;
   }
 }
 
