@@ -78,8 +78,10 @@ class MetadataHelper {
     int pageIndex,
     String keyIn,
     dynamic value,
+    AppGlobals? gIn,
   ) async {
-    final pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    gIn ??= g;
+    final pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     if (!Directory(pagePath).existsSync()) {
       Directory(pagePath).createSync(recursive: true);
@@ -205,6 +207,7 @@ class MetadataHelper {
       pageIndex,
       "unlocked",
       unlocked ? "true" : "false",
+      g,
     );
 
     if (unlocked) {
@@ -260,7 +263,7 @@ class MetadataHelper {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
       } catch (e) {
-        dev.log("Warning, writePageMetadata, reading: $e");
+        dev.log("Warning, writePageProcessingMetadata, reading: $e");
       }
     }
 
@@ -271,7 +274,7 @@ class MetadataHelper {
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
     } catch (e) {
-      dev.log("Warning, writePageMetadata: $e");
+      dev.log("Warning, writePageProcessingMetadata: $e");
     }
   }
 
@@ -300,18 +303,18 @@ class MetadataHelper {
           throw StateError("aspectRatio should not be saved as 0");
         }
       } catch (e) {
-        dev.log("Warning, readPageMetadata, ratioValue: $e");
+        dev.log("Warning, readPageProcessingMetadata, ratioValue: $e");
       }
       try {
         cornerPoints = (metadata["corners"] as List)
             .map<List<int>>((e) => (e as List).map((v) => v as int).toList())
             .toList();
       } catch (e) {
-        dev.log("Warning, readPageMetadata, cornerPoints: $e");
+        dev.log("Warning, readPageProcessingMetadata, cornerPoints: $e");
       }
     } else if (!supressWarnings) {
       dev.log(
-        "Warning, readPageMetadata: Metadata does not exist for $pagePath",
+        "Warning, readPageProcessingMetadata: Metadata does not exist for $pagePath",
       );
     }
     return (ratioValue, cornerPoints);
@@ -383,7 +386,44 @@ class MetadataHelper {
     int pageIndex,
     List<List<int>> cornerPoints,
   ) async {
-    await _writePage(docIndex, pageIndex, "corners", cornerPoints);
+    await _writePage(docIndex, pageIndex, "corners", cornerPoints, g);
+  }
+
+  static Future<void> writePageImportedPdf(
+    int docIndex,
+    int pageIndex,
+    bool isImportedPdf,
+    AppGlobals? gIn,
+  ) async {
+    gIn ??= g;
+    await _writePage(
+      docIndex,
+      pageIndex,
+      "importedPdf",
+      isImportedPdf ? "true" : "false",
+      gIn,
+    );
+  }
+
+  static Future<bool> readPageImportedPdf(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarnings = false,
+    AppGlobals? gIn,
+  }) async {
+    gIn ??= g;
+    dynamic value = await _readPage(
+      docIndex,
+      pageIndex,
+      "importedPdf",
+      supressWarnings: supressWarnings,
+      gIn: gIn,
+    );
+    if (value is String) {
+      return value == "true";
+    } else {
+      return false;
+    }
   }
 
   static Future<double?> readPageRatioValue(
@@ -453,7 +493,9 @@ class MetadataHelper {
             .toList();
         return cornerPoints;
       } catch (e) {
-        dev.log("Warning, readPageCornerPoints: $e");
+        if (!supressWarnings) {
+          dev.log("Warning, readPageCornerPoints: $e");
+        }
       }
     }
     if (!supressWarnings) {

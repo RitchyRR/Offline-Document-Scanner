@@ -535,6 +535,12 @@ class FilesHelper {
             ..sort((a, b) => a.path.compareTo(b.path));
       if (pagesFseL.isNotEmpty) {
         for (var (pageIndex, pageFse) in pagesFseL.indexed) {
+          bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
+
           // Reanme pages to match their index
           String expectedPagePath = await getPagePath(
             docIndex,
@@ -567,15 +573,16 @@ class FilesHelper {
               }
             }
             // versions + 1 for thumbnail (ignoring shape and metadata)
-            pageIncomplete =
-                countVersionsAndThumbnail < versionNamesInternal.length + 1;
+            pageIncomplete = isImportedPdf
+                ? countVersionsAndThumbnail != 2
+                : countVersionsAndThumbnail < versionNamesInternal.length + 1;
           }
 
           if (pageIncomplete) {
             anyChange = true;
             bool photoExists = true;
-            if (countVersionsAndThumbnail == 0) {
-              dev.log("Deleting empty Doc $docIndex Page $pageIndex");
+            if (countVersionsAndThumbnail == 0 || isImportedPdf) {
+              dev.log("Deleting empty page, Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex, isBroken: true);
             } else {
               String photoName = versionNamesInternal[0];
@@ -861,7 +868,7 @@ class FilesHelper {
     final newDoc = await _reserveNewDocument();
     int docIndex = newDoc.$2;
     int? firstPageIndex;
-    for (var i = 0; i < pageCount; i++) {
+    for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       final newPage = await _reserveNewPage(docIndex);
       firstPageIndex ??= newPage.$2;
     }
@@ -876,6 +883,8 @@ class FilesHelper {
     Future.microtask(() async {
       await afterFirst.future;
       for (var i = 1; i < pageCount; i++) {
+        //int pageIndex;
+        //(_, pageIndex) = await
         _reserveNewPage(docIndex);
       }
     });
@@ -1693,7 +1702,7 @@ class FilesHelper {
     }
     // Process multiple PDFs
     for (var file in pickedFiles) {
-      final docData = await imageProcessingManager.pdfToDoc(
+      final docData = await imageProcessingManager.importPdf(
         file.path,
         addToDocWithIndex: addToDocWithIndex,
       );

@@ -529,7 +529,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // PDFs
     if (pdfs.isNotEmpty) {
       for (final pdf in pdfs) {
-        final docData = await imageProcessingManager.pdfToDoc(pdf.path);
+        final docData = await imageProcessingManager.importPdf(pdf.path);
         _openDocument(docData.$1);
       }
     }
@@ -3755,6 +3755,8 @@ class PagePreviewState extends State<PagePreview> {
   double _barWidth = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
+  // Imported PDF Mode
+  bool importedPdfMode = false;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -3782,6 +3784,11 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _initAsync() async {
+    importedPdfMode = await MetadataHelper.readPageImportedPdf(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    if (importedPdfMode) setState(() {});
     var imagePaths = await g.filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
@@ -4200,7 +4207,7 @@ class PagePreviewState extends State<PagePreview> {
             PhotoViewGallery.builder(
               pageController: _pageController,
               scrollPhysics: const PageScrollPhysics(),
-              itemCount: _versionPaths.length,
+              itemCount: importedPdfMode ? 1 : _versionPaths.length,
               builder: (context, index) {
                 // Loading indicator
                 if (_versionPaths[index].isEmpty) {
@@ -4213,21 +4220,24 @@ class PagePreviewState extends State<PagePreview> {
                   return PhotoViewGalleryPageOptions.customChild(
                     child: GestureDetector(
                       onLongPress:
-                          !_overlayZoomed &&
+                          !importedPdfMode &&
+                              !_overlayZoomed &&
                               !_hideOverlayReprocessing &&
                               enableFAB0 &&
                               !_metadataBlocked
                           ? () => _openWarpManuallyPage()
                           : null,
                       //onVerticalDragStart:
-                      //    !_overlayZoomed &&
+                      //    !pdfMode &&
+                      //        !_overlayZoomed &&
                       //        !_hideOverlayReprocessing &&
                       //        enableFAB0 &&
                       //        !_metadataBlocked
                       //    ? (_) => _openWarpManuallyPage()
                       //    : null,
                       //onTap:
-                      //    !_overlayZoomed &&
+                      //    !pdfMode &&
+                      //        !_overlayZoomed &&
                       //        !_hideOverlayReprocessing &&
                       //        enableFAB0 &&
                       //        !_metadataBlocked
@@ -4340,8 +4350,11 @@ class PagePreviewState extends State<PagePreview> {
                             Row(
                               spacing: 12,
                               children: [
-                                _aspectRatioDropDown(context),
-                                _orientationDropDown(context),
+                                if (importedPdfMode) _pdfBadge(context),
+                                if (!importedPdfMode)
+                                  _aspectRatioDropDown(context),
+                                if (!importedPdfMode)
+                                  _orientationDropDown(context),
                                 _rotateButton(
                                   context,
                                   -90,
@@ -4369,7 +4382,7 @@ class PagePreviewState extends State<PagePreview> {
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _selectedVersion == 0
+            _selectedVersion == 0 && !importedPdfMode
                 ? SizedBox(
                     width: 40,
                     height: 40,
@@ -4472,127 +4485,136 @@ class PagePreviewState extends State<PagePreview> {
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: SafeArea(
-          child: Container(
-            height: 120,
-            alignment: Alignment.topCenter,
-            child: ScrollConfiguration(
-              behavior: NoStretchScrollBehavior(),
-              child: ListView.builder(
-                controller: _thumbnailScrollController,
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                shrinkWrap: true,
-                itemCount: _versionPaths.length,
-                itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () {
-                      if (index != 0) _selectedThumbnail = index;
-                      _selectedVersion = index;
-                      setState(() {});
-                      _pageController.jumpToPage(index);
-                    },
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  _selectedThumbnail == index ? 13.75 : 11.5,
-                                ),
-                                border: Border.all(
-                                  color:
-                                      _selectedThumbnail == index ||
-                                          _selectedVersion == index
-                                      ? Theme.of(
-                                          context,
-                                        ).colorScheme.secondaryFixed
-                                      : Colors.white54,
-                                  width: _selectedThumbnail == index
-                                      ? _thumbnailBarBoderThumbnail
-                                      : _thumbnailBarBoder,
-                                ),
-                                boxShadow: [bigBoxShadow(context)],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8.5),
-                                child: SizedBox(
-                                  width: _selectedVersion == index
-                                      ? _thumbnailBarSizeSelected
-                                      : _thumbnailBarSize,
-                                  height: _selectedVersion == index
-                                      ? _thumbnailBarSizeSelected
-                                      : _thumbnailBarSize,
-                                  child: _versionPaths[index].isNotEmpty
-                                      ? Image.file(
-                                          File(_versionPaths[index]),
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Padding(
+        bottomNavigationBar: importedPdfMode
+            ? null
+            : SafeArea(
+                child: Container(
+                  height: 120,
+                  alignment: Alignment.topCenter,
+                  child: ScrollConfiguration(
+                    behavior: NoStretchScrollBehavior(),
+                    child: ListView.builder(
+                      controller: _thumbnailScrollController,
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
+                      shrinkWrap: true,
+                      itemCount: _versionPaths.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            if (index != 0) _selectedThumbnail = index;
+                            _selectedVersion = index;
+                            setState(() {});
+                            _pageController.jumpToPage(index);
+                          },
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(
+                                        _selectedThumbnail == index
+                                            ? 13.75
+                                            : 11.5,
+                                      ),
+                                      border: Border.all(
+                                        color:
+                                            _selectedThumbnail == index ||
+                                                _selectedVersion == index
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.secondaryFixed
+                                            : Colors.white54,
+                                        width: _selectedThumbnail == index
+                                            ? _thumbnailBarBoderThumbnail
+                                            : _thumbnailBarBoder,
+                                      ),
+                                      boxShadow: [bigBoxShadow(context)],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.5),
+                                      child: SizedBox(
+                                        width: _selectedVersion == index
+                                            ? _thumbnailBarSizeSelected
+                                            : _thumbnailBarSize,
+                                        height: _selectedVersion == index
+                                            ? _thumbnailBarSizeSelected
+                                            : _thumbnailBarSize,
+                                        child: _versionPaths[index].isNotEmpty
+                                            ? Image.file(
+                                                File(_versionPaths[index]),
+                                                fit: BoxFit.cover,
+                                                errorBuilder:
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) {
+                                                      return Padding(
+                                                        padding: EdgeInsets.all(
+                                                          _thumbnailBarPadding,
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.broken_image,
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).disabledColor,
+                                                        ),
+                                                      );
+                                                    },
+                                              )
+                                            : Container(
+                                                color: Theme.of(
+                                                  context,
+                                                ).disabledColor,
+                                                child: Padding(
                                                   padding: EdgeInsets.all(
                                                     _thumbnailBarPadding,
                                                   ),
-                                                  child: Icon(
-                                                    Icons.broken_image,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).disabledColor,
-                                                  ),
-                                                );
-                                              },
-                                        )
-                                      : Container(
-                                          color: Theme.of(
-                                            context,
-                                          ).disabledColor,
-                                          child: Padding(
-                                            padding: EdgeInsets.all(
-                                              _thumbnailBarPadding,
-                                            ),
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ),
-                            // Locked Badge
-                            (g.proUnlocked ||
-                                    !g.proFilterIndexes.contains(index) ||
-                                    _pageUnlocked)
-                                ? SizedBox()
-                                : Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: CustomIconButton(
-                                      onTap: null,
-                                      icon: Icons.lock,
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                ),
+                                              ),
+                                      ),
                                     ),
                                   ),
-                          ],
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          versionNames[index],
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            overflow: TextOverflow.visible,
+                                  // Locked Badge
+                                  (g.proUnlocked ||
+                                          !g.proFilterIndexes.contains(index) ||
+                                          _pageUnlocked)
+                                      ? SizedBox()
+                                      : Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: CustomIconButton(
+                                            onTap: null,
+                                            icon: Icons.lock,
+                                          ),
+                                        ),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                versionNames[index],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  overflow: TextOverflow.visible,
+                                ),
+                                softWrap: false,
+                              ),
+                            ],
                           ),
-                          softWrap: false,
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -4803,6 +4825,40 @@ class PagePreviewState extends State<PagePreview> {
     return rotated;
   }
 
+  Container _pdfBadge(BuildContext context) {
+    const double height = 30;
+    const double radius = 20;
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: height, minHeight: height),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [tinyBoxShadow(context)],
+      ),
+      child: Tooltip(
+        message: tr("pagePreview.editBar.pdf"),
+        waitDuration: Duration(milliseconds: 400),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(radius),
+            onTap: null,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  "PDF",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Container _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
     int? initialIndex = g.availableAspectRatios.indexWhere(
@@ -4917,7 +4973,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Widget _displayCornersOverlay(BuildContext context) {
-    if (_cornerPoints.isEmpty ||
+    if (importedPdfMode ||
+        _cornerPoints.isEmpty ||
         _photoScale == 0.0 ||
         _rotationOngoing ||
         _hideOverlayReprocessing ||
@@ -6386,9 +6443,14 @@ Future<bool> _pagesPopup(
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> thumbnailPaths;
   late int pagesCount;
+  late bool importedPdfMode;
   // version
   if (versionIndex != null && pageIndexes.length == 1) {
-    if (type == PopUpType.delete) {
+    importedPdfMode = await MetadataHelper.readPageImportedPdf(
+      docIndex,
+      pageIndexes.first,
+    );
+    if (type == PopUpType.delete && !importedPdfMode) {
       thumbnailPaths = (await g.filesHelper.getImagePathsForPage(
         docIndex,
         pageIndexes.first,
@@ -6529,7 +6591,9 @@ Future<bool> _pagesPopup(
                 );
                 break;
             }
-            if (versionIndex != null && type != PopUpType.delete) {
+            if (versionIndex != null &&
+                type != PopUpType.delete &&
+                !importedPdfMode) {
               title += ", \n${versionNames[versionIndex]}";
             }
           }
