@@ -863,29 +863,41 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
   }
 
-  Future<(int, int)> createNewDocument(int pageCount) async {
+  Future<(int, int)> createNewDocument(
+    int pageCount, {
+    bool importedPdf = false,
+  }) async {
     if (pageCount <= 0) return (0, 0);
     final newDoc = await _reserveNewDocument();
     int docIndex = newDoc.$2;
     int? firstPageIndex;
-    for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+    for (var i = 0; i < pageCount; i++) {
       final newPage = await _reserveNewPage(docIndex);
+      if (importedPdf) {
+        MetadataHelper.writePageImportedPdf(docIndex, newPage.$2, true);
+      }
       firstPageIndex ??= newPage.$2;
     }
 
     return (docIndex, firstPageIndex!);
   }
 
-  Future<int> reserveNewPagesInDocment(int docIndex, int pageCount) async {
+  Future<int> reserveNewPagesInDocment(
+    int docIndex,
+    int pageCount, {
+    bool importedPdf = false,
+  }) async {
     if (pageCount <= 0) return 0;
 
     Completer afterFirst = Completer();
     Future.microtask(() async {
       await afterFirst.future;
       for (var i = 1; i < pageCount; i++) {
-        //int pageIndex;
-        //(_, pageIndex) = await
-        _reserveNewPage(docIndex);
+        int pageIndex;
+        (_, pageIndex) = await _reserveNewPage(docIndex);
+        if (importedPdf) {
+          MetadataHelper.writePageImportedPdf(docIndex, pageIndex, true);
+        }
       }
     });
     int firstPageIndex = (await _reserveNewPage(docIndex)).$2;

@@ -399,9 +399,6 @@ class ImageProcessingManager {
 
     // Write Metadata
     isolateExitPoint(kill);
-    await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, true, g);
-
-    isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
@@ -1295,9 +1292,13 @@ class ImageProcessingManager {
       firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
         docIndex,
         pageCount,
+        importedPdf: true,
       );
     } else {
-      var newDoc = await g.filesHelper.createNewDocument(pageCount);
+      var newDoc = await g.filesHelper.createNewDocument(
+        pageCount,
+        importedPdf: true,
+      );
       docIndex = newDoc.$1;
       firstPageIndex = newDoc.$2;
     }

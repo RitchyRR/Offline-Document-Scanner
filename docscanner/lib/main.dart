@@ -4907,7 +4907,6 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
         false,
-        null,
       );
       _importedPdfMode = false;
       setState(() {});

@@ -392,9 +392,9 @@ class MetadataHelper {
   static Future<void> writePageImportedPdf(
     int docIndex,
     int pageIndex,
-    bool isImportedPdf,
+    bool isImportedPdf, {
     AppGlobals? gIn,
-  ) async {
+  }) async {
     gIn ??= g;
     await _writePage(
       docIndex,
