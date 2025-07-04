@@ -48,7 +48,12 @@
       "landscape": "Landscape",
       "rotateL": "Rotate 90° left",
       "rotateR": "Rotate 90° right",
-      "confirm": "Confirm Changes"
+      "confirm": "Confirm Changes",
+      "pdfPopup": {
+        "title": "Enable editing for PDF",
+        "text": "This page was imported from a PDF file.\n\nCropping this image or adding additional filters is probably unnecessary.\n\nAre you sure you want to enable cropping and filtering for this page?",
+        "confirm": "Enable editing"
+      }
     },
     "menu": { "delete": "Delete Page" },
     "backPopup": {

@@ -135,9 +135,9 @@ class ImageProcessingManager {
     );
     Uint8List warpedBytes = warpedRet.$1;
     if (shapeBytes == null) {
-      Uint8List shapeBytesWarped = warpedRet.$2;
+      shapeBytes = warpedRet.$2;
       isolateExitPoint(kill);
-      await g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
+      await g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytes);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
     double? ratioValue = warpedRet.$4;

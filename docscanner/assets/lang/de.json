@@ -48,7 +48,12 @@
       "landscape": "Querformat",
       "rotateL": "90° nach links drehen",
       "rotateR": "90° nach rechts drehen",
-      "confirm": "Änderungen bestätigen"
+      "confirm": "Änderungen bestätigen",
+      "pdfPopup": {
+        "title": "Bearbeitung für PDF aktivieren",
+        "text": "Diese Seite wurde aus einer PDF-Datei importiert.\n\nEin Zuschneiden dieses Bildes oder das Hinzufügen zusätzlicher Filter ist wahrscheinlich unnötig.\n\nSind Sie sicher, dass Sie das Zuschneiden und Filtern für diese Seite aktivieren möchten?",
+        "confirm": "Bearbeitung aktivieren"
+      }
     },
     "menu": {
       "delete": "Seite löschen"

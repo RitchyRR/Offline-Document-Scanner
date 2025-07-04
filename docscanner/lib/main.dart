@@ -3847,11 +3847,11 @@ class PagePreviewState extends State<PagePreview> {
   void _pollForImagesAndMetadata(bool photoChanged) {
     // Poll Metadtata
     _pollWhile(
-      condition: () {
-        return _ratioValue == null;
+      pollWhileCondition: () {
+        return _ratioValue == null || _cornerPoints == null;
       },
-      onTick: () {
-        _loadPageMetadata(supressWarnings: true);
+      onTick: () async {
+        await _loadPageMetadata(supressWarnings: true);
       },
       onComplete: () async {
         await _loadPageMetadata(supressWarnings: true);
@@ -3861,7 +3861,7 @@ class PagePreviewState extends State<PagePreview> {
     // Poll Images
     for (int i = 0; i < _versionPaths.length; i++) {
       _pollWhile(
-        condition: () {
+        pollWhileCondition: () {
           return _versionPaths[i].isEmpty;
         },
         onTick: () async {
@@ -3890,7 +3890,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _pollWhile({
-    required bool Function() condition,
+    required bool Function() pollWhileCondition,
     required FutureOr<void> Function() onTick,
     FutureOr<void> Function()? onComplete,
     Duration delay = const Duration(milliseconds: 250),
@@ -3898,7 +3898,7 @@ class PagePreviewState extends State<PagePreview> {
     do {
       await onTick();
       await Future.delayed(delay);
-    } while (mounted && condition());
+    } while (mounted && pollWhileCondition());
     if (onComplete != null) {
       await onComplete();
     }
@@ -3972,7 +3972,7 @@ class PagePreviewState extends State<PagePreview> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _reprocessingSetup() async {
+  void _reprocessingSetup() async {
     _cornerPoints?.clear();
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
@@ -4731,10 +4731,7 @@ class PagePreviewState extends State<PagePreview> {
     );
     List<List<int>>? newCornerPoints;
     if (newCornerPointsIn == null) {
-      newCornerPoints = await MetadataHelper.readPageCornerPoints(
-        widget.docIndex,
-        widget.pageIndex,
-      );
+      newCornerPoints = metadata.$2;
       if (newCornerPoints != null) {
         newCornerPoints = rotateCornerPoints(newCornerPoints);
       }
@@ -4844,7 +4841,7 @@ class PagePreviewState extends State<PagePreview> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(radius),
-            onTap: null,
+            onTap: () => _enableEditingForImportedPdfPagePopup(context),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -4858,6 +4855,64 @@ class PagePreviewState extends State<PagePreview> {
         ),
       ),
     );
+  }
+
+  _enableEditingForImportedPdfPagePopup(BuildContext context) async {
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.edit,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              SizedBox(width: 12),
+              Flexible(child: Text(tr("pagePreview.editBar.pdfPopup.title"))),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [Text(tr("pagePreview.editBar.pdfPopup.text"))],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: Text(tr("popup.cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
+              child: Text(tr("pagePreview.editBar.pdfPopup.confirm")),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Handle Results after Dialog closes
+    if (confirmed == true) {
+      await MetadataHelper.writePageImportedPdf(
+        widget.docIndex,
+        widget.pageIndex,
+        false,
+        null,
+      );
+      _importedPdfMode = false;
+      setState(() {});
+      await MetadataHelper.writePageThumbnailIndex(
+        widget.docIndex,
+        widget.pageIndex,
+        g.defaultIndex,
+      );
+      reprocessPhoto();
+    }
   }
 
   Container _aspectRatioDropDown(BuildContext context) {
