@@ -3936,6 +3936,11 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
       supressWarnings: supressWarnings,
     );
+    _importedPdfMode = await MetadataHelper.readPageImportedPdf(
+      widget.docIndex,
+      widget.pageIndex,
+      supressWarnings: supressWarnings,
+    );
     if (_ratioValue != null) {
       _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
     }
