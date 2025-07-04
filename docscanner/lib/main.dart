@@ -3617,11 +3617,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       builder: (_, constraints) {
         return Stack(
           children: [
-            // Child
-            //AbsorbPointer(absorbing: _isDragging, child:
             widget.child,
-            //)
-            // Rail
             if (_isThumbVisible && widget.controller.hasClients)
               Positioned(
                 right: -railWidth / 2,
@@ -5021,16 +5017,6 @@ class PagePreviewState extends State<PagePreview> {
             quarterTurns: quarterTurns,
             child: Stack(
               children: [
-                // BG
-                //CustomPaint(
-                //  size: Size(displayWidth, displayHeight),
-                //  painter: _FrameLinePainter(
-                //    points: scaledPoints,
-                //    color: Theme.of(
-                //      context,
-                //    ).colorScheme.onPrimaryFixed.withAlpha(50),
-                //  ),
-                //),
                 /// Corner
                 CustomPaint(
                   size: Size(displayWidth, displayHeight),

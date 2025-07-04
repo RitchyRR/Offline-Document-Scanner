@@ -375,7 +375,6 @@ class ImageProcessingManager {
 
     // Save Photo
     isolateExitPoint(kill);
-    //sendPort.send(
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
@@ -383,7 +382,6 @@ class ImageProcessingManager {
       pngBytes,
       ".png",
     );
-    //);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
 
     // Generate Metadata
@@ -392,12 +390,6 @@ class ImageProcessingManager {
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
     }
-    //List<List<int>> cornerPointsIn = [
-    //  [0, 0],
-    //  [imgInfo.height - 1, 0],
-    //  [0, imgInfo.width - 1],
-    //  [imgInfo.height - 1, imgInfo.width - 1],
-    //];
     OpenCVHelper cvHelper = OpenCVHelper(g);
     isolateExitPoint(kill);
     final matchingValue = cvHelper.matchAspectRatioAndOrientation(
@@ -430,109 +422,6 @@ class ImageProcessingManager {
 
     Isolate.exit(sendPort, "done");
   }
-
-  //static void _processPdfPageIsolatePart2(
-  //  (
-  //    SendPort sendPort,
-  //    RootIsolateToken token,
-  //    int docIndex,
-  //    int pageIndex,
-  //    Uint8List photoBytes,
-  //    String extension,
-  //    AppGlobals g,
-  //  )
-  //  data,
-  //) async {
-  //  SendPort? sendPort = data.$1;
-  //  // Control Port for exiting gracefully
-  //  final controlPort = ReceivePort();
-  //  sendPort.send(controlPort.sendPort);
-  //  bool kill = false;
-  //  controlPort.listen((msg) {
-  //    if (msg == "kill") {
-  //      kill = true;
-  //    }
-  //  });
-  //
-  //  RootIsolateToken token = data.$2;
-  //  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-  //  int docIndex = data.$3;
-  //  int pageIndex = data.$4;
-  //  Uint8List photoBytes = data.$5;
-  //  String extension = data.$6;
-  //  AppGlobals g = data.$7;
-  //
-  //  OpenCVHelper cvHelper = OpenCVHelper(g);
-  //  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
-  //
-  //  // Warped
-  //  isolateExitPoint(kill);
-  //  await g.filesHelper.writeImageRaw(
-  //    docIndex,
-  //    pageIndex,
-  //    1,
-  //    photoBytes,
-  //    extension,
-  //  );
-  //
-  //  // Contrast
-  //  isolateExitPoint(kill);
-  //  Uint8List contrastBytes = await cvHelper.processImageContrast(
-  //    ParamsProcessImage1(photoBytes),
-  //  );
-  //  isolateExitPoint(kill);
-  //  await g.filesHelper.savePageVersion(
-  //    docIndex,
-  //    pageIndex,
-  //    2,
-  //    contrastBytes,
-  //    ".png",
-  //  );
-  //
-  //  // Document
-  //  isolateExitPoint(kill);
-  //  Uint8List processed1 = await cvHelper.processImageDocument(
-  //    ParamsProcessImage1(photoBytes),
-  //  );
-  //  isolateExitPoint(kill);
-  //  await g.filesHelper.savePageVersion(
-  //    docIndex,
-  //    pageIndex,
-  //    3,
-  //    processed1,
-  //    ".png",
-  //  );
-  //
-  //  // PRO
-  //  isolateExitPoint(kill);
-  //  Uint8List processed2Bytes = await cvHelper.processImagePro(
-  //    ParamsProcessImage2(photoBytes, borderCorrectionDepth),
-  //  );
-  //  isolateExitPoint(kill);
-  //  await g.filesHelper.savePageVersion(
-  //    docIndex,
-  //    pageIndex,
-  //    4,
-  //    processed2Bytes,
-  //    ".png",
-  //  );
-  //
-  //  // PRO 2
-  //  isolateExitPoint(kill);
-  //  Uint8List processed3Bytes = await cvHelper.processImagePro2(
-  //    ParamsProcessImage3(photoBytes, processed2Bytes),
-  //  );
-  //  isolateExitPoint(kill);
-  //  await g.filesHelper.savePageVersion(
-  //    docIndex,
-  //    pageIndex,
-  //    5,
-  //    processed3Bytes,
-  //    ".png",
-  //  );
-  //
-  //  Isolate.exit(sendPort, "done");
-  //}
 
   Future<void> _processPageWrapper(
     int docIndex,
@@ -1559,40 +1448,5 @@ class ImageProcessingManager {
       }
     });
     await wrapperCompleter.future;
-
-    //final wrapperCompleter2 = Completer<void>();
-    //final port2 = ReceivePort();
-    //
-    //String extension = photoPath!.split(".").last;
-    //TaskKiller killer2 = await IsolatesManager().runTask(
-    //  _processPdfPageIsolatePart2,
-    //  (port2.sendPort, token, docIndex, pageIndex, pngBytes, extension, g),
-    //
-    //  portIn: port,
-    //  prio: IsolatePriority.late,
-    //  onErrorFunction: (error, stack) async {
-    //    dev.log(
-    //      "_processPdfPageIsolateFilters, onErrorFunction: $error $stack",
-    //    );
-    //    if (!error.toString().contains("No photo")) {
-    //      repairPage(docIndex, pageIndex);
-    //    }
-    //  },
-    //);
-    //taskKillers[(docIndex, pageIndex)] = killer2;
-    //
-    //port2.listen((message) {
-    //  if (message is NotifierEvent) {
-    //    globalNotifier.triggerEvent(message);
-    //  } else if (message is SendPort) {
-    //    killer2.setControlPort(message);
-    //  } else if (message == "done") {
-    //    wrapperCompleter2.complete();
-    //
-    //    taskKillers.removeWhere((key, value) => value == killer2);
-    //    killer2.kill();
-    //  }
-    //});
-    //await wrapperCompleter2.future;
   }
 }
