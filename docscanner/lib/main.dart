@@ -1065,7 +1065,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ),
         ],
       ),
-      body: _docThumbnails.isNotEmpty
+      body: _docThumbnails.isNotEmpty && _thumbnailRatios.isNotEmpty
           // Documents Cards
           ? CustomScrollbar(
               controller: _scrollController,
