@@ -198,20 +198,20 @@ class ImageProcessingManager {
         break;
       case 5:
         isolateExitPoint(kill);
-        processed2Bytes = await cvHelper.processImagePro(
+        thumbnailVersionBytes = await cvHelper.processImagePro(
           ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+        );
+        // PRO 2
+        isolateExitPoint(kill);
+        Uint8List processed3Bytes = await cvHelper.processImagePro2(
+          ParamsProcessImage3(warpedBytes, thumbnailVersionBytes),
         );
         await g.filesHelper.savePageVersion(
           docIndex,
           pageIndex,
-          4,
-          processed2Bytes,
+          5,
+          processed3Bytes,
           ".png",
-        );
-        // PRO 2
-        isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImagePro2(
-          ParamsProcessImage3(warpedBytes, processed2Bytes),
         );
         break;
       default:
@@ -223,7 +223,7 @@ class ImageProcessingManager {
     await g.filesHelper.savePageVersion(
       docIndex,
       pageIndex,
-      initialThumbnailIndex,
+      initialThumbnailIndex == 5 ? 4 : initialThumbnailIndex,
       thumbnailVersionBytes,
       ".png",
     );
