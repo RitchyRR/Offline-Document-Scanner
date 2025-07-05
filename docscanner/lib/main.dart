@@ -3740,7 +3740,7 @@ class PagePreviewState extends State<PagePreview> {
   bool _overlayZoomed = false;
   double? _unZoomedScale;
   // Status
-  bool _rotationOngoing = false;
+  bool _isRotating = false;
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
@@ -3868,8 +3868,12 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
+  bool _isProcessing = false;
   void _pollImages() {
     // Poll Images
+    if (_isProcessing) return;
+    _isProcessing = true;
+    int completedCount = 0;
     for (int i = 0; i < _versionPaths.length; i++) {
       String polledPath = "";
       _versionLoading[i] = true;
@@ -3898,6 +3902,9 @@ class PagePreviewState extends State<PagePreview> {
             _versionPaths[i] = polledPath;
           }
           _versionLoading[i] = false;
+          if (++completedCount >= _versionPaths.length) {
+            _isProcessing = false;
+          }
           if (mounted) setState(() {});
         },
       );
@@ -4113,7 +4120,7 @@ class PagePreviewState extends State<PagePreview> {
             (_versionPaths.length - 1) +
         (_thumbnailBarSizeSelected + _thumbnailBarBoderThumbnail * 2);
     // Flags
-    bool enableFAB0 = _versionPaths.first.isNotEmpty && !_rotationOngoing;
+    bool enableFAB0 = _versionPaths.first.isNotEmpty && !_isRotating;
     bool enableFABs = _selectedVersion == 0
         ? enableFAB0
         : _versionPaths[_selectedVersion].isNotEmpty;
@@ -4673,7 +4680,7 @@ class PagePreviewState extends State<PagePreview> {
         //_photoViewController.rotation = math.pi / 2 * quarterTurns;
 
         setState(() {
-          _rotationOngoing = true;
+          _isRotating = true;
           _guiOrientationIndex =
               ((_guiOrientationIndex ?? 0) - 1) * (-1); // toggle
           _guiRatioValue = 1.0 / _guiRatioValue!;
@@ -4681,7 +4688,7 @@ class PagePreviewState extends State<PagePreview> {
         if (_totalRotation == 0) {
           setState(() {
             _versionPaths[0] = _photoPath;
-            _rotationOngoing = false;
+            _isRotating = false;
           });
         } else {
           _rotatedPhotoPaths[quarterTurns - 1] =
@@ -4691,7 +4698,7 @@ class PagePreviewState extends State<PagePreview> {
             if (_totalRotation ~/ 90 == quarterTurns) {
               _versionPaths[0] = await _rotatedPhotoPaths[quarterTurns - 1];
               if (mounted) {
-                _rotationOngoing = false;
+                _isRotating = false;
                 setState(() {});
               }
             }
@@ -4717,7 +4724,8 @@ class PagePreviewState extends State<PagePreview> {
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
           _metadataBlocked ||
-          _rotationOngoing,
+          _isRotating ||
+          _isProcessing,
       isHidden:
           ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
           (_orientationIndex == null ||
@@ -4730,7 +4738,6 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Future<void>? _reprocessingFuture;
   Future<void> reprocessPhoto({List<List<int>>? newCornerPointsIn}) async {
     if (mounted) {
       setState(() {
@@ -4798,8 +4805,7 @@ class PagePreviewState extends State<PagePreview> {
       }
       _metadataBlocked = true;
       setState(() {});
-      await _reprocessingFuture; // await prior reprocessing
-      _reprocessingFuture = imageProcessingManager.rotatePage(
+      imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
@@ -4808,7 +4814,7 @@ class PagePreviewState extends State<PagePreview> {
       );
     } else {
       _reprocessingSetup();
-      _reprocessingFuture = imageProcessingManager.reprocessPage(
+      imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
@@ -5057,7 +5063,7 @@ class PagePreviewState extends State<PagePreview> {
     if (_importedPdfMode ||
         (_cornerPoints == null || _cornerPoints!.isEmpty) ||
         _photoScale == 0.0 ||
-        _rotationOngoing ||
+        _isRotating ||
         _hideOverlayReprocessing ||
         _overlayZoomed ||
         _imagePixelHeight == 0 ||
