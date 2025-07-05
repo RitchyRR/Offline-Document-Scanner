@@ -3874,6 +3874,7 @@ class PagePreviewState extends State<PagePreview> {
     if (_isProcessing) return;
     _isProcessing = true;
     int completedCount = 0;
+    bool photoRotated = _totalRotation != 0;
     for (int i = 0; i < _versionPaths.length; i++) {
       String polledPath = "";
       _versionLoading[i] = true;
@@ -3882,7 +3883,8 @@ class PagePreviewState extends State<PagePreview> {
           return !((polledPath.isNotEmpty &&
                   (i != 0
                       ? polledPath != _versionPaths[i]
-                      : polledPath != _photoPath && _totalRotation == 0)) ||
+                      : (!photoRotated || polledPath != _photoPath) &&
+                            _totalRotation == 0)) ||
               (polledPath.isNotEmpty && _versionPaths[i].isEmpty));
         },
         onTick: () async {
