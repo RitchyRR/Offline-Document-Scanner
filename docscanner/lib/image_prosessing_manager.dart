@@ -171,7 +171,7 @@ class ImageProcessingManager {
 
     // First process (default) Thumbnail version
     isolateExitPoint(kill);
-    Uint8List thumbnailVersionBytes;
+    Uint8List thumbnailVersionBytes = warpedBytes;
     Uint8List? processed2Bytes;
     switch (initialThumbnailIndex) {
       case 2:
@@ -214,10 +214,6 @@ class ImageProcessingManager {
           ".png",
         );
         break;
-      default:
-        throw StateError(
-          "Error, _processPageIsolate: Thumbnail Version is not valid",
-        );
     }
     isolateExitPoint(kill);
     await g.filesHelper.savePageVersion(

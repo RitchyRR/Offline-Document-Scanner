@@ -4012,10 +4012,10 @@ class PagePreviewState extends State<PagePreview> {
   void _reprocessingCleanup() {
     _evenPhotoScale = 0.0;
     _oddPhotoScale = 0.0;
-    _totalRotation = 0;
-    setState(() {});
     _refreshCornersOverlay();
     _pollImagesAndMetadata();
+    _totalRotation = 0;
+    setState(() {});
   }
 
   Future<void> _openWarpManuallyPage() async {
