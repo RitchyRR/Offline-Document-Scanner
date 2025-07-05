@@ -3713,7 +3713,14 @@ class PagePreviewState extends State<PagePreview> {
   // Widget
   int _selectedVersion = 0;
   int _selectedThumbnail = g.defaultIndex;
-  List<String> _versionPaths = List.generate(versionNames.length, (_) => "");
+  final List<String> _versionPaths = List.generate(
+    versionNames.length,
+    (_) => "",
+  );
+  final List<bool> _versionLoading = List.generate(
+    versionNames.length,
+    (_) => true,
+  );
   final List<Future<String>> _rotatedPhotoPaths = List.generate(
     3,
     (_) => Future<String>.value(""),
@@ -3785,14 +3792,9 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     if (_importedPdfMode) setState(() {});
-    var imagePaths = await g.filesHelper.getImagePathsForPage(
-      widget.docIndex,
-      widget.pageIndex,
-    );
-    _versionPaths = imagePaths.$1;
     _photoPath = _versionPaths.first;
     _showAllImages();
-    _pollForImagesAndMetadata(_totalRotation != 0);
+    _pollImagesAndMetadata();
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
@@ -3844,7 +3846,12 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  void _pollForImagesAndMetadata(bool photoChanged) {
+  void _pollImagesAndMetadata() {
+    _pollMetadata();
+    _pollImages();
+  }
+
+  void _pollMetadata() {
     // Poll Metadtata
     _pollWhile(
       pollWhileCondition: () {
@@ -3859,31 +3866,38 @@ class PagePreviewState extends State<PagePreview> {
         _unZoomedScale = _photoViewController.scale;
       },
     );
+  }
+
+  void _pollImages() {
     // Poll Images
     for (int i = 0; i < _versionPaths.length; i++) {
+      String polledPath = "";
+      _versionLoading[i] = true;
       _pollWhile(
         pollWhileCondition: () {
-          return _versionPaths[i].isEmpty;
+          return !((polledPath.isNotEmpty &&
+                  (i != 0
+                      ? polledPath != _versionPaths[i]
+                      : polledPath != _photoPath && _totalRotation == 0)) ||
+              (polledPath.isNotEmpty && _versionPaths[i].isEmpty));
         },
         onTick: () async {
-          _versionPaths[i] = await g.filesHelper.getVersionPath(
+          polledPath = await g.filesHelper.getVersionPath(
             widget.docIndex,
             widget.pageIndex,
             i,
             supressWarnings: true,
           );
-          // Only load if new
-          if (photoChanged && _photoPath == _versionPaths[i]) {
-            _versionPaths[i] = "";
-          }
         },
         onComplete: () {
           if (i == 0) {
-            // Photo
-            _photoPath = _versionPaths.first;
+            _versionPaths[i] = _photoPath = polledPath;
             FilesHelper.deleteCachedRoatedImages();
             _refreshCornersOverlay(supressWarnings: true);
+          } else {
+            _versionPaths[i] = polledPath;
           }
+          _versionLoading[i] = false;
           if (mounted) setState(() {});
         },
       );
@@ -3983,20 +3997,16 @@ class PagePreviewState extends State<PagePreview> {
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
-    g.filesHelper.deleteProcessedVersionsOfPage(
-      widget.docIndex,
-      widget.pageIndex,
-    );
     setState(() {});
-    _pollForImagesAndMetadata(_totalRotation != 0);
   }
 
   void _reprocessingCleanup() {
     _evenPhotoScale = 0.0;
     _oddPhotoScale = 0.0;
-    _versionPaths = List.generate(versionNames.length, (_) => "");
     _totalRotation = 0;
     setState(() {});
+    _refreshCornersOverlay();
+    _pollImagesAndMetadata();
   }
 
   Future<void> _openWarpManuallyPage() async {
@@ -4548,30 +4558,37 @@ class PagePreviewState extends State<PagePreview> {
                                         height: _selectedVersion == index
                                             ? _thumbnailBarSizeSelected
                                             : _thumbnailBarSize,
-                                        child: _versionPaths[index].isNotEmpty
-                                            ? Image.file(
-                                                File(_versionPaths[index]),
-                                                fit: BoxFit.cover,
-                                                errorBuilder:
-                                                    (
-                                                      context,
-                                                      error,
-                                                      stackTrace,
-                                                    ) {
-                                                      return Padding(
-                                                        padding: EdgeInsets.all(
-                                                          _thumbnailBarPadding,
-                                                        ),
-                                                        child: Icon(
-                                                          Icons.broken_image,
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).disabledColor,
-                                                        ),
-                                                      );
-                                                    },
-                                              )
-                                            : Container(
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            _versionPaths[index].isNotEmpty
+                                                ? Image.file(
+                                                    File(_versionPaths[index]),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) {
+                                                          return Padding(
+                                                            padding: EdgeInsets.all(
+                                                              _thumbnailBarPadding,
+                                                            ),
+                                                            child: Icon(
+                                                              Icons
+                                                                  .broken_image,
+                                                              color: Theme.of(
+                                                                context,
+                                                              ).disabledColor,
+                                                            ),
+                                                          );
+                                                        },
+                                                  )
+                                                : SizedBox(),
+                                            if (_versionLoading[index])
+                                              Container(
+                                                alignment: Alignment.center,
                                                 color: Theme.of(
                                                   context,
                                                 ).disabledColor,
@@ -4583,6 +4600,8 @@ class PagePreviewState extends State<PagePreview> {
                                                       CircularProgressIndicator(),
                                                 ),
                                               ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -4697,7 +4716,6 @@ class PagePreviewState extends State<PagePreview> {
       isDisabled:
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
-          //_versionPaths[1].isEmpty ||
           _metadataBlocked ||
           _rotationOngoing,
       isHidden:
@@ -4712,6 +4730,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
+  Future<void>? _reprocessingFuture;
   Future<void> reprocessPhoto({List<List<int>>? newCornerPointsIn}) async {
     if (mounted) {
       setState(() {
@@ -4779,17 +4798,17 @@ class PagePreviewState extends State<PagePreview> {
       }
       _metadataBlocked = true;
       setState(() {});
-      await imageProcessingManager.rotatePage(
+      await _reprocessingFuture; // await prior reprocessing
+      _reprocessingFuture = imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
         _selectedThumbnail,
       );
-      _pollForImagesAndMetadata(_totalRotation != 0);
     } else {
       _reprocessingSetup();
-      await imageProcessingManager.reprocessPage(
+      _reprocessingFuture = imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image

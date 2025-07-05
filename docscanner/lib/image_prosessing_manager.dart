@@ -433,6 +433,7 @@ class ImageProcessingManager {
   ) async {
     if (photoPath.isEmpty) return;
 
+    final completer = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
 
@@ -475,8 +476,10 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((key, value) => value == killer);
+        completer.complete();
       }
     });
+    await completer.future;
   }
 
   static Future<void> _repairPageIsolate(
@@ -824,7 +827,7 @@ class ImageProcessingManager {
     if (photoPathsIn.isEmpty) return;
 
     // First page is opened in PagePreview -> more NotifierEvents
-    await _processPageWrapper(
+    _processPageWrapper(
       docIndex,
       firstPageIndex,
       photoPathsIn[0],
@@ -840,7 +843,7 @@ class ImageProcessingManager {
     photoPathsIn.removeAt(0);
     if (photoPathsIn.isNotEmpty) {
       for (var (index, path) in photoPathsIn.indexed) {
-        await _processPageWrapper(
+        _processPageWrapper(
           docIndex,
           firstPageIndex + 1 + index,
           path,
@@ -861,7 +864,7 @@ class ImageProcessingManager {
     String pathIn,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
-    int rotationIn,
+    final int rotationIn,
   ) async {
     await killIsolatesOfPage(docIndex, pageIndex);
     await _processPageWrapper(
@@ -1037,7 +1040,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     List<String> versionPaths, //[0] is rotated
-    int angle,
+    final int angle,
     int pageThumbnailIndexIn,
   ) async {
     final port = ReceivePort();

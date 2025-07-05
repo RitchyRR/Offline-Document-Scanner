@@ -261,6 +261,7 @@ class FilesHelper {
       supressWarnings: true,
     );
     String versionName = versionNamesInternal[versionIndex];
+    // Delete existing Image
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -292,13 +293,13 @@ class FilesHelper {
       supressWarnings: true,
     );
     String versionName = versionNamesInternal[versionIndex];
-    // Delete prior Version
+    // Delete existing Image
     if (Directory(pagePath).existsSync()) {
       for (var fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
         if (fse.path.contains("$versionName.")) {
-          fse.delete();
+          fse.deleteSync();
         }
       }
     } else {
@@ -341,7 +342,7 @@ class FilesHelper {
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
       if (fse.path.contains("$fileName.")) {
-        fse.delete();
+        fse.deleteSync();
       }
     }
     String filePath =
@@ -828,39 +829,6 @@ class FilesHelper {
     await _repairDirectoryStructure();
     globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-  }
-
-  Future<void> deleteProcessedVersionsOfPage(
-    int docIndex,
-    int pageIndex,
-  ) async {
-    String pagePath = await getPagePath(docIndex, pageIndex);
-    if (!await Directory(pagePath).exists()) {
-      throw StateError(
-        "Error, deleteProcessedVersionsOfPage: Document $docIndex, Page $pageIndex nonexistent",
-      );
-    }
-    List<String> processedNames = ["thumbnail"];
-    processedNames.addAll(
-      versionNamesInternal.getRange(1, versionNamesInternal.length),
-    );
-    try {
-      for (var fse in Directory(
-        pagePath,
-      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-        for (var name in processedNames) {
-          if (fse.path.contains("$name.")) {
-            imageCache.evict(FileImage(File(fse.path)), includeLive: true);
-            fse.delete();
-            //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
-          }
-        }
-      }
-    } catch (e) {
-      dev.log("Warning, deleteProcessedVersionsOfPage: Could not delete: $e");
-    }
-    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
   }
 
   Future<(int, int)> createNewDocument(
