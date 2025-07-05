@@ -43,7 +43,7 @@
   "pagePreview": {
     "pageIndex": "Page {pageIndex}",
     "editBar": {
-      "pdf": "This Page was imported from a PDF",
+      "pdf": "Imported from a PDF file",
       "portrait": "Portrait",
       "landscape": "Landscape",
       "rotateL": "Rotate 90° left",
