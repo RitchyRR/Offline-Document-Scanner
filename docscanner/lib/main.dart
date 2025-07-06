@@ -4004,7 +4004,8 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _reprocessingSetup() async {
-    _cornerPoints?.clear();
+    _processingIndex++;
+    _hideOverlayReprocessing = true;
     _metadataBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
@@ -4417,7 +4418,10 @@ class PagePreviewState extends State<PagePreview> {
                                 ),
                               ],
                             ),
-                            _confirmReProcessingButton(context),
+                            _confirmReProcessingButton(
+                              context,
+                              noReprocessingChanges,
+                            ),
                           ],
                         )
                       : _toEditingButton(context),
@@ -4756,12 +4760,10 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  CustomIconButton _confirmReProcessingButton(BuildContext context) {
-    bool noReprocessingChanges =
-        ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
-        (_orientationIndex == null ||
-            (_orientationIndex == _guiOrientationIndex)) &&
-        _totalRotation == 0);
+  CustomIconButton _confirmReProcessingButton(
+    BuildContext context,
+    bool noReprocessingChanges,
+  ) {
     return CustomIconButton(
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       buttonColor: Theme.of(context).colorScheme.primaryContainer,
@@ -4771,22 +4773,17 @@ class PagePreviewState extends State<PagePreview> {
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
           _metadataBlocked ||
-          _isRotating, //||_processingIndex != 0
+          _isRotating,
       isHidden: noReprocessingChanges,
       tooltip: tr("pagePreview.editBar.confirm"),
       onTap: () async {
-        await reprocessPhoto();
+        reprocessPhoto();
       },
     );
   }
 
   Future<void> reprocessPhoto({List<List<int>>? newCornerPointsIn}) async {
-    _processingIndex++;
-    if (mounted) {
-      setState(() {
-        _hideOverlayReprocessing = true;
-      });
-    }
+    _reprocessingSetup();
 
     bool onlyRotation = true;
     bool customCorners = false;
@@ -4868,8 +4865,6 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      _metadataBlocked = true;
-      setState(() {});
       imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
@@ -4878,7 +4873,6 @@ class PagePreviewState extends State<PagePreview> {
         _selectedThumbnail,
       );
     } else {
-      _reprocessingSetup();
       imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
