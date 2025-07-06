@@ -1187,7 +1187,7 @@ class OpenCVHelper {
   /// Background Subtraction 2
   cv.Mat _isolateAndSubtractBG(cv.Mat warped) {
     cv.Mat bg = _warpedBg(warped);
-
+    //return bg;
     cv.Mat subtracted = cv.addWeighted(
       warped.convertTo(cv.MatType.CV_32FC3, alpha: 1 / 255),
       1,
@@ -1300,17 +1300,20 @@ class OpenCVHelper {
   }
 
   cv.Mat _warpedBg(cv.Mat warped) {
+    cv.Mat bg = warped.clone();
+
     // 1. Remove glow (Opening)
     int k1 = ((K ~/ 30) + 1).clamp(3, -1 >>> 1);
     cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_CROSS, (k1, k1));
-    cv.Mat bg = cv.morphologyEx(
-      warped,
+    bg = cv.morphologyEx(
+      bg,
       cv.MORPH_OPEN,
       kernel1,
       borderType: cv.BORDER_REPLICATE,
       iterations: 2,
     );
-    // 2. Remove colorful blobs like markers (Median)
+
+    // 2. median to remove colorful blobs
     int kernelSize = ((K * 2) + 1);
     kernelSize = kernelSize.clamp(3, -1 >>> 1);
     bool medianBlurSucceded = false;
@@ -1326,17 +1329,16 @@ class OpenCVHelper {
         );
       }
     }
+
     // 3. Remove dark structures (Closing)
     bg = _closingCircleApprox(bg, K * 2);
-    // 4. set bg value to warped value, if brighter
-    // 4.1 hsv split
-    cv.VecMat bgHsvChannels = cv.split(cv.cvtColor(bg, cv.COLOR_BGR2HSV));
+
+    // 4. HSV, V: max of bg and warped
+    cv.VecMat bgHSV = cv.split(cv.cvtColor(bg, cv.COLOR_BGR2HSV));
     cv.Mat wpV = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV))[2];
-    // 4.2 remove text before comparison
-    bg = _closingCircleApprox(bg, K ~/ 9);
-    // 4.3 max
-    bgHsvChannels[2] = cv.max(bgHsvChannels[2], wpV);
-    bg = cv.cvtColor(cv.merge(bgHsvChannels), cv.COLOR_HSV2BGR);
+    bg = _closingCircleApprox(bg, K ~/ 9); // remove text before comparison
+    bgHSV[2] = cv.max(bgHSV[2], wpV);
+    bg = cv.cvtColor(cv.merge(bgHSV), cv.COLOR_HSV2BGR);
 
     return bg;
   }
@@ -1355,14 +1357,7 @@ class OpenCVHelper {
     bg = cv.blur(bg, ((K * 2) + 1, (K * 2) + 1));
     // 3. Remove dark structures (Closing)
     int k2 = K * 2;
-    cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_RECT, (k2, k2));
-    bg = cv.morphologyEx(
-      bg,
-      cv.MORPH_CLOSE,
-      kernel2,
-      borderType: cv.BORDER_REPLICATE,
-      iterations: 1,
-    );
+    bg = _closingCircleApprox(bg, k2);
 
     return bg;
   }
