@@ -1637,6 +1637,39 @@ class FilesHelper {
     _deleteImages(paths);
   }
 
+  Future<void> deleteProcessedVersionsOfPage(
+    int docIndex,
+    int pageIndex,
+  ) async {
+    String pagePath = await getPagePath(docIndex, pageIndex);
+    if (!await Directory(pagePath).exists()) {
+      throw StateError(
+        "Error, deleteProcessedVersionsOfPage: Document $docIndex, Page $pageIndex nonexistent",
+      );
+    }
+    List<String> processedNames = ["thumbnail"];
+    processedNames.addAll(
+      versionNamesInternal.getRange(1, versionNamesInternal.length),
+    );
+    try {
+      for (var fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        for (var name in processedNames) {
+          if (fse.path.contains("$name.")) {
+            imageCache.evict(FileImage(File(fse.path)), includeLive: true);
+            fse.deleteSync();
+            //dev.log("deleteProcessedVersionsOfPage: Deleting ${fse.path}");
+          }
+        }
+      }
+    } catch (e) {
+      dev.log("Warning, deleteProcessedVersionsOfPage: Could not delete: $e");
+    }
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+  }
+
   static Future<void> _deleteImages(List<String> paths) async {
     List<Future<void>> futures = [];
     for (var path in paths) {

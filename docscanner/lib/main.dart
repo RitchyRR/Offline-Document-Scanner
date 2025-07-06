@@ -3867,24 +3867,24 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  bool _isProcessing = false;
+  int _processingIndex = 0;
   void _pollImages() {
     // Poll Images
-    if (_isProcessing) return;
-    _isProcessing = true;
+    final int thisProcessingIndex = _processingIndex;
     int completedCount = 0;
-    bool photoRotated = _totalRotation != 0;
+    bool photoWasRotated = _totalRotation != 0;
     for (int i = 0; i < _versionPaths.length; i++) {
       String polledPath = "";
       _versionLoading[i] = true;
       _pollWhile(
         pollWhileCondition: () {
-          return !((polledPath.isNotEmpty &&
-                  (i != 0
-                      ? polledPath != _versionPaths[i]
-                      : (!photoRotated || polledPath != _photoPath) &&
-                            _totalRotation == 0)) ||
-              (polledPath.isNotEmpty && _versionPaths[i].isEmpty));
+          return thisProcessingIndex == _processingIndex &&
+              !((polledPath.isNotEmpty && _versionPaths[i].isEmpty) ||
+                  (polledPath.isNotEmpty &&
+                      (i == 0
+                          ? polledPath != _photoPath && _totalRotation == 0 ||
+                                !photoWasRotated
+                          : polledPath != _versionPaths[i])));
         },
         onTick: () async {
           polledPath = await g.filesHelper.getVersionPath(
@@ -3895,6 +3895,7 @@ class PagePreviewState extends State<PagePreview> {
           );
         },
         onComplete: () {
+          if (thisProcessingIndex != _processingIndex) return;
           if (i == 0) {
             _versionPaths[i] = _photoPath = polledPath;
             FilesHelper.deleteCachedRoatedImages();
@@ -3904,12 +3905,15 @@ class PagePreviewState extends State<PagePreview> {
           }
           _versionLoading[i] = false;
           if (++completedCount >= _versionPaths.length) {
-            _isProcessing = false;
+            _processingIndex = 0;
           }
           if (mounted) setState(() {});
         },
       );
     }
+    setState(() {
+      _versionLoading;
+    });
   }
 
   void _pollWhile({
@@ -4768,8 +4772,7 @@ class PagePreviewState extends State<PagePreview> {
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
           _metadataBlocked ||
-          _isRotating ||
-          _isProcessing,
+          _isRotating, //||_processingIndex != 0
       isHidden: noReprocessingChanges,
       tooltip: tr("pagePreview.editBar.confirm"),
       onTap: () async {
@@ -4779,6 +4782,7 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> reprocessPhoto({List<List<int>>? newCornerPointsIn}) async {
+    _processingIndex++;
     if (mounted) {
       setState(() {
         _hideOverlayReprocessing = true;
@@ -4796,11 +4800,27 @@ class PagePreviewState extends State<PagePreview> {
     );
     double? ratioValue = metadata.$1;
 
-    // use new / rotate old corner points
     await imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
       widget.pageIndex,
     );
+    // Get all current paths after killing for correct polling
+    final currentPaths = (await g.filesHelper.getImagePathsForPage(
+      widget.docIndex,
+      widget.pageIndex,
+    )).$1;
+    _photoPath = currentPaths[0];
+    if (_totalRotation == 0) _versionPaths[0] = _photoPath;
+    _versionPaths.setRange(
+      1,
+      _versionPaths.length,
+      (await g.filesHelper.getImagePathsForPage(
+        widget.docIndex,
+        widget.pageIndex,
+      )).$1.getRange(1, _versionPaths.length),
+    );
+
+    // Use new / rotate old corner points
     List<List<int>>? newCornerPoints;
     if (newCornerPointsIn == null) {
       newCornerPoints = metadata.$2;
@@ -4821,15 +4841,21 @@ class PagePreviewState extends State<PagePreview> {
     );
 
     // Compare old and new metadata -> only rotation?
-
-    if (_guiRatioValue != null &&
+    if (onlyRotation &&
+        _guiRatioValue != null &&
         ratioValue != _guiRatioValue &&
         ratioValue != 1.0 / _guiRatioValue!) {
       onlyRotation = false;
     }
     int quarterTurns = (_totalRotation ~/ 90) % 4;
-    if (quarterTurns.isEven && _orientationIndex != _guiOrientationIndex ||
+    if (onlyRotation &&
+            quarterTurns.isEven &&
+            _orientationIndex != _guiOrientationIndex ||
         quarterTurns.isOdd && _orientationIndex == _guiOrientationIndex) {
+      onlyRotation = false;
+    }
+    // Can't rotate if during processing, because rotatePage needas all images of the page
+    if (onlyRotation && _processingIndex != 0) {
       onlyRotation = false;
     }
 
