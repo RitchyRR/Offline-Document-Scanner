@@ -1501,18 +1501,18 @@ class OpenCVHelper {
         iterations: 1,
       );
     }
-    cv.Mat mask = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY).$2;
+    cv.Mat textMask = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY).$2;
     cv.Mat maskInv = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY_INV).$2;
 
     if (applyToText) {
       filteredIn = cv.add(
-        cv.multiply(filteredIn, mask),
+        cv.multiply(filteredIn, textMask),
         cv.multiply(imIn, maskInv),
       );
     } else {
       filteredIn = cv.add(
         cv.multiply(filteredIn, maskInv),
-        cv.multiply(imIn, mask),
+        cv.multiply(imIn, textMask),
       );
     }
     return filteredIn;
