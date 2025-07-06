@@ -928,8 +928,10 @@ class OpenCVHelper {
 
   void _calculateBorderSize(cv.Mat shape, List<List<int>> corners) {
     cv.Mat warpedShape = _transformImage(shape, corners);
+    final int maxBorderSize = (borderCutIn == null)
+        ? (K * 0.4).toInt().clamp(1, -1 >>> 1)
+        : (K * 0.7).toInt().clamp(1, -1 >>> 1);
 
-    final int maxBorderSize = (K ~/ 2).clamp(1, -1 >>> 1);
     // Top border
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
@@ -1084,26 +1086,27 @@ class OpenCVHelper {
   // Step 4.1.1: Set Border Corrections
   void _setTransformation(int borderIndex, List<int> depths) {
     final int borderTolerance = 4 + (K ~/ 12);
+    depths = depths.sublist(depths.length ~/ 20, depths.length * 19 ~/ 20);
+
     if (borderCutIn != null) {
       borderCutIn![borderIndex * 2] = _percentileValueInt(
         depths.sublist(0, depths.length ~/ 2),
-        0.67,
+        0.75,
       );
       borderCutIn![borderIndex * 2 + 1] = _percentileValueInt(
         depths.sublist(depths.length ~/ 2),
-        0.67,
+        0.75,
       );
     }
     borderCorrectionDepth[borderIndex] =
-        depths
-            .sublist(depths.length ~/ 10, depths.length * 9 ~/ 10)
-            .reduce(math.max) -
-        (borderCutIn == null
-            ? 0
-            : (borderCutIn![borderIndex * 2] +
-                      borderCutIn![borderIndex * 2 + 1]) ~/
-                  2) +
-        borderTolerance;
+        (depths.reduce(math.max) -
+                (borderCutIn == null
+                    ? 0
+                    : (borderCutIn![borderIndex * 2] +
+                              borderCutIn![borderIndex * 2 + 1]) ~/
+                          2) +
+                borderTolerance)
+            .clamp(1, (K * 0.4).toInt());
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
@@ -1365,17 +1368,20 @@ class OpenCVHelper {
   }
 
   /// Step 8: Border Correction
-  cv.Mat _correctBorder(cv.Mat warped) {
-    final int whiteThreshold = 242;
-    cv.Mat borderCorrect = warped.clone();
-    warped = cv.cvtColor(warped, cv.COLOR_BGR2GRAY);
+  cv.Mat _correctBorder(cv.Mat imIn) {
+    final int whiteThreshold = 244;
+    cv.Mat borderCorrect = imIn.clone();
     bool wasWhite = false;
 
+    cv.Mat reference = cv.cvtColor(
+      borderCorrect,
+      cv.COLOR_BGR2GRAY,
+    ); // to check if wasWhite, also using prior border corrections for better corners.
     // Top border
     for (int j = 0; j < width; j++) {
       wasWhite = false;
       for (int i = borderCorrectionDepth[0]; i >= 0; i--) {
-        if (warped.at<int>(i, j) >= whiteThreshold) {
+        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
         }
         if (wasWhite) {
@@ -1384,11 +1390,12 @@ class OpenCVHelper {
       }
     }
 
+    reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Bottom border
     for (int j = 0; j < width; j++) {
       wasWhite = false;
       for (int i = height - borderCorrectionDepth[1] - 1; i < height; i++) {
-        if (warped.at<int>(i, j) >= whiteThreshold) {
+        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
         }
         if (wasWhite) {
@@ -1397,11 +1404,12 @@ class OpenCVHelper {
       }
     }
 
+    reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Left border
     for (int i = 0; i < height; i++) {
       wasWhite = false;
       for (int j = borderCorrectionDepth[2]; j >= 0; j--) {
-        if (warped.at<int>(i, j) >= whiteThreshold) {
+        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
         }
         if (wasWhite) {
@@ -1410,11 +1418,12 @@ class OpenCVHelper {
       }
     }
 
+    reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Right border
     for (int i = 0; i < height; i++) {
       wasWhite = false;
       for (int j = width - borderCorrectionDepth[3] - 1; j < width; j++) {
-        if (warped.at<int>(i, j) >= whiteThreshold) {
+        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
           wasWhite = true;
         }
         if (wasWhite) {
