@@ -4122,18 +4122,30 @@ class PagePreviewState extends State<PagePreview> {
             (_versionPaths.length - 1) +
         (_thumbnailBarSizeSelected + _thumbnailBarBoderThumbnail * 2);
     // Flags
+    bool noReprocessingChanges =
+        ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
+        (_orientationIndex == null ||
+            (_orientationIndex == _guiOrientationIndex)) &&
+        _totalRotation == 0);
     bool enableFAB0 = _versionPaths.first.isNotEmpty && !_isRotating;
     bool enableFABs = _selectedVersion == 0
-        ? enableFAB0
+        ? (enableFAB0 && noReprocessingChanges)
         : _versionPaths[_selectedVersion].isNotEmpty;
     _allowPop =
         g.proUnlocked ||
         !g.proFilterIndexes.contains(_selectedVersion) ||
         _pageUnlocked;
+
     return PopScope(
-      canPop: _allowPop,
+      canPop: _allowPop && noReprocessingChanges,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!_allowPop) {
+        if (!noReprocessingChanges) {
+          _guiRatioValue = _ratioValue;
+          _guiOrientationIndex = _orientationIndex;
+          _totalRotation = 0;
+          _versionPaths[0] = _photoPath;
+          setState(() {});
+        } else if (!_allowPop) {
           HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
         } else {
@@ -4151,6 +4163,13 @@ class PagePreviewState extends State<PagePreview> {
         resizeToAvoidBottomInset: false,
         // Top Bar
         appBar: AppBar(
+          leading: noReprocessingChanges
+              ? null
+              : IconButton(
+                  tooltip: tr("camera.viewer.back"),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.maybePop(context),
+                ),
           title: Text(
             tr(
               "pagePreview.pageIndex",
@@ -4158,50 +4177,53 @@ class PagePreviewState extends State<PagePreview> {
             ),
           ),
           actions: [
-            PopupMenuButton(
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: "del",
-                  child: Row(
-                    children: [
-                      SizedBox(width: 12),
-                      Icon(
-                        Icons.delete,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        tr("pagePreview.menu.delete"),
-                        style: TextStyle(
+            if (noReprocessingChanges)
+              PopupMenuButton(
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: "del",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 12),
+                        Icon(
+                          Icons.delete,
                           color: Theme.of(
                             context,
                           ).colorScheme.onPrimaryContainer,
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 10),
+                        Text(
+                          tr("pagePreview.menu.delete"),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-              onSelected: (String value) async {
-                switch (value) {
-                  case "del":
-                    bool deletionConfirmed = await _pagesPopup(
-                      context,
-                      [widget.pageIndex],
-                      PopUpType.delete,
-                      widget.docIndex,
-                      versionIndex: _selectedVersion,
-                    );
-                    if (deletionConfirmed &&
-                        mounted &&
-                        context.mounted &&
-                        Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                    break;
-                }
-              },
-            ),
+                ],
+                onSelected: (String value) async {
+                  switch (value) {
+                    case "del":
+                      bool deletionConfirmed = await _pagesPopup(
+                        context,
+                        [widget.pageIndex],
+                        PopUpType.delete,
+                        widget.docIndex,
+                        versionIndex: _selectedVersion,
+                      );
+                      if (deletionConfirmed &&
+                          mounted &&
+                          context.mounted &&
+                          Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      break;
+                  }
+                },
+              ),
           ],
         ),
         body: Stack(
@@ -4229,7 +4251,9 @@ class PagePreviewState extends State<PagePreview> {
             PhotoViewGallery.builder(
               pageController: _pageController,
               scrollPhysics: const PageScrollPhysics(),
-              itemCount: _importedPdfMode ? 1 : _versionPaths.length,
+              itemCount: _importedPdfMode || !noReprocessingChanges
+                  ? 1
+                  : _versionPaths.length,
               builder: (context, index) {
                 // Loading indicator
                 if (_versionPaths[index].isEmpty) {
@@ -4405,42 +4429,49 @@ class PagePreviewState extends State<PagePreview> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             _selectedVersion == 0 && !_importedPdfMode
-                ? SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: FloatingActionButton(
-                      heroTag: "adjustCorners",
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onPressed: enableFAB0 && !_metadataBlocked
-                          ? () => _openWarpManuallyPage()
-                          : null,
-                      tooltip: enableFAB0 && !_metadataBlocked
-                          ? tr("fabs.warp")
-                          : tr("loading.waitingImage"),
-                      backgroundColor: enableFAB0 && !_metadataBlocked
-                          ? null
-                          : Theme.of(context).disabledColor,
-                      elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
-                      child: Transform.scale(
-                        scaleY: 0.8,
-                        scaleX: 0.85,
-                        filterQuality: FilterQuality.high,
-                        child: Transform.translate(
-                          offset: Offset(0, -1.8),
+                ? Padding(
+                    padding: EdgeInsets.only(
+                      bottom: noReprocessingChanges ? 18 : 140,
+                    ),
+                    child: SizedBox(
+                      width: noReprocessingChanges ? 40 : null,
+                      height: noReprocessingChanges ? 40 : null,
+                      child: FloatingActionButton(
+                        heroTag: "adjustCorners",
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            noReprocessingChanges ? 12 : 16,
+                          ),
+                        ),
+                        onPressed: enableFAB0 && !_metadataBlocked
+                            ? () => _openWarpManuallyPage()
+                            : null,
+                        tooltip: enableFAB0 && !_metadataBlocked
+                            ? tr("fabs.warp")
+                            : tr("loading.waitingImage"),
+                        backgroundColor: enableFAB0 && !_metadataBlocked
+                            ? null
+                            : Theme.of(context).disabledColor,
+                        elevation: enableFAB0 && !_metadataBlocked ? null : 0.0,
+                        child: Transform.scale(
+                          scaleY: 0.8,
+                          scaleX: 0.85,
                           filterQuality: FilterQuality.high,
-                          child: Transform(
-                            alignment: Alignment.topCenter,
-                            transform:
-                                (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
-                                Matrix4.rotationX(-0.7),
+                          child: Transform.translate(
+                            offset: Offset(0, -1.8),
                             filterQuality: FilterQuality.high,
-                            child: Icon(
-                              Icons.crop_free,
-                              color: enableFAB0 && !_metadataBlocked
-                                  ? null
-                                  : Theme.of(context).disabledColor,
+                            child: Transform(
+                              alignment: Alignment.topCenter,
+                              transform:
+                                  (Matrix4.identity()..setEntry(3, 2, 0.0256)) *
+                                  Matrix4.rotationX(-0.7),
+                              filterQuality: FilterQuality.high,
+                              child: Icon(
+                                Icons.crop_free,
+                                color: enableFAB0 && !_metadataBlocked
+                                    ? null
+                                    : Theme.of(context).disabledColor,
+                              ),
                             ),
                           ),
                         ),
@@ -4448,66 +4479,73 @@ class PagePreviewState extends State<PagePreview> {
                     ),
                   )
                 : SizedBox(),
-            SizedBox(height: 18.0),
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: FloatingActionButton(
-                heroTag: "savePageVersion",
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onPressed: enableFABs
-                    ? () => _pagesPopup(
-                        context,
-                        [widget.pageIndex],
-                        PopUpType.save,
-                        widget.docIndex,
-                        versionIndex: _selectedVersion,
-                      )
-                    : null,
-                tooltip: enableFABs
-                    ? tr("fabs.save")
-                    : tr("loading.waitingImage"),
-                backgroundColor: enableFABs
-                    ? null
-                    : Theme.of(context).disabledColor,
-                elevation: enableFABs ? null : 0.0,
-                child: Icon(
-                  Icons.save,
-                  color: enableFABs ? null : Theme.of(context).disabledColor,
+            if (noReprocessingChanges)
+              Padding(
+                padding: EdgeInsets.only(bottom: 18),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: FloatingActionButton(
+                    heroTag: "savePageVersion",
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onPressed: enableFABs
+                        ? () => _pagesPopup(
+                            context,
+                            [widget.pageIndex],
+                            PopUpType.save,
+                            widget.docIndex,
+                            versionIndex: _selectedVersion,
+                          )
+                        : null,
+                    tooltip: enableFABs
+                        ? tr("fabs.save")
+                        : tr("loading.waitingImage"),
+                    backgroundColor: enableFABs
+                        ? null
+                        : Theme.of(context).disabledColor,
+                    elevation: enableFABs ? null : 0.0,
+                    child: Icon(
+                      Icons.save,
+                      color: enableFABs
+                          ? null
+                          : Theme.of(context).disabledColor,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 18.0),
-            FloatingActionButton(
-              heroTag: "sharePageVersion",
-              onPressed: enableFABs
-                  ? () => _pagesPopup(
-                      context,
-                      [widget.pageIndex],
-                      PopUpType.share,
-                      widget.docIndex,
-                      versionIndex: _selectedVersion,
-                    )
-                  : null,
-              tooltip: enableFABs
-                  ? tr("fabs.share")
-                  : tr("loading.waitingImage"),
-              backgroundColor: enableFABs
-                  ? null
-                  : Theme.of(context).disabledColor,
-              elevation: enableFABs ? null : 0.0,
-              child: Icon(
-                Icons.share,
-                color: enableFABs ? null : Theme.of(context).disabledColor,
+            if (noReprocessingChanges)
+              Padding(
+                padding: EdgeInsets.only(bottom: 20),
+                child: FloatingActionButton(
+                  heroTag: "sharePageVersion",
+                  onPressed: enableFABs
+                      ? () => _pagesPopup(
+                          context,
+                          [widget.pageIndex],
+                          PopUpType.share,
+                          widget.docIndex,
+                          versionIndex: _selectedVersion,
+                        )
+                      : null,
+                  tooltip: enableFABs
+                      ? tr("fabs.share")
+                      : tr("loading.waitingImage"),
+                  backgroundColor: enableFABs
+                      ? null
+                      : Theme.of(context).disabledColor,
+                  elevation: enableFABs ? null : 0.0,
+                  child: Icon(
+                    Icons.share,
+                    color: enableFABs ? null : Theme.of(context).disabledColor,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(height: 20.0),
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: _importedPdfMode
+        bottomNavigationBar: _importedPdfMode || !noReprocessingChanges
             ? null
             : SafeArea(
                 child: Container(
@@ -4717,6 +4755,11 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   CustomIconButton _confirmReProcessingButton(BuildContext context) {
+    bool noReprocessingChanges =
+        ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
+        (_orientationIndex == null ||
+            (_orientationIndex == _guiOrientationIndex)) &&
+        _totalRotation == 0);
     return CustomIconButton(
       constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
       buttonColor: Theme.of(context).colorScheme.primaryContainer,
@@ -4728,11 +4771,7 @@ class PagePreviewState extends State<PagePreview> {
           _metadataBlocked ||
           _isRotating ||
           _isProcessing,
-      isHidden:
-          ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
-          (_orientationIndex == null ||
-              (_orientationIndex == _guiOrientationIndex)) &&
-          _totalRotation == 0),
+      isHidden: noReprocessingChanges,
       tooltip: tr("pagePreview.editBar.confirm"),
       onTap: () async {
         await reprocessPhoto();
