@@ -372,7 +372,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> initAsync() async {
     await _loadDocsDisplay(onInit: true);
-    ReceiveSharingIntent.instance.reset();
     _initReceiveSharingIntent();
   }
 
