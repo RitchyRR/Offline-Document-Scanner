@@ -297,6 +297,7 @@ class OpenCVHelper {
   /// Step 1: Isolate Form (Removes glow & dark structures)
   cv.Mat _getShape(cv.Mat imageMat) {
     int kGlow = (K ~/ 17).clamp(3, -1 >>> 1);
+    kGlow += kGlow.isEven ? 1 : 0;
     cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (kGlow, kGlow));
     imageMat = cv.morphologyEx(
       imageMat,
@@ -305,79 +306,103 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
 
-    int kDark1 = (K * 2 ~/ 3).clamp(3, -1 >>> 1);
-    kDark1 += kDark1.isEven ? 1 : 0;
-    int kDark2 = kDark1 ~/ 2;
-    kDark2 += kDark2.isEven ? 1 : 0;
-    int kDark3 = kDark2 ~/ 2;
-    kDark3 += kDark3.isEven ? 1 : 0;
-    cv.Mat kernelDark1 = cv.getStructuringElement(cv.MORPH_CROSS, (
-      kDark1,
-      kDark1,
+    imageMat = _closingCircleApprox(imageMat, K);
+
+    return imageMat;
+  }
+
+  cv.Mat _closingCircleApprox(cv.Mat imIn, int filterDiameter) {
+    // Kernel Sizes
+    int kCross = filterDiameter.clamp(3, -1 >>> 1);
+    kCross += kCross.isEven ? 1 : 0;
+    int kRect = (kCross.toDouble() / math.sqrt2).toInt();
+    kRect += kRect.isEven ? 1 : 0;
+    int kFatCrossRect = (0.475 * filterDiameter).toInt();
+    kFatCrossRect += kFatCrossRect.isEven ? 1 : 0;
+    int kFatCrossCross = (0.4 * filterDiameter).toInt();
+    kFatCrossCross += kFatCrossCross.isEven ? 1 : 0;
+    // Kernels
+    cv.Mat kernelCross = cv.getStructuringElement(cv.MORPH_CROSS, (
+      kCross,
+      kCross,
     ));
-    cv.Mat kernelDark2 = cv.getStructuringElement(cv.MORPH_CROSS, (
-      kDark2,
-      kDark2,
+    cv.Mat kernelRect = cv.getStructuringElement(cv.MORPH_RECT, (kRect, kRect));
+    cv.Mat kernelFatCrossRect = cv.getStructuringElement(cv.MORPH_RECT, (
+      kFatCrossRect,
+      kFatCrossRect,
     ));
-    cv.Mat kernelDark3 = cv.getStructuringElement(cv.MORPH_RECT, (
-      kDark3,
-      kDark3,
+    cv.Mat kernelFatCrossCross = cv.getStructuringElement(cv.MORPH_CROSS, (
+      kFatCrossCross,
+      kFatCrossCross,
     ));
-    // Dilale
-    imageMat = cv.morphologyEx(
-      imageMat,
+
+    /// 1 Dialte
+    // 1.1 Cross
+    cv.Mat imCross = cv.morphologyEx(
+      imIn,
       cv.MORPH_DILATE,
-      kernelDark1,
+      kernelCross,
       borderType: cv.BORDER_REPLICATE,
     );
-    imageMat = cv.morphologyEx(
-      imageMat,
+    // 1.2 Rect
+    cv.Mat imRect = cv.morphologyEx(
+      imIn,
       cv.MORPH_DILATE,
-      kernelDark2,
+      kernelRect,
       borderType: cv.BORDER_REPLICATE,
     );
-    imageMat = cv.morphologyEx(
-      imageMat,
+    // 1.3 Fat Cross
+    cv.Mat imFatCross = cv.morphologyEx(
+      imIn,
       cv.MORPH_DILATE,
-      kernelDark3,
+      kernelFatCrossRect,
       borderType: cv.BORDER_REPLICATE,
     );
-    // Erode
-    imageMat = cv.morphologyEx(
-      imageMat,
-      cv.MORPH_ERODE,
-      kernelDark3,
-      borderType: cv.BORDER_REPLICATE,
-    );
-    imageMat = cv.morphologyEx(
-      imageMat,
-      cv.MORPH_ERODE,
-      kernelDark2,
-      borderType: cv.BORDER_REPLICATE,
-    );
-    imageMat = cv.morphologyEx(
-      imageMat,
-      cv.MORPH_ERODE,
-      kernelDark1,
+    imFatCross = cv.morphologyEx(
+      imFatCross,
+      cv.MORPH_DILATE,
+      kernelFatCrossCross,
       borderType: cv.BORDER_REPLICATE,
     );
 
-    return imageMat;
-    //// CLAHE - apply on L channel in LAB color space
-    //// Convert to LAB
-    //cv.Mat labImage = cv.cvtColor(shape, cv.COLOR_BGR2Lab);
-    //cv.VecMat labChannels = cv.split(labImage);
-    //
-    //// Apply CLAHE on L channel
-    //cv.CLAHE clahe = cv.createCLAHE();
-    //clahe.clipLimit = 4.0;
-    //cv.Mat claheL = clahe.apply(labChannels[0]);
-    //labChannels[0] = claheL;
-    //
-    //// Merge and convert back to BGR
-    //cv.Mat claheImage = cv.merge(labChannels);
-    //cv.Mat colorRestored = cv.cvtColor(claheImage, cv.COLOR_Lab2BGR);
-    ////return colorRestored;
+    /// 2 max
+    cv.Mat imCircle = cv.max(imCross, imRect);
+    imCircle = cv.max(imCircle, imFatCross);
+
+    /// 3 Erode
+    // 3.1 Cross
+    imCross = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_ERODE,
+      kernelCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 3.2 Rect
+    imRect = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_ERODE,
+      kernelRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 3.2 Fat Cross
+    imFatCross = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_ERODE,
+      kernelFatCrossCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    imFatCross = cv.morphologyEx(
+      imFatCross,
+      cv.MORPH_ERODE,
+      kernelFatCrossRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+
+    /// 4 min
+    imCircle = cv.min(imCross, imRect);
+    imCircle = cv.min(imCircle, imFatCross);
+
+    return imCircle;
   }
 
   bool _testNoSpillover(cv.Mat testShape) {
@@ -408,15 +433,17 @@ class OpenCVHelper {
     cv.Mat edgesShape = _tightRiskyShape(edges);
     // 2. use Hough Edges
     cv.Mat houghEdges1 = _houghEdges1(edges, 18);
-    cv.Mat houghEdges2 = _houghEdges2(edges);
+    cv.Mat houghEdges2 = _houghEdges2(edges, extendedBy: 0.25);
     //return houghEdges2;
     cv.Mat houghEdges;
     cv.Mat houghShape1 = _houghShape1(houghEdges1);
+    bool hough1NoSpillover = false;
     if (_testNoSpillover(houghShape1)) {
-      houghEdges = cv.multiply(houghEdges1, houghEdges2);
-    } else {
-      houghEdges = houghEdges2;
+      hough1NoSpillover = true;
     }
+    houghEdges = hough1NoSpillover
+        ? cv.multiply(houghEdges1, houghEdges2)
+        : houghEdges2;
     //return houghEdges;
     //cv.Mat houghShape1 = _houghShape(houghEdges1);
     cv.Mat houghShape = _houghShape2(houghEdges);
@@ -431,6 +458,24 @@ class OpenCVHelper {
     }
     if (_testNoSpillover(houghShape)) {
       houghMaskSize = houghShape.countNoneZero;
+    } else {
+      houghEdges2 = _houghEdges2(edges, extendedBy: 0.5);
+      houghEdges = hough1NoSpillover
+          ? cv.multiply(houghEdges1, houghEdges2)
+          : houghEdges2;
+      houghShape = _houghShape2(houghEdges);
+      if (_testNoSpillover(houghShape)) {
+        houghMaskSize = houghShape.countNoneZero;
+      } else {
+        houghEdges2 = _houghEdges2(edges, extendedBy: 0.75);
+        houghEdges = hough1NoSpillover
+            ? cv.multiply(houghEdges1, houghEdges2)
+            : houghEdges2;
+        houghShape = _houghShape2(houghEdges);
+        if (_testNoSpillover(houghShape)) {
+          houghMaskSize = houghShape.countNoneZero;
+        }
+      }
     }
     // return largest shape
     if (edgesMaskSize != 0 && edgesMaskSize > houghMaskSize) {
@@ -560,12 +605,12 @@ class OpenCVHelper {
     return houghEdges;
   }
 
-  cv.Mat _houghEdges2(cv.Mat edges) {
+  cv.Mat _houghEdges2(cv.Mat edges, {double extendedBy = 0.5}) {
     final double rhoRes = K * 0.125; // line width in which pixels count
     final double thetaRes = (math.pi / 180);
-    final int threshold = (K * 22.5).toInt(); // min pixel count per line
+    final int threshold = (K * 21.5).toInt(); // min pixel count per line
     final double minLineLength = (K * 10.0).clamp(4.0, double.maxFinite);
-    final double maxLineGap = (K * 10.0).toDouble();
+    final double maxLineGap = (K * 7.5).toDouble();
     cv.Mat houghEdges = cv.Mat.zeros(
       edges.rows,
       edges.cols,
@@ -596,10 +641,10 @@ class OpenCVHelper {
       // Extend the line by 50% on each end
       int dx = x2 - x1;
       int dy = y2 - y1;
-      int ex1 = (x1 - dx * 0.5).round();
-      int ey1 = (y1 - dy * 0.5).round();
-      int ex2 = (x2 + dx * 0.5).round();
-      int ey2 = (y2 + dy * 0.5).round();
+      int ex1 = (x1 - dx * extendedBy).round();
+      int ey1 = (y1 - dy * extendedBy).round();
+      int ex2 = (x2 + dx * extendedBy).round();
+      int ey2 = (y2 + dy * extendedBy).round();
 
       // Draw segments
       cv.line(
@@ -1279,29 +1324,14 @@ class OpenCVHelper {
       }
     }
     // 3. Remove dark structures (Closing)
-    int k2 = K;
-    cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_CROSS, (k2, k2));
-    bg = cv.morphologyEx(
-      bg,
-      cv.MORPH_CLOSE,
-      kernel2,
-      borderType: cv.BORDER_REPLICATE,
-      iterations: 2,
-    );
+    bg = _closingCircleApprox(bg, K * 2);
     // 4. set bg value to warped value, if brighter
+    // 4.1 hsv split
     cv.VecMat bgHsvChannels = cv.split(cv.cvtColor(bg, cv.COLOR_BGR2HSV));
     cv.Mat wpV = cv.split(cv.cvtColor(warped, cv.COLOR_BGR2HSV))[2];
-
-    int k3 = ((K ~/ 18) + 1).clamp(3, -1 >>> 1);
-    cv.Mat kernel3 = cv.getStructuringElement(cv.MORPH_CROSS, (k3, k3));
-    wpV = cv.morphologyEx(
-      wpV,
-      cv.MORPH_CLOSE,
-      kernel3,
-      borderType: cv.BORDER_REPLICATE,
-      iterations: 2,
-    );
-
+    // 4.2 remove text before comparison
+    bg = _closingCircleApprox(bg, K ~/ 9);
+    // 4.3 max
     bgHsvChannels[2] = cv.max(bgHsvChannels[2], wpV);
     bg = cv.cvtColor(cv.merge(bgHsvChannels), cv.COLOR_HSV2BGR);
 
@@ -1439,15 +1469,15 @@ class OpenCVHelper {
     );
 
     // apply sharpening only to text / fine lines
-    sharpened = _applyToText(warped, sharpened);
+    sharpened = _applyFilterToText(warped, sharpened);
 
     //return mask.multiply(255);
     return sharpened;
   }
 
-  cv.Mat _applyToText(
-    cv.Mat base,
-    cv.Mat special, {
+  cv.Mat _applyFilterToText(
+    cv.Mat imIn,
+    cv.Mat filteredIn, {
     bool aroundText = true,
     bool applyToText = true,
     double thresh = 15.0,
@@ -1455,17 +1485,10 @@ class OpenCVHelper {
   }) {
     // find Text or fine lines
     int k = ((K ~/ textFineness) ~/ 2 * 2 + 1).clamp(3, -1 >>> 1);
-    cv.Mat kernel1 = cv.getStructuringElement(cv.MORPH_RECT, (k, k));
-    cv.Mat noText = cv.morphologyEx(
-      base,
-      cv.MORPH_CLOSE,
-      kernel1,
-      borderType: cv.BORDER_REPLICATE,
-      iterations: 1,
-    );
-    cv.Mat diff = cv.absDiff(base, noText);
+    cv.Mat noText = _closingCircleApprox(imIn, k);
+    cv.Mat diff = cv.absDiff(imIn, noText);
     if (aroundText) {
-      cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3));
+      cv.Mat kernel2 = cv.getStructuringElement(cv.MORPH_RECT, (3, 3));
       diff = cv.morphologyEx(
         diff,
         cv.MORPH_DILATE,
@@ -1478,11 +1501,17 @@ class OpenCVHelper {
     cv.Mat maskInv = cv.threshold(diff, thresh, 1, cv.THRESH_BINARY_INV).$2;
 
     if (applyToText) {
-      special = cv.add(cv.multiply(special, mask), cv.multiply(base, maskInv));
+      filteredIn = cv.add(
+        cv.multiply(filteredIn, mask),
+        cv.multiply(imIn, maskInv),
+      );
     } else {
-      special = cv.add(cv.multiply(special, maskInv), cv.multiply(base, mask));
+      filteredIn = cv.add(
+        cv.multiply(filteredIn, maskInv),
+        cv.multiply(imIn, mask),
+      );
     }
-    return special;
+    return filteredIn;
   }
 
   int _percentileValueInt(List<int> a, double percentile) {
