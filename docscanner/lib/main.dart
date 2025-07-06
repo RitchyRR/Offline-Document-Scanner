@@ -185,6 +185,7 @@ class _MyAppState extends State<MyApp> {
     if (error != null) {
       throw StateError("Error, initAsync, FlutterSecureStorage: $error");
     }
+    await g.filesHelper.repairDirectoryStructure();
   }
 
   @override
@@ -360,7 +361,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     if (state == AppLifecycleState.resumed) {
       if (wasHidden && !isTmpExternal) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (IsolatesManager().getIsolatesCount() == 0) {
+          if (!isTmpExternal && IsolatesManager().getIsolatesCount() == 0) {
             g.filesHelper.repairDirectoryStructure();
           }
         });
@@ -371,14 +372,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> initAsync() async {
     await _loadDocsDisplay(onInit: true);
-    Completer repairCompleter = Completer();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!isTmpExternal) {
-        await g.filesHelper.repairDirectoryStructure();
-      }
-      repairCompleter.complete();
-    });
-    await repairCompleter.future;
+    ReceiveSharingIntent.instance.reset();
     _initReceiveSharingIntent();
   }
 
@@ -496,12 +490,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
     return photoPaths;
   }
 
+  bool _receivingIntentInitilaized = false;
   _initReceiveSharingIntent() {
+    if (_receivingIntentInitilaized) return;
+    _receivingIntentInitilaized = true;
     // App launched by Opening/Sharing image(s)/pdf
     WidgetsFlutterBinding.ensureInitialized();
     ReceiveSharingIntent.instance.getInitialMedia().then((
       List<SharedMediaFile> value,
     ) async {
+      if (isTmpExternal) return;
       isTmpExternal = true;
       await _handleSharedFiles(value);
       await Future.delayed(Duration(milliseconds: 1500));
@@ -511,6 +509,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     ReceiveSharingIntent.instance.getMediaStream().listen((
       List<SharedMediaFile> value,
     ) async {
+      if (isTmpExternal) return;
       isTmpExternal = true;
       await _handleSharedFiles(value);
       await Future.delayed(Duration(milliseconds: 1500));
