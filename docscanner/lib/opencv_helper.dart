@@ -296,9 +296,9 @@ class OpenCVHelper {
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
   cv.Mat _getShape(cv.Mat imageMat) {
-    // Counteract compression artifacts
+    // Blur to counteract compression artifacts
     imageMat = cv.gaussianBlur(imageMat, (3, 3), 0);
-
+    // Remove Sharpening Glow
     int kGlow = (K ~/ 17).clamp(3, -1 >>> 1);
     kGlow += kGlow.isEven ? 1 : 0;
     cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (kGlow, kGlow));
@@ -308,7 +308,7 @@ class OpenCVHelper {
       kernelGlow,
       borderType: cv.BORDER_REPLICATE,
     );
-
+    // Remove Text
     imageMat = _closingCircleApprox(imageMat, K);
 
     return imageMat;
@@ -404,6 +404,100 @@ class OpenCVHelper {
     /// 4 min
     imCircle = cv.min(imCross, imRect);
     imCircle = cv.min(imCircle, imFatCross);
+
+    return imCircle;
+  }
+
+  cv.Mat _openingCircleApprox(cv.Mat imIn, int filterDiameter) {
+    // Kernel Sizes
+    int kCross = filterDiameter.clamp(3, -1 >>> 1);
+    kCross += kCross.isEven ? 1 : 0;
+    int kRect = (kCross.toDouble() / math.sqrt2).toInt();
+    kRect += kRect.isEven ? 1 : 0;
+    int kFatCrossRect = (0.475 * filterDiameter).toInt();
+    kFatCrossRect += kFatCrossRect.isEven ? 1 : 0;
+    int kFatCrossCross = (0.4 * filterDiameter).toInt();
+    kFatCrossCross += kFatCrossCross.isEven ? 1 : 0;
+    // Kernels
+    cv.Mat kernelCross = cv.getStructuringElement(cv.MORPH_CROSS, (
+      kCross,
+      kCross,
+    ));
+    cv.Mat kernelRect = cv.getStructuringElement(cv.MORPH_RECT, (kRect, kRect));
+    cv.Mat kernelFatCrossRect = cv.getStructuringElement(cv.MORPH_RECT, (
+      kFatCrossRect,
+      kFatCrossRect,
+    ));
+    cv.Mat kernelFatCrossCross = cv.getStructuringElement(cv.MORPH_CROSS, (
+      kFatCrossCross,
+      kFatCrossCross,
+    ));
+
+    /// 1 Dialte
+    // 1.1 Cross
+    cv.Mat imCross = cv.morphologyEx(
+      imIn,
+      cv.MORPH_ERODE,
+      kernelCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 1.2 Rect
+    cv.Mat imRect = cv.morphologyEx(
+      imIn,
+      cv.MORPH_ERODE,
+      kernelRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 1.3 Fat Cross
+    cv.Mat imFatCross = cv.morphologyEx(
+      imIn,
+      cv.MORPH_ERODE,
+      kernelFatCrossRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    imFatCross = cv.morphologyEx(
+      imFatCross,
+      cv.MORPH_ERODE,
+      kernelFatCrossCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+
+    /// 2 min
+    cv.Mat imCircle = cv.min(imCross, imRect);
+    imCircle = cv.min(imCircle, imFatCross);
+
+    /// 3 Erode
+    // 3.1 Cross
+    imCross = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_DILATE,
+      kernelCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 3.2 Rect
+    imRect = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_DILATE,
+      kernelRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    // 3.2 Fat Cross
+    imFatCross = cv.morphologyEx(
+      imCircle,
+      cv.MORPH_DILATE,
+      kernelFatCrossCross,
+      borderType: cv.BORDER_REPLICATE,
+    );
+    imFatCross = cv.morphologyEx(
+      imFatCross,
+      cv.MORPH_DILATE,
+      kernelFatCrossRect,
+      borderType: cv.BORDER_REPLICATE,
+    );
+
+    /// 4 max
+    imCircle = cv.max(imCross, imRect);
+    imCircle = cv.max(imCircle, imFatCross);
 
     return imCircle;
   }
