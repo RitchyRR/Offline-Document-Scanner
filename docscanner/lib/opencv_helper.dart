@@ -296,6 +296,9 @@ class OpenCVHelper {
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
   cv.Mat _getShape(cv.Mat imageMat) {
+    // Counteract compression artifacts
+    imageMat = cv.gaussianBlur(imageMat, (3, 3), 0);
+
     int kGlow = (K ~/ 17).clamp(3, -1 >>> 1);
     kGlow += kGlow.isEven ? 1 : 0;
     cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (kGlow, kGlow));

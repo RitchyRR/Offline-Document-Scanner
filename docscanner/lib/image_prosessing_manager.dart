@@ -224,6 +224,10 @@ class ImageProcessingManager {
       ".png",
     );
 
+    // Update thumbnails:
+    isolateExitPoint(kill);
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+
     // Kontrast
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 2) {
@@ -288,9 +292,7 @@ class ImageProcessingManager {
       );
     }
 
-    // Update thumbnails:
-    isolateExitPoint(kill);
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    // Scale Thumbnail
     isolateExitPoint(kill);
     int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
       docIndex,
