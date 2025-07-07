@@ -433,21 +433,14 @@ class _DocumentsHomeState extends State<DocumentsHome>
     return (docIndex, firstPageIndex);
   }
 
-  Future<void> _openImagePicker(
-    ImageSource source, {
-    bool isMultiImage = false,
-  }) async {
+  Future<void> _openImagePicker(ImageSource source) async {
     List<String> photoPaths;
     ScaffoldMessengerState? messenger;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       photoPaths = await _openCamera();
     } else {
-      final picked = await g.filesHelper.pickImage(
-        context,
-        source,
-        isMultiImage: isMultiImage,
-      );
+      final picked = await g.filesHelper.pickImage(context, source);
       photoPaths = picked.$1;
       messenger = picked.$2;
     }
@@ -1249,7 +1242,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                 maxWidth: 184,
                               ), // space for creation date
                               child: AspectRatio(
-                                aspectRatio: _thumbnailRatios[docIndex],
+                                aspectRatio: _thumbnailRatios.length > docIndex
+                                    ? _thumbnailRatios[docIndex]
+                                    : math.sqrt1_2,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     boxShadow: [bigBoxShadow(context)],
@@ -1375,7 +1370,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 ),
                 heroTag: "pickImagesDoc",
                 onPressed: () {
-                  _openImagePicker(ImageSource.gallery, isMultiImage: true);
+                  _openImagePicker(ImageSource.gallery);
                 },
                 tooltip: tr("fabs.images"),
                 child: IconWithPlusBadge(icon: Icons.photo_library),
@@ -2331,21 +2326,14 @@ class _PagesState extends State<Pages> with RouteAware {
     );
   }
 
-  Future<void> _openImagePicker(
-    ImageSource source, {
-    bool isMultiImage = false,
-  }) async {
+  Future<void> _openImagePicker(ImageSource source) async {
     List<String> photoPaths;
     ScaffoldMessengerState? messenger;
     if (g.filesHelper.pickingImage) return;
     if (source == ImageSource.camera) {
       photoPaths = await _openCamera();
     } else {
-      final picked = await g.filesHelper.pickImage(
-        context,
-        source,
-        isMultiImage: isMultiImage,
-      );
+      final picked = await g.filesHelper.pickImage(context, source);
       photoPaths = picked.$1;
       messenger = picked.$2;
     }
@@ -2957,10 +2945,7 @@ class _PagesState extends State<Pages> with RouteAware {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         onPressed: () {
-                          _openImagePicker(
-                            ImageSource.gallery,
-                            isMultiImage: true,
-                          );
+                          _openImagePicker(ImageSource.gallery);
                         },
                         tooltip: tr("fabs.images"),
                         child: IconWithPlusBadge(icon: Icons.photo_library),

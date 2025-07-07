@@ -1124,9 +1124,8 @@ class FilesHelper {
   bool pickingImage = false;
   Future<(List<String>, ScaffoldMessengerState?)> pickImage(
     BuildContext context,
-    ImageSource source, {
-    bool isMultiImage = false,
-  }) async {
+    ImageSource source,
+  ) async {
     if (pickingImage) return (<String>[], null);
     pickingImage = true;
 
@@ -1159,26 +1158,14 @@ class FilesHelper {
     final double maxWidth = 4048;
     final double maxHeight = 4048;
 
-    if (isMultiImage) {
-      final List<XFile> pickedFileList = await picker.pickMultiImage(
-        maxWidth: maxWidth,
-        maxHeight: maxHeight,
-        requestFullMetadata: false,
-        limit: 20,
-      );
-      for (var xfile in pickedFileList) {
-        imagePaths.add(xfile.path);
-      }
-    } else {
-      final XFile? pickedFile = await picker.pickImage(
-        source: source,
-        maxWidth: maxWidth,
-        maxHeight: maxHeight,
-        requestFullMetadata: false,
-      );
-      if (pickedFile != null) {
-        imagePaths = [pickedFile.path];
-      }
+    final List<XFile> pickedFileList = await picker.pickMultiImage(
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      requestFullMetadata: false,
+      limit: 20,
+    );
+    for (var xfile in pickedFileList) {
+      imagePaths.add(xfile.path);
     }
 
     pickingImage = false;
