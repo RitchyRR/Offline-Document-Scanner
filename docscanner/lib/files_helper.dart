@@ -565,6 +565,18 @@ class FilesHelper {
           bool pageIncomplete = pageFseL.isEmpty;
           int countVersionsAndThumbnail = 0;
           if (!pageIncomplete) {
+            List<String>? oldVersionFileNames =
+                await MetadataHelper.readOldVersionFileNames(
+                  docIndex,
+                  pageIndex,
+                );
+            oldVersionFileNames = oldVersionFileNames
+                ?.where((element) => element != "")
+                .toList();
+            oldVersionFileNames =
+                oldVersionFileNames == null || oldVersionFileNames.isEmpty
+                ? null
+                : oldVersionFileNames;
             for (var imageFse in pageFseL) {
               if (imageFse.path.contains("thumbnail") ||
                   versionNamesInternal.any(
@@ -572,11 +584,23 @@ class FilesHelper {
                   )) {
                 countVersionsAndThumbnail++;
               }
+              if (oldVersionFileNames != null) {
+                for (var oldName in oldVersionFileNames) {
+                  if (imageFse.path.contains(oldName)) {
+                    countVersionsAndThumbnail--;
+                    pageIncomplete = true;
+                    break;
+                  }
+                }
+                if (pageIncomplete) break;
+              }
             }
             // versions + 1 for thumbnail (ignoring shape and metadata)
-            pageIncomplete = isImportedPdf
-                ? countVersionsAndThumbnail != 2
-                : countVersionsAndThumbnail < versionNamesInternal.length + 1;
+            if (!pageIncomplete) {
+              pageIncomplete = isImportedPdf
+                  ? countVersionsAndThumbnail != 2
+                  : countVersionsAndThumbnail < versionNamesInternal.length + 1;
+            }
           }
 
           if (pageIncomplete) {

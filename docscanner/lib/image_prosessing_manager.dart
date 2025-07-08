@@ -113,7 +113,7 @@ class ImageProcessingManager {
       supressWarnings: isInitial,
     );
     Uint8List? shapeBytes;
-    if (shapePath.isNotEmpty && File(shapePath).lengthSync() != 0) {
+    if (shapePath.isNotEmpty && File(shapePath).existsSync()) {
       isolateExitPoint(kill);
       shapeBytes = File(shapePath).readAsBytesSync();
     }
@@ -345,6 +345,9 @@ class ImageProcessingManager {
   ) async {
     if (photoPath.isEmpty) return;
 
+    // Save current (to be outdated) filenames to metadata
+    await saveOldVersionFileNames(docIndex, pageIndex);
+
     final completer = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -392,6 +395,15 @@ class ImageProcessingManager {
       }
     });
     await completer.future;
+  }
+
+  Future<void> saveOldVersionFileNames(int docIndex, int pageIndex) async {
+    List<String> versionPaths;
+    (versionPaths, _, _) = await g.filesHelper.getImagePathsForPage(
+      docIndex,
+      pageIndex,
+    );
+    MetadataHelper.writeOldVersionFileNames(docIndex, pageIndex, versionPaths);
   }
 
   static Future<void> _repairPageIsolate(
@@ -955,6 +967,9 @@ class ImageProcessingManager {
     final int angle,
     int pageThumbnailIndexIn,
   ) async {
+    // Save current (to be outdated) filenames to metadata
+    await saveOldVersionFileNames(docIndex, pageIndex);
+
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
     final rotatePageCompleter = Completer<void>();

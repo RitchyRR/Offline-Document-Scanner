@@ -385,14 +385,6 @@ class MetadataHelper {
     return isNewIndex;
   }
 
-  static Future<void> writePageCornerPoints(
-    int docIndex,
-    int pageIndex,
-    List<List<int>> cornerPoints,
-  ) async {
-    await _writePage(docIndex, pageIndex, "corners", cornerPoints, g);
-  }
-
   static Future<void> writePageImportedPdf(
     int docIndex,
     int pageIndex,
@@ -475,6 +467,14 @@ class MetadataHelper {
     }
   }
 
+  static Future<void> writePageCornerPoints(
+    int docIndex,
+    int pageIndex,
+    List<List<int>> cornerPoints,
+  ) async {
+    await _writePage(docIndex, pageIndex, "corners", cornerPoints, g);
+  }
+
   static Future<List<List<int>>?> readPageCornerPoints(
     int docIndex,
     int pageIndex, {
@@ -493,7 +493,9 @@ class MetadataHelper {
         final encryptedContent = file.readAsStringSync();
         metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
         List<List<int>> cornerPoints = (metadata["corners"] as List)
-            .map<List<int>>((e) => (e as List).map((v) => v as int).toList())
+            .map<List<int>>(
+              (e) => (e as List).map<int>((v) => v as int).toList(),
+            )
             .toList();
         return cornerPoints;
       } catch (e) {
@@ -505,6 +507,56 @@ class MetadataHelper {
     if (!supressWarnings) {
       dev.log(
         "Warning, readPageCornerPoints: Metadata does not exist for $pagePath",
+      );
+    }
+    return null;
+  }
+
+  static Future<void> writeOldVersionFileNames(
+    int docIndex,
+    int pageIndex,
+    List<String> oldVersionFileNames,
+  ) async {
+    await _writePage(
+      docIndex,
+      pageIndex,
+      "oldVersionFileNames",
+      oldVersionFileNames,
+      g,
+    );
+  }
+
+  static Future<List<String>?> readOldVersionFileNames(
+    int docIndex,
+    int pageIndex, {
+    AppGlobals? gIn,
+    bool supressWarnings = false,
+  }) async {
+    gIn ??= g;
+
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
+    final file = File("$pagePath/metadata.json");
+    Map<String, dynamic> metadata = {};
+
+    // Read + Decrypt
+    if (await file.exists()) {
+      try {
+        final encryptedContent = file.readAsStringSync();
+        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        List<String> oldVersionFileNames =
+            (metadata["oldVersionFileNames"] as List)
+                .map<String>((e) => e as String)
+                .toList();
+        return oldVersionFileNames;
+      } catch (e) {
+        if (!supressWarnings) {
+          dev.log("Warning, readOldVersionFileNames: $e");
+        }
+      }
+    }
+    if (!supressWarnings) {
+      dev.log(
+        "Warning, readOldVersionFileNames: Metadata does not exist for $pagePath",
       );
     }
     return null;

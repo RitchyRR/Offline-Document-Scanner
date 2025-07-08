@@ -2589,12 +2589,15 @@ class _PagesState extends State<Pages> with RouteAware {
                               _deletedPages
                                   .where((element) => element < pageIndex)
                                   .length;
-                          String thumbnailPath = _pageThumbnails[pageIndex];
-                          double thumbnailRatio = _thumbnailRatios[pageIndex];
+                          final String thumbnailPath =
+                              _pageThumbnails[pageIndex];
+                          final double thumbnailRatio =
+                              _thumbnailRatios[pageIndex];
                           if (thumbnailRatio == 0.0) {
                             throw StateError("thumbnailRatio == 0.0");
                           }
-                          File pageThumbnail = File(thumbnailPath);
+                          final File pageThumbnail = File(thumbnailPath);
+                          //final bool isOldPath
                           return Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: AspectRatio(
@@ -2604,38 +2607,49 @@ class _PagesState extends State<Pages> with RouteAware {
                                   boxShadow: [bigBoxShadow(context)],
                                 ),
                                 child: Stack(
+                                  fit: StackFit.passthrough,
                                   children: [
-                                    // Load image
-                                    (thumbnailPath.isNotEmpty)
-                                        ? AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            child: Image.file(
-                                              pageThumbnail,
-                                              key: ValueKey(thumbnailPath),
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Material(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .surfaceBright,
-                                                      child: const Icon(
-                                                        Icons.broken_image,
-                                                      ),
-                                                    );
-                                                  },
-                                            ),
-                                          )
-                                        // Skeleton
-                                        : Positioned.fill(
-                                            child: Material(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.surfaceBright,
-                                              child: IndicatorProcessingImage(),
-                                            ),
+                                    // BG
+                                    Material(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceBright,
+                                    ),
+                                    // Thumbnail
+                                    if (thumbnailPath.isNotEmpty)
+                                      AnimatedSwitcher(
+                                        duration: Duration(milliseconds: 200),
+                                        child: SizedBox.expand(
+                                          child: Image.file(
+                                            pageThumbnail,
+                                            fit: BoxFit.cover,
+                                            key: ValueKey(thumbnailPath),
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  return Material(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.surfaceBright,
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                    ),
+                                                  );
+                                                },
                                           ),
+                                        ),
+                                      ),
+                                    // Loading Indicator
+                                    //if (isOldPath)
+                                    //  Positioned.fill(
+                                    //    child: Material(
+                                    //      color: Theme.of(context)
+                                    //          .colorScheme
+                                    //          .surfaceContainerHigh
+                                    //          .withAlpha(150),
+                                    //    ),
+                                    //  ),
+                                    if (thumbnailPath.isEmpty) // || isOldPath
+                                      IndicatorProcessingImage(),
                                     // InkWell
                                     Positioned.fill(
                                       child: Material(
@@ -3774,9 +3788,8 @@ class PagePreviewState extends State<PagePreview> {
       widget.docIndex,
       widget.pageIndex,
     );
-    if (_importedPdfMode) setState(() {});
-    _photoPath = _versionPaths.first;
-    _showAllImages();
+    if (_importedPdfMode && mounted) setState(() {});
+    await _loadOldVersionFileNames();
     _pollImagesAndMetadata();
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
@@ -3796,6 +3809,28 @@ class PagePreviewState extends State<PagePreview> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _unZoomedScale = _photoViewController.scale;
     });
+  }
+
+  Future<void> _loadOldVersionFileNames() async {
+    // set _versionPaths to old names, so that polling realizes that they are old
+    List<String>? oldVersionFileNames =
+        await MetadataHelper.readOldVersionFileNames(
+          widget.docIndex,
+          widget.pageIndex,
+        );
+    if (oldVersionFileNames == null) return;
+    if (oldVersionFileNames.every((element) => element.isEmpty)) return;
+    List<String> versionPaths;
+    (versionPaths, _, _) = await g.filesHelper.getImagePathsForPage(
+      widget.docIndex,
+      widget.pageIndex,
+    );
+    for (var (i, oldName) in oldVersionFileNames.indexed) {
+      if (oldName.isNotEmpty && versionPaths[i].contains(oldName)) {
+        _versionPaths[i] = versionPaths[i];
+      }
+    }
+    _photoPath = _versionPaths.first;
   }
 
   @override
@@ -3914,25 +3949,6 @@ class PagePreviewState extends State<PagePreview> {
     if (onComplete != null) {
       await onComplete();
     }
-  }
-
-  Future<void> _showAllImages() async {
-    if (!mounted || _versionPaths.isEmpty) return;
-    for (var versionPath in _versionPaths) {
-      if (versionPath.isEmpty) return;
-    }
-    _selectedVersion = 0;
-    if (!mounted) return;
-    setState(() {});
-    _pageController.jumpToPage(0);
-    _selectedThumbnail =
-        await MetadataHelper.readPageThumbnailIndex(
-          widget.docIndex,
-          widget.pageIndex,
-        ) ??
-        _selectedThumbnail;
-    if (!mounted) return;
-    setState(() {});
   }
 
   Future<void> _loadPageMetadata({bool supressWarnings = false}) async {
