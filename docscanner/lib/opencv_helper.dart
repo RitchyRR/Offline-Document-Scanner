@@ -288,24 +288,25 @@ class OpenCVHelper {
   }
 
   /// Filter Image 3: subtract background fully
-  cv.Mat _filterImage3(cv.Mat warped, cv.Mat processed2) {
+  cv.Mat _filterImage3(final cv.Mat warped, final cv.Mat processed2) {
     cv.Mat colorMatched = _matchColor(warped, processed2);
 
     return colorMatched;
   }
 
   /// Step 1: Isolate Form (Removes glow & dark structures)
-  cv.Mat _preFilter(cv.Mat imageMat) {
+  cv.Mat _preFilter(final cv.Mat imIn) {
+    cv.Mat preFiltered = imIn.clone();
     // Histogramm Stretching
-    imageMat = _stretchMat(
-      imageMat,
+    preFiltered = _stretchMat(
+      preFiltered,
       lowPercentile: 0.001,
       highPercentile: 0.999,
       gamma: null,
     );
     // Blur to counteract compression artifacts
-    imageMat = cv.gaussianBlur(imageMat, (3, 3), 0);
-    imageMat = cv.medianBlur(imageMat, 3);
+    preFiltered = cv.gaussianBlur(preFiltered, (3, 3), 0);
+    preFiltered = cv.medianBlur(preFiltered, 3);
     //imageMat = cv.bilateralFilter(
     //  imageMat,
     //  5, // Diameter of pixel neighborhood
@@ -316,16 +317,16 @@ class OpenCVHelper {
     int kGlow = (K ~/ 17).clamp(3, -1 >>> 1);
     kGlow += kGlow.isEven ? 1 : 0;
     cv.Mat kernelGlow = cv.getStructuringElement(cv.MORPH_RECT, (kGlow, kGlow));
-    imageMat = cv.morphologyEx(
-      imageMat,
+    preFiltered = cv.morphologyEx(
+      preFiltered,
       cv.MORPH_OPEN,
       kernelGlow,
       borderType: cv.BORDER_REPLICATE,
     );
     // Remove Text
-    imageMat = _closingCircleApprox(imageMat, K);
+    preFiltered = _closingCircleApprox(preFiltered, K);
 
-    return imageMat;
+    return preFiltered;
   }
 
   cv.Mat _closingCircleApprox(cv.Mat imIn, int filterDiameter) {
@@ -516,7 +517,7 @@ class OpenCVHelper {
   //  return imCircle;
   //}
 
-  bool _testNoSpillover(cv.Mat testShape) {
+  bool _testNoSpillover(final cv.Mat testShape) {
     if (testShape.at<int>(0, 0) == 0 &&
         testShape.at<int>(0, cols ~/ 2) == 0 &&
         testShape.at<int>(0, cols - 1) == 0 &&
