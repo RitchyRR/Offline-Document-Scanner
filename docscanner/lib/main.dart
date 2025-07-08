@@ -351,7 +351,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     WidgetsBinding.instance.addObserver(this);
     initAsync();
-    loadAvailableAspectRatios(context);
+    _loadAvailableAspectRatios(context);
   }
 
   bool wasHidden = false;
@@ -597,6 +597,28 @@ class _DocumentsHomeState extends State<DocumentsHome>
         _docThumbnails = thumbnailPaths;
       });
     }
+
+    _loadOldThumbnailNames();
+  }
+
+  List<String> _oldThumbnailNames = [];
+  Future<void> _loadOldThumbnailNames() async {
+    _oldThumbnailNames = List.generate(_docsCount, (index) => "");
+    bool setAny = false;
+    final int pageIndex = 0;
+    for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
+      List<String>? oldVersionNames =
+          await MetadataHelper.readOldVersionFileNames(docIndex, pageIndex);
+      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
+        docIndex,
+        pageIndex,
+      );
+      if (thumbnaiIndex != null && oldVersionNames != null) {
+        _oldThumbnailNames[docIndex] = oldVersionNames[thumbnaiIndex];
+        setAny = true;
+      }
+    }
+    if (setAny && mounted) setState(() {});
   }
 
   void fixMetadataLengths(int length) {
@@ -756,7 +778,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  Future<void> loadAvailableAspectRatios(BuildContext context) async {
+  Future<void> _loadAvailableAspectRatios(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     final savedValues = prefs.getStringList("availableAspectRatios");
 
@@ -1093,6 +1115,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   int pagesCount = _docPageCounts.isNotEmpty
                       ? _docPageCounts[docIndex]
                       : -1;
+                  final bool isOldPath =
+                      _oldThumbnailNames.length > docIndex &&
+                      _oldThumbnailNames[docIndex].isNotEmpty &&
+                      _docThumbnails[docIndex].contains(
+                        _oldThumbnailNames[docIndex],
+                      );
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -1250,54 +1278,52 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                     boxShadow: [bigBoxShadow(context)],
                                   ),
                                   child: Stack(
+                                    fit: StackFit.passthrough,
                                     children: [
-                                      (_docThumbnails[docIndex].isNotEmpty)
-                                          ? AnimatedSwitcher(
-                                              duration: Duration(
-                                                milliseconds: 200,
+                                      // BG
+                                      Material(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceBright,
+                                      ),
+                                      // Thumbnail
+                                      if (_docThumbnails[docIndex].isNotEmpty)
+                                        AnimatedSwitcher(
+                                          duration: Duration(milliseconds: 200),
+                                          child: SizedBox.expand(
+                                            child: Image.file(
+                                              File(_docThumbnails[docIndex]),
+                                              fit: BoxFit.cover,
+                                              key: ValueKey(
+                                                _docThumbnails[docIndex],
                                               ),
-                                              child: Image.file(
-                                                File(_docThumbnails[docIndex]),
-                                                key: ValueKey(
-                                                  _docThumbnails[docIndex],
-                                                ),
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error, stackTrace) {
-                                                  return AspectRatio(
-                                                    aspectRatio:
-                                                        (_thumbnailRatios
-                                                                .length >
-                                                            docIndex)
-                                                        ? _thumbnailRatios[docIndex]
-                                                        : 1.0 / math.sqrt2,
-                                                    child: Builder(
-                                                      builder: (context) {
-                                                        return Material(
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .surfaceBright,
-                                                          child: const Icon(
-                                                            Icons.broken_image,
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            )
-                                          : Builder(
-                                              builder: (context) {
-                                                return Material(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                                  child:
-                                                      IndicatorProcessingImage(),
-                                                );
-                                              },
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return Material(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .surfaceBright,
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                      ),
+                                                    );
+                                                  },
                                             ),
+                                          ),
+                                        ),
+                                      // Loading Indicator
+                                      if (isOldPath)
+                                        Positioned.fill(
+                                          child: Material(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHigh
+                                                .withAlpha(150),
+                                          ),
+                                        ),
+                                      if (_docThumbnails[docIndex].isEmpty ||
+                                          isOldPath)
+                                        IndicatorProcessingImage(),
                                       Positioned.fill(
                                         child: Material(
                                           color: Colors.transparent,
@@ -2265,29 +2291,9 @@ class _PagesState extends State<Pages> with RouteAware {
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
-  List<String> _oldThumbnailNames = [];
   @override
-  Future<void> didPopNext() async {
-    await _loadPagesThumbnails();
-    await _loadOldThumbnailNames();
-  }
-
-  Future<void> _loadOldThumbnailNames() async {
-    _oldThumbnailNames = List.generate(_pagesCount, (index) => "");
-    for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
-      List<String>? oldVersionNames =
-          await MetadataHelper.readOldVersionFileNames(
-            widget.docIndex,
-            pageIndex,
-          );
-      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
-        widget.docIndex,
-        pageIndex,
-      );
-      if (thumbnaiIndex != null && oldVersionNames != null) {
-        _oldThumbnailNames[pageIndex] = oldVersionNames[thumbnaiIndex];
-      }
-    }
+  void didPopNext() {
+    _loadPagesThumbnails();
   }
 
   Future<void> _loadPagesThumbnails({
@@ -2336,6 +2342,29 @@ class _PagesState extends State<Pages> with RouteAware {
         });
       }
     }
+    _loadOldThumbnailNames();
+  }
+
+  List<String> _oldThumbnailNames = [];
+  Future<void> _loadOldThumbnailNames() async {
+    _oldThumbnailNames = List.generate(_pagesCount, (index) => "");
+    bool setAny = false;
+    for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
+      List<String>? oldVersionNames =
+          await MetadataHelper.readOldVersionFileNames(
+            widget.docIndex,
+            pageIndex,
+          );
+      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
+        widget.docIndex,
+        pageIndex,
+      );
+      if (thumbnaiIndex != null && oldVersionNames != null) {
+        _oldThumbnailNames[pageIndex] = oldVersionNames[thumbnaiIndex];
+        setAny = true;
+      }
+    }
+    if (setAny && mounted) setState(() {});
   }
 
   Future<void> _openPagePreview(int pageIndex) async {
@@ -2811,6 +2840,12 @@ class _PagesState extends State<Pages> with RouteAware {
                             throw StateError("thumbnailRatio == 0.0");
                           }
                           File pageThumbnail = File(thumbnailPath);
+                          final bool isOldPath =
+                              _oldThumbnailNames.length > pageIndex &&
+                              _oldThumbnailNames[pageIndex].isNotEmpty &&
+                              thumbnailPath.contains(
+                                _oldThumbnailNames[pageIndex],
+                              );
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 15),
                             child: AspectRatio(
@@ -2820,38 +2855,49 @@ class _PagesState extends State<Pages> with RouteAware {
                                   boxShadow: [bigBoxShadow(context)],
                                 ),
                                 child: Stack(
+                                  fit: StackFit.passthrough,
                                   children: [
-                                    // Load image
-                                    (thumbnailPath.isNotEmpty)
-                                        ? AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 200,
-                                            ),
-                                            child: Image.file(
-                                              pageThumbnail,
-                                              key: ValueKey(thumbnailPath),
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Material(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .surfaceBright,
-                                                      child: const Icon(
-                                                        Icons.broken_image,
-                                                      ),
-                                                    );
-                                                  },
-                                            ),
-                                          )
-                                        // Skeleton
-                                        : Positioned.fill(
-                                            child: Material(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.surfaceBright,
-                                              child: IndicatorProcessingImage(),
-                                            ),
+                                    // BG
+                                    Material(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceBright,
+                                    ),
+                                    // Thumbnail
+                                    if (thumbnailPath.isNotEmpty)
+                                      AnimatedSwitcher(
+                                        duration: Duration(milliseconds: 200),
+                                        child: SizedBox.expand(
+                                          child: Image.file(
+                                            pageThumbnail,
+                                            fit: BoxFit.cover,
+                                            key: ValueKey(thumbnailPath),
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  return Material(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.surfaceBright,
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                    ),
+                                                  );
+                                                },
                                           ),
+                                        ),
+                                      ),
+                                    // Loading Indicator
+                                    if (isOldPath)
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHigh
+                                              .withAlpha(150),
+                                        ),
+                                      ),
+                                    if (thumbnailPath.isEmpty || isOldPath)
+                                      IndicatorProcessingImage(),
                                     // InkWell
                                     Positioned.fill(
                                       child: Material(
