@@ -298,6 +298,7 @@ class OpenCVHelper {
   cv.Mat _getShape(cv.Mat imageMat) {
     // Blur to counteract compression artifacts
     imageMat = cv.gaussianBlur(imageMat, (3, 3), 0);
+    imageMat = cv.medianBlur(imageMat, 3);
     // Remove Sharpening Glow
     int kGlow = (K ~/ 17).clamp(3, -1 >>> 1);
     kGlow += kGlow.isEven ? 1 : 0;
