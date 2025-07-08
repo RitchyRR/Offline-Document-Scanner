@@ -588,19 +588,15 @@ class FilesHelper {
                 for (var oldName in oldVersionFileNames) {
                   if (imageFse.path.contains(oldName)) {
                     countVersionsAndThumbnail--;
-                    pageIncomplete = true;
                     break;
                   }
                 }
-                if (pageIncomplete) break;
               }
             }
             // versions + 1 for thumbnail (ignoring shape and metadata)
-            if (!pageIncomplete) {
-              pageIncomplete = isImportedPdf
-                  ? countVersionsAndThumbnail != 2
-                  : countVersionsAndThumbnail < versionNamesInternal.length + 1;
-            }
+            pageIncomplete = isImportedPdf
+                ? countVersionsAndThumbnail != 2
+                : countVersionsAndThumbnail < versionNamesInternal.length + 1;
           }
 
           if (pageIncomplete) {

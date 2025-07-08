@@ -436,6 +436,14 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    List<String>? oldVersionFileNames =
+        await MetadataHelper.readOldVersionFileNames(
+          docIndex,
+          pageIndex,
+          gIn: g,
+        );
+
+    // Photo
     if (!File(
       await g.filesHelper.getVersionPath(
         docIndex,
@@ -465,7 +473,6 @@ class ImageProcessingManager {
     double? ratioValue = processingMetadata.$1;
     List<List<int>>? cornerPoints = processingMetadata.$2;
 
-    // Original
     isolateExitPoint(kill);
     var imagePaths = await g.filesHelper.getImagePathsForPage(
       docIndex,
@@ -506,6 +513,7 @@ class ImageProcessingManager {
       g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
     }
     List<int> borderCorrectionDepth = warpedRet.$3;
+
     // Metadata
     ratioValue = warpedRet.$4;
     cornerPoints = warpedRet.$5;
@@ -519,7 +527,9 @@ class ImageProcessingManager {
     );
 
     // Warped
-    if (versionPaths[1].isEmpty) {
+    if (versionPaths[1].isEmpty ||
+        (oldVersionFileNames != null &&
+            versionPaths[1].contains(oldVersionFileNames[1]))) {
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -531,7 +541,9 @@ class ImageProcessingManager {
     }
 
     // Contrast
-    if (versionPaths[2].isEmpty) {
+    if (versionPaths[2].isEmpty ||
+        (oldVersionFileNames != null &&
+            versionPaths[2].contains(oldVersionFileNames[2]))) {
       isolateExitPoint(kill);
       Uint8List contrastBytes = await cvHelper.processImageContrast(
         ParamsProcessImage1(warpedBytes),
@@ -547,7 +559,9 @@ class ImageProcessingManager {
     }
 
     // Document
-    if (versionPaths[3].isEmpty) {
+    if (versionPaths[3].isEmpty ||
+        (oldVersionFileNames != null &&
+            versionPaths[3].contains(oldVersionFileNames[3]))) {
       isolateExitPoint(kill);
       Uint8List processed1 = await cvHelper.processImageDocument(
         ParamsProcessImage1(warpedBytes),
@@ -564,7 +578,9 @@ class ImageProcessingManager {
 
     // PRO
     Uint8List? processed2Bytes;
-    if (versionPaths[4].isEmpty) {
+    if (versionPaths[4].isEmpty ||
+        (oldVersionFileNames != null &&
+            versionPaths[4].contains(oldVersionFileNames[4]))) {
       isolateExitPoint(kill);
       processed2Bytes = await cvHelper.processImagePro(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
@@ -580,7 +596,9 @@ class ImageProcessingManager {
     }
 
     // PRO 2
-    if (versionPaths[5].isEmpty) {
+    if (versionPaths[5].isEmpty ||
+        (oldVersionFileNames != null &&
+            versionPaths[5].contains(oldVersionFileNames[5]))) {
       isolateExitPoint(kill);
       processed2Bytes ??= File(versionPaths[4]).readAsBytesSync();
       isolateExitPoint(kill);

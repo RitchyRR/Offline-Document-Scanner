@@ -185,7 +185,7 @@ class _MyAppState extends State<MyApp> {
     if (error != null) {
       throw StateError("Error, initAsync, FlutterSecureStorage: $error");
     }
-    await g.filesHelper.repairDirectoryStructure();
+    g.filesHelper.repairDirectoryStructure();
   }
 
   @override
@@ -2265,9 +2265,29 @@ class _PagesState extends State<Pages> with RouteAware {
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
+  List<String> _oldThumbnailNames = [];
   @override
-  void didPopNext() {
-    _loadPagesThumbnails();
+  Future<void> didPopNext() async {
+    await _loadPagesThumbnails();
+    await _loadOldThumbnailNames();
+  }
+
+  Future<void> _loadOldThumbnailNames() async {
+    _oldThumbnailNames = List.generate(_pagesCount, (index) => "");
+    for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
+      List<String>? oldVersionNames =
+          await MetadataHelper.readOldVersionFileNames(
+            widget.docIndex,
+            pageIndex,
+          );
+      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
+        widget.docIndex,
+        pageIndex,
+      );
+      if (thumbnaiIndex != null && oldVersionNames != null) {
+        _oldThumbnailNames[pageIndex] = oldVersionNames[thumbnaiIndex];
+      }
+    }
   }
 
   Future<void> _loadPagesThumbnails({
@@ -2597,7 +2617,12 @@ class _PagesState extends State<Pages> with RouteAware {
                             throw StateError("thumbnailRatio == 0.0");
                           }
                           final File pageThumbnail = File(thumbnailPath);
-                          //final bool isOldPath
+                          final bool isOldPath =
+                              _oldThumbnailNames.length > pageIndex &&
+                              _oldThumbnailNames[pageIndex].isNotEmpty &&
+                              thumbnailPath.contains(
+                                _oldThumbnailNames[pageIndex],
+                              );
                           return Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: AspectRatio(
@@ -2639,16 +2664,16 @@ class _PagesState extends State<Pages> with RouteAware {
                                         ),
                                       ),
                                     // Loading Indicator
-                                    //if (isOldPath)
-                                    //  Positioned.fill(
-                                    //    child: Material(
-                                    //      color: Theme.of(context)
-                                    //          .colorScheme
-                                    //          .surfaceContainerHigh
-                                    //          .withAlpha(150),
-                                    //    ),
-                                    //  ),
-                                    if (thumbnailPath.isEmpty) // || isOldPath
+                                    if (isOldPath)
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHigh
+                                              .withAlpha(150),
+                                        ),
+                                      ),
+                                    if (thumbnailPath.isEmpty || isOldPath)
                                       IndicatorProcessingImage(),
                                     // InkWell
                                     Positioned.fill(
