@@ -160,170 +160,170 @@ class ImageProcessingManager {
       ".png",
     );
 
-    final int initialThumbnailIndex =
-        await MetadataHelper.readPageThumbnailIndex(
-          docIndex,
-          pageIndex,
-          gIn: g,
-          supressWarnings: true,
-        ) ??
-        g.defaultIndex;
-
-    // First process (default) Thumbnail version
-    isolateExitPoint(kill);
-    Uint8List thumbnailVersionBytes = warpedBytes;
-    Uint8List? processed2Bytes;
-    switch (initialThumbnailIndex) {
-      case 2:
-        // Contrast
-        isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImageContrast(
-          ParamsProcessImage1(warpedBytes),
-        );
-        break;
-      case 3:
-        // Document
-        isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImageDocument(
-          ParamsProcessImage1(warpedBytes),
-        );
-        break;
-      case 4:
-        // PRO
-        isolateExitPoint(kill);
-        processed2Bytes = thumbnailVersionBytes = await cvHelper
-            .processImagePro(
-              ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-            );
-        break;
-      case 5:
-        isolateExitPoint(kill);
-        thumbnailVersionBytes = await cvHelper.processImagePro(
-          ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-        );
-        // PRO 2
-        isolateExitPoint(kill);
-        Uint8List processed3Bytes = await cvHelper.processImagePro2(
-          ParamsProcessImage3(warpedBytes, thumbnailVersionBytes),
-        );
-        await g.filesHelper.savePageVersion(
-          docIndex,
-          pageIndex,
-          5,
-          processed3Bytes,
-          ".png",
-        );
-        break;
-    }
-    isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      initialThumbnailIndex == 5 ? 4 : initialThumbnailIndex,
-      thumbnailVersionBytes,
-      ".png",
-    );
-
+    //final int initialThumbnailIndex =
+    //    await MetadataHelper.readPageThumbnailIndex(
+    //      docIndex,
+    //      pageIndex,
+    //      gIn: g,
+    //      supressWarnings: true,
+    //    ) ??
+    //    g.defaultIndex;
+    //
+    //// First process (default) Thumbnail version
+    //isolateExitPoint(kill);
+    //Uint8List thumbnailVersionBytes = warpedBytes;
+    //Uint8List? processed2Bytes;
+    //switch (initialThumbnailIndex) {
+    //  case 2:
+    //    // Contrast
+    //    isolateExitPoint(kill);
+    //    thumbnailVersionBytes = await cvHelper.processImageContrast(
+    //      ParamsProcessImage1(warpedBytes),
+    //    );
+    //    break;
+    //  case 3:
+    //    // Document
+    //    isolateExitPoint(kill);
+    //    thumbnailVersionBytes = await cvHelper.processImageDocument(
+    //      ParamsProcessImage1(warpedBytes),
+    //    );
+    //    break;
+    //  case 4:
+    //    // PRO
+    //    isolateExitPoint(kill);
+    //    processed2Bytes = thumbnailVersionBytes = await cvHelper
+    //        .processImagePro(
+    //          ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+    //        );
+    //    break;
+    //  case 5:
+    //    isolateExitPoint(kill);
+    //    thumbnailVersionBytes = await cvHelper.processImagePro(
+    //      ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+    //    );
+    //    // PRO 2
+    //    isolateExitPoint(kill);
+    //    Uint8List processed3Bytes = await cvHelper.processImagePro2(
+    //      ParamsProcessImage3(warpedBytes, thumbnailVersionBytes),
+    //    );
+    //    await g.filesHelper.savePageVersion(
+    //      docIndex,
+    //      pageIndex,
+    //      5,
+    //      processed3Bytes,
+    //      ".png",
+    //    );
+    //    break;
+    //}
+    //isolateExitPoint(kill);
+    //await g.filesHelper.savePageVersion(
+    //  docIndex,
+    //  pageIndex,
+    //  initialThumbnailIndex == 5 ? 4 : initialThumbnailIndex,
+    //  thumbnailVersionBytes,
+    //  ".png",
+    //);
+    //
     // Update thumbnails:
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
 
-    // Kontrast
-    isolateExitPoint(kill);
-    if (initialThumbnailIndex != 2) {
-      Uint8List contrastBytes = await cvHelper.processImageContrast(
-        ParamsProcessImage1(warpedBytes),
-      );
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        2,
-        contrastBytes,
-        ".png",
-      );
-    }
+    //// Kontrast
+    //isolateExitPoint(kill);
+    //if (initialThumbnailIndex != 2) {
+    //  Uint8List contrastBytes = await cvHelper.processImageContrast(
+    //    ParamsProcessImage1(warpedBytes),
+    //  );
+    //  isolateExitPoint(kill);
+    //  await g.filesHelper.savePageVersion(
+    //    docIndex,
+    //    pageIndex,
+    //    2,
+    //    contrastBytes,
+    //    ".png",
+    //  );
+    //}
+    //
+    //// Dokument
+    //isolateExitPoint(kill);
+    //if (initialThumbnailIndex != 3) {
+    //  Uint8List processed1Bytes = await cvHelper.processImageDocument(
+    //    ParamsProcessImage1(warpedBytes),
+    //  );
+    //  isolateExitPoint(kill);
+    //  await g.filesHelper.savePageVersion(
+    //    docIndex,
+    //    pageIndex,
+    //    3,
+    //    processed1Bytes,
+    //    ".png",
+    //  );
+    //}
+    //
+    //// PRO
+    //isolateExitPoint(kill);
+    //if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
+    //  processed2Bytes = await cvHelper.processImagePro(
+    //    ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+    //  );
+    //  isolateExitPoint(kill);
+    //  await g.filesHelper.savePageVersion(
+    //    docIndex,
+    //    pageIndex,
+    //    4,
+    //    processed2Bytes,
+    //    ".png",
+    //  );
+    //}
+    //
+    //// PRO 2
+    //isolateExitPoint(kill);
+    //if (initialThumbnailIndex != 5) {
+    //  Uint8List processed3Bytes = await cvHelper.processImagePro2(
+    //    ParamsProcessImage3(warpedBytes, processed2Bytes!),
+    //  );
+    //  isolateExitPoint(kill);
+    //  await g.filesHelper.savePageVersion(
+    //    docIndex,
+    //    pageIndex,
+    //    5,
+    //    processed3Bytes,
+    //    ".png",
+    //  );
+    //}
 
-    // Dokument
-    isolateExitPoint(kill);
-    if (initialThumbnailIndex != 3) {
-      Uint8List processed1Bytes = await cvHelper.processImageDocument(
-        ParamsProcessImage1(warpedBytes),
-      );
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        3,
-        processed1Bytes,
-        ".png",
-      );
-    }
-
-    // PRO
-    isolateExitPoint(kill);
-    if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-      processed2Bytes = await cvHelper.processImagePro(
-        ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-      );
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        4,
-        processed2Bytes,
-        ".png",
-      );
-    }
-
-    // PRO 2
-    isolateExitPoint(kill);
-    if (initialThumbnailIndex != 5) {
-      Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        ParamsProcessImage3(warpedBytes, processed2Bytes!),
-      );
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        5,
-        processed3Bytes,
-        ".png",
-      );
-    }
-
-    // Scale Thumbnail
-    isolateExitPoint(kill);
-    int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      gIn: g,
-      supressWarnings: true,
-    );
-
-    isolateExitPoint(kill);
-    bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      thumbnailIndex,
-      g,
-      overwrite: !isInitial,
-    );
-
-    if (newThumbnail && thumbnailIndex == null) {
-      isolateExitPoint(kill);
-      await MetadataHelper.writePageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        thumbnailIndex ?? g.defaultIndex,
-        gIn: g,
-        supressWarnings: true,
-      );
-    }
-
-    Isolate.exit(sendPort, "done");
+    //// Scale Thumbnail
+    //isolateExitPoint(kill);
+    //int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+    //  docIndex,
+    //  pageIndex,
+    //  gIn: g,
+    //  supressWarnings: true,
+    //);
+    //
+    //isolateExitPoint(kill);
+    //bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
+    //  sendPort,
+    //  kill,
+    //  docIndex,
+    //  pageIndex,
+    //  thumbnailIndex,
+    //  g,
+    //  overwrite: !isInitial,
+    //);
+    //
+    //if (newThumbnail && thumbnailIndex == null) {
+    //  isolateExitPoint(kill);
+    //  await MetadataHelper.writePageThumbnailIndex(
+    //    docIndex,
+    //    pageIndex,
+    //    thumbnailIndex ?? g.defaultIndex,
+    //    gIn: g,
+    //    supressWarnings: true,
+    //  );
+    //}
+    //
+    //Isolate.exit(sendPort, "done");
   }
 
   static void isolateExitPoint(final bool kill) {
