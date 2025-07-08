@@ -332,92 +332,6 @@ class ImageProcessingManager {
     }
   }
 
-  static void _processPdfPageIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      int docIndex,
-      int pageIndex,
-      Uint8List pngBytes,
-      AppGlobals g,
-    )
-    data,
-  ) async {
-    SendPort? sendPort = data.$1;
-    // Control Port for exiting gracefully
-    final controlPort = ReceivePort();
-    sendPort.send(controlPort.sendPort);
-    bool kill = false;
-    controlPort.listen((msg) {
-      if (msg == "kill") {
-        kill = true;
-      }
-    });
-
-    RootIsolateToken token = data.$2;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    Uint8List pngBytes = data.$5;
-    AppGlobals g = data.$6;
-
-    // Thumbnail
-    isolateExitPoint(kill);
-    await MetadataHelper.writePageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      0,
-      gIn: g,
-      supressWarnings: true,
-    );
-
-    // Save Photo
-    isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      pngBytes,
-      ".png",
-    );
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
-
-    // Generate Metadata
-    isolateExitPoint(kill);
-    final imgInfo = AppGlobals.getPngInfo(pngBytes);
-    if (imgInfo == null) {
-      throw StateError("Error, processPdfPage: can't decode Image.");
-    }
-    OpenCVHelper cvHelper = OpenCVHelper(g);
-    isolateExitPoint(kill);
-    final matchingValue = cvHelper.matchAspectRatioAndOrientation(
-      imgInfo.height / imgInfo.width,
-    );
-    double ratioValueIn = matchingValue;
-
-    // Write Metadata
-    isolateExitPoint(kill);
-    await MetadataHelper.writePageProcessingMetadata(
-      docIndex,
-      pageIndex,
-      ratioValueIn,
-      null,
-      gIn: g,
-    );
-
-    isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      0,
-      g,
-    );
-
-    Isolate.exit(sendPort, "done");
-  }
-
   Future<void> _processPageWrapper(
     int docIndex,
     int pageIndex,
@@ -1302,7 +1216,7 @@ class ImageProcessingManager {
       docIndex = newDoc.$1;
       firstPageIndex = newDoc.$2;
     }
-    pdfProcessingFutures[docIndex] = _savePdfAsPages(
+    pdfProcessingFutures[docIndex] = _convertPdfToPages(
       firstPageIndex,
       pageCount,
       doc,
@@ -1330,7 +1244,7 @@ class ImageProcessingManager {
     return false;
   }
 
-  Future<void> _savePdfAsPages(
+  Future<void> _convertPdfToPages(
     int firstPageIndex,
     int pageCount,
     pdfr.PdfDocument doc,
@@ -1341,9 +1255,7 @@ class ImageProcessingManager {
     List<Future> futures = [];
     for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       if (await _pdfProcessingExitpoint(docIndex, pageIndex: pageIndex)) return;
-      futures.add(
-        _savePdfAsPageAsync(doc, docIndex, pageIndex, firstPageIndex),
-      );
+      futures.add(_convertPdfToPage(doc, docIndex, pageIndex, firstPageIndex));
     }
     // Cleanup
     await Future.wait(futures);
@@ -1354,7 +1266,7 @@ class ImageProcessingManager {
     });
   }
 
-  Future<void> _savePdfAsPageAsync(
+  Future<void> _convertPdfToPage(
     pdfr.PdfDocument doc,
     int docIndex,
     int pageIndex,
@@ -1397,10 +1309,10 @@ class ImageProcessingManager {
     )) {
       return;
     }
-    processPdfPage(docIndex, pageIndex + firstPageIndex, pngBytes);
+    _processPdfPage(docIndex, pageIndex + firstPageIndex, pngBytes);
   }
 
-  Future<void> processPdfPage(
+  Future<void> _processPdfPage(
     int docIndex,
     int pageIndex,
     Uint8List pngBytes,
@@ -1449,5 +1361,91 @@ class ImageProcessingManager {
       }
     });
     await wrapperCompleter.future;
+  }
+
+  static void _processPdfPageIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      Uint8List pngBytes,
+      AppGlobals g,
+    )
+    data,
+  ) async {
+    SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    Uint8List pngBytes = data.$5;
+    AppGlobals g = data.$6;
+
+    // Thumbnail
+    isolateExitPoint(kill);
+    await MetadataHelper.writePageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      0,
+      gIn: g,
+      supressWarnings: true,
+    );
+
+    // Save Photo
+    isolateExitPoint(kill);
+    await g.filesHelper.savePageVersion(
+      docIndex,
+      pageIndex,
+      0,
+      pngBytes,
+      ".png",
+    );
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+
+    // Generate Metadata
+    isolateExitPoint(kill);
+    final imgInfo = AppGlobals.getPngInfo(pngBytes);
+    if (imgInfo == null) {
+      throw StateError("Error, processPdfPage: can't decode Image.");
+    }
+    OpenCVHelper cvHelper = OpenCVHelper(g);
+    isolateExitPoint(kill);
+    final matchingValue = cvHelper.matchAspectRatioAndOrientation(
+      imgInfo.height / imgInfo.width,
+    );
+    double ratioValueIn = matchingValue;
+
+    // Write Metadata
+    isolateExitPoint(kill);
+    await MetadataHelper.writePageProcessingMetadata(
+      docIndex,
+      pageIndex,
+      ratioValueIn,
+      null,
+      gIn: g,
+    );
+
+    isolateExitPoint(kill);
+    await _scaleAndSaveThumbnailInIsolate(
+      sendPort,
+      kill,
+      docIndex,
+      pageIndex,
+      0,
+      g,
+    );
+
+    Isolate.exit(sendPort, "done");
   }
 }
