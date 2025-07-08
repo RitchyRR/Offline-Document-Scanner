@@ -3865,6 +3865,7 @@ class PagePreviewState extends State<PagePreview> {
           return thisProcessingIndex == _processingIndex &&
               !((polledPath.isNotEmpty && _versionPaths[i].isEmpty) ||
                   (polledPath.isNotEmpty &&
+                      File(polledPath).existsSync() &&
                       (i == 0
                           ? polledPath != _photoPath && _totalRotation == 0 ||
                                 !photoWasRotated
@@ -4755,10 +4756,11 @@ class PagePreviewState extends State<PagePreview> {
       icon: Icons.check,
       iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
       isDisabled:
+          _metadataBlocked ||
+          _isRotating ||
           _versionPaths.isEmpty ||
           _versionPaths.first.isEmpty ||
-          _metadataBlocked ||
-          _isRotating,
+          !File(_versionPaths.first).existsSync(),
       isHidden: noReprocessingChanges,
       tooltip: tr("pagePreview.editBar.confirm"),
       onTap: () async {
