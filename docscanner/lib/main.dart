@@ -2011,7 +2011,20 @@ Future<bool> buyPro() async {
   return true;
 }
 
+Future<String?> getProPrice() async {
+  ProductDetails proUpgrade;
+  try {
+    proUpgrade = products[0];
+  } catch (e) {
+    dev.log("Warning, getProPrice: proUpgrade not available: $e");
+    return null;
+  }
+  return proUpgrade.price;
+}
+
 Future<bool> proPopup(BuildContext context) async {
+  String? proPrice = await getProPrice();
+  if (!context.mounted) return false;
   bool? selectBuyPro = await showDialog<bool>(
     context: context,
     builder: (BuildContext context) {
@@ -2060,7 +2073,17 @@ Future<bool> proPopup(BuildContext context) async {
               ],
             ),
 
-            g.proUnlocked ? Text(tr("popup.pro.text")) : SizedBox(),
+            g.proUnlocked
+                ? Text(tr("popup.pro.thanksText"))
+                : Center(
+                    child: SizedBox(
+                      width: 200,
+                      child: Text(
+                        textAlign: TextAlign.center,
+                        "\n${proPrice ?? ""}\n\n${tr("popup.pro.priceText")}",
+                      ),
+                    ),
+                  ),
           ],
         ),
         actions: [
@@ -2102,7 +2125,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -4137,8 +4160,8 @@ class PagePreviewState extends State<PagePreview> {
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                bool purchased = await proPopup(context);
-                if (context.mounted) {
+                final bool purchased = await proPopup(context);
+                if (context.mounted && purchased) {
                   Navigator.pop(context, purchased);
                 }
               },
@@ -4211,7 +4234,7 @@ class PagePreviewState extends State<PagePreview> {
         : _versionPaths[_selectedVersion].isNotEmpty;
     _allowPop =
         g.proUnlocked ||
-        !g.proFilterIndexes.contains(_selectedVersion) ||
+        !g.proFilterIndexes.contains(_selectedThumbnail) ||
         _pageUnlocked;
 
     return PopScope(

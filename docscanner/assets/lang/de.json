@@ -60,7 +60,7 @@
     },
     "backPopup": {
       "title": "PRO-Filter freischalten",
-      "text": "Du hast den PRO-Filter ausgewählt und versuchst nun, diese Seite zu verlassen.\n\nUm darauf zuzugreifen, schalte zuerst die PRO-Funktionen frei.\n\nOder wähle vor dem Verlassen eine andere Version."
+      "text": "Du hast den PRO-Filter ausgewählt und versuchst nun, diese Seite zu verlassen.\n\nUm darauf zuzugreifen, schalte zuerst die PRO-Funktionen frei.\n\nOder wähle vor dem Verlassen einen anderen Filter aus."
     }
   },
   "warp": {
@@ -107,8 +107,9 @@
     "watchAd": "Werbung ansehen",
     "pro": {
       "bp1": "Mehrseitige PDFs speichern und teilen",
-      "bp2": "Zugriff auf den PRO-Filter",
-      "text": "\nVielen Dank für deine Unterstützung! :)"
+      "bp2": "Zugriff auf alle Filter",
+      "priceText": "Einmaliger Kauf, \nLebenslanger Zugriff!",
+      "thanksText": "\nVielen Dank für deine Unterstützung! :)"
     },
     "aspectRatios": {
       "title": "Seitenverhältnisse auswählen",
