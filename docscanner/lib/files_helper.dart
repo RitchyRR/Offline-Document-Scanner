@@ -1269,24 +1269,14 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          Uint8List? pngBytes;
-          if (imageFile.path.contains(versionNamesInternal[0])) {
-            pngBytes = await FlutterImageCompress.compressWithFile(
-              imagePath,
-              minWidth: imageInfos[i].width,
-              minHeight: imageInfos[i].height,
-              format: CompressFormat.png,
-              quality: 1,
-            );
-          }
-          pngBytes ??= imageFile.readAsBytesSync();
+          Uint8List pngBytes = imageFile.readAsBytesSync();
           pdfDoc.addPage(
             pdfw.Page(
               pageFormat: pageFormats[i],
               build: (pdfw.Context context) {
                 return pdfw.Center(
                   child: pdfw.Image(
-                    pdfw.MemoryImage(pngBytes!),
+                    pdfw.MemoryImage(pngBytes),
                     fit: pdfw.BoxFit.contain,
                   ),
                 );

@@ -6725,12 +6725,11 @@ Future<bool> _pagesPopup(
     );
   }
 
-  String fileSize = "";
-  //await g.filesHelper.getImagesFilesize(
-  //  docIndex,
-  //  pageIndexes: pageIndexes,
-  //  versionIndex: versionIndex,
-  //);
+  String fileSize = await g.filesHelper.getImagesFilesize(
+    docIndex,
+    pageIndexes: pageIndexes,
+    versionIndex: versionIndex,
+  );
 
   await showDialog(
     // ignore: use_build_context_synchronously
