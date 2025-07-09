@@ -11,7 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart'
 import 'package:url_launcher/url_launcher.dart' show canLaunchUrl, launchUrl;
 import 'package:crypto/crypto.dart';
 
-enum FeedbackState { init, afterFirstExport, afterFirstProcessing, hidden }
+enum FeedbackState {
+  init,
+  afterFirstExport,
+  afterFirstProcessing,
+  hidden,
+  mail,
+}
 
 class FeedbackHelper {
   FeedbackState state = FeedbackState.init;
@@ -35,6 +41,9 @@ class FeedbackHelper {
       case "hidden":
         state = FeedbackState.hidden;
         break;
+      case "mail":
+        state = FeedbackState.mail;
+        break;
       default:
         state = FeedbackState.init;
     }
@@ -47,6 +56,10 @@ class FeedbackHelper {
 
   bool isHidden() {
     return state == FeedbackState.hidden;
+  }
+
+  bool onlyMail() {
+    return state == FeedbackState.mail;
   }
 
   bool canShowExportPopup() {
@@ -73,13 +86,16 @@ class FeedbackHelper {
         state == FeedbackState.afterFirstProcessing;
   }
 
-  Future<void> _writeRating(int newRating) async {
+  Future<void> _writeRating(final int newRating) async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt("rating", newRating);
     String now = DateTime.now().toIso8601String();
     prefs.setString("ratingDate", now);
-    state = FeedbackState.hidden;
-
+    if (newRating == 5) {
+      state = FeedbackState.mail;
+    } else {
+      state = FeedbackState.hidden;
+    }
     _writeFeedbackState();
   }
 
@@ -109,6 +125,10 @@ class FeedbackHelper {
   }
 
   Future<void> showRatingDialog(BuildContext context) async {
+    if (state == FeedbackState.mail) {
+      _showFeedbackDialog(context, null);
+      return;
+    }
     int rating = 0;
     await showDialog(
       context: context,
@@ -162,7 +182,7 @@ class FeedbackHelper {
     );
   }
 
-  void _showFeedbackDialog(BuildContext context, int rating) {
+  void _showFeedbackDialog(BuildContext context, int? rating) {
     final TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
@@ -201,11 +221,14 @@ class FeedbackHelper {
     );
   }
 
-  Future<void> _sendFeedbackByEmail(String message, int rating) async {
+  Future<void> _sendFeedbackByEmail(String message, int? rating) async {
     final String subject = Uri.encodeComponent("App Feedback");
+    final String ratingText = (rating != null
+        ? "User rating:\n\n"
+              "$rating/5\n\n"
+        : "");
     final String body = Uri.encodeComponent(
-      "User rating:\n\n"
-      "$rating/5\n\n"
+      "$ratingText"
       "User feedback:\n\n"
       "$message\n\n",
     );

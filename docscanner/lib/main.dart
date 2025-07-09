@@ -989,7 +989,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     children: [
                       SizedBox(width: 8),
                       Icon(
-                        Icons.star_half,
+                        feedbackHelper.onlyMail()
+                            ? Icons.mail
+                            : Icons.star_half,
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                       SizedBox(width: 10),
