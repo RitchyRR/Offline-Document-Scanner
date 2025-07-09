@@ -4,8 +4,9 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:developer' as dev;
+import 'dart:ui' as ui show PlatformDispatcher;
 
-import 'package:easy_localization/easy_localization.dart' show tr;
+import 'package:easy_localization/easy_localization.dart' show tr, NumberFormat;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
@@ -320,7 +321,7 @@ class FilesHelper {
           minWidth: imgInfo!.width,
           minHeight: imgInfo.height,
           format: CompressFormat.png,
-          quality: 100,
+          quality: 1,
         );
     // Save
     File(versionPath).writeAsBytesSync(compressedPngBytes);
@@ -1268,15 +1269,17 @@ class FilesHelper {
       for (var (i, imagePath) in imagePaths.indexed) {
         final imageFile = File(imagePath);
         if (await imageFile.exists()) {
-          final Uint8List? pngBytes =
-              await FlutterImageCompress.compressWithFile(
-                imagePath,
-                minWidth: imageInfos[i].width,
-                minHeight: imageInfos[i].height,
-                format: CompressFormat.png,
-                quality: 100,
-              );
-
+          Uint8List? pngBytes;
+          if (imageFile.path.contains(versionNamesInternal[0])) {
+            pngBytes = await FlutterImageCompress.compressWithFile(
+              imagePath,
+              minWidth: imageInfos[i].width,
+              minHeight: imageInfos[i].height,
+              format: CompressFormat.png,
+              quality: 1,
+            );
+          }
+          pngBytes ??= imageFile.readAsBytesSync();
           pdfDoc.addPage(
             pdfw.Page(
               pageFormat: pageFormats[i],
@@ -1299,7 +1302,7 @@ class FilesHelper {
     }
   }
 
-  Future<void> pickFolderForSavingPdf(
+  Future<void> savePdfToDirectoy(
     int docIndex,
     BuildContext context, {
     List<int> pageIndexes = const [],
@@ -1361,11 +1364,13 @@ class FilesHelper {
           );
         } catch (e) {
           dev.log("Error, pickFolderForDocumentPdf: $e");
+          messenger?.hideCurrentSnackBar();
           isTmpExternal = false;
           throw StateError("Error, pickFolderForDocumentPdf: $e");
         }
         if (pdfPath == null) {
           dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
+          messenger?.hideCurrentSnackBar();
           isTmpExternal = false;
           return;
         }
@@ -1377,11 +1382,11 @@ class FilesHelper {
         isTmpExternal = false;
         return;
       }
+      messenger?.hideCurrentSnackBar();
       Future.delayed(Duration(seconds: 1), () {
         isTmpExternal = false;
       });
 
-      messenger?.hideCurrentSnackBar();
       // Saved Toast
       const String basePath = "/document/primary:";
       final int filenamePos = pdfPath.lastIndexOf("/");
@@ -1396,6 +1401,58 @@ class FilesHelper {
     } catch (e) {
       throw StateError("Error, pickFolderForDocumentPdf: $e");
     }
+  }
+
+  Future<String> getImagesFilesize(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    int? versionIndex,
+  }) async {
+    List<String> imagePaths;
+    if (pageIndexes.length == 1 && versionIndex != null) {
+      imagePaths = [
+        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
+      ];
+    } else {
+      imagePaths = (await getPagesThumbnails(
+        docIndex,
+        pageIndexes: pageIndexes,
+        fullSized: true,
+      )).$1;
+    }
+    if (imagePaths.isEmpty) {
+      throw StateError("Error, shareImages: No images in Document $docIndex");
+    }
+    int bytes = 0;
+    for (var imagePath in imagePaths) {
+      bytes += File(imagePath).lengthSync();
+    }
+    return "(${formatBytes(bytes)})";
+  }
+
+  String formatBytes(int bytes, [int decimals = 2]) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB", "TB"];
+    double size = bytes.toDouble();
+    final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+
+    for (int i = 0; i < suffixes.length; i++) {
+      double nextSize = size / 1024;
+      if (nextSize < 1) {
+        final formatter = NumberFormat.decimalPatternDigits(
+          locale: deviceLocale.toString(),
+          decimalDigits: decimals,
+        );
+        // \u{202F} = Narrow no-break space, \u{u00A0} = No-break space
+        return "${formatter.format(size)}\u{202F}${suffixes[i]}";
+      }
+      size = nextSize;
+    }
+    final formatter = NumberFormat.decimalPatternDigits(
+      locale: deviceLocale.toString(),
+      decimalDigits: decimals,
+    );
+    return "${formatter.format(size)}\u{202F}TB";
   }
 
   Future<void> shareDocumentImages(BuildContext context, int docIndex) async {
@@ -1445,7 +1502,7 @@ class FilesHelper {
     await SharePlus.instance.share(ShareParams(files: xFiles));
   }
 
-  Future<void> shareImagesPdf(
+  Future<void> sharePdf(
     BuildContext context,
     int docIndex, {
     List<int> pageIndexes = const [],

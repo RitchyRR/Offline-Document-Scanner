@@ -2125,7 +2125,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -6725,6 +6725,13 @@ Future<bool> _pagesPopup(
     );
   }
 
+  String fileSize = "";
+  //await g.filesHelper.getImagesFilesize(
+  //  docIndex,
+  //  pageIndexes: pageIndexes,
+  //  versionIndex: versionIndex,
+  //);
+
   await showDialog(
     // ignore: use_build_context_synchronously
     context: callContext,
@@ -7023,7 +7030,7 @@ Future<bool> _pagesPopup(
                                           : null,
 
                                       icon: Icon(Icons.image),
-                                      label: Text(buttonTextImage!),
+                                      label: Text("$buttonTextImage $fileSize"),
                                     ),
                                   ),
 
@@ -7095,7 +7102,7 @@ Future<bool> _pagesPopup(
                                                       case PopUpType.share:
                                                         afterExport = g
                                                             .filesHelper
-                                                            .shareImagesPdf(
+                                                            .sharePdf(
                                                               context,
                                                               docIndex,
                                                               pageIndexes:
@@ -7107,7 +7114,7 @@ Future<bool> _pagesPopup(
                                                       case PopUpType.save:
                                                         afterExport = g
                                                             .filesHelper
-                                                            .pickFolderForSavingPdf(
+                                                            .savePdfToDirectoy(
                                                               docIndex,
                                                               context,
                                                               pageIndexes:
@@ -7145,7 +7152,9 @@ Future<bool> _pagesPopup(
                                                 : null,
 
                                             icon: Icon(Icons.picture_as_pdf),
-                                            label: Text(buttonTextPdf!),
+                                            label: Text(
+                                              "$buttonTextPdf $fileSize",
+                                            ),
                                           ),
                                         ),
                                         (g.proUnlocked ||
