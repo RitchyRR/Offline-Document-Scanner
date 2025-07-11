@@ -7373,8 +7373,8 @@ class _DpiDropdownState extends State<DpiDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    final List<int> allCommonDpis = [600, 400, 300, 150, 75];
-    final List<int> filteredDpis = allCommonDpis
+    final List<int> commonDpis = [600, 400, 300, 150, 75];
+    final List<int> lowerDpis = commonDpis
         .where((dpi) => widget.pagesDpis.any((pageDpi) => pageDpi >= dpi))
         .toList();
 
@@ -7395,33 +7395,42 @@ class _DpiDropdownState extends State<DpiDropdown> {
           isDense: true,
           isExpanded: false,
           alignment: Alignment.centerRight,
-          //icon: const SizedBox.shrink(),
+          //icon: const SizedBox.shrink(), // to hide drop-down-arrow
           value: selectedIndex,
-          items: List.generate(filteredDpis.length + 1, (i) {
-            String dpiText;
+          items: List.generate(lowerDpis.length + 1, (i) {
+            String dpiString;
             String fileSizeString;
+            String menuEntryString;
 
             if (i == 0) {
-              dpiText = widget.pagesDpis.isEmpty
-                  ? "Full: --- DPI"
+              dpiString = widget.pagesDpis.isEmpty
+                  ? "--- DPI"
                   : widget.pagesDpis.length == 1
-                  ? "Full: ${widget.pagesDpis.first} DPI"
-                  : "Full: Ø ${widget.pagesDpis.average.toInt()} DPI";
+                  ? "${widget.pagesDpis.first} DPI"
+                  : "Ø ${widget.pagesDpis.average.toInt()} DPI";
 
               fileSizeString = widget.imagesFilesizes.isEmpty
                   ? "--- MB"
                   : g.filesHelper.formatBytes(widget.imagesFilesizes.sum);
+
+              menuEntryString = tr(
+                "popup.pagesPopup.compress.full",
+                namedArgs: {
+                  "dpiString": dpiString,
+                  "fileSizeString": fileSizeString,
+                },
+              );
             } else {
-              final int filteredDpi = filteredDpis[i - 1];
+              final int lowerDpi = lowerDpis[i - 1];
               double estimatedBytes = 0;
 
               for (int i = 0; i < widget.imagesFilesizes.length; i++) {
                 final int originalSize = widget.imagesFilesizes[i];
                 final int originalDpi = widget.pagesDpis[i];
 
-                if (originalDpi > filteredDpi) {
+                if (originalDpi > lowerDpi) {
                   double ratio =
-                      (filteredDpi / originalDpi) +
+                      (lowerDpi / originalDpi) +
                       0.075; // 0.075 is a correction from testing file sizes
                   estimatedBytes += originalSize * ratio * ratio;
                 } else {
@@ -7429,16 +7438,24 @@ class _DpiDropdownState extends State<DpiDropdown> {
                 }
               }
 
-              dpiText = "Limit to $filteredDpi DPI";
+              dpiString = "$lowerDpi DPI";
               fileSizeString =
                   "~${g.filesHelper.formatBytes(estimatedBytes.toInt())}";
+
+              menuEntryString = tr(
+                "popup.pagesPopup.compress.limit",
+                namedArgs: {
+                  "dpiString": dpiString,
+                  "fileSizeString": fileSizeString,
+                },
+              );
             }
 
             return DropdownMenuItem(
               alignment: Alignment.centerRight,
               value: i,
               child: Text(
-                "$dpiText ($fileSizeString)",
+                menuEntryString,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -7456,7 +7473,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                   // Return selectedDPI to where Widget is used
                   final selectedDpi = newIndex == 0
                       ? null
-                      : filteredDpis[newIndex! - 1];
+                      : lowerDpis[newIndex! - 1];
                   widget.onChanged(selectedDpi);
                 },
         ),

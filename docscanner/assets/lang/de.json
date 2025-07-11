@@ -177,6 +177,10 @@
           "text": "Möchtest du diese Seite wirklich dauerhaft löschen?"
         }
       },
+      "compress": {
+        "full": "Voll: {dpiString} ({fileSizeString})",
+        "limit": "{dpiString} ({fileSizeString})"
+      },
       "deleteButton": "Löschen"
     }
   },

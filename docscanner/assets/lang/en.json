@@ -176,6 +176,10 @@
           "text": "Are you sure you want to \npermanently delete this Page?"
         }
       },
+      "compress": {
+        "full": "Full: {dpiString} ({fileSizeString})",
+        "limit": "{dpiString} ({fileSizeString})"
+      },
       "deleteButton": "Delete"
     }
   },
