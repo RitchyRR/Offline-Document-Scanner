@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:docscanner/main.dart' show globalNotifier;
+import 'package:docscanner/main.dart'
+    show globalNotifier, imageProcessingManager;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 // my packages:
@@ -216,10 +217,15 @@ class MetadataHelper {
         await writePageUnlocked(docIndex, pageIndex, false);
         globalNotifier.triggerEvent(NotifierEvent.setState);
       });
-    } else {
+    } else if (!g.proUnlocked) {
+      // Change Thumbnail back to non PRO filter
       final currentIndex = await readPageThumbnailIndex(docIndex, pageIndex);
       if (g.proFilterIndexes.contains(currentIndex)) {
-        writePageThumbnailIndex(docIndex, pageIndex, g.defaultIndex);
+        imageProcessingManager.saveNewThumbnail(
+          docIndex,
+          pageIndex,
+          g.defaultIndex,
+        );
       }
     }
   }
