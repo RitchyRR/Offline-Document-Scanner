@@ -7032,6 +7032,7 @@ Future<bool> _pagesPopup(
                                                             pageIndexes,
                                                         versionIndex:
                                                             versionIndex,
+                                                        maxDpi: selectedDpi,
                                                       );
                                                   break;
                                                 default:
@@ -7139,6 +7140,8 @@ Future<bool> _pagesPopup(
                                                                   pageIndexes,
                                                               versionIndex:
                                                                   versionIndex,
+                                                              maxDpi:
+                                                                  selectedDpi,
                                                             );
                                                         break;
                                                       case PopUpType.save:
@@ -7151,6 +7154,8 @@ Future<bool> _pagesPopup(
                                                                   pageIndexes,
                                                               versionIndex:
                                                                   versionIndex,
+                                                              maxDpi:
+                                                                  selectedDpi,
                                                             );
                                                         break;
                                                       default:

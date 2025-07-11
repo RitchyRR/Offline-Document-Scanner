@@ -1104,12 +1104,41 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    int? maxDpi,
   }) async {
     List<String> imagePaths = await _getImagePaths(
       pageIndexes,
       versionIndex,
       docIndex,
     );
+
+    // DPI Scaling
+    if (maxDpi != null) {
+      List<int> pagesDpis;
+      double widthInInches;
+      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
+        docIndex,
+        pageIndexes: pageIndexes,
+        versionIndex: versionIndex,
+      );
+      for (var (pageIndex, dpi) in pagesDpis.indexed) {
+        if (dpi > maxDpi) {
+          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+          );
+          final String scaledImagePath = await imageProcessingManager
+              .scaleImageToDpi(
+                docIndex,
+                pageIndex,
+                versionIndex!,
+                maxDpi,
+                widthInInches,
+              );
+          imagePaths[pageIndex] = scaledImagePath;
+        }
+      }
+    }
 
     final albumName = "Scanned Documents";
     for (var (pageIndex, imagePath) in imagePaths.indexed) {
@@ -1127,6 +1156,11 @@ class FilesHelper {
         msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
       );
       await renamedFile.delete();
+    }
+
+    // DPI Scaling Delete
+    if (maxDpi != null) {
+      deleteCachedScaledImages();
     }
   }
 
@@ -1239,12 +1273,41 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    int? maxDpi,
   }) async {
     List<String> imagePaths = await _getImagePaths(
       pageIndexes,
       versionIndex,
       docIndex,
     );
+
+    // DPI Scaling
+    if (maxDpi != null) {
+      List<int> pagesDpis;
+      double widthInInches;
+      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
+        docIndex,
+        pageIndexes: pageIndexes,
+        versionIndex: versionIndex,
+      );
+      for (var (pageIndex, dpi) in pagesDpis.indexed) {
+        if (dpi > maxDpi) {
+          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+          );
+          final String scaledImagePath = await imageProcessingManager
+              .scaleImageToDpi(
+                docIndex,
+                pageIndex,
+                versionIndex!,
+                maxDpi,
+                widthInInches,
+              );
+          imagePaths[pageIndex] = scaledImagePath;
+        }
+      }
+    }
 
     // Page Formats (Aspect Ratio, physical Size etc.)
     List<double?> ratioValues = [];
@@ -1316,8 +1379,17 @@ class FilesHelper {
         }
       }
 
+      // DPI Scaling Delete
+      if (maxDpi != null) {
+        deleteCachedScaledImages();
+      }
+
       return pdfDoc;
     } catch (e) {
+      // DPI Scaling Delete
+      if (maxDpi != null) {
+        deleteCachedScaledImages();
+      }
       throw StateError("Error, _convertImagesToPdf: $e");
     }
   }
@@ -1352,6 +1424,7 @@ class FilesHelper {
     BuildContext context, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    int? maxDpi,
   }) async {
     if (isTmpExternal) return;
 
@@ -1395,6 +1468,7 @@ class FilesHelper {
         docIndex,
         pageIndexes: pageIndexes,
         versionIndex: versionIndex,
+        maxDpi: maxDpi,
       );
       // Ask user to pick a folder
       isTmpExternal = true;
@@ -1522,6 +1596,7 @@ class FilesHelper {
       docIndex,
     );
 
+    // DPI Scaling
     if (maxDpi != null) {
       List<int> pagesDpis;
       double widthInInches;
@@ -1550,12 +1625,24 @@ class FilesHelper {
     }
 
     List<XFile> xFiles = [];
-    for (var imagePath in imagePaths) {
-      xFiles.add(XFile(imagePath));
+    for (var (pageIndex, imagePath) in imagePaths.indexed) {
+      final extension = imagePath.split(".").last;
+      final newName = await _generateFileName(
+        docIndex,
+        [pageIndex],
+        versionIndex,
+        ".$extension",
+      );
+      final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
+      await File(imagePath).copy(renamedPath);
+      xFiles.add(XFile(renamedPath));
     }
 
     await SharePlus.instance.share(ShareParams(files: xFiles));
-
+    for (var renamedFile in xFiles) {
+      File(renamedFile.path).delete();
+    }
+    // DPI Scaling Delete
     if (maxDpi != null) {
       deleteCachedScaledImages();
     }
@@ -1576,6 +1663,7 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    int? maxDpi,
   }) async {
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -1617,6 +1705,7 @@ class FilesHelper {
       docIndex,
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
+      maxDpi: maxDpi,
     );
 
     // Isolate
