@@ -177,7 +177,7 @@
           "text": "Möchtest du diese Seite wirklich dauerhaft löschen?"
         }
       },
-      "compress": {
+      "dpi": {
         "full": "Voll: {dpiString} ({fileSizeString})",
         "limit": "{dpiString} ({fileSizeString})"
       },

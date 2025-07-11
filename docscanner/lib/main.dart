@@ -7414,7 +7414,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                   : g.filesHelper.formatBytes(widget.imagesFilesizes.sum);
 
               menuEntryString = tr(
-                "popup.pagesPopup.compress.full",
+                "popup.pagesPopup.dpi.full",
                 namedArgs: {
                   "dpiString": dpiString,
                   "fileSizeString": fileSizeString,
@@ -7443,7 +7443,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                   "~${g.filesHelper.formatBytes(estimatedBytes.toInt())}";
 
               menuEntryString = tr(
-                "popup.pagesPopup.compress.limit",
+                "popup.pagesPopup.dpi.limit",
                 namedArgs: {
                   "dpiString": dpiString,
                   "fileSizeString": fileSizeString,

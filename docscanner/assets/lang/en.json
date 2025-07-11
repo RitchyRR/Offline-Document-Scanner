@@ -176,7 +176,7 @@
           "text": "Are you sure you want to \npermanently delete this Page?"
         }
       },
-      "compress": {
+      "dpi": {
         "full": "Full: {dpiString} ({fileSizeString})",
         "limit": "{dpiString} ({fileSizeString})"
       },
