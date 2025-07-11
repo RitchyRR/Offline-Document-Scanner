@@ -15,6 +15,8 @@ import 'package:docscanner/opencv_helper.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/metadata_helper.dart';
 import 'package:docscanner/app_globals.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 
 const List<String> versionNamesInternal = [
@@ -1095,15 +1097,28 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
     isolateExitPoint(kill);
-    Uint8List scaled = await cvHelper.scaleImageToWidth(
+    Uint8List scaledBytes;
+    int newWidth = (screenWidth * 0.927083333).toInt();
+    int newHeight;
+    (scaledBytes, newHeight) = await cvHelper.scaleImageToWidth(
       versionBytes,
-      (screenWidth * 0.927083333).toInt(),
+      newWidth,
     );
+
+    isolateExitPoint(kill);
+    final Uint8List compressedPngBytes =
+        await FlutterImageCompress.compressWithList(
+          scaledBytes,
+          minWidth: newWidth,
+          minHeight: newHeight,
+          format: CompressFormat.png,
+          quality: 1,
+        );
 
     try {
       // Save
       isolateExitPoint(kill);
-      thumbnailFile.writeAsBytesSync(scaled); //img.encodePng(resized)
+      thumbnailFile.writeAsBytesSync(compressedPngBytes);
     } catch (e) {
       throw StateError("Error, writeScaledThumbnail, write: :$e");
     }
@@ -1372,7 +1387,6 @@ class ImageProcessingManager {
     );
     taskKillers[(docIndex, pageIndex)] = killer;
 
-    //String? photoPath;
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -1384,13 +1398,9 @@ class ImageProcessingManager {
         }
       } else if (message is SendPort) {
         killer.setControlPort(message);
-      } else if (message is String) {
-        if (message == "done") {
-          wrapperCompleter.complete();
-          taskKillers.removeWhere((key, value) => value == killer);
-        } else {
-          //photoPath = message;
-        }
+      } else if (message == "done") {
+        wrapperCompleter.complete();
+        taskKillers.removeWhere((key, value) => value == killer);
       }
     });
     await wrapperCompleter.future;
@@ -1478,6 +1488,147 @@ class ImageProcessingManager {
       0,
       g,
     );
+
+    Isolate.exit(sendPort, "done");
+  }
+
+  Future<String> scaleImageToDpi(
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+    int toDPI,
+    double widthInInches,
+  ) async {
+    final tmpDir = await getTemporaryDirectory();
+    final scaledImagePath =
+        "${tmpDir.path}/scaled_${docIndex}_${pageIndex}_DPI_$toDPI.png";
+
+    final port = ReceivePort();
+    TaskKiller killer;
+    RootIsolateToken token = RootIsolateToken.instance!;
+
+    killer = await IsolatesManager().runTask(
+      _scaleImageToDpiIsolate,
+      (
+        port.sendPort,
+        token,
+        docIndex,
+        pageIndex,
+        versionIndex,
+        scaledImagePath,
+        toDPI,
+        widthInInches,
+        g,
+      ),
+      portIn: port,
+      prio: IsolatePriority.quick,
+    );
+
+    taskKillers[(docIndex, pageIndex)] = killer;
+
+    final completer = Completer<void>();
+    port.listen((message) async {
+      if (message is SendPort) {
+        killer.setControlPort(message);
+      } else if (message == "done") {
+        completer.complete();
+        taskKillers.removeWhere((key, value) => value == killer);
+      }
+    });
+    await completer.future;
+    return scaledImagePath;
+  }
+
+  static void _scaleImageToDpiIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      int versionIndex,
+      String scaledImagePath,
+      int toDpi,
+      double widthInInches,
+      AppGlobals g,
+    )
+    data,
+  ) async {
+    SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    int versionIndex = data.$5;
+
+    String scaledImagePath = data.$6;
+    int toDpi = data.$7;
+    double widthInInches = data.$8;
+
+    AppGlobals g = data.$9;
+
+    String versionPath;
+    try {
+      isolateExitPoint(kill);
+      versionPath = await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        versionIndex,
+      );
+    } catch (e) {
+      throw StateError(
+        "Error, _scaleImageIsolate, getPagePath, getVersionPath: $e",
+      );
+    }
+    File versionFile = File(versionPath);
+    if (versionPath == "" || !versionFile.existsSync()) {
+      throw StateError(
+        "Error, _scaleImageIsolate: Doc $docIndex, Page $pageIndex, Version $versionIndex does not exist.",
+      );
+    }
+
+    File scaledIamgeFile = File(scaledImagePath);
+    isolateExitPoint(kill);
+    Uint8List versionBytes = versionFile.readAsBytesSync();
+
+    isolateExitPoint(kill);
+    OpenCVHelper cvHelper = OpenCVHelper(g);
+    // Scale
+    isolateExitPoint(kill);
+    Uint8List scaledBytes;
+    int newWidth = (widthInInches * toDpi).toInt();
+    int newHeight;
+    (scaledBytes, newHeight) = await cvHelper.scaleImageToWidth(
+      versionBytes,
+      newWidth,
+    );
+
+    isolateExitPoint(kill);
+    final Uint8List compressedPngBytes =
+        await FlutterImageCompress.compressWithList(
+          scaledBytes,
+          minWidth: newWidth,
+          minHeight: newHeight,
+          format: CompressFormat.png,
+          quality: 1,
+        );
+
+    try {
+      // Save
+      isolateExitPoint(kill);
+      scaledIamgeFile.writeAsBytesSync(compressedPngBytes);
+    } catch (e) {
+      throw StateError("Error, writeScaledThumbnail, write: :$e");
+    }
 
     Isolate.exit(sendPort, "done");
   }

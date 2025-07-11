@@ -131,7 +131,10 @@ class OpenCVHelper {
     return _returnImage(mat);
   }
 
-  Future<Uint8List> scaleImageToWidth(Uint8List imageBytesIn, int newWidth) {
+  Future<(Uint8List, int)> scaleImageToWidth(
+    Uint8List imageBytesIn,
+    int newWidth,
+  ) async {
     cv.Mat mat = _loadWarped(imageBytesIn);
 
     int newHeight = (height * (newWidth / width)).toInt();
@@ -147,7 +150,7 @@ class OpenCVHelper {
       dev.log("Exception: $e");
     }
 
-    return _returnImage(scaled);
+    return ((await _returnImage(scaled)), newHeight);
   }
 
   cv.Mat _loadImage(Uint8List imageBytes) {

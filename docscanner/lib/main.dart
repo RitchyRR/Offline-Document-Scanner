@@ -1289,7 +1289,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         ).colorScheme.surfaceBright,
                                       ),
                                       // Thumbnail
-                                      if (_docThumbnails[docIndex].isNotEmpty)
+                                      if (_thumbnailRatios.length > docIndex &&
+                                          _docThumbnails[docIndex].isNotEmpty)
                                         AnimatedSwitcher(
                                           duration: Duration(milliseconds: 200),
                                           child: SizedBox.expand(
@@ -1323,7 +1324,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 .withAlpha(150),
                                           ),
                                         ),
-                                      if (_docThumbnails[docIndex].isEmpty ||
+                                      if (_thumbnailRatios.length < docIndex ||
+                                          _docThumbnails[docIndex].isEmpty ||
                                           isOldPath)
                                         IndicatorProcessingImage(),
                                       Positioned.fill(
@@ -6725,11 +6727,17 @@ Future<bool> _pagesPopup(
     );
   }
 
-  String fileSize = await g.filesHelper.getImagesFilesize(
+  List<int> imagesFilesizes = await g.filesHelper.getImagesFilesizes(
     docIndex,
     pageIndexes: pageIndexes,
     versionIndex: versionIndex,
   );
+  List<int> pagesDpis = (await g.filesHelper.getPdfPageDpis(
+    docIndex,
+    pageIndexes: pageIndexes,
+    versionIndex: versionIndex,
+  )).$1;
+  int? selectedDpi;
 
   await showDialog(
     // ignore: use_build_context_synchronously
@@ -6767,6 +6775,20 @@ Future<bool> _pagesPopup(
                 );
               });
             }
+            Future.microtask(() async {
+              imagesFilesizes = await g.filesHelper.getImagesFilesizes(
+                docIndex,
+                pageIndexes: pageIndexes,
+                versionIndex: versionIndex,
+              );
+            });
+            Future.microtask(() async {
+              pagesDpis = (await g.filesHelper.getPdfPageDpis(
+                docIndex,
+                pageIndexes: pageIndexes,
+                versionIndex: versionIndex,
+              )).$1;
+            });
           }
           String title;
           if (isDocument) {
@@ -6935,6 +6957,14 @@ Future<bool> _pagesPopup(
                           child: Text(deleteText!),
                         )
                       : SizedBox(),
+                  if (type != PopUpType.delete)
+                    DpiDropdown(
+                      pagesDpis: pagesDpis,
+                      imagesFilesizes: imagesFilesizes,
+                      onChanged: (dpi) {
+                        selectedDpi = dpi;
+                      },
+                    ),
                   SizedBox(height: 24.0),
 
                   type == PopUpType.delete
@@ -6991,6 +7021,7 @@ Future<bool> _pagesPopup(
                                                             pageIndexes,
                                                         versionIndex:
                                                             versionIndex,
+                                                        maxDpi: selectedDpi,
                                                       );
                                                   break;
                                                 case PopUpType.save:
@@ -7029,7 +7060,7 @@ Future<bool> _pagesPopup(
                                           : null,
 
                                       icon: Icon(Icons.image),
-                                      label: Text("$buttonTextImage $fileSize"),
+                                      label: Text("$buttonTextImage"),
                                     ),
                                   ),
 
@@ -7151,9 +7182,7 @@ Future<bool> _pagesPopup(
                                                 : null,
 
                                             icon: Icon(Icons.picture_as_pdf),
-                                            label: Text(
-                                              "$buttonTextPdf $fileSize",
-                                            ),
+                                            label: Text("$buttonTextPdf"),
                                           ),
                                         ),
                                         (g.proUnlocked ||
@@ -7316,6 +7345,119 @@ Future<bool> _pagesPopup(
     },
   );
   return confirmAction;
+}
+
+class DpiDropdown extends StatefulWidget {
+  final List<int> pagesDpis;
+  final List<int> imagesFilesizes;
+  final void Function(int? selectedDpi) onChanged;
+
+  const DpiDropdown({
+    super.key,
+    required this.pagesDpis,
+    required this.imagesFilesizes,
+    required this.onChanged,
+  });
+
+  @override
+  State<DpiDropdown> createState() => _DpiDropdownState();
+}
+
+class _DpiDropdownState extends State<DpiDropdown> {
+  int selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<int> allCommonDpis = [600, 400, 300, 150, 75];
+    final List<int> filteredDpis = allCommonDpis
+        .where((dpi) => widget.pagesDpis.any((pageDpi) => pageDpi >= dpi))
+        .toList();
+
+    final double height = 30;
+
+    return Container(
+      constraints: BoxConstraints(minHeight: height, maxHeight: height),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [tinyBoxShadow(context)],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(20),
+          isDense: true,
+          isExpanded: false,
+          alignment: Alignment.centerRight,
+          //icon: const SizedBox.shrink(),
+          value: selectedIndex,
+          items: List.generate(filteredDpis.length + 1, (i) {
+            String dpiText;
+            String fileSizeString;
+
+            if (i == 0) {
+              dpiText = widget.pagesDpis.isEmpty
+                  ? "Full: --- DPI"
+                  : widget.pagesDpis.length == 1
+                  ? "Full: ${widget.pagesDpis.first} DPI"
+                  : "Full: Ø ${widget.pagesDpis.average.toInt()} DPI";
+
+              fileSizeString = widget.imagesFilesizes.isEmpty
+                  ? "--- MB"
+                  : g.filesHelper.formatBytes(widget.imagesFilesizes.sum);
+            } else {
+              final int filteredDpi = filteredDpis[i - 1];
+              double estimatedBytes = 0;
+
+              for (int i = 0; i < widget.imagesFilesizes.length; i++) {
+                final int originalSize = widget.imagesFilesizes[i];
+                final int originalDpi = widget.pagesDpis[i];
+
+                if (originalDpi > filteredDpi) {
+                  double ratio =
+                      (filteredDpi / originalDpi) +
+                      0.075; // 0.075 is a correction from testing file sizes
+                  estimatedBytes += originalSize * ratio * ratio;
+                } else {
+                  estimatedBytes += originalSize;
+                }
+              }
+
+              dpiText = "Limit to $filteredDpi DPI";
+              fileSizeString =
+                  "~${g.filesHelper.formatBytes(estimatedBytes.toInt())}";
+            }
+
+            return DropdownMenuItem(
+              alignment: Alignment.centerRight,
+              value: i,
+              child: Text(
+                "$dpiText ($fileSizeString)",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            );
+          }),
+          onChanged: widget.pagesDpis.isEmpty
+              ? null
+              : (int? newIndex) {
+                  setState(() {
+                    selectedIndex = newIndex ?? 0;
+                  });
+
+                  // Return selectedDPI to where Widget is used
+                  final selectedDpi = newIndex == 0
+                      ? null
+                      : filteredDpis[newIndex! - 1];
+                  widget.onChanged(selectedDpi);
+                },
+        ),
+      ),
+    );
+  }
 }
 
 class CameraScreen extends StatefulWidget {

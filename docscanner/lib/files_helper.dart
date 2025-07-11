@@ -1105,23 +1105,11 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
-    List<String> imagePaths;
-    if (pageIndexes.length == 1 && versionIndex != null) {
-      imagePaths = [
-        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
-      ];
-    } else {
-      imagePaths = (await getPagesThumbnails(
-        docIndex,
-        pageIndexes: pageIndexes,
-        fullSized: true,
-      )).$1;
-    }
-    if (imagePaths.isEmpty) {
-      throw StateError(
-        "Error, saveImagesToGallery: No images in Document $docIndex",
-      );
-    }
+    List<String> imagePaths = await _getImagePaths(
+      pageIndexes,
+      versionIndex,
+      docIndex,
+    );
 
     final albumName = "Scanned Documents";
     for (var (pageIndex, imagePath) in imagePaths.indexed) {
@@ -1193,30 +1181,17 @@ class FilesHelper {
     return (imagePaths, messenger);
   }
 
-  Future<pdfw.Document?> _convertImagesToPdf(
+  Future<(List<int>, double)> getPdfPageDpis(
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
-    List<String> imagePaths;
-    if (pageIndexes.length == 1 && versionIndex != null) {
-      imagePaths = [
-        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
-      ];
-    } else {
-      imagePaths = (await getPagesThumbnails(
-        docIndex,
-        pageIndexes: pageIndexes,
-        fullSized: true,
-      )).$1;
-    }
-    if (imagePaths.isEmpty) {
-      throw StateError(
-        "Error, _convertImagesToPdf: No images in Document $docIndex",
-      );
-    }
+    List<String> imagePaths = await _getImagePaths(
+      pageIndexes,
+      versionIndex,
+      docIndex,
+    );
 
-    // Metadata
     List<double?> ratioValues = [];
     if (pageIndexes.isEmpty) {
       pageIndexes = List.generate(imagePaths.length, (index) => index);
@@ -1229,41 +1204,96 @@ class FilesHelper {
       );
     }
 
-    try {
-      // Select Aspect ratio
-      double width = 21.0 * pdf.PdfPageFormat.cm;
-      // 1. Get common width (shared across pages)
-      for (double? ratioValue in ratioValues) {
-        if (ratioValue == math.sqrt2) // DIN A4
-        {
-          width = 21.0 * pdf.PdfPageFormat.cm;
-          break;
-        } else if (ratioValue == 11 / 8.5 ||
-            ratioValue == 14 / 8.5) // Letter / Legal
-        {
-          width = 8.5 * pdf.PdfPageFormat.inch;
-          break;
-        }
+    // Select Aspect ratio
+    double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+    // 1. Get common width (shared across pages)
+    for (double? ratioValue in ratioValues) {
+      if (ratioValue == math.sqrt2) // DIN A4
+      {
+        physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+        break;
+      } else if (ratioValue == 11 / 8.5 ||
+          ratioValue == 14 / 8.5) // Letter / Legal
+      {
+        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
+        break;
       }
-      // Image Info
-      List<DecodeInfo> imageInfos = [];
-      for (var path in imagePaths) {
+    }
+    double widthInInches = (physicalWidth / pdf.PdfPageFormat.inch);
+    // Image Info
+    List<DecodeInfo> imageInfos = [];
+    for (var path in imagePaths) {
+      if (path.isNotEmpty) {
         imageInfos.add((await AppGlobals.getImageInfo(path))!);
       }
-      // 2. Set correct aspect ratio
-      List<pdf.PdfPageFormat> pageFormats = [];
-      for (var (i, ratioValue) in ratioValues.indexed) {
-        late double height;
-        if (versionIndex == 0) {
-          double photoRatio =
-              imageInfos[i].height.toDouble() / imageInfos[i].width.toDouble();
-          height = width * photoRatio;
-        } else {
-          height = width * (ratioValue ?? math.sqrt2);
-        }
-        pageFormats.add(pdf.PdfPageFormat(width, height));
-      }
+    }
 
+    List<int> dpis = [];
+    for (var info in imageInfos) {
+      dpis.add((info.width / widthInInches).toInt());
+    }
+    return (dpis, widthInInches);
+  }
+
+  Future<pdfw.Document?> _convertImagesToPdf(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    int? versionIndex,
+  }) async {
+    List<String> imagePaths = await _getImagePaths(
+      pageIndexes,
+      versionIndex,
+      docIndex,
+    );
+
+    // Page Formats (Aspect Ratio, physical Size etc.)
+    List<double?> ratioValues = [];
+    if (pageIndexes.isEmpty) {
+      pageIndexes = List.generate(imagePaths.length, (index) => index);
+    }
+
+    for (var pageIndex in pageIndexes) {
+      ratioValues.add(
+        await MetadataHelper.readPageRatioValue(docIndex, pageIndex) ??
+            math.sqrt2,
+      );
+    }
+
+    // Select Aspect ratio
+    double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+    // 1. Get common width (shared across pages)
+    for (double? ratioValue in ratioValues) {
+      if (ratioValue == math.sqrt2) // DIN A4
+      {
+        physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+        break;
+      } else if (ratioValue == 11 / 8.5 ||
+          ratioValue == 14 / 8.5) // Letter / Legal
+      {
+        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
+        break;
+      }
+    }
+    // Image Info
+    List<DecodeInfo> imageInfos = [];
+    for (var path in imagePaths) {
+      imageInfos.add((await AppGlobals.getImageInfo(path))!);
+    }
+    // 2. Set correct aspect ratio
+    List<pdf.PdfPageFormat> pageFormats = [];
+    for (var (i, ratioValue) in ratioValues.indexed) {
+      late double physicalHeight;
+      if (versionIndex == 0) {
+        double photoRatio =
+            imageInfos[i].height.toDouble() / imageInfos[i].width.toDouble();
+        physicalHeight = physicalWidth * photoRatio;
+      } else {
+        physicalHeight = physicalWidth * (ratioValue ?? math.sqrt2);
+      }
+      pageFormats.add(pdf.PdfPageFormat(physicalWidth, physicalHeight));
+    }
+
+    try {
       // Create PDF
       final pdfDoc = pdfw.Document();
       for (var (i, imagePath) in imagePaths.indexed) {
@@ -1290,6 +1320,31 @@ class FilesHelper {
     } catch (e) {
       throw StateError("Error, _convertImagesToPdf: $e");
     }
+  }
+
+  Future<List<String>> _getImagePaths(
+    List<int> pageIndexes,
+    int? versionIndex,
+    int docIndex,
+  ) async {
+    List<String> imagePaths;
+    if (pageIndexes.length == 1 && versionIndex != null) {
+      imagePaths = [
+        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
+      ];
+    } else {
+      imagePaths = (await getPagesThumbnails(
+        docIndex,
+        pageIndexes: pageIndexes,
+        fullSized: true,
+      )).$1;
+    }
+    if (imagePaths.isEmpty) {
+      throw StateError(
+        "Error, _getImagePaths: No images in Document $docIndex",
+      );
+    }
+    return imagePaths;
   }
 
   Future<void> savePdfToDirectoy(
@@ -1393,31 +1448,23 @@ class FilesHelper {
     }
   }
 
-  Future<String> getImagesFilesize(
+  Future<List<int>> getImagesFilesizes(
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
-    List<String> imagePaths;
-    if (pageIndexes.length == 1 && versionIndex != null) {
-      imagePaths = [
-        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
-      ];
-    } else {
-      imagePaths = (await getPagesThumbnails(
-        docIndex,
-        pageIndexes: pageIndexes,
-        fullSized: true,
-      )).$1;
-    }
-    if (imagePaths.isEmpty) {
-      throw StateError("Error, shareImages: No images in Document $docIndex");
-    }
-    int bytes = 0;
+    List<String> imagePaths = await _getImagePaths(
+      pageIndexes,
+      versionIndex,
+      docIndex,
+    );
+    List<int> imagesBytes = [];
     for (var imagePath in imagePaths) {
-      bytes += File(imagePath).lengthSync();
+      if (imagePath.isNotEmpty) {
+        imagesBytes.add(File(imagePath).lengthSync());
+      }
     }
-    return "(${formatBytes(bytes)})";
+    return imagesBytes;
   }
 
   String formatBytes(int bytes, [int decimals = 2]) {
@@ -1467,21 +1514,39 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    int? maxDpi,
   }) async {
-    List<String> imagePaths;
-    if (pageIndexes.length == 1 && versionIndex != null) {
-      imagePaths = [
-        await getVersionPath(docIndex, pageIndexes.first, versionIndex),
-      ];
-    } else {
-      imagePaths = (await getPagesThumbnails(
+    List<String> imagePaths = await _getImagePaths(
+      pageIndexes,
+      versionIndex,
+      docIndex,
+    );
+
+    if (maxDpi != null) {
+      List<int> pagesDpis;
+      double widthInInches;
+      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
         docIndex,
         pageIndexes: pageIndexes,
-        fullSized: true,
-      )).$1;
-    }
-    if (imagePaths.isEmpty) {
-      throw StateError("Error, shareImages: No images in Document $docIndex");
+        versionIndex: versionIndex,
+      );
+      for (var (pageIndex, dpi) in pagesDpis.indexed) {
+        if (dpi > maxDpi) {
+          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+          );
+          final String scaledImagePath = await imageProcessingManager
+              .scaleImageToDpi(
+                docIndex,
+                pageIndex,
+                versionIndex!,
+                maxDpi,
+                widthInInches,
+              );
+          imagePaths[pageIndex] = scaledImagePath;
+        }
+      }
     }
 
     List<XFile> xFiles = [];
@@ -1490,6 +1555,20 @@ class FilesHelper {
     }
 
     await SharePlus.instance.share(ShareParams(files: xFiles));
+
+    if (maxDpi != null) {
+      deleteCachedScaledImages();
+    }
+  }
+
+  static Future<void> deleteCachedScaledImages() async {
+    final tmpDir = await getTemporaryDirectory();
+    for (var fse
+        in tmpDir.listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+      if (fse.path.startsWith("${tmpDir.path}/scaled_")) {
+        fse.deleteSync();
+      }
+    }
   }
 
   Future<void> sharePdf(
