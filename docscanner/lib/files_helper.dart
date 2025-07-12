@@ -100,7 +100,7 @@ class FilesHelper {
   void _addMarkedDeletedDoc(int docIndex) async {
     if (_markedDeletedDocs.contains(docIndex)) return;
     _markedDeletedDocs.add(docIndex);
-    List<int> tmp = _markedDeletedDocs;
+    List<int> tmp = _markedDeletedDocs.toList();
     tmp.sort();
     _markedDeletedDocs.clear();
     _markedDeletedDocs.addAll(tmp.reversed.toList());
