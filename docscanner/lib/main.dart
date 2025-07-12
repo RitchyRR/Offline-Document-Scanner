@@ -598,6 +598,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
       });
     }
 
+    _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+
     _loadOldThumbnailNames();
   }
 
@@ -2385,6 +2387,7 @@ class _PagesState extends State<Pages> with RouteAware {
         });
       }
     }
+    _deletedPages = await g.filesHelper.getMarkedDeletedPages(widget.docIndex);
     _loadOldThumbnailNames();
   }
 
