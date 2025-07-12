@@ -866,7 +866,8 @@ class FilesHelper {
         ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
         for (var (versionIndex, versionName) in versionNamesInternal.indexed) {
-          if (fse.path.contains(versionName)) {
+          if (fse.path.contains(versionName) &&
+              !fse.path.contains("thumbnail")) {
             versionPaths[versionIndex] = fse.path;
             break;
           }
@@ -901,7 +902,8 @@ class FilesHelper {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
-        if (fse.path.contains(versionNamesInternal[versionIndex])) {
+        if (fse.path.contains(versionNamesInternal[versionIndex]) &&
+            !fse.path.contains("thumbnail")) {
           return fse.path;
         }
       }
