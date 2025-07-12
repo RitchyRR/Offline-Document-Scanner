@@ -2127,7 +2127,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -6915,6 +6915,16 @@ Future<bool> _pagesPopup(
                   icon = Icons.delete;
                   break;
               }
+              bool checkMultipage =
+                  g.proUnlocked || docUnlocked || isSinglePage;
+              bool ceckProFilter =
+                  g.proUnlocked ||
+                  pageUnlocked ||
+                  !g.proFilterIndexes.contains(versionIndex);
+              bool checkPdf =
+                  (!isSinglePage && checkMultipage) ||
+                  (isSinglePage && ceckProFilter);
+
               return AlertDialog(
                 title: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -6970,10 +6980,7 @@ Future<bool> _pagesPopup(
                   type == PopUpType.delete
                       ? SizedBox()
                       : Container(
-                          decoration:
-                              (g.proUnlocked ||
-                                  pageUnlocked ||
-                                  !g.proFilterIndexes.contains(versionIndex))
+                          decoration: ceckProFilter
                               ? null
                               : BoxDecoration(
                                   color: Theme.of(
@@ -6990,24 +6997,11 @@ Future<bool> _pagesPopup(
                                   // Image
                                   Padding(
                                     padding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          (g.proUnlocked ||
-                                              pageUnlocked ||
-                                              !g.proFilterIndexes.contains(
-                                                versionIndex,
-                                              ))
-                                          ? 0
-                                          : 4,
+                                      horizontal: ceckProFilter ? 0 : 4,
                                     ),
                                     // Image Export
                                     child: ElevatedButton.icon(
-                                      onPressed:
-                                          allPagesLoaded &&
-                                              (g.proUnlocked ||
-                                                  pageUnlocked ||
-                                                  !g.proFilterIndexes.contains(
-                                                    versionIndex,
-                                                  ))
+                                      onPressed: allPagesLoaded && ceckProFilter
                                           ? () async {
                                               confirmAction = true;
                                               Navigator.pop(context);
@@ -7066,21 +7060,9 @@ Future<bool> _pagesPopup(
                                   ),
 
                                   // PDF
-                                  SizedBox(
-                                    height:
-                                        (g.proUnlocked ||
-                                            (docUnlocked && !isSinglePage) ||
-                                            isSinglePage)
-                                        ? 0
-                                        : 4,
-                                  ),
+                                  SizedBox(height: checkMultipage ? 0 : 4),
                                   Container(
-                                    decoration:
-                                        (g.proUnlocked ||
-                                            (docUnlocked &&
-                                                (isDocument ||
-                                                    !isSinglePage)) ||
-                                            isSinglePage)
+                                    decoration: checkMultipage
                                         ? null
                                         : BoxDecoration(
                                             color: Theme.of(context)
@@ -7097,34 +7079,12 @@ Future<bool> _pagesPopup(
                                       children: [
                                         Padding(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal:
-                                                (g.proUnlocked ||
-                                                    (docUnlocked &&
-                                                        (isDocument ||
-                                                            !isSinglePage)) ||
-                                                    (pageUnlocked ||
-                                                        !g.proFilterIndexes
-                                                                .contains(
-                                                                  versionIndex,
-                                                                ) &&
-                                                            isSinglePage))
-                                                ? 0
-                                                : 4,
+                                            horizontal: checkPdf ? 0 : 4,
                                           ),
                                           // PDF Export
                                           child: ElevatedButton.icon(
                                             onPressed:
-                                                allPagesLoaded &&
-                                                    (g.proUnlocked ||
-                                                        (docUnlocked &&
-                                                            (isDocument ||
-                                                                !isSinglePage)) ||
-                                                        (pageUnlocked ||
-                                                            (versionIndex !=
-                                                                        4 &&
-                                                                    versionIndex !=
-                                                                        5) &&
-                                                                isSinglePage))
+                                                allPagesLoaded && checkPdf
                                                 ? () async {
                                                     confirmAction = true;
                                                     Navigator.pop(context);
@@ -7190,10 +7150,7 @@ Future<bool> _pagesPopup(
                                             label: Text("$buttonTextPdf"),
                                           ),
                                         ),
-                                        (g.proUnlocked ||
-                                                (docUnlocked &&
-                                                    !isSinglePage) ||
-                                                isSinglePage)
+                                        checkMultipage
                                             ? SizedBox()
                                             : Padding(
                                                 padding:
@@ -7214,36 +7171,28 @@ Future<bool> _pagesPopup(
                                                         tr("popup.unlock"),
                                                       ),
                                                     ),
-                                                    (isDocument ||
-                                                            !isSinglePage)
-                                                        ? ElevatedButton.icon(
-                                                            onPressed: () async {
-                                                              docUnlocked =
-                                                                  await _unlockDocumentWithAd(
-                                                                    context,
-                                                                  );
-                                                              if (docUnlocked) {
-                                                                setStateDialog(
-                                                                  () {},
-                                                                );
-                                                                await g
-                                                                    .metadataHelper
-                                                                    .writeDocUnlocked(
-                                                                      docIndex,
-                                                                      docUnlocked,
-                                                                    );
-                                                              }
-                                                            },
-                                                            icon: Icon(
-                                                              Icons.play_arrow,
-                                                            ),
-                                                            label: Text(
-                                                              tr(
-                                                                "popup.watchAd",
-                                                              ),
-                                                            ),
-                                                          )
-                                                        : SizedBox(),
+                                                    ElevatedButton.icon(
+                                                      onPressed: () async {
+                                                        docUnlocked =
+                                                            await _unlockDocumentWithAd(
+                                                              context,
+                                                            );
+                                                        if (docUnlocked) {
+                                                          setStateDialog(() {});
+                                                          await g.metadataHelper
+                                                              .writeDocUnlocked(
+                                                                docIndex,
+                                                                docUnlocked,
+                                                              );
+                                                        }
+                                                      },
+                                                      icon: Icon(
+                                                        Icons.play_arrow,
+                                                      ),
+                                                      label: Text(
+                                                        tr("popup.watchAd"),
+                                                      ),
+                                                    ),
                                                   ],
                                                 ),
                                               ),
@@ -7253,11 +7202,7 @@ Future<bool> _pagesPopup(
                                 ],
                               ),
                               // Unlock PRO
-                              (g.proUnlocked ||
-                                      pageUnlocked ||
-                                      !g.proFilterIndexes.contains(
-                                        versionIndex,
-                                      ))
+                              ceckProFilter
                                   ? SizedBox()
                                   : Padding(
                                       padding: const EdgeInsets.fromLTRB(
@@ -7275,35 +7220,29 @@ Future<bool> _pagesPopup(
                                             icon: Icon(Icons.lock),
                                             label: Text(tr("popup.unlock")),
                                           ),
-                                          (isSinglePage && versionIndex != null)
-                                              ? ElevatedButton.icon(
-                                                  onPressed: () async {
-                                                    pageUnlocked =
-                                                        await _unlockPageWithAd(
-                                                          context,
-                                                        );
-                                                    if (pageUnlocked) {
-                                                      setStateDialog(() {});
-                                                      await g.metadataHelper
-                                                          .writePageUnlocked(
-                                                            docIndex,
-                                                            pageIndexes.first,
-                                                            true,
-                                                          );
-                                                      globalNotifier
-                                                          .triggerEvent(
-                                                            NotifierEvent
-                                                                .setState,
-                                                          );
-                                                      setStateDialog(() {});
-                                                    }
-                                                  },
-                                                  icon: Icon(Icons.play_arrow),
-                                                  label: Text(
-                                                    tr("popup.watchAd"),
-                                                  ),
-                                                )
-                                              : SizedBox(),
+                                          ElevatedButton.icon(
+                                            onPressed: () async {
+                                              pageUnlocked =
+                                                  await _unlockPageWithAd(
+                                                    context,
+                                                  );
+                                              if (pageUnlocked) {
+                                                setStateDialog(() {});
+                                                await g.metadataHelper
+                                                    .writePageUnlocked(
+                                                      docIndex,
+                                                      pageIndexes.first,
+                                                      true,
+                                                    );
+                                                globalNotifier.triggerEvent(
+                                                  NotifierEvent.setState,
+                                                );
+                                                setStateDialog(() {});
+                                              }
+                                            },
+                                            icon: Icon(Icons.play_arrow),
+                                            label: Text(tr("popup.watchAd")),
+                                          ),
                                         ],
                                       ),
                                     ),
