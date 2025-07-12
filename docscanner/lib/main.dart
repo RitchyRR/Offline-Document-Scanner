@@ -2074,6 +2074,17 @@ Future<bool> proPopup(BuildContext context) async {
                 Expanded(child: Text(tr("popup.pro.bp2"))),
               ],
             ),
+            SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  " •  ",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                ),
+                Expanded(child: Text(tr("popup.pro.bp3"))),
+              ],
+            ),
 
             g.proUnlocked
                 ? Text(tr("popup.pro.thanksText"))
