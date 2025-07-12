@@ -608,10 +608,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final int pageIndex = 0;
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       List<String>? oldVersionNames =
-          await MetadataHelper.readOldVersionFileNames(docIndex, pageIndex);
+          await MetadataHelper.readOldVersionFileNames(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
       int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
+        supressWarnings: true,
       );
       if (thumbnaiIndex != null && oldVersionNames != null) {
         _oldThumbnailNames[docIndex] = oldVersionNames[thumbnaiIndex];
@@ -2392,10 +2397,12 @@ class _PagesState extends State<Pages> with RouteAware {
           await MetadataHelper.readOldVersionFileNames(
             widget.docIndex,
             pageIndex,
+            supressWarnings: true,
           );
       int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
         widget.docIndex,
         pageIndex,
+        supressWarnings: true,
       );
       if (thumbnaiIndex != null && oldVersionNames != null) {
         _oldThumbnailNames[pageIndex] = oldVersionNames[thumbnaiIndex];
