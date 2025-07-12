@@ -6115,6 +6115,45 @@ class _WarpState extends State<Warp> {
               ),
             ),
 
+            // Draggable edges
+            ...[
+              [0, 2, 1, 3], // top
+              [2, 3, 0, 1], // right
+              [3, 1, 2, 0], // bottom
+              [1, 0, 3, 2], // left
+            ].map((points) {
+              final a = _scaledPoints[points[0]];
+              final b = _scaledPoints[points[1]];
+              final center = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+              final length = (b - a).distance;
+              final angle = math.atan2(b.dy - a.dy, b.dx - a.dx);
+
+              return Positioned(
+                left: center.dx - length / 2,
+                top: center.dy - 12,
+                child: Transform.rotate(
+                  angle: angle,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanUpdate: (details) {
+                      _handleEdgeDrag(
+                        indexA: points[0],
+                        indexB: points[1],
+                        neighborA: points[2],
+                        neighborB: points[3],
+                        details: details,
+                      );
+                    },
+                    child: Container(
+                      width: length,
+                      height: 24,
+                      color: Colors.transparent,
+                    ),
+                  ),
+                ),
+              );
+            }),
+
             // Draggable corner points
             ..._scaledPoints.asMap().entries.map((entry) {
               final index = entry.key;
@@ -6297,6 +6336,51 @@ class _WarpState extends State<Warp> {
         ),
       ),
     );
+  }
+
+  void _handleEdgeDrag({
+    required int indexA,
+    required int indexB,
+    required int neighborA,
+    required int neighborB,
+    required DragUpdateDetails details,
+  }) {
+    final Offset a = _scaledPoints[indexA];
+    final Offset b = _scaledPoints[indexB];
+    final Offset na = _scaledPoints[neighborA];
+    final Offset nb = _scaledPoints[neighborB];
+
+    final double dragAmount =
+        -details.delta.dy; // fixed vertical axis + flipped
+
+    final Offset dirA = a - na;
+    final Offset dirB = b - nb;
+    if (dirA.distance == 0 || dirB.distance == 0) return;
+
+    final Offset normA = dirA / dirA.distance;
+    final Offset normB = dirB / dirB.distance;
+
+    final Offset moveA = normA * dragAmount;
+    final Offset moveB = normB * dragAmount;
+
+    Offset newA = a + moveA;
+    Offset newB = b + moveB;
+
+    newA = Offset(
+      newA.dx.clamp(0.0, _screenWidth),
+      newA.dy.clamp(0.0, _displayHeigth),
+    );
+    newB = Offset(
+      newB.dx.clamp(0.0, _screenWidth),
+      newB.dy.clamp(0.0, _displayHeigth),
+    );
+
+    setState(() {
+      _scaledPoints[indexA] = newA;
+      _scaledPoints[indexB] = newB;
+    });
+
+    _scaleImage();
   }
 
   void panOver(int index) {
