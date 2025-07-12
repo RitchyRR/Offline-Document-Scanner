@@ -1324,7 +1324,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 .withAlpha(150),
                                           ),
                                         ),
-                                      if (_thumbnailRatios.length < docIndex ||
+                                      if (_thumbnailRatios.length <= docIndex ||
                                           _docThumbnails[docIndex].isEmpty ||
                                           isOldPath)
                                         IndicatorProcessingImage(),

@@ -1084,7 +1084,7 @@ class ImageProcessingManager {
             isolateExitPoint(kill);
             File(oldThumbnailPath).deleteSync();
           } else {
-            dev.log("Thumbnail already exists, won't overwrite thumbnail.");
+            //dev.log("Thumbnail already exists, won't overwrite thumbnail.");
             return false;
           }
         }

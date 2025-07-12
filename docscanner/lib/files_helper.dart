@@ -605,7 +605,7 @@ class FilesHelper {
             bool photoExists = true;
             if (countVersionsAndThumbnail == 0 || isImportedPdf) {
               dev.log("Deleting empty page, Doc $docIndex Page $pageIndex");
-              await _deletePage(docIndex, pageIndex, isBroken: true);
+              await _deletePage(docIndex, pageIndex);
             } else {
               String photoName = versionNamesInternal[0];
               for (var pageFse in Directory(
@@ -628,7 +628,7 @@ class FilesHelper {
                 });
               } else {
                 dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
-                await _deletePage(docIndex, pageIndex, isBroken: true);
+                await _deletePage(docIndex, pageIndex);
               }
             }
           }
@@ -648,7 +648,8 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
   }) async {
-    if (pageIndexes.isEmpty) {
+    if (pageIndexes.isEmpty ||
+        pageIndexes.length == await getPagesCount(docIndex)) {
       await _deleteDocument(docIndex);
     } else if (pageIndexes.length == 1) {
       await _deletePage(docIndex, pageIndexes.first);
@@ -714,94 +715,23 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 
-  Future<void> _deletePage(
-    int docIndex,
-    int pageIndex, {
-    bool isBroken = false,
-  }) async {
-    final pagePath = await getPagePath(docIndex, pageIndex);
-    final pageDir = Directory(pagePath);
-    if (!await pageDir.exists()) {
-      dev.log(
-        "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
-      );
-    } else {
-      dev.log("_deletePage: Starting deleting page directory: $pagePath");
-      _addMarkedDeletedPage(docIndex, pageIndex);
-      Fluttertoast.showToast(
-        msg: tr(
-          "toast.pageDeleted",
-          namedArgs: {
-            "docIndex": "${docIndex + 1}",
-            "pageIndex": "${pageIndex + 1}",
-          },
-        ),
-      );
-
-      Future killFuture = imageProcessingManager.killIsolatesOfPage(
-        docIndex,
-        pageIndex,
-      );
-      Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPage(
-        docIndex,
-        pageIndex,
-      );
-      await killFuture;
-      await future;
-      await imageProcessingManager.pdfProcessingFutures[docIndex];
-
-      if (pageDir.existsSync()) {
-        List<FileSystemEntity> files = pageDir.listSync(recursive: true);
-        for (var file in files) {
-          imageCache.evict(FileImage(File(file.path)), includeLive: true);
-        }
-        pageDir.deleteSync(recursive: true);
-      }
-      dev.log("Deleted page directory: $pagePath");
-      _removeMarkedDeletedPage(docIndex, pageIndex);
-    }
-
-    // rename all with higher pageIndex to close the gap
-    Directory fromDirectory = Directory(
-      await getPagePath(docIndex, pageIndex + 1, supressWarnings: true),
-    );
-    String toPath = pagePath;
-    for (int i = pageIndex; i < await getPagesCount(docIndex);) {
-      if (fromDirectory.existsSync()) {
-        dev.log(
-          "Renaming Page ${pageIndex + 1} -> Page $pageIndex (in Document $docIndex)",
-        );
-        await fromDirectory.rename(toPath);
-        i++;
-      }
-
-      pageIndex++;
-      fromDirectory = Directory(
-        await getPagePath(docIndex, pageIndex + 1, supressWarnings: true),
-      );
-      toPath = await getPagePath(docIndex, pageIndex, supressWarnings: true);
-    }
-    // Check if document is now empty and delete it
-    if ((await getPagesCount(docIndex)) == 0) {
-      dev.log("Deleting empty Document $docIndex");
-      await _deleteDocument(docIndex, supressInfo: true, isBroken: true);
-      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-    } else {
-      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-    }
+  Future<void> _deletePage(int docIndex, int pageIndex) async {
+    _deletePages(docIndex, [pageIndex]);
   }
 
-  Future<void> _deletePages(int docIndex, List<int> pageIndexes) async {
-    pageIndexes.sort();
+  Future<void> _deletePages(int docIndex, List<int> deletePageIndexes) async {
+    final oldPagesCount = await getPagesCount(docIndex);
+    deletePageIndexes.sort();
     List<int> displayPageIndexes = [];
-    for (var pageIndex in pageIndexes) {
+    for (var pageIndex in deletePageIndexes) {
       displayPageIndexes.add(pageIndex + 1);
     }
-    pageIndexes = pageIndexes.reversed.toList();
+    deletePageIndexes = deletePageIndexes.reversed.toList();
 
+    // Show deleted in Frontend
+    // Kill Isolates of Pages
     List<Future<void>> killFutures = [];
-    for (var pageIndex in pageIndexes) {
+    for (var pageIndex in deletePageIndexes) {
       _addMarkedDeletedPage(docIndex, pageIndex);
       killFutures.add(
         imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
@@ -816,40 +746,66 @@ class FilesHelper {
         },
       ),
     );
-    dev.log("_deletePages: Starting deleting Pages: $pageIndexes");
+    dev.log("_deletePages: Starting deleting Pages: $deletePageIndexes");
 
-    Future future = imageProcessingManager.awaitIsolatesOfHigherIndexPages(
-      docIndex,
-      pageIndexes,
-    );
+    // Await Isolates
+    Future higherIndexedPagesFuture = imageProcessingManager
+        .awaitIsolatesOfHigherIndexPages(docIndex, deletePageIndexes);
     await Future.wait(killFutures);
-    await future;
+    await higherIndexedPagesFuture;
     await imageProcessingManager.pdfProcessingFutures[docIndex];
 
-    // delete
-    for (var pageIndex in pageIndexes) {
-      final pagePath = await getPagePath(docIndex, pageIndex);
-      final pageDir = Directory(pagePath);
-      if (!await pageDir.exists()) {
+    // Delete
+    List<String> deletedPagePaths = [];
+    for (var (i, deletePageIndex) in deletePageIndexes.indexed) {
+      deletedPagePaths.add(await getPagePath(docIndex, deletePageIndex));
+      final deletePageDir = Directory(deletedPagePaths[i]);
+      if (!deletePageDir.existsSync()) {
         dev.log(
-          "Warning, deletePage: Document $docIndex, Page $pageIndex nonexistent, moving following Pages up",
+          "Warning, deletePage: Document $docIndex, Page $deletePageIndex nonexistent, moving following Pages up",
         );
       } else {
-        List<FileSystemEntity> files = pageDir.listSync(recursive: true);
-        for (var file in files) {
+        for (var file in deletePageDir.listSync(recursive: true)) {
           imageCache.evict(FileImage(File(file.path)), includeLive: true);
         }
-
-        pageDir.deleteSync(recursive: true);
-        dev.log("_deletePages: Deleted page directory: $pagePath");
-        _removeMarkedDeletedPage(docIndex, pageIndex);
+        // Delete
+        deletePageDir.deleteSync(recursive: true);
+        dev.log("_deletePages: Deleted page directory: ${deletedPagePaths[i]}");
+        _removeMarkedDeletedPage(docIndex, deletePageIndex);
       }
     }
-    // rename all with higher pageIndex to close the gap
-    // ignore: use_build_context_synchronously
-    await _repairDirectoryStructure();
-    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
-    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+
+    // Rename all with higher pageIndex to close the gap
+    final newPagesCount = await getPagesCount(docIndex);
+    List<String> moveTo = [];
+    for (
+      var pageIndex = deletePageIndexes.last;
+      pageIndex < oldPagesCount;
+      pageIndex++
+    ) {
+      Directory pageDir = Directory(
+        await getPagePath(docIndex, pageIndex, supressWarnings: true),
+      );
+      if (pageDir.existsSync()) {
+        dev.log(
+          "Renaming Page $pageIndex -> ${moveTo.first} (in Document $docIndex)",
+        );
+        await pageDir.rename(moveTo.removeAt(0));
+        moveTo.add(pageDir.path);
+      } else {
+        moveTo.add(pageDir.path);
+      }
+    }
+
+    // Check if document is now empty and delete it
+    if (newPagesCount == 0) {
+      dev.log("Deleting empty Document $docIndex");
+      await _deleteDocument(docIndex, supressInfo: true, isBroken: true);
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    } else {
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    }
   }
 
   Future<(int, int)> createNewDocument(
