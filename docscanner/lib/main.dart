@@ -6716,11 +6716,9 @@ Future<bool> _pagesPopup(
   final bool isSinglePage = pagesCount == 1;
   bool allPagesLoaded = !thumbnailPaths.any((element) => element.isEmpty);
 
-  bool docUnlocked = false;
+  bool docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
   bool pageUnlocked = false;
-  if (isDocument || !isSinglePage) {
-    docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
-  } else if (isSinglePage && versionIndex != null) {
+  if (pageIndexes.isNotEmpty) {
     pageUnlocked = await g.metadataHelper.readPageUnlocked(
       docIndex,
       pageIndexes.first,
@@ -6919,7 +6917,10 @@ Future<bool> _pagesPopup(
                   (isSinglePage &&
                       !(pageUnlocked || g.proUnlocked) &&
                       g.proFilterIndexes.contains(versionIndex)) ||
-                  (!(docUnlocked || g.proUnlocked) && selectedDpi != null);
+                  (!(g.proUnlocked ||
+                          (isSinglePage && pageUnlocked) ||
+                          docUnlocked) &&
+                      selectedDpi != null);
               bool lockPdf =
                   lockAll || (!isSinglePage && !(docUnlocked || g.proUnlocked));
 
@@ -6973,6 +6974,10 @@ Future<bool> _pagesPopup(
                         selectedDpi = dpi;
                         setStateDialog(() {});
                       },
+                      unlock:
+                          g.proUnlocked ||
+                          (isSinglePage && pageUnlocked) ||
+                          docUnlocked,
                     ),
                   SizedBox(height: 24.0),
 
@@ -7294,12 +7299,14 @@ class DpiDropdown extends StatefulWidget {
   final List<int> pagesDpis;
   final List<int> imagesFilesizes;
   final void Function(int? selectedDpi) onChanged;
+  final bool unlock;
 
   const DpiDropdown({
     super.key,
     required this.pagesDpis,
     required this.imagesFilesizes,
     required this.onChanged,
+    required this.unlock,
   });
 
   @override
@@ -7392,12 +7399,22 @@ class _DpiDropdownState extends State<DpiDropdown> {
             return DropdownMenuItem(
               alignment: Alignment.centerRight,
               value: i,
-              child: Text(
-                menuEntryString,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    menuEntryString,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (i != 0 && !widget.unlock)
+                    Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.lock),
+                    ),
+                ],
               ),
             );
           }),
