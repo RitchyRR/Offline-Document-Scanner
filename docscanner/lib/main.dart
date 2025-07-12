@@ -2127,7 +2127,7 @@ Future<bool> proPopup(BuildContext context) async {
 }
 
 setPro(final bool proUnlockedIn) async {
-  if (proUnlockedIn || !await feedbackHelper.isAppValid()) {
+  if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
   }
@@ -6915,15 +6915,13 @@ Future<bool> _pagesPopup(
                   icon = Icons.delete;
                   break;
               }
-              bool checkMultipage =
-                  g.proUnlocked || docUnlocked || isSinglePage;
-              bool ceckProFilter =
-                  g.proUnlocked ||
-                  pageUnlocked ||
-                  !g.proFilterIndexes.contains(versionIndex);
-              bool checkPdf =
-                  (!isSinglePage && checkMultipage) ||
-                  (isSinglePage && ceckProFilter);
+              bool lockAll =
+                  (isSinglePage &&
+                      !(pageUnlocked || g.proUnlocked) &&
+                      g.proFilterIndexes.contains(versionIndex)) ||
+                  (!(docUnlocked || g.proUnlocked) && selectedDpi != null);
+              bool lockPdf =
+                  lockAll || (!isSinglePage && !(docUnlocked || g.proUnlocked));
 
               return AlertDialog(
                 title: Row(
@@ -6973,6 +6971,7 @@ Future<bool> _pagesPopup(
                       imagesFilesizes: imagesFilesizes,
                       onChanged: (dpi) {
                         selectedDpi = dpi;
+                        setStateDialog(() {});
                       },
                     ),
                   SizedBox(height: 24.0),
@@ -6980,15 +6979,15 @@ Future<bool> _pagesPopup(
                   type == PopUpType.delete
                       ? SizedBox()
                       : Container(
-                          decoration: ceckProFilter
-                              ? null
-                              : BoxDecoration(
+                          decoration: lockAll
+                              ? BoxDecoration(
                                   color: Theme.of(
                                     context,
                                   ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [smallBoxShadow(context)],
-                                ),
+                                )
+                              : null,
                           child: Column(
                             children: [
                               Column(
@@ -6997,11 +6996,11 @@ Future<bool> _pagesPopup(
                                   // Image
                                   Padding(
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: ceckProFilter ? 0 : 4,
+                                      horizontal: lockAll ? 4 : 0,
                                     ),
                                     // Image Export
                                     child: ElevatedButton.icon(
-                                      onPressed: allPagesLoaded && ceckProFilter
+                                      onPressed: allPagesLoaded && !lockAll
                                           ? () async {
                                               confirmAction = true;
                                               Navigator.pop(context);
@@ -7060,11 +7059,10 @@ Future<bool> _pagesPopup(
                                   ),
 
                                   // PDF
-                                  SizedBox(height: checkMultipage ? 0 : 4),
+                                  SizedBox(height: lockPdf && !lockAll ? 4 : 0),
                                   Container(
-                                    decoration: checkMultipage
-                                        ? null
-                                        : BoxDecoration(
+                                    decoration: lockPdf && !lockAll
+                                        ? BoxDecoration(
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .surfaceContainerHighest,
@@ -7074,17 +7072,18 @@ Future<bool> _pagesPopup(
                                             boxShadow: [
                                               smallBoxShadow(context),
                                             ],
-                                          ),
+                                          )
+                                        : null,
                                     child: Column(
                                       children: [
                                         Padding(
                                           padding: EdgeInsets.symmetric(
-                                            horizontal: checkPdf ? 0 : 4,
+                                            horizontal: lockPdf ? 4 : 0,
                                           ),
                                           // PDF Export
                                           child: ElevatedButton.icon(
                                             onPressed:
-                                                allPagesLoaded && checkPdf
+                                                allPagesLoaded && !lockPdf
                                                 ? () async {
                                                     confirmAction = true;
                                                     Navigator.pop(context);
@@ -7150,9 +7149,8 @@ Future<bool> _pagesPopup(
                                             label: Text("$buttonTextPdf"),
                                           ),
                                         ),
-                                        checkMultipage
-                                            ? SizedBox()
-                                            : Padding(
+                                        lockPdf && !lockAll
+                                            ? Padding(
                                                 padding:
                                                     const EdgeInsets.fromLTRB(
                                                       10,
@@ -7195,16 +7193,16 @@ Future<bool> _pagesPopup(
                                                     ),
                                                   ],
                                                 ),
-                                              ),
+                                              )
+                                            : SizedBox(),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
                               // Unlock PRO
-                              ceckProFilter
-                                  ? SizedBox()
-                                  : Padding(
+                              lockAll
+                                  ? Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         10,
                                         0,
@@ -7245,7 +7243,8 @@ Future<bool> _pagesPopup(
                                           ),
                                         ],
                                       ),
-                                    ),
+                                    )
+                                  : SizedBox(),
                             ],
                           ),
                         ),
