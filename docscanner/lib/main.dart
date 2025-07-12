@@ -6913,14 +6913,15 @@ Future<bool> _pagesPopup(
                   icon = Icons.delete;
                   break;
               }
+              bool lockDpi =
+                  !g.proUnlocked &&
+                  !docUnlocked &&
+                  !(isSinglePage && pageUnlocked);
               bool lockAll =
                   (isSinglePage &&
                       !(pageUnlocked || g.proUnlocked) &&
                       g.proFilterIndexes.contains(versionIndex)) ||
-                  (!(g.proUnlocked ||
-                          (isSinglePage && pageUnlocked) ||
-                          docUnlocked) &&
-                      selectedDpi != null);
+                  (lockDpi && selectedDpi != null);
               bool lockPdf =
                   lockAll || (!isSinglePage && !(docUnlocked || g.proUnlocked));
 
@@ -6974,10 +6975,7 @@ Future<bool> _pagesPopup(
                         selectedDpi = dpi;
                         setStateDialog(() {});
                       },
-                      unlock:
-                          g.proUnlocked ||
-                          (isSinglePage && pageUnlocked) ||
-                          docUnlocked,
+                      lockDpi: lockDpi,
                     ),
                   SizedBox(height: 24.0),
 
@@ -7299,14 +7297,14 @@ class DpiDropdown extends StatefulWidget {
   final List<int> pagesDpis;
   final List<int> imagesFilesizes;
   final void Function(int? selectedDpi) onChanged;
-  final bool unlock;
+  final bool lockDpi;
 
   const DpiDropdown({
     super.key,
     required this.pagesDpis,
     required this.imagesFilesizes,
     required this.onChanged,
-    required this.unlock,
+    required this.lockDpi,
   });
 
   @override
@@ -7409,7 +7407,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                       fontSize: 14,
                     ),
                   ),
-                  if (i != 0 && !widget.unlock)
+                  if (i != 0 && widget.lockDpi)
                     Padding(
                       padding: EdgeInsets.only(left: 8),
                       child: Icon(Icons.lock),
