@@ -296,35 +296,13 @@ class ImageProcessingManager {
 
     // Scale Thumbnail
     isolateExitPoint(kill);
-    int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      gIn: g,
-      supressWarnings: true,
-    );
-
-    isolateExitPoint(kill);
-    bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
+    await _scaleAndSaveThumbnailInIsolate(
       sendPort,
       kill,
       docIndex,
       pageIndex,
-      thumbnailIndex,
       g,
-      overwrite: !isInitial,
     );
-
-    if (newThumbnail && thumbnailIndex == null) {
-      isolateExitPoint(kill);
-      await MetadataHelper.writePageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        thumbnailIndex ?? g.defaultIndex,
-        gIn: g,
-        supressWarnings: true,
-      );
-    }
-
     Isolate.exit(sendPort, "done");
   }
 
@@ -623,30 +601,13 @@ class ImageProcessingManager {
 
     if (thumbnailPath.isEmpty) {
       isolateExitPoint(kill);
-      int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        gIn: g,
-      );
-      isolateExitPoint(kill);
-      bool newThumbnail = await _scaleAndSaveThumbnailInIsolate(
+      await _scaleAndSaveThumbnailInIsolate(
         sendPort,
         kill,
         docIndex,
         pageIndex,
-        thumbnailIndex,
         g,
-        overwrite: false,
       );
-      if (newThumbnail) {
-        isolateExitPoint(kill);
-        await MetadataHelper.writePageThumbnailIndex(
-          docIndex,
-          pageIndex,
-          thumbnailIndex ?? g.defaultIndex,
-          gIn: g,
-        );
-      }
     }
 
     Isolate.exit(sendPort, "done");
@@ -869,7 +830,6 @@ class ImageProcessingManager {
       int pageIndex,
       List<String> versionPaths, //[0] is potentially rotated
       int rotationIn,
-      int pageThumbnailIndexIn,
       AppGlobals g,
     )
     data,
@@ -891,8 +851,7 @@ class ImageProcessingManager {
     int pageIndex = data.$4;
     List<String> versionPaths = data.$5;
     int rotationIn = data.$6;
-    int pageThumbnailIndexIn = data.$7;
-    AppGlobals g = data.$8;
+    AppGlobals g = data.$7;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
@@ -972,9 +931,7 @@ class ImageProcessingManager {
       kill,
       docIndex,
       pageIndex,
-      pageThumbnailIndexIn,
       g,
-      overwrite: false,
     );
 
     Isolate.exit(sendPort, "done");
@@ -996,16 +953,7 @@ class ImageProcessingManager {
 
     TaskKiller killer = await IsolatesManager().runTask(
       _rotatePageIsolate,
-      (
-        port.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        versionPaths,
-        angle,
-        pageThumbnailIndexIn,
-        g,
-      ),
+      (port.sendPort, token, docIndex, pageIndex, versionPaths, angle, g),
       portIn: port,
       prio: IsolatePriority.immediate,
     );
@@ -1035,11 +983,25 @@ class ImageProcessingManager {
     bool kill,
     int docIndex,
     int pageIndex,
-    int? thumbnailIndex,
-    AppGlobals gIn, {
-    bool overwrite = true,
-  }) async {
-    thumbnailIndex ??= gIn.defaultIndex;
+    AppGlobals gIn,
+  ) async {
+    // Get thumbnailIndex from metadata, else set it in metadata
+    int? metadataThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      gIn: gIn,
+      supressWarnings: true,
+    );
+    int thumbnailIndex = metadataThumbnailIndex ?? gIn.defaultIndex;
+    if (metadataThumbnailIndex == null) {
+      isolateExitPoint(kill);
+      await MetadataHelper.writePageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        thumbnailIndex,
+        gIn: gIn,
+      );
+    }
 
     int screenWidth = gIn.filesHelper.screenWidth;
     String pagePath;
@@ -1060,13 +1022,13 @@ class ImageProcessingManager {
     File versionFile = File(versionPath);
     if (versionPath == "" || !versionFile.existsSync()) {
       dev.log(
-        "Error, _scaleAndSaveThumbnailInIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist.",
+        "Warning, _scaleAndSaveThumbnailInIsolate: Doc $docIndex, Page $pageIndex, Version $thumbnailIndex does not exist (yet?).",
       );
       return false;
     }
 
     String thumbnailPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_thumbnail.png";
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_${versionNamesInternal[thumbnailIndex]}_thumbnail.png";
     File thumbnailFile = File(thumbnailPath);
     isolateExitPoint(kill);
     Uint8List versionBytes = versionFile.readAsBytesSync();
@@ -1079,8 +1041,12 @@ class ImageProcessingManager {
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
         if (fse.path.contains("thumbnail")) {
           String oldThumbnailPath = fse.path;
-          if (overwrite) {
-            //dev.log("Overwriting, writeScaledThumbnail: $pathIn");
+          if (!oldThumbnailPath.contains(
+            versionNamesInternal[thumbnailIndex],
+          )) {
+            //dev.log(
+            //  "Overwriting, _scaleAndSaveThumbnailIsolate, old path: $oldThumbnailPath",
+            //);
             isolateExitPoint(kill);
             File(oldThumbnailPath).deleteSync();
           } else {
@@ -1154,7 +1120,6 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      int thumbnailIndex,
       AppGlobals gIn,
     )
     data,
@@ -1173,8 +1138,7 @@ class ImageProcessingManager {
     RootIsolateToken token = data.$2;
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    int thumbnailIndex = data.$5;
-    AppGlobals gIn = data.$6;
+    AppGlobals gIn = data.$5;
 
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
@@ -1184,7 +1148,6 @@ class ImageProcessingManager {
       kill,
       docIndex,
       pageIndex,
-      thumbnailIndex,
       gIn,
     );
     Isolate.exit(sendPort, "done");
@@ -1212,7 +1175,7 @@ class ImageProcessingManager {
       RootIsolateToken token = RootIsolateToken.instance!;
       killer = await IsolatesManager().runTask(
         _saveNewThumbnailIsolate,
-        (port.sendPort, token, docIndex, pageIndex, thumbnailIndex, g),
+        (port.sendPort, token, docIndex, pageIndex, g),
         portIn: port,
         prio: IsolatePriority.regular,
       );
@@ -1480,12 +1443,18 @@ class ImageProcessingManager {
     );
 
     isolateExitPoint(kill);
+    await MetadataHelper.writePageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      0,
+      gIn: g,
+    );
+    isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(
       sendPort,
       kill,
       docIndex,
       pageIndex,
-      0,
       g,
     );
 

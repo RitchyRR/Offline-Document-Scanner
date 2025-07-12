@@ -30,8 +30,10 @@ class MetadataHelper {
     // Read + Decrypt
     if (file.existsSync()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(
+          file,
+          supressWarnings: supressWarnings,
+        );
       } catch (e) {
         dev.log("Warning, _writeDoc, $keyIn: Reading metadata: $e");
       }
@@ -62,8 +64,7 @@ class MetadataHelper {
     // Read + Decrypt
     if (file.existsSync()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(file);
         return metadata[keyIn];
       } catch (e) {
         dev.log("Warning, _readDoc, $keyIn: $e");
@@ -92,8 +93,7 @@ class MetadataHelper {
     // Read + Decrypt
     if (file.existsSync()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(file);
       } catch (e) {
         dev.log("Warning, _writePage, $keyIn: $e");
       }
@@ -128,8 +128,10 @@ class MetadataHelper {
     // Read + Decrypt
     if (file.existsSync()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(
+          file,
+          supressWarnings: supressWarnings,
+        );
         return metadata[keyIn];
       } catch (e) {
         if (!supressWarnings) {
@@ -266,8 +268,7 @@ class MetadataHelper {
     // Read + Decrypt
     if (await file.exists()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(file);
       } catch (e) {
         dev.log("Warning, writePageProcessingMetadata, reading: $e");
       }
@@ -301,8 +302,10 @@ class MetadataHelper {
 
     // Read + Decrypt
     if (await file.exists()) {
-      final encryptedContent = file.readAsStringSync();
-      metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+      metadata = await MetadataCryptoHelper.decryptMetadata(
+        file,
+        supressWarnings: supressWarnings,
+      );
       try {
         ratioValue = double.tryParse(metadata["aspectRatio"]);
         if (ratioValue == 0.0) {
@@ -357,9 +360,9 @@ class MetadataHelper {
       String? oldThumbnailName;
       if (await file.exists()) {
         try {
-          final encryptedContent = file.readAsStringSync();
           metadata = await MetadataCryptoHelper.decryptMetadata(
-            encryptedContent,
+            file,
+            supressWarnings: supressWarnings,
           );
           oldThumbnailName = metadata["thumbnail"];
         } catch (e) {
@@ -378,9 +381,6 @@ class MetadataHelper {
 
       // Write + Encrypt
       if (isNewIndex) {
-        if (newThumbnailName == "contrast") {
-          dev.log("contrast, toto remove");
-        }
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
         await file.writeAsString(encrypted);
@@ -496,8 +496,10 @@ class MetadataHelper {
     // Read + Decrypt
     if (await file.exists()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(
+          file,
+          supressWarnings: supressWarnings,
+        );
         List<List<int>> cornerPoints = (metadata["corners"] as List)
             .map<List<int>>(
               (e) => (e as List).map<int>((v) => v as int).toList(),
@@ -547,8 +549,10 @@ class MetadataHelper {
     // Read + Decrypt
     if (await file.exists()) {
       try {
-        final encryptedContent = file.readAsStringSync();
-        metadata = await MetadataCryptoHelper.decryptMetadata(encryptedContent);
+        metadata = await MetadataCryptoHelper.decryptMetadata(
+          file,
+          supressWarnings: supressWarnings,
+        );
         List<String> oldVersionFileNames =
             (metadata["oldVersionFileNames"] as List)
                 .map<String>((e) => e as String)
@@ -621,14 +625,20 @@ class MetadataCryptoHelper {
   }
 
   static Future<Map<String, dynamic>> decryptMetadata(
-    String encryptedJson, {
+    File metadataFile, {
     RootIsolateToken? token,
+    bool supressWarnings = false,
   }) async {
+    final String encryptedJson = metadataFile.readAsStringSync();
+    if (encryptedJson.isEmpty) {
+      if (!supressWarnings) dev.log("Warning, decryptMetadata: no metadata");
+      return {};
+    }
     try {
       final key = await _getOrCreateKey(token);
-      final Map<String, dynamic> decoded = jsonDecode(encryptedJson);
-      final iv = IV.fromBase64(decoded["iv"]);
-      final encryptedData = decoded["data"];
+      final Map<String, dynamic> decodedJson = jsonDecode(encryptedJson);
+      final iv = IV.fromBase64(decodedJson["iv"]);
+      final encryptedData = decodedJson["data"];
 
       final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
       final decrypted = encrypter.decrypt(
@@ -638,7 +648,7 @@ class MetadataCryptoHelper {
 
       return jsonDecode(decrypted);
     } catch (e) {
-      dev.log("Warning, decryptMetadata: $e");
+      if (!supressWarnings) dev.log("Warning, decryptMetadata: $e");
       throw StateError("decryptMetadata: $e");
     }
   }

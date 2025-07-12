@@ -3936,6 +3936,7 @@ class PagePreviewState extends State<PagePreview> {
         await MetadataHelper.readOldVersionFileNames(
           widget.docIndex,
           widget.pageIndex,
+          supressWarnings: true,
         );
     if (oldVersionFileNames == null) return;
     if (oldVersionFileNames.every((element) => element.isEmpty)) return;
