@@ -43,6 +43,7 @@
   "pagePreview": {
     "pageIndex": "Page {pageIndex}",
     "editBar": {
+      "redirect": "Edit formatting",
       "pdf": "Imported from a PDF file",
       "portrait": "Portrait",
       "landscape": "Landscape",

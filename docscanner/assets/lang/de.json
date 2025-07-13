@@ -43,6 +43,7 @@
   "pagePreview": {
     "pageIndex": "Seite {pageIndex}",
     "editBar": {
+      "redirect": "Format anpassen",
       "pdf": "Aus einer PDF-Datei importiert",
       "portrait": "Hochformat",
       "landscape": "Querformat",

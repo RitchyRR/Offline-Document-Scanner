@@ -540,6 +540,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   List<double> _thumbnailRatios = [];
   int _docsCount = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
+    bool supressWarnings = onInit;
     // Thumbnails
     var thumbs = await g.filesHelper.getDocThumbnails();
     List<String> thumbnailPaths = thumbs.$1;
@@ -577,14 +578,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
       } else {
         g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
       }
-
-      bool supressWarnings = onInit;
-      if (thumbnailPaths[docIndex].isEmpty) supressWarnings = true;
       double ratioValue =
           await MetadataHelper.readPageRatioValue(
             docIndex,
             0,
-            supressWarnings: supressWarnings,
+            supressWarnings:
+                supressWarnings || thumbnailPaths[docIndex].isEmpty,
           ) ??
           math.sqrt2;
       newThumbnailRatios[docIndex] = 1.0 / ratioValue;
@@ -4643,45 +4642,50 @@ class PagePreviewState extends State<PagePreview> {
                     : Alignment.topLeft,
 
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  constraints: BoxConstraints(minHeight: 48, maxHeight: 48),
+                  height: 48,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [smallBoxShadow(context)],
                   ),
                   child: _selectedVersion == 0
-                      ? Row(
-                          spacing: 12,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              spacing: 12,
-                              children: [
-                                if (_importedPdfMode) _pdfBadge(context),
-                                if (!_importedPdfMode)
-                                  _aspectRatioDropDown(context),
-                                if (!_importedPdfMode)
-                                  _orientationDropDown(context),
-                                _rotateButton(
-                                  context,
-                                  -90,
-                                  Icons.rotate_left,
-                                  tr("pagePreview.editBar.rotateL"),
-                                ),
-                                _rotateButton(
-                                  context,
-                                  90,
-                                  Icons.rotate_right,
-                                  tr("pagePreview.editBar.rotateR"),
-                                ),
-                              ],
-                            ),
-                            _confirmReProcessingButton(
-                              context,
-                              noReprocessingChanges,
-                            ),
-                          ],
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            spacing: 4,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                spacing: 6,
+                                children: [
+                                  if (_importedPdfMode) _pdfBadge(context),
+                                  if (!_importedPdfMode)
+                                    _aspectRatioDropDown(context),
+                                  if (!_importedPdfMode)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: _orientationDropDown(context),
+                                    ),
+                                  _rotateButton(
+                                    context,
+                                    -90,
+                                    Icons.rotate_left,
+                                    tr("pagePreview.editBar.rotateL"),
+                                  ),
+                                  _rotateButton(
+                                    context,
+                                    90,
+                                    Icons.rotate_right,
+                                    tr("pagePreview.editBar.rotateR"),
+                                  ),
+                                ],
+                              ),
+                              _confirmReProcessingButton(
+                                context,
+                                noReprocessingChanges,
+                              ),
+                            ],
+                          ),
                         )
                       : _toEditingButton(context),
                 ),
@@ -4926,6 +4930,7 @@ class PagePreviewState extends State<PagePreview> {
                                           top: 0,
                                           right: 0,
                                           child: CustomIconButton(
+                                            tooltip: "",
                                             onTap: null,
                                             icon: Icons.lock,
                                           ),
@@ -4955,8 +4960,9 @@ class PagePreviewState extends State<PagePreview> {
 
   Padding _toEditingButton(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 0),
       child: CustomIconButton(
+        tooltip: tr("pagePreview.editBar.redirect"),
         onTap: () {
           setState(() => _selectedVersion = 0);
           _pageController.jumpToPage(0);
@@ -4965,7 +4971,7 @@ class PagePreviewState extends State<PagePreview> {
         icon: Icons.keyboard_arrow_left,
         iconColor: Theme.of(context).colorScheme.onSurface,
         buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        constraints: BoxConstraints(maxHeight: 46, maxWidth: 60),
+        constraints: BoxConstraints(maxHeight: 48, maxWidth: 80),
         child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
@@ -4978,6 +4984,7 @@ class PagePreviewState extends State<PagePreview> {
     String tooltip,
   ) {
     return CustomIconButton(
+      constraints: BoxConstraints(maxHeight: 42, maxWidth: 42),
       isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
       onTap: () async {
         _totalRotation = (_totalRotation + rotation) % 360;
@@ -5796,7 +5803,6 @@ class CustomIconButton extends StatelessWidget {
   final Color? buttonColor;
   final IconData icon;
   final Color? iconColor;
-  final double radius;
   final bool isFlat;
   final bool isHidden;
   final bool isDisabled;
@@ -5810,16 +5816,17 @@ class CustomIconButton extends StatelessWidget {
     this.buttonColor,
     this.icon = Icons.check,
     this.iconColor,
-    this.radius = 20,
     this.isFlat = false,
     this.isHidden = false,
     this.isDisabled = false,
-    this.tooltip,
+    required this.tooltip,
     this.child = const SizedBox(),
   });
 
   @override
   Widget build(BuildContext context) {
+    final double radius =
+        math.min(constraints.maxHeight, constraints.maxWidth) / 2;
     return isHidden
         ? Stack()
         : Stack(
