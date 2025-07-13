@@ -6800,6 +6800,7 @@ Future<void> _changingThumbnailsSnackbar(
   );
   messenger.showSnackBar(snackBar);
   await Future.wait(saveThumbnailFutures);
+  globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
   messenger.hideCurrentSnackBar();
 }
 
