@@ -1168,6 +1168,12 @@ class ImageProcessingManager {
   }) async {
     if (thumbnailIndex == 0) return;
 
+    await MetadataHelper.writePageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      thumbnailIndex,
+    );
+
     final port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
     TaskKiller killer = await IsolatesManager().runTask(
