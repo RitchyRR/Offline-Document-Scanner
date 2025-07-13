@@ -589,6 +589,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
       newThumbnailRatios[docIndex] = 1.0 / ratioValue;
     }
     _thumbnailRatios = newThumbnailRatios;
+    _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+    _loadingDocs = await _loadLoadingDocs(thumbnailPaths);
 
     // Refresh Display
     if (mounted) {
@@ -596,34 +598,32 @@ class _DocumentsHomeState extends State<DocumentsHome>
         _docThumbnails = thumbnailPaths;
       });
     }
-
-    _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-
-    _loadOldThumbnailNames();
   }
 
-  List<String> _oldThumbnailNames = [];
-  Future<void> _loadOldThumbnailNames() async {
-    _oldThumbnailNames = List.generate(_docsCount, (index) => "");
-    bool setAny = false;
-    final int pageIndex = 0;
-    for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
-      List<String>? oldVersionNames = await MetadataHelper.readOldPageFileNames(
-        docIndex,
-        pageIndex,
-        supressWarnings: true,
-      );
-      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        supressWarnings: true,
-      );
-      if (thumbnaiIndex != null && oldVersionNames != null) {
-        _oldThumbnailNames[docIndex] = oldVersionNames[thumbnaiIndex];
-        setAny = true;
+  List<bool> _loadingDocs = [];
+  Future<List<bool>> _loadLoadingDocs(List<String> thumbnailPaths) async {
+    List<bool> thumbnailsLoading = [];
+    for (var docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
+      bool thumbnailLoading = false;
+      if (thumbnailPaths[docIndex].isEmpty) {
+        thumbnailLoading = true;
+      } else {
+        final oldNames = await MetadataHelper.readOldPageFileNames(docIndex, 0);
+        if (oldNames != null) {
+          for (var oldName in oldNames) {
+            if (oldName.isNotEmpty &&
+                thumbnailPaths[docIndex].contains(oldName)) {
+              thumbnailLoading = true;
+              break;
+            }
+          }
+        } else {
+          thumbnailLoading = true;
+        }
       }
+      thumbnailsLoading.add(thumbnailLoading);
     }
-    if (setAny && mounted) setState(() {});
+    return thumbnailsLoading;
   }
 
   void fixMetadataLengths(int length) {
@@ -1122,12 +1122,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   int pagesCount = _docPageCounts.isNotEmpty
                       ? _docPageCounts[docIndex]
                       : -1;
-                  final bool isOldPath =
-                      _oldThumbnailNames.length > docIndex &&
-                      _oldThumbnailNames[docIndex].isNotEmpty &&
-                      _docThumbnails[docIndex].contains(
-                        _oldThumbnailNames[docIndex],
-                      );
+                  final bool isLoading =
+                      _loadingDocs.length <= docIndex || _loadingDocs[docIndex];
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -1320,7 +1316,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                           ),
                                         ),
                                       // Loading Indicator
-                                      if (isOldPath)
+                                      if (isLoading)
                                         Positioned.fill(
                                           child: Material(
                                             color: Theme.of(context)
@@ -1331,7 +1327,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         ),
                                       if (_thumbnailRatios.length <= docIndex ||
                                           _docThumbnails[docIndex].isEmpty ||
-                                          isOldPath)
+                                          isLoading)
                                         IndicatorProcessingImage(),
                                       Positioned.fill(
                                         child: Material(
@@ -2189,10 +2185,16 @@ Future<bool> _unlockPageWithAd(BuildContext context) async {
 }
 
 class ImagesScrollPreview extends StatelessWidget {
-  const ImagesScrollPreview({super.key, required this.pagePaths, this.loading});
+  const ImagesScrollPreview({
+    super.key,
+    required this.imagePaths,
+    required this.loadingImages,
+    required this.imageRatios,
+  });
 
-  final List<String> pagePaths;
-  final List<bool>? loading;
+  final List<String> imagePaths;
+  final List<bool> loadingImages;
+  final List<double> imageRatios;
 
   @override
   Widget build(BuildContext context) {
@@ -2203,7 +2205,7 @@ class ImagesScrollPreview extends StatelessWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: pagePaths.map((path) {
+              children: imagePaths.map((imagePath) {
                 index++;
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -2221,33 +2223,56 @@ class ImagesScrollPreview extends StatelessWidget {
                         maxHeight: 160.0 * math.sqrt2,
                         maxWidth: 160.0,
                       ),
-                      child: loading == null || !loading![index]
-                          ? Image.file(
-                              File(path),
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return AspectRatio(
-                                  aspectRatio: 1 / math.sqrt2,
-                                  child: Material(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceBright,
-                                    child: const Icon(Icons.broken_image),
+                      child: AspectRatio(
+                        aspectRatio: imageRatios.length > index
+                            ? 1 / imageRatios[index]
+                            : math.sqrt1_2,
+                        child: Stack(
+                          fit: StackFit.passthrough,
+                          children: [
+                            // BG
+                            Material(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceBright,
+                            ),
+                            // Thumbnail
+                            if (imagePath.isNotEmpty)
+                              AnimatedSwitcher(
+                                duration: Duration(milliseconds: 200),
+                                child: SizedBox.expand(
+                                  child: Image.file(
+                                    File(imagePath),
+                                    fit: BoxFit.cover,
+                                    key: ValueKey(imagePath),
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Material(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceBright,
+                                        child: const Icon(Icons.broken_image),
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            )
-                          : AspectRatio(
-                              aspectRatio: 1 / math.sqrt2,
-                              child: Material(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceBright,
-                                child: Center(
-                                  child: const CircularProgressIndicator(),
                                 ),
                               ),
-                            ),
+                            // Loading Indicator
+                            if (loadingImages[index])
+                              Positioned.fill(
+                                child: Material(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHigh
+                                      .withAlpha(150),
+                                ),
+                              ),
+                            if (loadingImages.length <= index ||
+                                imagePath.isEmpty ||
+                                loadingImages[index])
+                              IndicatorProcessingImage(),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 );
@@ -2375,6 +2400,9 @@ class _PagesState extends State<Pages> with RouteAware {
       newThumbnailRatios[pageIndex] = 1.0 / ratioValue;
     }
     _thumbnailRatios = newThumbnailRatios;
+    _deletedPages = await g.filesHelper.getMarkedDeletedPages(widget.docIndex);
+    _loadingPages = await _loadLoadingPages(widget.docIndex, thumbnailPaths);
+
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
@@ -2387,31 +2415,38 @@ class _PagesState extends State<Pages> with RouteAware {
         });
       }
     }
-    _deletedPages = await g.filesHelper.getMarkedDeletedPages(widget.docIndex);
-    _loadOldThumbnailNames();
   }
 
-  List<String> _oldThumbnailNames = [];
-  Future<void> _loadOldThumbnailNames() async {
-    _oldThumbnailNames = List.generate(_pagesCount, (index) => "");
-    bool setAny = false;
-    for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
-      List<String>? oldVersionNames = await MetadataHelper.readOldPageFileNames(
-        widget.docIndex,
-        pageIndex,
-        supressWarnings: true,
-      );
-      int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
-        widget.docIndex,
-        pageIndex,
-        supressWarnings: true,
-      );
-      if (thumbnaiIndex != null && oldVersionNames != null) {
-        _oldThumbnailNames[pageIndex] = oldVersionNames[thumbnaiIndex];
-        setAny = true;
+  List<bool> _loadingPages = [];
+  Future<List<bool>> _loadLoadingPages(
+    int docIndex,
+    List<String> thumbnailPaths,
+  ) async {
+    List<bool> thumbnailsLoading = [];
+    for (int pageIndex = 0; pageIndex < thumbnailPaths.length; pageIndex++) {
+      bool thumbnailLoading = false;
+      if (thumbnailPaths[pageIndex].isEmpty) {
+        thumbnailLoading = true;
+      } else {
+        final oldNames = await MetadataHelper.readOldPageFileNames(
+          docIndex,
+          pageIndex,
+        );
+        if (oldNames != null) {
+          for (var oldName in oldNames) {
+            if (oldName.isNotEmpty &&
+                thumbnailPaths[pageIndex].contains(oldName)) {
+              thumbnailLoading = true;
+              break;
+            }
+          }
+        } else {
+          thumbnailLoading = true;
+        }
       }
+      thumbnailsLoading.add(thumbnailLoading);
     }
-    if (setAny && mounted) setState(() {});
+    return thumbnailsLoading;
   }
 
   Future<void> _openPagePreview(int pageIndex) async {
@@ -2693,12 +2728,9 @@ class _PagesState extends State<Pages> with RouteAware {
                             throw StateError("thumbnailRatio == 0.0");
                           }
                           final File pageThumbnail = File(thumbnailPath);
-                          final bool isOldPath =
-                              _oldThumbnailNames.length > pageIndex &&
-                              _oldThumbnailNames[pageIndex].isNotEmpty &&
-                              thumbnailPath.contains(
-                                _oldThumbnailNames[pageIndex],
-                              );
+                          final bool isLoading =
+                              _loadingPages.length <= pageIndex ||
+                              _loadingPages[pageIndex];
                           return Padding(
                             padding: EdgeInsets.only(bottom: 12),
                             child: AspectRatio(
@@ -2740,7 +2772,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                         ),
                                       ),
                                     // Loading Indicator
-                                    if (isOldPath)
+                                    if (isLoading)
                                       Positioned.fill(
                                         child: Material(
                                           color: Theme.of(context)
@@ -2749,7 +2781,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                               .withAlpha(150),
                                         ),
                                       ),
-                                    if (thumbnailPath.isEmpty || isOldPath)
+                                    if (thumbnailPath.isEmpty || isLoading)
                                       IndicatorProcessingImage(),
                                     // InkWell
                                     Positioned.fill(
@@ -2889,12 +2921,9 @@ class _PagesState extends State<Pages> with RouteAware {
                             throw StateError("thumbnailRatio == 0.0");
                           }
                           File pageThumbnail = File(thumbnailPath);
-                          final bool isOldPath =
-                              _oldThumbnailNames.length > pageIndex &&
-                              _oldThumbnailNames[pageIndex].isNotEmpty &&
-                              thumbnailPath.contains(
-                                _oldThumbnailNames[pageIndex],
-                              );
+                          final bool isLoading =
+                              _loadingPages.length <= pageIndex ||
+                              _loadingPages[pageIndex];
                           return AspectRatio(
                             aspectRatio: thumbnailRatio,
                             child: Container(
@@ -2934,7 +2963,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                       ),
                                     ),
                                   // Loading Indicator
-                                  if (isOldPath)
+                                  if (isLoading)
                                     Positioned.fill(
                                       child: Material(
                                         color: Theme.of(context)
@@ -2943,7 +2972,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                             .withAlpha(150),
                                       ),
                                     ),
-                                  if (thumbnailPath.isEmpty || isOldPath)
+                                  if (thumbnailPath.isEmpty || isLoading)
                                     IndicatorProcessingImage(),
                                   // InkWell
                                   Positioned.fill(
@@ -3499,10 +3528,7 @@ class _PagesState extends State<Pages> with RouteAware {
           supressWarnings: true,
         );
         changeThumbnailFutures.add(
-          !(_oldThumbnailNames[pageIndex].isNotEmpty &&
-                  _pageThumbnails[pageIndex].contains(
-                    _oldThumbnailNames[pageIndex],
-                  ))
+          !_loadingPages[pageIndex]
               // set new Thumbnail
               ? imageProcessingManager.setNewThumbnail(
                   docIndex,
@@ -6882,12 +6908,18 @@ Future<bool> _pagesPopup(
   )).$1;
   int? selectedDpi;
   // IsLoading
-  List<bool> loading = await loadThumnailsLoading(
+  List<bool> loadingImages = await loadLoadingImages(
     docIndex,
     pageIndexes,
     thumbnailPaths,
   );
-  bool allPagesLoaded = loading.every((element) => !element);
+  bool allPagesLoaded = loadingImages.every((element) => !element);
+  // Aspect Ratios
+  List<double> imageRatios = await loadImageRatios(
+    docIndex,
+    pageIndexes,
+    pagesCount,
+  );
 
   await showDialog(
     // ignore: use_build_context_synchronously
@@ -6907,12 +6939,6 @@ Future<bool> _pagesPopup(
                     versionIndex,
                   ),
                 ];
-                loading = await loadThumnailsLoading(
-                  docIndex,
-                  pageIndexes,
-                  thumbnailPaths,
-                );
-                allPagesLoaded = loading.every((element) => !element);
               });
             } else {
               Future.microtask(() async {
@@ -6923,14 +6949,23 @@ Future<bool> _pagesPopup(
                   supressWarnings: true,
                 );
                 thumbnailPaths = thumbs.$1;
-                loading = await loadThumnailsLoading(
-                  docIndex,
-                  pageIndexes,
-                  thumbnailPaths,
-                );
-                allPagesLoaded = loading.every((element) => !element);
               });
             }
+            Future.microtask(() async {
+              imageRatios = await loadImageRatios(
+                docIndex,
+                pageIndexes,
+                pagesCount,
+              );
+            });
+            Future.microtask(() async {
+              loadingImages = await loadLoadingImages(
+                docIndex,
+                pageIndexes,
+                thumbnailPaths,
+              );
+              allPagesLoaded = loadingImages.every((element) => !element);
+            });
             Future.microtask(() async {
               imagesFilesizes = await g.filesHelper.getImagesFilesizes(
                 docIndex,
@@ -7098,8 +7133,9 @@ Future<bool> _pagesPopup(
                 ),
                 actions: [
                   ImagesScrollPreview(
-                    pagePaths: thumbnailPaths,
-                    loading: loading,
+                    imagePaths: thumbnailPaths,
+                    loadingImages: loadingImages,
+                    imageRatios: imageRatios,
                   ),
                   SizedBox(height: 12.0),
                   !allPagesLoaded
@@ -7454,24 +7490,60 @@ Future<bool> _pagesPopup(
   return confirmAction;
 }
 
-Future<List<bool>> loadThumnailsLoading(
+Future<List<double>> loadImageRatios(
+  int docIndex,
+  List<int> pageIndexes,
+  int pagesCount,
+) async {
+  List<double> imageRatios = [];
+  if (pageIndexes.isEmpty) {
+    pageIndexes = List.generate(pagesCount, (index) => index);
+  }
+  for (var pageIndex in pageIndexes) {
+    imageRatios.add(
+      await MetadataHelper.readPageRatioValue(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          ) ??
+          math.sqrt2,
+    );
+  }
+  return imageRatios;
+}
+
+Future<List<bool>> loadLoadingImages(
   int docIndex,
   List<int> pageIndexes,
   List<String> thumbnailPaths,
 ) async {
-  List<bool> loading = [];
-  for (var (i, pageIndex) in pageIndexes.indexed) {
-    loading.add(
-      thumbnailPaths[i].isNotEmpty &&
-          thumbnailPaths.contains(
-            await MetadataHelper.readOldThumbnailVersionFileName(
-              docIndex,
-              pageIndex,
-            ),
-          ),
-    );
+  if (pageIndexes.isEmpty) {
+    pageIndexes = List.generate(thumbnailPaths.length, (index) => index);
   }
-  return loading;
+  List<bool> thumbnailsLoading = [];
+  for (var (i, pageIndex) in pageIndexes.indexed) {
+    bool thumbnailLoading = false;
+    if (thumbnailPaths[i].isEmpty) {
+      thumbnailLoading = true;
+    } else {
+      final oldNames = await MetadataHelper.readOldPageFileNames(
+        docIndex,
+        pageIndex,
+      );
+      if (oldNames != null) {
+        for (var oldName in oldNames) {
+          if (oldName.isNotEmpty && thumbnailPaths[i].contains(oldName)) {
+            thumbnailLoading = true;
+            break;
+          }
+        }
+      } else {
+        thumbnailLoading = true;
+      }
+    }
+    thumbnailsLoading.add(thumbnailLoading);
+  }
+  return thumbnailsLoading;
 }
 
 class DpiDropdown extends StatefulWidget {

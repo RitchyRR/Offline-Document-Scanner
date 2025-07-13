@@ -570,25 +570,25 @@ class MetadataHelper {
     return null;
   }
 
-  static Future<String?> readOldThumbnailVersionFileName(
-    int docIndex,
-    int pageIndex, {
-    AppGlobals? gIn,
-    bool supressWarnings = false,
-  }) async {
-    gIn ??= g;
-
-    List<String>? names = await readOldPageFileNames(
-      docIndex,
-      pageIndex,
-      gIn: gIn,
-      supressWarnings: supressWarnings,
-    );
-    final int versionIndex =
-        await readPageThumbnailIndex(docIndex, pageIndex) ?? gIn.defaultIndex;
-
-    return names == null ? null : names[versionIndex];
-  }
+  //static Future<String?> readOldThumbnailVersionFileName(
+  //  int docIndex,
+  //  int pageIndex, {
+  //  AppGlobals? gIn,
+  //  bool supressWarnings = false,
+  //}) async {
+  //  gIn ??= g;
+  //
+  //  List<String>? names = await readOldPageFileNames(
+  //    docIndex,
+  //    pageIndex,
+  //    gIn: gIn,
+  //    supressWarnings: supressWarnings,
+  //  );
+  //  final int versionIndex =
+  //      await readPageThumbnailIndex(docIndex, pageIndex) ?? gIn.defaultIndex;
+  //
+  //  return names == null ? null : names[versionIndex];
+  //}
 }
 
 class MetadataCryptoHelper {
