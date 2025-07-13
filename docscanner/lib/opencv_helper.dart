@@ -237,7 +237,7 @@ class OpenCVHelper {
     }
     if (ratioValueIn == null) {
       // 4. Perspective transformation
-      ratioValue = _calculateTransformation(mask, corners);
+      ratioValue = _calculateTransformation(mask.clone(), corners);
     } else {
       ratioValue = ratioValueIn;
       _setHeightFromCorners(corners, ratioValue);
@@ -246,12 +246,14 @@ class OpenCVHelper {
     }
 
     cv.Mat? warped;
+    cv.Mat warpedMask = mask;
     if (!onlyCalculateBorder) {
-      warped = _correctedTransformImage(imageMat, corners);
+      _applyBorderCutInToCorners(corners);
+      warped = _transformImage(imageMat, corners);
+      warpedMask = _transformImage(mask, corners);
     }
-    imageMat.dispose();
 
-    return (warped, mask, ratioValue, corners);
+    return (warped, warpedMask, ratioValue, corners);
   }
 
   /// Filter Image 0: contrast
@@ -1028,21 +1030,20 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  double _calculateTransformation(cv.Mat shape, List<List<int>> corners) {
+  double _calculateTransformation(cv.Mat mask, List<List<int>> corners) {
     // Estimate aspect ratio
     double calculatedRatio = _calculateAspectRatio(corners);
     final matchedRatio = matchAspectRatioAndOrientation(calculatedRatio);
-    calculatedRatio = matchedRatio;
 
-    _setHeightFromCorners(corners, calculatedRatio);
+    _setHeightFromCorners(corners, matchedRatio);
 
-    _calculateBorderSize(shape, corners);
+    _calculateBorderSize(mask, corners);
 
-    return calculatedRatio;
+    return matchedRatio;
   }
 
-  void _calculateBorderSize(cv.Mat shape, List<List<int>> corners) {
-    cv.Mat warpedShape = _transformImage(shape, corners);
+  void _calculateBorderSize(cv.Mat mask, List<List<int>> corners) {
+    cv.Mat warpedMask = _transformImage(mask, corners);
     final int maxBorderSize = (borderCutIn == null)
         ? (K * 0.4).toInt().clamp(1, -1 >>> 1)
         : (K * 0.7).toInt().clamp(1, -1 >>> 1);
@@ -1051,7 +1052,7 @@ class OpenCVHelper {
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = 0; i < maxBorderSize; i++) {
-        if (warpedShape.at<int>(i, j) == 0) {
+        if (warpedMask.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
         } else {
@@ -1065,7 +1066,7 @@ class OpenCVHelper {
     depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = height - 1; i > height - maxBorderSize; i--) {
-        if (warpedShape.at<int>(i, j) == 0) {
+        if (warpedMask.at<int>(i, j) == 0) {
           int val = height - i;
           depths[j] = val;
         } else {
@@ -1079,7 +1080,7 @@ class OpenCVHelper {
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < maxBorderSize; j++) {
-        if (warpedShape.at<int>(i, j) == 0) {
+        if (warpedMask.at<int>(i, j) == 0) {
           int val = j;
           depths[i] = val;
         } else {
@@ -1093,7 +1094,7 @@ class OpenCVHelper {
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = width - 1; j > width - maxBorderSize; j--) {
-        if (warpedShape.at<int>(i, j) == 0) {
+        if (warpedMask.at<int>(i, j) == 0) {
           int val = width - j;
           depths[i] = val;
         } else {
@@ -1225,7 +1226,7 @@ class OpenCVHelper {
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
-  cv.Mat _correctedTransformImage(cv.Mat imageMat, List<List<int>> corners) {
+  void _applyBorderCutInToCorners(List<List<int>> corners) {
     if (borderCutIn != null) {
       //top
       corners[0][0] += borderCutIn![0];
@@ -1240,10 +1241,6 @@ class OpenCVHelper {
       corners[2][1] -= borderCutIn![6];
       corners[3][1] -= borderCutIn![7];
     }
-
-    //dev.log("correctedCorners = $corners");
-
-    return _transformImage(imageMat, corners);
   }
 
   cv.Mat _transformImage(cv.Mat imageMat, final List<List<int>> corners) {
