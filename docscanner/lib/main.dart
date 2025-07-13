@@ -2867,8 +2867,8 @@ class _PagesState extends State<Pages> with RouteAware {
                     // Grid View
                     : MasonryGridView.count(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 5,
-                        mainAxisSpacing: 5,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
                         padding: EdgeInsets.fromLTRB(15, 6, 15, 36),
                         controller: _scrollController,
                         cacheExtent: 1000,
