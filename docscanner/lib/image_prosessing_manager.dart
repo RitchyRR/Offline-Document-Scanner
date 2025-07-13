@@ -424,11 +424,7 @@ class ImageProcessingManager {
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
     List<String>? oldVersionFileNames =
-        await MetadataHelper.readOldVersionFileNames(
-          docIndex,
-          pageIndex,
-          gIn: g,
-        );
+        await MetadataHelper.readOldPageFileNames(docIndex, pageIndex, gIn: g);
 
     // Photo
     if (!File(

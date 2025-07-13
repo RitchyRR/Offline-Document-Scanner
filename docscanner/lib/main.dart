@@ -608,12 +608,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
     bool setAny = false;
     final int pageIndex = 0;
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
-      List<String>? oldVersionNames =
-          await MetadataHelper.readOldVersionFileNames(
-            docIndex,
-            pageIndex,
-            supressWarnings: true,
-          );
+      List<String>? oldVersionNames = await MetadataHelper.readOldPageFileNames(
+        docIndex,
+        pageIndex,
+        supressWarnings: true,
+      );
       int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
@@ -2190,19 +2189,22 @@ Future<bool> _unlockPageWithAd(BuildContext context) async {
 }
 
 class ImagesScrollPreview extends StatelessWidget {
-  const ImagesScrollPreview({super.key, required this.pagePaths});
+  const ImagesScrollPreview({super.key, required this.pagePaths, this.loading});
 
   final List<String> pagePaths;
+  final List<bool>? loading;
 
   @override
   Widget build(BuildContext context) {
     return Builder(
       builder: (context) {
+        int index = -1;
         return Center(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: pagePaths.map((path) {
+                index++;
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(
                     8.0,
@@ -2219,7 +2221,7 @@ class ImagesScrollPreview extends StatelessWidget {
                         maxHeight: 160.0 * math.sqrt2,
                         maxWidth: 160.0,
                       ),
-                      child: path.isNotEmpty
+                      child: loading == null || !loading![index]
                           ? Image.file(
                               File(path),
                               fit: BoxFit.contain,
@@ -2394,12 +2396,11 @@ class _PagesState extends State<Pages> with RouteAware {
     _oldThumbnailNames = List.generate(_pagesCount, (index) => "");
     bool setAny = false;
     for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
-      List<String>? oldVersionNames =
-          await MetadataHelper.readOldVersionFileNames(
-            widget.docIndex,
-            pageIndex,
-            supressWarnings: true,
-          );
+      List<String>? oldVersionNames = await MetadataHelper.readOldPageFileNames(
+        widget.docIndex,
+        pageIndex,
+        supressWarnings: true,
+      );
       int? thumbnaiIndex = await MetadataHelper.readPageThumbnailIndex(
         widget.docIndex,
         pageIndex,
@@ -4054,7 +4055,7 @@ class PagePreviewState extends State<PagePreview> {
   Future<void> _loadOldVersionFileNames() async {
     // set _versionPaths to old names, so that polling realizes that they are old
     List<String>? oldVersionFileNames =
-        await MetadataHelper.readOldVersionFileNames(
+        await MetadataHelper.readOldPageFileNames(
           widget.docIndex,
           widget.pageIndex,
           supressWarnings: true,
@@ -4373,10 +4374,14 @@ class PagePreviewState extends State<PagePreview> {
         (_orientationIndex == null ||
             (_orientationIndex == _guiOrientationIndex)) &&
         _totalRotation == 0);
-    bool enableFAB0 = _versionPaths.first.isNotEmpty && !_isRotating;
+    bool enableFAB0 =
+        _versionPaths.first.isNotEmpty &&
+        !_versionLoading[_selectedVersion] &&
+        !_isRotating;
     bool enableFABs = _selectedVersion == 0
         ? (enableFAB0 && noReprocessingChanges)
-        : _versionPaths[_selectedVersion].isNotEmpty;
+        : _versionPaths[_selectedVersion].isNotEmpty &&
+              !_versionLoading[_selectedVersion];
     _allowPop =
         g.proUnlocked ||
         !g.proFilterIndexes.contains(_selectedThumbnail) ||
@@ -4693,7 +4698,7 @@ class PagePreviewState extends State<PagePreview> {
             ),
           ],
         ),
-        // Floating Buttons
+        // Floating Action Buttons
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -6823,7 +6828,7 @@ Future<bool> _pagesPopup(
   late List<String> thumbnailPaths;
   late int pagesCount;
   late bool importedPdfMode;
-  // version
+  // specific version
   if (versionIndex != null && pageIndexes.length == 1) {
     importedPdfMode = await MetadataHelper.readPageImportedPdf(
       docIndex,
@@ -6855,9 +6860,7 @@ Future<bool> _pagesPopup(
     thumbnailPaths = thumbs.$1;
     pagesCount = thumbs.$2;
   }
-  final bool isSinglePage = pagesCount == 1;
-  bool allPagesLoaded = !thumbnailPaths.any((element) => element.isEmpty);
-
+  final bool isSinglePage = pagesCount == 1; // Locked?
   bool docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
   bool pageUnlocked = false;
   if (pageIndexes.isNotEmpty) {
@@ -6866,7 +6869,7 @@ Future<bool> _pagesPopup(
       pageIndexes.first,
     );
   }
-
+  // FileSizes and DPI
   List<int> imagesFilesizes = await g.filesHelper.getImagesFilesizes(
     docIndex,
     pageIndexes: pageIndexes,
@@ -6878,6 +6881,13 @@ Future<bool> _pagesPopup(
     versionIndex: versionIndex,
   )).$1;
   int? selectedDpi;
+  // IsLoading
+  List<bool> loading = await loadThumnailsLoading(
+    docIndex,
+    pageIndexes,
+    thumbnailPaths,
+  );
+  bool allPagesLoaded = loading.every((element) => !element);
 
   await showDialog(
     // ignore: use_build_context_synchronously
@@ -6897,9 +6907,12 @@ Future<bool> _pagesPopup(
                     versionIndex,
                   ),
                 ];
-                allPagesLoaded = !thumbnailPaths.any(
-                  (element) => element.isEmpty,
+                loading = await loadThumnailsLoading(
+                  docIndex,
+                  pageIndexes,
+                  thumbnailPaths,
                 );
+                allPagesLoaded = loading.every((element) => !element);
               });
             } else {
               Future.microtask(() async {
@@ -6910,9 +6923,12 @@ Future<bool> _pagesPopup(
                   supressWarnings: true,
                 );
                 thumbnailPaths = thumbs.$1;
-                allPagesLoaded = !thumbnailPaths.any(
-                  (element) => element.isEmpty,
+                loading = await loadThumnailsLoading(
+                  docIndex,
+                  pageIndexes,
+                  thumbnailPaths,
                 );
+                allPagesLoaded = loading.every((element) => !element);
               });
             }
             Future.microtask(() async {
@@ -7081,7 +7097,10 @@ Future<bool> _pagesPopup(
                   ],
                 ),
                 actions: [
-                  ImagesScrollPreview(pagePaths: thumbnailPaths),
+                  ImagesScrollPreview(
+                    pagePaths: thumbnailPaths,
+                    loading: loading,
+                  ),
                   SizedBox(height: 12.0),
                   !allPagesLoaded
                       ? Padding(
@@ -7433,6 +7452,26 @@ Future<bool> _pagesPopup(
     },
   );
   return confirmAction;
+}
+
+Future<List<bool>> loadThumnailsLoading(
+  int docIndex,
+  List<int> pageIndexes,
+  List<String> thumbnailPaths,
+) async {
+  List<bool> loading = [];
+  for (var (i, pageIndex) in pageIndexes.indexed) {
+    loading.add(
+      thumbnailPaths[i].isNotEmpty &&
+          thumbnailPaths.contains(
+            await MetadataHelper.readOldThumbnailVersionFileName(
+              docIndex,
+              pageIndex,
+            ),
+          ),
+    );
+  }
+  return loading;
 }
 
 class DpiDropdown extends StatefulWidget {

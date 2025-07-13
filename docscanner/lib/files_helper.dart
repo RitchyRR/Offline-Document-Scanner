@@ -567,10 +567,7 @@ class FilesHelper {
           int countVersionsAndThumbnail = 0;
           if (!pageIncomplete) {
             List<String>? oldVersionFileNames =
-                await MetadataHelper.readOldVersionFileNames(
-                  docIndex,
-                  pageIndex,
-                );
+                await MetadataHelper.readOldPageFileNames(docIndex, pageIndex);
             oldVersionFileNames = oldVersionFileNames
                 ?.where((element) => element != "")
                 .toList();

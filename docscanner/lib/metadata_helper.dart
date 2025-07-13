@@ -532,7 +532,7 @@ class MetadataHelper {
     );
   }
 
-  static Future<List<String>?> readOldVersionFileNames(
+  static Future<List<String>?> readOldPageFileNames(
     int docIndex,
     int pageIndex, {
     AppGlobals? gIn,
@@ -568,6 +568,26 @@ class MetadataHelper {
       );
     }
     return null;
+  }
+
+  static Future<String?> readOldThumbnailVersionFileName(
+    int docIndex,
+    int pageIndex, {
+    AppGlobals? gIn,
+    bool supressWarnings = false,
+  }) async {
+    gIn ??= g;
+
+    List<String>? names = await readOldPageFileNames(
+      docIndex,
+      pageIndex,
+      gIn: gIn,
+      supressWarnings: supressWarnings,
+    );
+    final int versionIndex =
+        await readPageThumbnailIndex(docIndex, pageIndex) ?? gIn.defaultIndex;
+
+    return names == null ? null : names[versionIndex];
   }
 }
 
