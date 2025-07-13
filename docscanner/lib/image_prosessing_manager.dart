@@ -86,10 +86,6 @@ class ImageProcessingManager {
       );
     }
 
-    // Delete old Thumbnail
-    isolateExitPoint(kill);
-    _deleteScaledThumbnail(pagePath);
-
     // Read Photo
     isolateExitPoint(kill);
     final imageRaw = g.filesHelper.readImageRaw(photoPath);
@@ -294,7 +290,10 @@ class ImageProcessingManager {
       );
     }
 
-    // Scale Thumbnail
+    // Delete old Thumbnail
+    isolateExitPoint(kill);
+    _deleteScaledThumbnail(pagePath);
+    // Set New Thumbnail
     isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(
       sendPort,
@@ -383,7 +382,13 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
     );
-    MetadataHelper.writeOldVersionFileNames(docIndex, pageIndex, versionPaths);
+    List<String> fileNames = [];
+    for (var path in versionPaths) {
+      fileNames.add(
+        path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
+      );
+    }
+    MetadataHelper.writeOldVersionFileNames(docIndex, pageIndex, fileNames);
   }
 
   static Future<void> _repairPageIsolate(
@@ -598,7 +603,7 @@ class ImageProcessingManager {
     // Update thumbnails:
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-
+    // Set New Thumbnail
     if (thumbnailPath.isEmpty) {
       isolateExitPoint(kill);
       await _scaleAndSaveThumbnailInIsolate(
@@ -855,12 +860,6 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
-    // Delete old Thumbnail
-    isolateExitPoint(kill);
-    _deleteScaledThumbnail(
-      await g.filesHelper.getPagePath(docIndex, pageIndex),
-    );
-
     if (!File(versionPaths[0]).existsSync()) {
       throw StateError("photo ${versionPaths[0]} does not exist");
     }
@@ -921,10 +920,15 @@ class ImageProcessingManager {
       }
     }
 
-    // Updates
+    // Update Thumbnail
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-
+    // Delete old Thumbnail
+    isolateExitPoint(kill);
+    _deleteScaledThumbnail(
+      await g.filesHelper.getPagePath(docIndex, pageIndex),
+    );
+    // Set New Thumbnail
     isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(
       sendPort,
@@ -1027,11 +1031,10 @@ class ImageProcessingManager {
       return false;
     }
 
-    String thumbnailPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_${versionNamesInternal[thumbnailIndex]}_thumbnail.png";
-    File thumbnailFile = File(thumbnailPath);
-    isolateExitPoint(kill);
-    Uint8List versionBytes = versionFile.readAsBytesSync();
+    final String versionFileName = versionPath.substring(
+      versionPath.lastIndexOf("/") + 1,
+      versionPath.lastIndexOf("."),
+    );
 
     // if overwriting -> delete existing thumbnail file
     try {
@@ -1041,17 +1044,13 @@ class ImageProcessingManager {
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
         if (fse.path.contains("thumbnail")) {
           String oldThumbnailPath = fse.path;
-          if (!oldThumbnailPath.contains(
-            versionNamesInternal[thumbnailIndex],
-          )) {
-            //dev.log(
-            //  "Overwriting, _scaleAndSaveThumbnailIsolate, old path: $oldThumbnailPath",
-            //);
+          if (oldThumbnailPath.contains(versionFileName)) {
+            // Is same
+            return false;
+          } else {
+            // Overwrite
             isolateExitPoint(kill);
             File(oldThumbnailPath).deleteSync();
-          } else {
-            //dev.log("Thumbnail already exists, won't overwrite thumbnail.");
-            return false;
           }
         }
       }
@@ -1061,6 +1060,12 @@ class ImageProcessingManager {
       );
     }
 
+    String thumbnailPath = "$pagePath/${versionFileName}_thumbnail.png";
+    File thumbnailFile = File(thumbnailPath);
+    isolateExitPoint(kill);
+    Uint8List versionBytes = versionFile.readAsBytesSync();
+
+    isolateExitPoint(kill);
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
     isolateExitPoint(kill);
     Uint8List scaledBytes;
@@ -1153,7 +1158,7 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  Future<void> saveNewThumbnail(
+  Future<void> setNewThumbnail(
     int docIndex,
     int pageIndex,
     int thumbnailIndex, {

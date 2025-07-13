@@ -223,7 +223,7 @@ class MetadataHelper {
       // Change Thumbnail back to non PRO filter
       final currentIndex = await readPageThumbnailIndex(docIndex, pageIndex);
       if (g.proFilterIndexes.contains(currentIndex)) {
-        imageProcessingManager.saveNewThumbnail(
+        imageProcessingManager.setNewThumbnail(
           docIndex,
           pageIndex,
           g.defaultIndex,

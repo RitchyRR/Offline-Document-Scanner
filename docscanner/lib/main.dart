@@ -3405,6 +3405,131 @@ class _PagesState extends State<Pages> with RouteAware {
       _loadPagesThumbnails();
     }
   }
+
+  Future<bool> _changeThumbnailVersionsPopup(
+    BuildContext context,
+    List<int> pageIndexes,
+    int docIndex,
+  ) async {
+    int? selectedIndex;
+    bool allowed = true;
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconWithBadge(
+                    icon: Icons.image,
+                    badgeIcon: Icons.change_circle,
+                    mainIconSize: 30,
+                    iconColor: Theme.of(context).colorScheme.onSurface,
+                    bgColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  ),
+                  SizedBox(width: 12),
+                  Flexible(child: Text(tr("popup.changeThumbnails.title"))),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List<Widget>.generate(
+                  versionNames.length - 1,
+                  (index) => RadioListTile<int>(
+                    title: Row(
+                      children: [
+                        Text(versionNames[index + 1]),
+                        !g.proUnlocked && g.proFilterIndexes.contains(index + 1)
+                            ? Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Icon(Icons.lock),
+                              )
+                            : SizedBox(),
+                      ],
+                    ),
+                    value: index + 1,
+                    groupValue: selectedIndex,
+                    onChanged: (int? value) {
+                      if (value != null) {
+                        if (!g.proUnlocked &&
+                            g.proFilterIndexes.contains(index + 1)) {
+                          allowed = false;
+                        } else {
+                          allowed = true;
+                        }
+                        setStateDialog(() {
+                          selectedIndex = value;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false), // Cancel
+                  child: Text(tr("popup.cancel")),
+                ),
+                allowed
+                    ? ElevatedButton(
+                        onPressed: selectedIndex != null
+                            ? () {
+                                Navigator.pop(context, true);
+                              }
+                            : null,
+                        child: Text(tr("popup.ok")),
+                      )
+                    : ElevatedButton.icon(
+                        icon: Icon(Icons.lock),
+                        onPressed: () async {
+                          await proPopup(context);
+                          setStateDialog(() {});
+                        },
+                        label: Text(tr("popup.unlock")),
+                      ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    List<Future> changeThumbnailFutures = [];
+    if (confirmed == true && allowed && selectedIndex != null) {
+      for (var pageIndex in pageIndexes) {
+        final bool pageUnlocked = await g.metadataHelper.readPageUnlocked(
+          docIndex,
+          pageIndex,
+          supressWarnings: true,
+        );
+        changeThumbnailFutures.add(
+          !_pageThumbnails[pageIndex].contains(_oldThumbnailNames[pageIndex])
+              // set new Thumbnail
+              ? imageProcessingManager.setNewThumbnail(
+                  docIndex,
+                  pageIndex,
+                  selectedIndex!,
+                  tmpPro: pageUnlocked,
+                )
+              // still processing -> just set thumbnailIndex
+              : MetadataHelper.writePageThumbnailIndex(
+                  docIndex,
+                  pageIndex,
+                  selectedIndex!,
+                  tmpPro: pageUnlocked,
+                  supressWarnings: true,
+                ),
+        );
+      }
+      if (context.mounted) {
+        _changingThumbnailsSnackbar(context, changeThumbnailFutures);
+      }
+      return true;
+    }
+    return false;
+  }
 }
 
 class CustomScrollController extends ScrollController {
@@ -4035,7 +4160,7 @@ class PagePreviewState extends State<PagePreview> {
           );
         },
         onComplete: () {
-          if (thisProcessingIndex != _processingIndex) return;
+          if (thisProcessingIndex != _processingIndex || !mounted) return;
           if (i == 0) {
             _versionPaths[i] = _photoPath = polledPath;
             FilesHelper.deleteCachedRoatedImages();
@@ -4265,22 +4390,34 @@ class PagePreviewState extends State<PagePreview> {
       canPop: _allowPop && noReprocessingChanges,
       onPopInvokedWithResult: (didPop, _) async {
         if (!noReprocessingChanges) {
+          // Exit edit mode
           _guiRatioValue = _ratioValue;
           _guiOrientationIndex = _orientationIndex;
           _totalRotation = 0;
           _versionPaths[0] = _photoPath;
           setState(() {});
         } else if (!_allowPop) {
+          // Prevent pop when PRO filter is selected
           HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
         } else {
-          // new thumbnail
-          imageProcessingManager.saveNewThumbnail(
-            widget.docIndex,
-            widget.pageIndex,
-            _selectedThumbnail,
-            tmpPro: _pageUnlocked,
-          );
+          // New thumbnail
+          if (_processingIndex == 0) {
+            imageProcessingManager.setNewThumbnail(
+              widget.docIndex,
+              widget.pageIndex,
+              _selectedThumbnail,
+              tmpPro: _pageUnlocked,
+            );
+          } else {
+            MetadataHelper.writePageThumbnailIndex(
+              widget.docIndex,
+              widget.pageIndex,
+              _selectedThumbnail,
+              tmpPro: _pageUnlocked,
+              supressWarnings: true,
+            );
+          }
           if (!didPop) Navigator.pop(context);
         }
       },
@@ -6638,115 +6775,6 @@ Future<bool> _setDefaultThumbnail(final int newDefaultThumnailIndex) async {
     "defaultThumnailVersion",
     versionNamesInternal[g.defaultIndex],
   );
-}
-
-Future<bool> _changeThumbnailVersionsPopup(
-  BuildContext context,
-  List<int> pageIndexes,
-  int docIndex,
-) async {
-  int? selectedIndex;
-  bool allowed = true;
-  bool? confirmed = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconWithBadge(
-                  icon: Icons.image,
-                  badgeIcon: Icons.change_circle,
-                  mainIconSize: 30,
-                  iconColor: Theme.of(context).colorScheme.onSurface,
-                  bgColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                ),
-                SizedBox(width: 12),
-                Flexible(child: Text(tr("popup.changeThumbnails.title"))),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: List<Widget>.generate(
-                versionNames.length - 1,
-                (index) => RadioListTile<int>(
-                  title: Row(
-                    children: [
-                      Text(versionNames[index + 1]),
-                      !g.proUnlocked && g.proFilterIndexes.contains(index + 1)
-                          ? Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Icon(Icons.lock),
-                            )
-                          : SizedBox(),
-                    ],
-                  ),
-                  value: index + 1,
-                  groupValue: selectedIndex,
-                  onChanged: (int? value) {
-                    if (value != null) {
-                      if (!g.proUnlocked &&
-                          g.proFilterIndexes.contains(index + 1)) {
-                        allowed = false;
-                      } else {
-                        allowed = true;
-                      }
-                      setStateDialog(() {
-                        selectedIndex = value;
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false), // Cancel
-                child: Text(tr("popup.cancel")),
-              ),
-              allowed
-                  ? ElevatedButton(
-                      onPressed: selectedIndex != null
-                          ? () {
-                              Navigator.pop(context, true);
-                            }
-                          : null,
-                      child: Text(tr("popup.ok")),
-                    )
-                  : ElevatedButton.icon(
-                      icon: Icon(Icons.lock),
-                      onPressed: () async {
-                        await proPopup(context);
-                        setStateDialog(() {});
-                      },
-                      label: Text(tr("popup.unlock")),
-                    ),
-            ],
-          );
-        },
-      );
-    },
-  );
-
-  List<Future> changeThumbnailFutures = [];
-  if (confirmed == true && allowed && selectedIndex != null) {
-    for (var pageIndex in pageIndexes) {
-      changeThumbnailFutures.add(
-        imageProcessingManager.saveNewThumbnail(
-          docIndex,
-          pageIndex,
-          selectedIndex!,
-        ),
-      );
-    }
-    if (context.mounted) {
-      _changingThumbnailsSnackbar(context, changeThumbnailFutures);
-    }
-    return true;
-  }
-  return false;
 }
 
 Future<void> _changingThumbnailsSnackbar(
