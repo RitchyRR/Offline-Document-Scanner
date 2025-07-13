@@ -1769,7 +1769,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(seconds: 2));
       if (mounted) {
-        _expandTemporarily();
+        _expandButtonTemporarily();
       }
     });
   }
@@ -1785,12 +1785,12 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 1500));
       if (mounted) {
-        _expandTemporarily();
+        _expandButtonTemporarily();
       }
     });
   }
 
-  void _expandTemporarily() {
+  void _expandButtonTemporarily() {
     setState(() {
       _expanded = true;
     });
@@ -1842,7 +1842,7 @@ class _CustomExpandingButtonState extends State<CustomExpandingButton>
           child: InkWell(
             borderRadius: BorderRadius.circular(32),
             onTap: widget.onPressed,
-            onLongPress: _expandTemporarily,
+            onLongPress: _expandButtonTemporarily,
             child: SizedBox.expand(
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -2336,10 +2336,9 @@ class _PagesState extends State<Pages> with RouteAware {
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
-  @override
-  void didPopNext() {
-    _loadPagesThumbnails();
-  }
+  // didPopNext() triggers before PopScope is finished, use signals instead if possible
+  //@override
+  //Future<void> didPopNext() async {}
 
   Future<void> _loadPagesThumbnails({
     bool onInit = false,
@@ -4403,6 +4402,7 @@ class PagePreviewState extends State<PagePreview> {
         } else {
           // New thumbnail
           if (_processingIndex == 0) {
+            // If done processing
             imageProcessingManager.setNewThumbnail(
               widget.docIndex,
               widget.pageIndex,
@@ -4410,15 +4410,17 @@ class PagePreviewState extends State<PagePreview> {
               tmpPro: _pageUnlocked,
             );
           } else {
-            MetadataHelper.writePageThumbnailIndex(
+            // While still processing
+            await MetadataHelper.writePageThumbnailIndex(
               widget.docIndex,
               widget.pageIndex,
               _selectedThumbnail,
               tmpPro: _pageUnlocked,
               supressWarnings: true,
             );
+            globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
           }
-          if (!didPop) Navigator.pop(context);
+          if (!didPop && context.mounted) Navigator.pop(context);
         }
       },
       child: Scaffold(
