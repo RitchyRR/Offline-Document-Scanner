@@ -2864,10 +2864,12 @@ class _PagesState extends State<Pages> with RouteAware {
                           );
                         },
                       )
+                    // Grid View
                     : MasonryGridView.count(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 15,
-                        padding: EdgeInsets.fromLTRB(15, 6, 15, 21),
+                        crossAxisSpacing: 5,
+                        mainAxisSpacing: 5,
+                        padding: EdgeInsets.fromLTRB(15, 6, 15, 36),
                         controller: _scrollController,
                         cacheExtent: 1000,
                         itemCount: _pagesCount,
@@ -2893,166 +2895,159 @@ class _PagesState extends State<Pages> with RouteAware {
                               thumbnailPath.contains(
                                 _oldThumbnailNames[pageIndex],
                               );
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 15),
-                            child: AspectRatio(
-                              aspectRatio: thumbnailRatio,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  boxShadow: [bigBoxShadow(context)],
-                                ),
-                                child: Stack(
-                                  fit: StackFit.passthrough,
-                                  children: [
-                                    // BG
-                                    Material(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceBright,
+                          return AspectRatio(
+                            aspectRatio: thumbnailRatio,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                boxShadow: [bigBoxShadow(context)],
+                              ),
+                              child: Stack(
+                                fit: StackFit.passthrough,
+                                children: [
+                                  // BG
+                                  Material(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceBright,
+                                  ),
+                                  // Thumbnail
+                                  if (thumbnailPath.isNotEmpty)
+                                    AnimatedSwitcher(
+                                      duration: Duration(milliseconds: 200),
+                                      child: SizedBox.expand(
+                                        child: Image.file(
+                                          pageThumbnail,
+                                          fit: BoxFit.cover,
+                                          key: ValueKey(thumbnailPath),
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Material(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.surfaceBright,
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                  ),
+                                                );
+                                              },
+                                        ),
+                                      ),
                                     ),
-                                    // Thumbnail
-                                    if (thumbnailPath.isNotEmpty)
-                                      AnimatedSwitcher(
-                                        duration: Duration(milliseconds: 200),
-                                        child: SizedBox.expand(
-                                          child: Image.file(
-                                            pageThumbnail,
-                                            fit: BoxFit.cover,
-                                            key: ValueKey(thumbnailPath),
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Material(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.surfaceBright,
-                                                    child: const Icon(
-                                                      Icons.broken_image,
-                                                    ),
-                                                  );
-                                                },
-                                          ),
-                                        ),
-                                      ),
-                                    // Loading Indicator
-                                    if (isOldPath)
-                                      Positioned.fill(
-                                        child: Material(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerHigh
-                                              .withAlpha(150),
-                                        ),
-                                      ),
-                                    if (thumbnailPath.isEmpty || isOldPath)
-                                      IndicatorProcessingImage(),
-                                    // InkWell
+                                  // Loading Indicator
+                                  if (isOldPath)
                                     Positioned.fill(
                                       child: Material(
-                                        color:
-                                            (_selectMode &&
-                                                _selectedPages.contains(
-                                                  pageIndex,
-                                                ))
-                                            ? Theme.of(context)
-                                                  .colorScheme
-                                                  .primaryContainer
-                                                  .withAlpha(150)
-                                            : Colors.transparent,
-                                        child: InkWell(
-                                          onTap: !_selectMode
-                                              ? () =>
-                                                    _openPagePreview(pageIndex)
-                                              : () {
-                                                  HapticFeedback.lightImpact();
-                                                  _selectPage(pageIndex);
-                                                },
-                                          onLongPress: () {
-                                            _selectPage(pageIndex);
-                                          },
-                                          splashColor: Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer
-                                              .withAlpha(150),
-                                          highlightColor: Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer
-                                              .withAlpha(150),
-                                        ),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHigh
+                                            .withAlpha(150),
                                       ),
                                     ),
-                                    // Page Index Indicator
-                                    Positioned(
-                                      top: 9,
-                                      left: 6,
-                                      child: GestureDetector(
-                                        // Move Page Index Dialog
-                                        onTap: _selectMode
-                                            ? () => _selectPage(pageIndex)
-                                            : () => _openPageEditDialog(
-                                                context,
+                                  if (thumbnailPath.isEmpty || isOldPath)
+                                    IndicatorProcessingImage(),
+                                  // InkWell
+                                  Positioned.fill(
+                                    child: Material(
+                                      color:
+                                          (_selectMode &&
+                                              _selectedPages.contains(
                                                 pageIndex,
-                                                displayPageIndex,
+                                              ))
+                                          ? Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer
+                                                .withAlpha(150)
+                                          : Colors.transparent,
+                                      child: InkWell(
+                                        onTap: !_selectMode
+                                            ? () => _openPagePreview(pageIndex)
+                                            : () {
+                                                HapticFeedback.lightImpact();
+                                                _selectPage(pageIndex);
+                                              },
+                                        onLongPress: () {
+                                          _selectPage(pageIndex);
+                                        },
+                                        splashColor: Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withAlpha(150),
+                                        highlightColor: Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer
+                                            .withAlpha(150),
+                                      ),
+                                    ),
+                                  ),
+                                  // Page Index Indicator
+                                  Positioned(
+                                    top: 9,
+                                    left: 6,
+                                    child: GestureDetector(
+                                      // Move Page Index Dialog
+                                      onTap: _selectMode
+                                          ? () => _selectPage(pageIndex)
+                                          : () => _openPageEditDialog(
+                                              context,
+                                              pageIndex,
+                                              displayPageIndex,
+                                            ),
+                                      onLongPress: () => _selectPage(pageIndex),
+                                      child: Container(
+                                        padding: EdgeInsets.fromLTRB(
+                                          12,
+                                          6,
+                                          (_selectMode &&
+                                                  _selectedPages.contains(
+                                                    pageIndex,
+                                                  ))
+                                              ? 6
+                                              : 12,
+                                          6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceBright,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          boxShadow: [smallBoxShadow(context)],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              "$displayPageIndex/$displayPagesCount",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
                                               ),
-                                        onLongPress: () =>
-                                            _selectPage(pageIndex),
-                                        child: Container(
-                                          padding: EdgeInsets.fromLTRB(
-                                            12,
-                                            6,
+                                            ),
+                                            SizedBox(
+                                              width:
+                                                  (_selectMode &&
+                                                      _selectedPages.contains(
+                                                        pageIndex,
+                                                      ))
+                                                  ? 8
+                                                  : 0,
+                                            ),
                                             (_selectMode &&
                                                     _selectedPages.contains(
                                                       pageIndex,
                                                     ))
-                                                ? 6
-                                                : 12,
-                                            6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.surfaceBright,
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            boxShadow: [
-                                              smallBoxShadow(context),
-                                            ],
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                "$displayPageIndex/$displayPagesCount",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                width:
-                                                    (_selectMode &&
-                                                        _selectedPages.contains(
-                                                          pageIndex,
-                                                        ))
-                                                    ? 8
-                                                    : 0,
-                                              ),
-                                              (_selectMode &&
-                                                      _selectedPages.contains(
-                                                        pageIndex,
-                                                      ))
-                                                  ? Icon(Icons.check, size: 20)
-                                                  : SizedBox(),
-                                            ],
-                                          ),
+                                                ? Icon(Icons.check, size: 20)
+                                                : SizedBox(),
+                                          ],
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

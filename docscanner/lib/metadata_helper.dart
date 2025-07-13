@@ -333,7 +333,7 @@ class MetadataHelper {
     return (ratioValue, cornerPoints);
   }
 
-  static Future<bool> writePageThumbnailIndex(
+  static Future<void> writePageThumbnailIndex(
     int docIndex,
     int pageIndex,
     int thumbnailIndexIn, {
@@ -342,8 +342,6 @@ class MetadataHelper {
     bool supressWarnings = false,
   }) async {
     gIn ??= g;
-
-    bool isNewIndex = false;
 
     if (gIn.proFilterIndexes.contains(thumbnailIndexIn) &&
         !(gIn.proUnlocked == true) &&
@@ -375,11 +373,12 @@ class MetadataHelper {
           "Warning, writePageThumbnailIndex: metadata File does not exist (Page $pageIndex, Document $docIndex)",
         );
       }
+
+      // Write new thumbnailIndex
+      bool isNewIndex = false;
       if (oldThumbnailName == null || oldThumbnailName != newThumbnailName) {
         isNewIndex = true;
       }
-
-      // Write + Encrypt
       if (isNewIndex) {
         metadata["thumbnail"] = newThumbnailName;
         final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
@@ -388,7 +387,6 @@ class MetadataHelper {
     } catch (e) {
       dev.log("Warning, writePageThumbnailIndex: $e");
     }
-    return isNewIndex;
   }
 
   static Future<void> writePageImportedPdf(

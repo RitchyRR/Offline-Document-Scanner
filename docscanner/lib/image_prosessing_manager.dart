@@ -385,7 +385,9 @@ class ImageProcessingManager {
     List<String> fileNames = [];
     for (var path in versionPaths) {
       fileNames.add(
-        path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
+        path.isEmpty
+            ? ""
+            : path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
       );
     }
     MetadataHelper.writeOldVersionFileNames(docIndex, pageIndex, fileNames);
@@ -1166,28 +1168,15 @@ class ImageProcessingManager {
   }) async {
     if (thumbnailIndex == 0) return;
 
-    bool isNewIndex = await MetadataHelper.writePageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      thumbnailIndex,
-      gIn: g,
-      tmpPro: tmpPro,
+    final port = ReceivePort();
+    RootIsolateToken token = RootIsolateToken.instance!;
+    TaskKiller killer = await IsolatesManager().runTask(
+      _saveNewThumbnailIsolate,
+      (port.sendPort, token, docIndex, pageIndex, g),
+      portIn: port,
+      prio: IsolatePriority.regular,
     );
 
-    final port = ReceivePort();
-    TaskKiller killer;
-    if (isNewIndex) {
-      RootIsolateToken token = RootIsolateToken.instance!;
-      killer = await IsolatesManager().runTask(
-        _saveNewThumbnailIsolate,
-        (port.sendPort, token, docIndex, pageIndex, g),
-        portIn: port,
-        prio: IsolatePriority.regular,
-      );
-    } else {
-      port.close();
-      return;
-    }
     taskKillers[(docIndex, pageIndex)] = killer;
 
     final completer = Completer<void>();
