@@ -56,7 +56,6 @@
         "confirm": "Enable editing"
       }
     },
-    "menu": { "delete": "Delete Page" },
     "backPopup": {
       "title": "Unlock PRO filter",
       "text": "You have selected the PRO filter, by selecting it and then trying to leave this page.\n\nTo get access, first unlock PRO Features.\n\nAlternatively select a different filter before leaving."

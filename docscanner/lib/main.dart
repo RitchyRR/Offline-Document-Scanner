@@ -4468,55 +4468,6 @@ class PagePreviewState extends State<PagePreview> {
               namedArgs: {"pageIndex": "${widget.pageIndex + 1}"},
             ),
           ),
-          actions: [
-            if (noReprocessingChanges)
-              PopupMenuButton(
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: "del",
-                    child: Row(
-                      children: [
-                        SizedBox(width: 12),
-                        Icon(
-                          Icons.delete,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          tr("pagePreview.menu.delete"),
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                onSelected: (String value) async {
-                  switch (value) {
-                    case "del":
-                      bool deletionConfirmed = await _pagesPopup(
-                        context,
-                        [widget.pageIndex],
-                        PopUpType.delete,
-                        widget.docIndex,
-                        versionIndex: _selectedVersion,
-                      );
-                      if (deletionConfirmed &&
-                          mounted &&
-                          context.mounted &&
-                          Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      break;
-                  }
-                },
-              ),
-          ],
         ),
         body: Stack(
           children: [

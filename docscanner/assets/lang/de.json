@@ -56,9 +56,6 @@
         "confirm": "Bearbeitung aktivieren"
       }
     },
-    "menu": {
-      "delete": "Seite löschen"
-    },
     "backPopup": {
       "title": "PRO-Filter freischalten",
       "text": "Du hast den PRO-Filter ausgewählt und versuchst nun, diese Seite zu verlassen.\n\nUm darauf zuzugreifen, schalte zuerst die PRO-Funktionen frei.\n\nOder wähle vor dem Verlassen einen anderen Filter aus."
