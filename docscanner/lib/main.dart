@@ -3499,7 +3499,10 @@ class _PagesState extends State<Pages> with RouteAware {
           supressWarnings: true,
         );
         changeThumbnailFutures.add(
-          !_pageThumbnails[pageIndex].contains(_oldThumbnailNames[pageIndex])
+          !(_oldThumbnailNames[pageIndex].isNotEmpty &&
+                  _pageThumbnails[pageIndex].contains(
+                    _oldThumbnailNames[pageIndex],
+                  ))
               // set new Thumbnail
               ? imageProcessingManager.setNewThumbnail(
                   docIndex,
