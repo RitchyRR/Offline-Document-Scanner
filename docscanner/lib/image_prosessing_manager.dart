@@ -325,7 +325,11 @@ class ImageProcessingManager {
     if (photoPath.isEmpty) return;
 
     // Save current (to be outdated) filenames to metadata
-    await saveOldVersionFileNames(docIndex, pageIndex);
+    await saveOldVersionFileNames(
+      docIndex,
+      pageIndex,
+      isPhotoAlreadyInPage: isPhotoAlreadyInPage,
+    );
 
     final completer = Completer<void>();
     final port = ReceivePort();
@@ -376,21 +380,29 @@ class ImageProcessingManager {
     await completer.future;
   }
 
-  Future<void> saveOldVersionFileNames(int docIndex, int pageIndex) async {
+  Future<void> saveOldVersionFileNames(
+    int docIndex,
+    int pageIndex, {
+    bool isPhotoAlreadyInPage = false,
+  }) async {
     List<String> versionPaths;
     (versionPaths, _, _) = await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
     );
     List<String> fileNames = [];
-    for (var path in versionPaths) {
+    for (var (versionIndex, path) in versionPaths.indexed) {
       fileNames.add(
-        path.isEmpty
+        path.isEmpty || isPhotoAlreadyInPage && versionIndex == 0
             ? ""
             : path.substring(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
       );
     }
-    MetadataHelper.writeOldVersionFileNames(docIndex, pageIndex, fileNames);
+    await MetadataHelper.writeOldVersionFileNames(
+      docIndex,
+      pageIndex,
+      fileNames,
+    );
   }
 
   static Future<void> _repairPageIsolate(
