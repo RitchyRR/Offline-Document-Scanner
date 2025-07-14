@@ -590,7 +590,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
     _thumbnailRatios = newThumbnailRatios;
     _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-    _loadingDocs = await _loadLoadingDocs(thumbnailPaths);
+    _loadingDocs = await _loadLoadingDocs(
+      thumbnailPaths,
+      supressWarnings: supressWarnings,
+    );
 
     // Refresh Display
     if (mounted) {
@@ -601,14 +604,21 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   List<bool> _loadingDocs = [];
-  Future<List<bool>> _loadLoadingDocs(List<String> thumbnailPaths) async {
+  Future<List<bool>> _loadLoadingDocs(
+    List<String> thumbnailPaths, {
+    bool supressWarnings = false,
+  }) async {
     List<bool> thumbnailsLoading = [];
     for (var docIndex = 0; docIndex < thumbnailPaths.length; docIndex++) {
       bool thumbnailLoading = false;
       if (thumbnailPaths[docIndex].isEmpty) {
         thumbnailLoading = true;
       } else {
-        final oldNames = await MetadataHelper.readOldPageFileNames(docIndex, 0);
+        final oldNames = await MetadataHelper.readOldPageFileNames(
+          docIndex,
+          0,
+          supressWarnings: supressWarnings,
+        );
         if (oldNames != null) {
           for (var oldName in oldNames) {
             if (oldName.isNotEmpty &&
@@ -2401,7 +2411,11 @@ class _PagesState extends State<Pages> with RouteAware {
     }
     _thumbnailRatios = newThumbnailRatios;
     _deletedPages = await g.filesHelper.getMarkedDeletedPages(widget.docIndex);
-    _loadingPages = await _loadLoadingPages(widget.docIndex, thumbnailPaths);
+    _loadingPages = await _loadLoadingPages(
+      widget.docIndex,
+      thumbnailPaths,
+      supressWarnings: supressWarnings,
+    );
 
     if (thumbnailPaths.isEmpty) {
       if (!onInit && mounted && context.mounted && Navigator.canPop(context)) {
@@ -2420,8 +2434,9 @@ class _PagesState extends State<Pages> with RouteAware {
   List<bool> _loadingPages = [];
   Future<List<bool>> _loadLoadingPages(
     int docIndex,
-    List<String> thumbnailPaths,
-  ) async {
+    List<String> thumbnailPaths, {
+    bool supressWarnings = false,
+  }) async {
     List<bool> thumbnailsLoading = [];
     for (int pageIndex = 0; pageIndex < thumbnailPaths.length; pageIndex++) {
       bool thumbnailLoading = false;
@@ -2431,6 +2446,7 @@ class _PagesState extends State<Pages> with RouteAware {
         final oldNames = await MetadataHelper.readOldPageFileNames(
           docIndex,
           pageIndex,
+          supressWarnings: supressWarnings,
         );
         if (oldNames != null) {
           for (var oldName in oldNames) {
@@ -4056,7 +4072,7 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     if (_importedPdfMode && mounted) setState(() {});
-    await _loadOldVersionFileNames();
+    await _loadOldVersionFileNames(supressWarnings: true);
     _pollImagesAndMetadata();
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
@@ -4078,13 +4094,13 @@ class PagePreviewState extends State<PagePreview> {
     });
   }
 
-  Future<void> _loadOldVersionFileNames() async {
+  Future<void> _loadOldVersionFileNames({bool supressWarnings = false}) async {
     // set _versionPaths to old names, so that polling realizes that they are old
     List<String>? oldVersionFileNames =
         await MetadataHelper.readOldPageFileNames(
           widget.docIndex,
           widget.pageIndex,
-          supressWarnings: true,
+          supressWarnings: supressWarnings,
         );
     if (oldVersionFileNames == null) return;
     if (oldVersionFileNames.every((element) => element.isEmpty)) return;
@@ -5899,15 +5915,12 @@ class _WarpState extends State<Warp> {
   int _imagePixelHeight = 0;
   int? _currentCorner;
   Offset _touchOffset = Offset(0, 0);
-  bool _panning = false;
+  bool _cornerDragging = false;
   double _imageScale = 0;
 
   ui.Image? _magnifierImage;
   bool _magnifierImageLoading = true;
   static const double _magnifierSize = 200;
-
-  final List<PositionTimestamp> _positionHistory = [];
-  static const int _historyDurationMs = 400;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -6260,14 +6273,21 @@ class _WarpState extends State<Warp> {
                 child: Transform.rotate(
                   angle: angle,
                   child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
                     onPanUpdate: (details) {
-                      _handleEdgeDrag(
+                      _handleEdgePan(
                         indexA: points[0],
                         indexB: points[1],
                         neighborA: points[2],
                         neighborB: points[3],
                         details: details,
+                      );
+                    },
+                    onPanEnd: (details) {
+                      _handleEdgePanEnd(
+                        indexA: points[0],
+                        indexB: points[1],
+                        neighborA: points[2],
+                        neighborB: points[3],
                       );
                     },
                     child: Container(
@@ -6291,7 +6311,7 @@ class _WarpState extends State<Warp> {
                 top: offset.dy - _circleSize / counterScale / 2,
                 child: GestureDetector(
                   onPanStart: (details) {
-                    if (_panning) return;
+                    if (_cornerDragging) return;
                     _allowPop = false;
                     _currentCorner = index;
                     final box =
@@ -6302,21 +6322,21 @@ class _WarpState extends State<Warp> {
                       details.globalPosition,
                     );
                     _touchOffset = localPosition - _scaledPoints[index];
-                    _positionHistory.clear();
-                    _positionHistory.add(
+                    _cornerPositionHistory.clear();
+                    _cornerPositionHistory.add(
                       PositionTimestamp(
                         position: _scaledPoints[index],
                         timestamp: DateTime.now(),
                       ),
                     );
-                    _panning = true;
+                    _cornerDragging = true;
                     _panningDelayed = true;
                   },
                   onPanUpdate: (details) {
                     DateTime now = DateTime.now();
                     // Haptic Feedback
-                    if (_positionHistory.isNotEmpty &&
-                        now.difference(_positionHistory.last.timestamp) >
+                    if (_cornerPositionHistory.isNotEmpty &&
+                        now.difference(_cornerPositionHistory.last.timestamp) >
                             Duration(milliseconds: 25)) {
                       HapticFeedback.selectionClick();
                     }
@@ -6332,96 +6352,32 @@ class _WarpState extends State<Warp> {
                     double newY = newPos.dy.clamp(0.0, _displayHeigth);
 
                     // Limit relative corner positions
-                    switch (index) {
-                      case 0: // top left
-                        double maxX = [
-                          _scaledPoints[2].dx,
-                          _scaledPoints[3].dx,
-                        ].reduce(math.min);
-                        double maxY = [
-                          _scaledPoints[1].dy,
-                          _scaledPoints[3].dy,
-                        ].reduce(math.min);
-                        if (newX > maxX) {
-                          newX = maxX;
-                        }
-                        if (newY > maxY) {
-                          newY = maxY;
-                        }
-                        break;
-                      case 1: // bottom left
-                        double maxX = [
-                          _scaledPoints[2].dx,
-                          _scaledPoints[3].dx,
-                        ].reduce(math.min);
-                        double minY = [
-                          _scaledPoints[0].dy,
-                          _scaledPoints[2].dy,
-                        ].reduce(math.max);
-                        if (newX > maxX) {
-                          newX = maxX;
-                        }
-                        if (newY < minY) {
-                          newY = minY;
-                        }
-                        break;
-                      case 2: // top right
-                        double minX = [
-                          _scaledPoints[0].dx,
-                          _scaledPoints[1].dx,
-                        ].reduce(math.max);
-                        double maxY = [
-                          _scaledPoints[1].dy,
-                          _scaledPoints[3].dy,
-                        ].reduce(math.min);
-                        if (newX < minX) {
-                          newX = minX;
-                        }
-                        if (newY > maxY) {
-                          newY = maxY;
-                        }
-                        break;
-                      case 3: // bottom right
-                        double minX = [
-                          _scaledPoints[0].dx,
-                          _scaledPoints[1].dx,
-                        ].reduce(math.max);
-                        double minY = [
-                          _scaledPoints[0].dy,
-                          _scaledPoints[2].dy,
-                        ].reduce(math.max);
-                        if (newX < minX) {
-                          newX = minX;
-                        }
-                        if (newY < minY) {
-                          newY = minY;
-                        }
-                        break;
-                      default:
-                    }
+                    (newX, newY) = _limitCornerPointPos(index, newX, newY);
 
                     setState(() {
                       _scaledPoints[index] = Offset(newX, newY);
                     });
                     _scaleImage();
                     // Add current position to history
-                    _positionHistory.add(
+                    _cornerPositionHistory.add(
                       PositionTimestamp(
                         position: _scaledPoints[index],
                         timestamp: now,
                       ),
                     );
                     // Remove oldest position if older than _historyDurationMs
-                    if (_positionHistory.isNotEmpty &&
+                    if (_cornerPositionHistory.isNotEmpty &&
                         now
-                                .difference(_positionHistory.first.timestamp)
+                                .difference(
+                                  _cornerPositionHistory.first.timestamp,
+                                )
                                 .inMilliseconds >
-                            _historyDurationMs) {
-                      _positionHistory.removeAt(0);
+                            _historyDelayMs) {
+                      _cornerPositionHistory.removeAt(0);
                     }
                   },
-                  onPanEnd: (details) => panOver(index),
-                  onPanCancel: () => panOver(index),
+                  onPanEnd: (details) => _handleCornerPanEnd(index),
+                  onPanCancel: () => _handleCornerPanEnd(index),
                   // Circle
                   child: Container(
                     width: _circleSize / counterScale,
@@ -6464,7 +6420,82 @@ class _WarpState extends State<Warp> {
     );
   }
 
-  void _handleEdgeDrag({
+  (double newX, double newY) _limitCornerPointPos(
+    int cornerIndex,
+    double newX,
+    double newY,
+  ) {
+    switch (cornerIndex) {
+      case 0: // top left
+        double maxX = [
+          _scaledPoints[2].dx,
+          _scaledPoints[3].dx,
+        ].reduce(math.min);
+        double maxY = [
+          _scaledPoints[1].dy,
+          _scaledPoints[3].dy,
+        ].reduce(math.min);
+        if (newX > maxX) {
+          newX = maxX;
+        }
+        if (newY > maxY) {
+          newY = maxY;
+        }
+        break;
+      case 1: // bottom left
+        double maxX = [
+          _scaledPoints[2].dx,
+          _scaledPoints[3].dx,
+        ].reduce(math.min);
+        double minY = [
+          _scaledPoints[0].dy,
+          _scaledPoints[2].dy,
+        ].reduce(math.max);
+        if (newX > maxX) {
+          newX = maxX;
+        }
+        if (newY < minY) {
+          newY = minY;
+        }
+        break;
+      case 2: // top right
+        double minX = [
+          _scaledPoints[0].dx,
+          _scaledPoints[1].dx,
+        ].reduce(math.max);
+        double maxY = [
+          _scaledPoints[1].dy,
+          _scaledPoints[3].dy,
+        ].reduce(math.min);
+        if (newX < minX) {
+          newX = minX;
+        }
+        if (newY > maxY) {
+          newY = maxY;
+        }
+        break;
+      case 3: // bottom right
+        double minX = [
+          _scaledPoints[0].dx,
+          _scaledPoints[1].dx,
+        ].reduce(math.max);
+        double minY = [
+          _scaledPoints[0].dy,
+          _scaledPoints[2].dy,
+        ].reduce(math.max);
+        if (newX < minX) {
+          newX = minX;
+        }
+        if (newY < minY) {
+          newY = minY;
+        }
+        break;
+      default:
+    }
+    return (newX, newY);
+  }
+
+  void _handleEdgePan({
     required int indexA,
     required int indexB,
     required int neighborA,
@@ -6507,33 +6538,82 @@ class _WarpState extends State<Warp> {
     });
 
     _scaleImage();
+
+    DateTime now = DateTime.now();
+    // Haptic Feedback
+    if (_edgePositionHistory.isNotEmpty &&
+        now.difference(_edgePositionHistory.last.$1.timestamp) >
+            Duration(milliseconds: 25)) {
+      HapticFeedback.selectionClick();
+    }
+    // Add current position to history
+    _edgePositionHistory.add((
+      PositionTimestamp(position: _scaledPoints[indexA], timestamp: now),
+      PositionTimestamp(position: _scaledPoints[indexB], timestamp: now),
+    ));
+    // Remove oldest position if older than _historyDurationMs
+    if (_edgePositionHistory.isNotEmpty &&
+        now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
+            _historyDelayMs) {
+      _edgePositionHistory.removeAt(0);
+    }
   }
 
-  void panOver(int index) {
-    if (!_panning) return;
+  final List<(PositionTimestamp, PositionTimestamp)> _edgePositionHistory = [];
+  void _handleEdgePanEnd({
+    required int indexA,
+    required int indexB,
+    required int neighborA,
+    required int neighborB,
+  }) {
     // Remove positions older than _historyDurationMs
     DateTime now = DateTime.now();
-    while (_positionHistory.isNotEmpty &&
-        now.difference(_positionHistory.first.timestamp).inMilliseconds >
-            _historyDurationMs) {
-      _positionHistory.removeAt(0);
+    while (_edgePositionHistory.isNotEmpty &&
+        now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
+            _historyDelayMs) {
+      _edgePositionHistory.removeAt(0);
     }
     // Use oldest position in history
-    if (_positionHistory.isNotEmpty) {
-      if ((_positionHistory.first.position - _scaledPoints[index]).distance <
+    if (_edgePositionHistory.isNotEmpty) {
+      if ((_edgePositionHistory.first.$1.position - _scaledPoints[indexA])
+              .distance <
           50) {
         setState(() {
-          _scaledPoints[index] = _positionHistory.first.position;
+          _scaledPoints[indexA] = _edgePositionHistory.first.$1.position;
+          _scaledPoints[indexB] = _edgePositionHistory.first.$2.position;
         });
       }
     }
-    _positionHistory.clear();
-    _panning = false;
+    _edgePositionHistory.clear();
+  }
+
+  final List<PositionTimestamp> _cornerPositionHistory = [];
+  static const int _historyDelayMs = 300;
+  void _handleCornerPanEnd(int index) {
+    if (!_cornerDragging) return;
+    // Remove positions older than _historyDurationMs
+    DateTime now = DateTime.now();
+    while (_cornerPositionHistory.isNotEmpty &&
+        now.difference(_cornerPositionHistory.first.timestamp).inMilliseconds >
+            _historyDelayMs) {
+      _cornerPositionHistory.removeAt(0);
+    }
+    // Use oldest position in history
+    if (_cornerPositionHistory.isNotEmpty) {
+      if ((_cornerPositionHistory.first.position - _scaledPoints[index])
+              .distance <
+          50) {
+        setState(() {
+          _scaledPoints[index] = _cornerPositionHistory.first.position;
+        });
+      }
+    }
+    _cornerPositionHistory.clear();
+    _cornerDragging = false;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 600));
       _panningDelayed = false;
     });
-    return;
   }
 }
 
@@ -6863,6 +6943,7 @@ Future<bool> _pagesPopup(
     docIndex,
     pageIndexes,
     thumbnailPaths,
+    supressWarnings: true,
   );
   bool allPagesLoaded = loadingImages.every((element) => !element);
   // Aspect Ratios
@@ -6914,6 +6995,7 @@ Future<bool> _pagesPopup(
                 docIndex,
                 pageIndexes,
                 thumbnailPaths,
+                supressWarnings: true,
               );
               allPagesLoaded = loadingImages.every((element) => !element);
             });
@@ -7466,8 +7548,9 @@ Future<List<double>> loadImageRatios(
 Future<List<bool>> loadLoadingImages(
   int docIndex,
   List<int> pageIndexes,
-  List<String> thumbnailPaths,
-) async {
+  List<String> thumbnailPaths, {
+  bool supressWarnings = false,
+}) async {
   if (pageIndexes.isEmpty) {
     pageIndexes = List.generate(thumbnailPaths.length, (index) => index);
   }
@@ -7480,6 +7563,7 @@ Future<List<bool>> loadLoadingImages(
       final oldNames = await MetadataHelper.readOldPageFileNames(
         docIndex,
         pageIndex,
+        supressWarnings: supressWarnings,
       );
       if (oldNames != null) {
         for (var oldName in oldNames) {
