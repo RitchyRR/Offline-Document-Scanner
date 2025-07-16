@@ -3457,6 +3457,23 @@ class _PagesState extends State<Pages> with RouteAware {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            void preselect() async {
+              // if all have same thumbnailIndex -> selectedIndex
+              int? thumbnailIndex;
+              for (int pageIndex in pageIndexes) {
+                final int? currentThumbnailIndex =
+                    await MetadataHelper.readPageThumbnailIndex(
+                      docIndex,
+                      pageIndex,
+                    );
+                thumbnailIndex ??= currentThumbnailIndex;
+                if (thumbnailIndex != currentThumbnailIndex) return;
+              }
+              selectedIndex = thumbnailIndex;
+              setStateDialog(() {});
+            }
+
+            preselect();
             return AlertDialog(
               title: Row(
                 mainAxisSize: MainAxisSize.min,
