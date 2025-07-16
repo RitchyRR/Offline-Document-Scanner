@@ -100,6 +100,7 @@ class ImageProcessingManager {
         0,
         photoBytes,
         photoExtension,
+        gIn: g,
       );
     }
 
@@ -886,6 +887,7 @@ class ImageProcessingManager {
       0,
       rotatedPhotoBytes,
       rotatedPhotoExtension,
+      gIn: g,
     );
 
     bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
@@ -1294,9 +1296,9 @@ class ImageProcessingManager {
     final page = await doc.getPage(pageIndex + 1);
     // render Page at 300 DPI (max 4048 pixel)
     const targetDpi = 300;
-    const deafaultAssumedDpi = 72;
-    final dpiScale = targetDpi / deafaultAssumedDpi;
-    const maxSize = 4048;
+    const defaultAssumedDpi = 72;
+    final dpiScale = targetDpi / defaultAssumedDpi;
+    const maxSize = 4962; // 600 PDI for A4
     final pageSize = page.width > page.height ? page.width : page.height;
     final limitingScale = (maxSize / pageSize * dpiScale).clamp(
       double.minPositive,
@@ -1608,5 +1610,31 @@ class ImageProcessingManager {
     }
 
     Isolate.exit(sendPort, "done");
+  }
+
+  static Future<Uint8List?> scaleImageToMaxSize(
+    final Uint8List imgBytes,
+    final String fileExtension, {
+    AppGlobals? gIn,
+    final int maxSize =
+        4962, // 2481: 300 DPI for A4 -> double for distance from camera
+  }) async {
+    gIn ??= g;
+    final imgInfo = await AppGlobals.getImageBytesInfo(imgBytes, fileExtension);
+    if (imgInfo == null) return null;
+
+    final int imgWidth = imgInfo.width;
+    final int imgHeight = imgInfo.height;
+    if (imgWidth < maxSize && imgHeight < maxSize) return null;
+
+    int newWidth = maxSize;
+    if (imgWidth < imgHeight) {
+      newWidth = maxSize * imgWidth ~/ imgHeight;
+    }
+
+    OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    Uint8List scaledBytes;
+    (scaledBytes, _) = await cvHelper.scaleImageToWidth(imgBytes, newWidth);
+    return scaledBytes;
   }
 }

@@ -253,8 +253,18 @@ class FilesHelper {
     int pageIndex,
     int versionIndex,
     Uint8List imageBytes,
-    String extension,
-  ) async {
+    String extension, {
+    AppGlobals? gIn,
+  }) async {
+    gIn ??= g;
+    // Scaled if too large
+    final Uint8List? scaledBytes =
+        await ImageProcessingManager.scaleImageToMaxSize(
+          imageBytes,
+          extension,
+          gIn: gIn,
+        );
+
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(
       docIndex,
@@ -273,7 +283,7 @@ class FilesHelper {
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
     // Write
-    await File(versionPath).writeAsBytes(imageBytes);
+    await File(versionPath).writeAsBytes(scaledBytes ?? imageBytes);
     if (!File(versionPath).existsSync()) {
       throw StateError("Error, writeImageRaw: Failed to save to $versionPath");
     }
@@ -1157,8 +1167,8 @@ class FilesHelper {
 
     List<String> imagePaths = [];
     final ImagePicker picker = ImagePicker();
-    final double maxWidth = 4048;
-    final double maxHeight = 4048;
+    final double maxWidth = 4962;
+    final double maxHeight = 4962;
 
     final List<XFile> pickedFileList = await picker.pickMultiImage(
       maxWidth: maxWidth,

@@ -7733,7 +7733,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isFlashOn = false;
-  final List<XFile> _capturedImages = [];
+  final List<Uint8List> _capturedImages = [];
   double _cameraAspectRatio = 3 / 4;
   PermissionStatus _permissionStatus = PermissionStatus.denied;
 
@@ -7859,8 +7859,20 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _cameraFlash = true;
       });
-      final image = await _controller!.takePicture();
-      _capturedImages.add(image);
+      final XFile image = await _controller!.takePicture();
+
+      final String fileExtension = image.path.substring(
+        image.path.lastIndexOf("."),
+      );
+      final Uint8List imageBytes = await image.readAsBytes();
+      final Uint8List? scaledBytes =
+          await ImageProcessingManager.scaleImageToMaxSize(
+            imageBytes,
+            fileExtension,
+            gIn: g,
+          );
+
+      _capturedImages.add(scaledBytes ?? imageBytes);
       setState(() {
         _cameraFlash = false;
       });
@@ -7900,8 +7912,8 @@ class _CameraScreenState extends State<CameraScreen> {
                 return Stack(
                   children: [
                     Positioned.fill(
-                      child: Image.file(
-                        File(_capturedImages[index].path),
+                      child: Image.memory(
+                        _capturedImages[index],
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -8113,7 +8125,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   message: tr("camera.viewer.preview"),
                   child: ThumbnailWithBadge(
                     image: _capturedImages.isNotEmpty
-                        ? File(_capturedImages.first.path)
+                        ? _capturedImages.first
                         : null,
                     count: _capturedImages.length,
                     onTap: _capturedImages.isEmpty
@@ -8180,7 +8192,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 builder: (context, index) {
                   // Processed Images
                   return PhotoViewGalleryPageOptions(
-                    imageProvider: FileImage(File(_capturedImages[index].path)),
+                    imageProvider: MemoryImage(_capturedImages[index]),
                     filterQuality: FilterQuality.high,
                     minScale: PhotoViewComputedScale.contained,
                     maxScale: 1.0,
@@ -8312,7 +8324,7 @@ class CrosshairPainter extends CustomPainter {
 }
 
 class ThumbnailWithBadge extends StatelessWidget {
-  final File? image;
+  final Uint8List? image;
   final int count;
   final VoidCallback? onTap;
 
@@ -8344,7 +8356,10 @@ class ThumbnailWithBadge extends StatelessWidget {
                 width: 2,
               ),
               image: image != null
-                  ? DecorationImage(image: FileImage(image!), fit: BoxFit.cover)
+                  ? DecorationImage(
+                      image: MemoryImage(image!),
+                      fit: BoxFit.cover,
+                    )
                   : null,
               color: Colors.white30,
             ),
