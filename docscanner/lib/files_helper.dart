@@ -1210,15 +1210,21 @@ class FilesHelper {
     double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
     // 1. Get common width (shared across pages)
     for (double? ratioValue in ratioValues) {
-      if (ratioValue == math.sqrt2) // DIN A4
-      {
+      // DIN A4
+      if (ratioValue == math.sqrt2) {
         physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
         break;
-      } else if (ratioValue == 11 / 8.5 ||
-          ratioValue == 14 / 8.5) // Letter / Legal
-      {
+      } else if (ratioValue == math.sqrt1_2) {
+        physicalWidth = 29.7 * pdf.PdfPageFormat.cm;
+      }
+      // Letter / Legal
+      else if (ratioValue == 11 / 8.5 || ratioValue == 14 / 8.5) {
         physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
         break;
+      } else if (ratioValue == 8.5 / 11) {
+        physicalWidth = 11 * pdf.PdfPageFormat.inch;
+      } else if (ratioValue == 8.5 / 14) {
+        physicalWidth = 14 * pdf.PdfPageFormat.inch;
       }
     }
     double widthInInches = (physicalWidth / pdf.PdfPageFormat.inch);
