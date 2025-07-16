@@ -1209,38 +1209,57 @@ class FilesHelper {
     /// Aspect ratio
 
     // 0. Default (localized)
-    double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+    const double widthA4 = 21.0 * pdf.PdfPageFormat.cm;
+    const double widthLetterLegal = 8.5 * pdf.PdfPageFormat.inch;
+
+    String? country;
     try {
       final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
-      String? country = deviceLocale.countryCode;
-      const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
-      if (country != null && imperialCountries.contains(country)) {
-        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
-      }
+      country = deviceLocale.countryCode;
     } catch (e) {
       dev.log("Error, getPdfPageDpis: deviceLocale not available");
     }
+    final double defaultWidth;
+    const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
+    if (country != null && imperialCountries.contains(country)) {
+      defaultWidth = widthLetterLegal;
+    } else {
+      defaultWidth = widthA4;
+    }
 
-    // 1. Get common width (shared across pages)
+    // 1. Get common widths (shared across pages)
+    final List<double> physicalWidths = [];
     for (double? ratioValue in ratioValues) {
       // DIN A4
       if (ratioValue == math.sqrt2) {
-        physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
-        break;
+        physicalWidths.add(21.0 * pdf.PdfPageFormat.cm);
       } else if (ratioValue == math.sqrt1_2) {
-        physicalWidth = 29.7 * pdf.PdfPageFormat.cm;
+        physicalWidths.add(29.7 * pdf.PdfPageFormat.cm);
       }
       // Letter / Legal
       else if (ratioValue == 11 / 8.5 || ratioValue == 14 / 8.5) {
-        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
-        break;
+        physicalWidths.add(8.5 * pdf.PdfPageFormat.inch);
       } else if (ratioValue == 8.5 / 11) {
-        physicalWidth = 11 * pdf.PdfPageFormat.inch;
+        physicalWidths.add(11 * pdf.PdfPageFormat.inch);
       } else if (ratioValue == 8.5 / 14) {
-        physicalWidth = 14 * pdf.PdfPageFormat.inch;
+        physicalWidths.add(14 * pdf.PdfPageFormat.inch);
       }
     }
-    double widthInInches = (physicalWidth / pdf.PdfPageFormat.inch);
+
+    // 2. Select Width
+    final double selectedWidth;
+    if (physicalWidths.contains(defaultWidth)) {
+      selectedWidth = defaultWidth;
+    } else if (defaultWidth != widthA4 && physicalWidths.contains(widthA4)) {
+      selectedWidth = widthA4;
+    } else if (defaultWidth != widthLetterLegal &&
+        physicalWidths.contains(widthLetterLegal)) {
+      selectedWidth = widthLetterLegal;
+    } else {
+      selectedWidth = defaultWidth;
+    }
+
+    double widthInInches = (selectedWidth / pdf.PdfPageFormat.inch);
     // Image Info
     List<DecodeInfo> imageInfos = [];
     for (var path in imagePaths) {
