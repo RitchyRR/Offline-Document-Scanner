@@ -257,14 +257,13 @@ class FilesHelper {
     AppGlobals? gIn,
   }) async {
     gIn ??= g;
-    // Scaled if too large
+    // Scale down if too large
     final Uint8List? scaledBytes =
         await ImageProcessingManager.scaleImageToMaxSize(
           imageBytes,
           extension,
           gIn: gIn,
         );
-
     await _initializeDocumentsPath();
     String pagePath = await getPagePath(
       docIndex,

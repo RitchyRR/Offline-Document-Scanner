@@ -7860,7 +7860,7 @@ class _CameraScreenState extends State<CameraScreen> {
         _cameraFlash = true;
       });
       final XFile image = await _controller!.takePicture();
-
+      // Scale down if too large
       final String fileExtension = image.path.substring(
         image.path.lastIndexOf("."),
       );
@@ -7871,7 +7871,6 @@ class _CameraScreenState extends State<CameraScreen> {
             fileExtension,
             gIn: g,
           );
-
       _capturedImages.add(scaledBytes ?? imageBytes);
       setState(() {
         _cameraFlash = false;
