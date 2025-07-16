@@ -809,7 +809,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
       // Default values
       final List<double> defaultValues = [1, 4 / 3, 16 / 9, 21 / 9];
-      if (imperialCountries.contains(country)) {
+      if (country != null && imperialCountries.contains(country)) {
         defaultValues.add(11 / 8.5); // Letter US
         defaultValues.add(14 / 8.5); // Legal US
       } else {

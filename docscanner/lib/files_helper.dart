@@ -1206,8 +1206,21 @@ class FilesHelper {
       );
     }
 
-    // Select Aspect ratio
+    /// Aspect ratio
+
+    // 0. Default (localized)
     double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
+    try {
+      final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+      String? country = deviceLocale.countryCode;
+      const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
+      if (country != null && imperialCountries.contains(country)) {
+        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
+      }
+    } catch (e) {
+      dev.log("Error, getPdfPageDpis: deviceLocale not available");
+    }
+
     // 1. Get common width (shared across pages)
     for (double? ratioValue in ratioValues) {
       // DIN A4
