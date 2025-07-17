@@ -7658,7 +7658,7 @@ class _PagesWidthDropdownState extends State<PagesWidthDropdown> {
     final double height = 30;
 
     return Container(
-      constraints: BoxConstraints(minHeight: height, maxHeight: height),
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -7678,17 +7678,19 @@ class _PagesWidthDropdownState extends State<PagesWidthDropdown> {
             return DropdownMenuItem(
               alignment: Alignment.centerRight,
               value: i,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 243),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
                     menuEntryStrings[i],
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
-                ],
+                ),
               ),
             );
           }),
@@ -7820,22 +7822,29 @@ class _DpiDropdownState extends State<DpiDropdown> {
             return DropdownMenuItem(
               alignment: Alignment.centerRight,
               value: i,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    menuEntryString,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 243),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        menuEntryString,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (i != 0 && widget.dpiLocked)
+                        Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(Icons.lock),
+                        ),
+                    ],
                   ),
-                  if (i != 0 && widget.dpiLocked)
-                    Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Icon(Icons.lock),
-                    ),
-                ],
+                ),
               ),
             );
           }),
