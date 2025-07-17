@@ -7232,6 +7232,7 @@ Future<bool> _pagesPopup(
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: SameWidthDropdown(
+                        allPagesLoaded: allPagesLoaded,
                         onChanged: (useSameWidth) {
                           sameWidth = useSameWidth;
                           setStateDialog(() {});
@@ -7621,11 +7622,11 @@ Future<List<bool>> loadLoadingImages(
 
 class SameWidthDropdown extends StatefulWidget {
   final void Function(bool selectedDpi) onChanged;
-  final bool allImagesLoaded;
+  final bool allPagesLoaded;
   const SameWidthDropdown({
     super.key,
     required this.onChanged,
-    required this.allImagesLoaded,
+    required this.allPagesLoaded,
   });
 
   @override
@@ -7675,7 +7676,7 @@ class _SameWidthDropdownState extends State<SameWidthDropdown> {
               ),
             );
           }),
-          onChanged: widget.allImagesLoaded
+          onChanged: widget.allPagesLoaded
               ? (int? newIndex) {
                   setState(() {
                     selectedIndex = newIndex ?? 0;
