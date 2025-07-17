@@ -1477,9 +1477,8 @@ class ImageProcessingManager {
     int docIndex,
     List<int> pageIndexes,
     int? versionIndexIn,
-    int? maxDpi, {
-    bool useSameWidth = false,
-  }) async {
+    int? maxDpi,
+  ) async {
     List<String> imagePaths = await g.filesHelper.getImagePaths(
       pageIndexes,
       versionIndexIn,
@@ -1491,7 +1490,6 @@ class ImageProcessingManager {
       docIndex,
       pageIndexes: pageIndexes,
       versionIndex: versionIndexIn,
-      useSameWidth: useSameWidth,
     );
     if (maxDpi == null) return (imagePaths, widthsInInches);
 
@@ -1522,7 +1520,7 @@ class ImageProcessingManager {
             versionIndex,
             scaledImagePath,
             maxDpi,
-            useSameWidth ? widthsInInches.first : widthsInInches[i],
+            widthsInInches[i],
             g,
           ),
           portIn: port,

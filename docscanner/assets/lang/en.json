@@ -182,7 +182,7 @@
         "limit": "{dpiString} ({fileSizeString})"
       },
       "pagesWidth": {
-        "individual": "(Default) Individual Page widths",
+        "individual": "Individual Page widths",
         "same": "Same Page widths"
       },
       "deleteButton": "Delete"

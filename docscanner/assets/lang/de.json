@@ -181,8 +181,8 @@
         "limit": "{dpiString} ({fileSizeString})"
       },
       "pagesWidth": {
-        "individual": "(Standard) Individuelle Seiten-Breite",
-        "same": "Gleiche Seiten-Breite"
+        "individual": "Individuelle Seiten-Breiten",
+        "same": "Gleiche Seiten-Breiten"
       },
       "deleteButton": "Löschen"
     }

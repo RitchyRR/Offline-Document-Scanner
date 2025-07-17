@@ -1084,7 +1084,6 @@ class FilesHelper {
       pageIndexes,
       versionIndex,
       maxDpi,
-      useSameWidth: useSameWidth,
     );
 
     final albumName = "Scanned Documents";
@@ -1166,7 +1165,6 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
-    bool useSameWidth = false,
   }) async {
     List<String> imagePaths = await getImagePaths(
       pageIndexes,
@@ -1238,24 +1236,11 @@ class FilesHelper {
     }
 
     // 2. Select Width
-    final double? selectedWidth;
     final List<double> widthsInInches;
-    if (useSameWidth) {
-      if (physicalWidths.contains(imperial ? widthLetterLegal : widthA4)) {
-        selectedWidth = imperial ? widthLetterLegal : widthA4;
-      } else if (physicalWidths.contains(imperial ? heightLetter : heightA4)) {
-        selectedWidth = imperial ? heightLetter : heightA4;
-      } else {
-        selectedWidth = widthA4;
-      }
-      widthsInInches = [selectedWidth / pdf.PdfPageFormat.inch];
-    } else {
-      selectedWidth = null;
-      widthsInInches = List.generate(
-        physicalWidths.length,
-        (index) => physicalWidths[index] / pdf.PdfPageFormat.inch,
-      );
-    }
+    widthsInInches = List.generate(
+      physicalWidths.length,
+      (index) => physicalWidths[index] / pdf.PdfPageFormat.inch,
+    );
 
     // Image Info
     List<DecodeInfo> imageInfos = [];
@@ -1267,11 +1252,7 @@ class FilesHelper {
 
     List<int> dpis = [];
     for (var i = 0; i < imageInfos.length; i++) {
-      dpis.add(
-        (imageInfos[i].width /
-                (useSameWidth ? widthsInInches.first : widthsInInches[i]))
-            .toInt(),
-      );
+      dpis.add((imageInfos[i].width / widthsInInches[i]).toInt());
     }
     return (dpis, widthsInInches);
   }
@@ -1287,13 +1268,7 @@ class FilesHelper {
     List<String> imagePaths;
     List<double> widthsInInches;
     (imagePaths, widthsInInches) = await imageProcessingManager
-        .scaleImagesToMaxDpi(
-          docIndex,
-          pageIndexes,
-          versionIndex,
-          maxDpi,
-          useSameWidth: useSameWidth,
-        );
+        .scaleImagesToMaxDpi(docIndex, pageIndexes, versionIndex, maxDpi);
 
     // Page Formats (Aspect Ratio, physical Size etc.)
     List<double?> ratioValues = [];
@@ -1309,6 +1284,39 @@ class FilesHelper {
     }
 
     // Aspect Ratio
+    if (useSameWidth) {
+      const double widthA4 =
+          21.0 * pdf.PdfPageFormat.cm / pdf.PdfPageFormat.inch;
+      const double heightA4 =
+          29.7 * pdf.PdfPageFormat.cm / pdf.PdfPageFormat.inch;
+      const double widthLetterLegal = 8.5;
+      const double heightLetter = 11;
+
+      String? country;
+      try {
+        final Locale deviceLocale = ui.PlatformDispatcher.instance.locale;
+        country = deviceLocale.countryCode;
+      } catch (e) {
+        dev.log("Error, getPdfPageDpis: deviceLocale not available");
+      }
+      final bool imperial;
+      const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
+      if (country != null && imperialCountries.contains(country)) {
+        imperial = true;
+      } else {
+        imperial = false;
+      }
+
+      final double sharedWidth;
+      if (widthsInInches.contains(imperial ? widthLetterLegal : widthA4)) {
+        sharedWidth = imperial ? widthLetterLegal : widthA4;
+      } else if (widthsInInches.contains(imperial ? heightLetter : heightA4)) {
+        sharedWidth = imperial ? heightLetter : heightA4;
+      } else {
+        sharedWidth = widthA4;
+      }
+      widthsInInches = [sharedWidth];
+    }
 
     // 2. Set correct aspect ratio
     List<pdf.PdfPageFormat> pageFormats = [];
@@ -1399,7 +1407,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
-    bool singleWidth = false,
+    bool useSameWidth = false,
   }) async {
     if (isTmpExternal) return;
 
@@ -1443,7 +1451,7 @@ class FilesHelper {
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
       maxDpi: maxDpi,
-      useSameWidth: singleWidth,
+      useSameWidth: useSameWidth,
     );
     // Ask user to pick a folder
     isTmpExternal = true;
@@ -1570,7 +1578,6 @@ class FilesHelper {
       pageIndexes,
       versionIndex,
       maxDpi,
-      useSameWidth: useSameWidth,
     );
 
     List<XFile> xFiles = [];
@@ -1613,7 +1620,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
-    bool singleWidth = false,
+    bool useSameWidth = false,
   }) async {
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -1656,7 +1663,7 @@ class FilesHelper {
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
       maxDpi: maxDpi,
-      useSameWidth: singleWidth,
+      useSameWidth: useSameWidth,
     );
 
     // Isolate

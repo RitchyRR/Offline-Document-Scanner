@@ -7036,7 +7036,6 @@ Future<bool> _pagesPopup(
                     docIndex,
                     pageIndexes: pageIndexes,
                     versionIndex: versionIndex,
-                    useSameWidth: sameWidth,
                   )).$1;
                 });
               }
@@ -7242,13 +7241,6 @@ Future<bool> _pagesPopup(
                         onChanged: (useSameWidth) async {
                           sameWidth = useSameWidth;
                           setStateDialog(() {});
-                          pagesDpis = (await g.filesHelper.getPdfPageDpis(
-                            docIndex,
-                            pageIndexes: pageIndexes,
-                            versionIndex: versionIndex,
-                            useSameWidth: sameWidth,
-                          )).$1;
-                          setStateDialog(() {});
                         },
                       ),
                     ),
@@ -7382,7 +7374,7 @@ Future<bool> _pagesPopup(
                                                                   versionIndex,
                                                               maxDpi:
                                                                   selectedDpi,
-                                                              singleWidth:
+                                                              useSameWidth:
                                                                   sameWidth,
                                                             );
                                                         break;
@@ -7398,7 +7390,7 @@ Future<bool> _pagesPopup(
                                                                   versionIndex,
                                                               maxDpi:
                                                                   selectedDpi,
-                                                              singleWidth:
+                                                              useSameWidth:
                                                                   sameWidth,
                                                             );
                                                         break;
