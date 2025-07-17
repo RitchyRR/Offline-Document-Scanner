@@ -181,6 +181,10 @@
         "full": "Full: {dpiString} ({fileSizeString})",
         "limit": "{dpiString} ({fileSizeString})"
       },
+      "pagesWidth": {
+        "individual": "Individual Page widths (default)",
+        "same": "Same Page widths"
+      },
       "deleteButton": "Delete"
     }
   },

@@ -7036,6 +7036,7 @@ Future<bool> _pagesPopup(
                     docIndex,
                     pageIndexes: pageIndexes,
                     versionIndex: versionIndex,
+                    useSameWidth: sameWidth,
                   )).$1;
                 });
               }
@@ -7236,10 +7237,17 @@ Future<bool> _pagesPopup(
                       imageRatios.any((element) => element != imageRatios.last))
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
-                      child: SameWidthDropdown(
+                      child: PagesWidthDropdown(
                         allPagesLoaded: allPagesLoaded,
-                        onChanged: (useSameWidth) {
+                        onChanged: (useSameWidth) async {
                           sameWidth = useSameWidth;
+                          setStateDialog(() {});
+                          pagesDpis = (await g.filesHelper.getPdfPageDpis(
+                            docIndex,
+                            pageIndexes: pageIndexes,
+                            versionIndex: versionIndex,
+                            useSameWidth: sameWidth,
+                          )).$1;
                           setStateDialog(() {});
                         },
                       ),
@@ -7625,25 +7633,28 @@ Future<List<bool>> loadLoadingImages(
   return thumbnailsLoading;
 }
 
-class SameWidthDropdown extends StatefulWidget {
+class PagesWidthDropdown extends StatefulWidget {
   final void Function(bool selectedDpi) onChanged;
   final bool allPagesLoaded;
-  const SameWidthDropdown({
+  const PagesWidthDropdown({
     super.key,
     required this.onChanged,
     required this.allPagesLoaded,
   });
 
   @override
-  State<SameWidthDropdown> createState() => _SameWidthDropdownState();
+  State<PagesWidthDropdown> createState() => _PagesWidthDropdownState();
 }
 
-class _SameWidthDropdownState extends State<SameWidthDropdown> {
+class _PagesWidthDropdownState extends State<PagesWidthDropdown> {
   int selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final List<String> menuEntryStrings = ["Individual Width", "Same Width"];
+    final List<String> menuEntryStrings = [
+      tr("popup.pagesPopup.pagesWidth.individual"),
+      tr("popup.pagesPopup.pagesWidth.same"),
+    ];
     final double height = 30;
 
     return Container(

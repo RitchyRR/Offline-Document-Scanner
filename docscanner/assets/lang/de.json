@@ -180,6 +180,10 @@
         "full": "Voll: {dpiString} ({fileSizeString})",
         "limit": "{dpiString} ({fileSizeString})"
       },
+      "pagesWidth": {
+        "individual": "Individuelle Seiten-Breite (standard)",
+        "same": "Gleiche Seiten-Breite"
+      },
       "deleteButton": "Löschen"
     }
   },
