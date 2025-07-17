@@ -1314,7 +1314,7 @@ class FilesHelper {
     List<pdf.PdfPageFormat> pageFormats = [];
     for (var (i, ratioValue) in ratioValues.indexed) {
       final double physicalWidth = useSameWidth
-          ? widthsInInches.first
+          ? widthsInInches.first * pdf.PdfPageFormat.inch
           : widthsInInches[i] * pdf.PdfPageFormat.inch;
       double? physicalHeight;
       if (versionIndex == 0) {
