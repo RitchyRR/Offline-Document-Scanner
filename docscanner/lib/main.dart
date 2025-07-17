@@ -7226,7 +7226,9 @@ Future<bool> _pagesPopup(
                       },
                       dpiLocked: dpiLocked,
                     ),
-                  if (type != PopUpType.delete && !isSinglePage)
+                  if (type != PopUpType.delete &&
+                      !isSinglePage &&
+                      imageRatios.any((element) => element != imageRatios.last))
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: SameWidthDropdown(
@@ -7619,7 +7621,12 @@ Future<List<bool>> loadLoadingImages(
 
 class SameWidthDropdown extends StatefulWidget {
   final void Function(bool selectedDpi) onChanged;
-  const SameWidthDropdown({super.key, required this.onChanged});
+  final bool allImagesLoaded;
+  const SameWidthDropdown({
+    super.key,
+    required this.onChanged,
+    required this.allImagesLoaded,
+  });
 
   @override
   State<SameWidthDropdown> createState() => _SameWidthDropdownState();
@@ -7668,15 +7675,17 @@ class _SameWidthDropdownState extends State<SameWidthDropdown> {
               ),
             );
           }),
-          onChanged: (int? newIndex) {
-            setState(() {
-              selectedIndex = newIndex ?? 0;
-            });
+          onChanged: widget.allImagesLoaded
+              ? (int? newIndex) {
+                  setState(() {
+                    selectedIndex = newIndex ?? 0;
+                  });
 
-            // Return useSameWidth to where Widget is used
-            final bool useSameWidth = newIndex == 1;
-            widget.onChanged(useSameWidth);
-          },
+                  // Return useSameWidth to where Widget is used
+                  final bool useSameWidth = newIndex == 1;
+                  widget.onChanged(useSameWidth);
+                }
+              : null,
         ),
       ),
     );
