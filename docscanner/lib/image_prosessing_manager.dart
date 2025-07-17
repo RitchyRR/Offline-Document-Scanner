@@ -1237,6 +1237,7 @@ class ImageProcessingManager {
       docIndex = newDoc.$1;
       firstPageIndex = newDoc.$2;
     }
+    // Render PDF -> Pages
     pdfProcessingFutures[docIndex] = _convertPdfToPages(
       firstPageIndex,
       pageCount,
@@ -1275,6 +1276,7 @@ class ImageProcessingManager {
     if (await _pdfProcessingExitpoint(docIndex)) return;
     List<Future> futures = [];
     for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      await saveOldVersionFileNames(docIndex, pageIndex);
       if (await _pdfProcessingExitpoint(docIndex, pageIndex: pageIndex)) return;
       futures.add(_convertPdfToPage(doc, docIndex, pageIndex, firstPageIndex));
     }
