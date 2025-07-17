@@ -137,7 +137,7 @@ class OpenCVHelper {
   ) async {
     cv.Mat mat = _loadWarped(imageBytesIn);
 
-    int newHeight = (height * (newWidth / width)).toInt();
+    int newHeight = (mat.height * newWidth / mat.width).toInt();
     //dev.log("$width x $height -> $newWidth x $newHeight");
     cv.Mat scaled;
     try {
