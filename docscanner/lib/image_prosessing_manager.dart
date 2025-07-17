@@ -1471,51 +1471,79 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  Future<String> scaleImageToDpi(
+  Future<(List<String>, List<double>)> scaleImagesToMaxDpi(
     int docIndex,
-    int pageIndex,
-    int versionIndex,
-    int toDPI,
-    double widthInInches,
-  ) async {
-    final tmpDir = await getTemporaryDirectory();
-    final scaledImagePath =
-        "${tmpDir.path}/scaled_${docIndex}_${pageIndex}_DPI_$toDPI.png";
-
-    final port = ReceivePort();
-    TaskKiller killer;
-    RootIsolateToken token = RootIsolateToken.instance!;
-
-    killer = await IsolatesManager().runTask(
-      _scaleImageToDpiIsolate,
-      (
-        port.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        versionIndex,
-        scaledImagePath,
-        toDPI,
-        widthInInches,
-        g,
-      ),
-      portIn: port,
-      prio: IsolatePriority.quick,
+    List<int> pageIndexes,
+    int? versionIndexIn,
+    int? maxDpi, {
+    bool useSameWidth = false,
+  }) async {
+    List<String> imagePaths = await g.filesHelper.getImagePaths(
+      pageIndexes,
+      versionIndexIn,
+      docIndex,
     );
+    List<int> pagesDpis;
+    List<double> widthsInInches;
+    (pagesDpis, widthsInInches) = await g.filesHelper.getPdfPageDpis(
+      docIndex,
+      pageIndexes: pageIndexes,
+      versionIndex: versionIndexIn,
+      useSameWidth: useSameWidth,
+    );
+    if (maxDpi == null) return (imagePaths, widthsInInches);
 
-    taskKillers[(docIndex, pageIndex)] = killer;
+    final tmpDir = await getTemporaryDirectory();
+    List<Future> futures = [];
+    if (pageIndexes.isEmpty) {
+      pageIndexes = List.generate(imagePaths.length, (index) => index);
+    }
+    for (var (i, pageIndex) in pageIndexes.indexed) {
+      if (pagesDpis[i] > maxDpi) {
+        final int versionIndex =
+            await MetadataHelper.readPageThumbnailIndex(docIndex, pageIndex) ??
+            g.defaultIndex;
+        final scaledImagePath =
+            "${tmpDir.path}/scaled_${docIndex}_${pageIndex}_DPI_$maxDpi.png";
 
-    final completer = Completer<void>();
-    port.listen((message) async {
-      if (message is SendPort) {
-        killer.setControlPort(message);
-      } else if (message == "done") {
-        completer.complete();
-        taskKillers.removeWhere((key, value) => value == killer);
+        final port = ReceivePort();
+        TaskKiller killer;
+        RootIsolateToken token = RootIsolateToken.instance!;
+
+        killer = await IsolatesManager().runTask(
+          _scaleImageToDpiIsolate,
+          (
+            port.sendPort,
+            token,
+            docIndex,
+            pageIndex,
+            versionIndex,
+            scaledImagePath,
+            maxDpi,
+            useSameWidth ? widthsInInches.first : widthsInInches[i],
+            g,
+          ),
+          portIn: port,
+          prio: IsolatePriority.quick,
+        );
+        taskKillers[(docIndex, pageIndex)] = killer;
+
+        imagePaths[i] = scaledImagePath;
+        final completer = Completer<void>();
+        futures.add(completer.future);
+        port.listen((message) async {
+          if (message is SendPort) {
+            killer.setControlPort(message);
+          } else if (message == "done") {
+            completer.complete();
+            taskKillers.removeWhere((key, value) => value == killer);
+          }
+        });
       }
-    });
-    await completer.future;
-    return scaledImagePath;
+    }
+
+    await Future.wait(futures);
+    return (imagePaths, widthsInInches);
   }
 
   static void _scaleImageToDpiIsolate(

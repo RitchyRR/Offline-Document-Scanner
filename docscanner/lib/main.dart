@@ -6969,6 +6969,8 @@ Future<bool> _pagesPopup(
     pageIndexes,
     pagesCount,
   );
+  // Pages exporte with same width
+  bool sameWidth = false;
 
   await showDialog(
     // ignore: use_build_context_synchronously
@@ -7156,7 +7158,7 @@ Future<bool> _pagesPopup(
                   icon = Icons.delete;
                   break;
               }
-              bool lockDpi =
+              bool dpiLocked =
                   !g.proUnlocked &&
                   !docUnlocked &&
                   !(isSinglePage && pageUnlocked);
@@ -7164,7 +7166,7 @@ Future<bool> _pagesPopup(
                   (isSinglePage &&
                       !(pageUnlocked || g.proUnlocked) &&
                       g.proFilterIndexes.contains(versionIndex)) ||
-                  (lockDpi && selectedDpi != null);
+                  (dpiLocked && selectedDpi != null);
               bool lockPdf =
                   lockAll || (!isSinglePage && !(docUnlocked || g.proUnlocked));
 
@@ -7222,8 +7224,19 @@ Future<bool> _pagesPopup(
                         selectedDpi = dpi;
                         setStateDialog(() {});
                       },
-                      lockDpi: lockDpi,
+                      dpiLocked: dpiLocked,
                     ),
+                  if (type != PopUpType.delete && !isSinglePage)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: SameWidthDropdown(
+                        onChanged: (useSameWidth) {
+                          sameWidth = useSameWidth;
+                          setStateDialog(() {});
+                        },
+                      ),
+                    ),
+
                   SizedBox(height: 24.0),
 
                   type == PopUpType.delete
@@ -7265,6 +7278,7 @@ Future<bool> _pagesPopup(
                                                         versionIndex:
                                                             versionIndex,
                                                         maxDpi: selectedDpi,
+                                                        useSameWidth: sameWidth,
                                                       );
                                                   break;
                                                 case PopUpType.save:
@@ -7276,6 +7290,7 @@ Future<bool> _pagesPopup(
                                                         versionIndex:
                                                             versionIndex,
                                                         maxDpi: selectedDpi,
+                                                        useSameWidth: sameWidth,
                                                       );
                                                   break;
                                                 default:
@@ -7351,6 +7366,8 @@ Future<bool> _pagesPopup(
                                                                   versionIndex,
                                                               maxDpi:
                                                                   selectedDpi,
+                                                              singleWidth:
+                                                                  sameWidth,
                                                             );
                                                         break;
                                                       case PopUpType.save:
@@ -7365,6 +7382,8 @@ Future<bool> _pagesPopup(
                                                                   versionIndex,
                                                               maxDpi:
                                                                   selectedDpi,
+                                                              singleWidth:
+                                                                  sameWidth,
                                                             );
                                                         break;
                                                       default:
@@ -7598,18 +7617,84 @@ Future<List<bool>> loadLoadingImages(
   return thumbnailsLoading;
 }
 
+class SameWidthDropdown extends StatefulWidget {
+  final void Function(bool selectedDpi) onChanged;
+  const SameWidthDropdown({super.key, required this.onChanged});
+
+  @override
+  State<SameWidthDropdown> createState() => _SameWidthDropdownState();
+}
+
+class _SameWidthDropdownState extends State<SameWidthDropdown> {
+  int selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> menuEntryStrings = ["Individual Width", "Same Width"];
+    final double height = 30;
+
+    return Container(
+      constraints: BoxConstraints(minHeight: height, maxHeight: height),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(height / 2),
+        boxShadow: [tinyBoxShadow(context)],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(height / 2),
+          isDense: true,
+          isExpanded: false,
+          alignment: Alignment.centerRight,
+          //icon: const SizedBox.shrink(), // to hide drop-down-arrow
+          value: selectedIndex,
+          items: List.generate(menuEntryStrings.length, (i) {
+            return DropdownMenuItem(
+              alignment: Alignment.centerRight,
+              value: i,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    menuEntryStrings[i],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          onChanged: (int? newIndex) {
+            setState(() {
+              selectedIndex = newIndex ?? 0;
+            });
+
+            // Return useSameWidth to where Widget is used
+            final bool useSameWidth = newIndex == 1;
+            widget.onChanged(useSameWidth);
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class DpiDropdown extends StatefulWidget {
   final List<int> pagesDpis;
   final List<int> imagesFilesizes;
   final void Function(int? selectedDpi) onChanged;
-  final bool lockDpi;
+  final bool dpiLocked;
 
   const DpiDropdown({
     super.key,
     required this.pagesDpis,
     required this.imagesFilesizes,
     required this.onChanged,
-    required this.lockDpi,
+    required this.dpiLocked,
   });
 
   @override
@@ -7625,7 +7710,6 @@ class _DpiDropdownState extends State<DpiDropdown> {
     final List<int> lowerDpis = commonDpis
         .where((dpi) => widget.pagesDpis.any((pageDpi) => pageDpi >= dpi))
         .toList();
-
     final double height = 30;
 
     return Container(
@@ -7633,13 +7717,13 @@ class _DpiDropdownState extends State<DpiDropdown> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(height / 2),
         boxShadow: [tinyBoxShadow(context)],
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           elevation: 8,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(height / 2),
           isDense: true,
           isExpanded: false,
           alignment: Alignment.centerRight,
@@ -7712,7 +7796,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                       fontSize: 14,
                     ),
                   ),
-                  if (i != 0 && widget.lockDpi)
+                  if (i != 0 && widget.dpiLocked)
                     Padding(
                       padding: EdgeInsets.only(left: 8),
                       child: Icon(Icons.lock),
@@ -7729,7 +7813,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
                   });
 
                   // Return selectedDPI to where Widget is used
-                  final selectedDpi = newIndex == 0
+                  final int? selectedDpi = newIndex == 0
                       ? null
                       : lowerDpis[newIndex! - 1];
                   widget.onChanged(selectedDpi);

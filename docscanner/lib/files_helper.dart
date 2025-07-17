@@ -468,7 +468,9 @@ class FilesHelper {
         for (var version in versions) {
           if (!fullSized && version.path.contains(thumbnailName)) {
             thumbnailPath = version.path;
-          } else if (backupName != null && version.path.contains(backupName)) {
+          } else if (backupName != null &&
+              version.path.contains(backupName) &&
+              !version.path.contains(thumbnailName)) {
             backupPath = version.path;
           }
         }
@@ -1073,40 +1075,17 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
+    bool useSameWidth = false,
   }) async {
-    List<String> imagePaths = await _getImagePaths(
+    // DPI Scaling
+    List<String> imagePaths;
+    (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
+      docIndex,
       pageIndexes,
       versionIndex,
-      docIndex,
+      maxDpi,
+      useSameWidth: useSameWidth,
     );
-
-    // DPI Scaling
-    if (maxDpi != null) {
-      List<int> pagesDpis;
-      double widthInInches;
-      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
-        docIndex,
-        pageIndexes: pageIndexes,
-        versionIndex: versionIndex,
-      );
-      for (var (pageIndex, dpi) in pagesDpis.indexed) {
-        if (dpi > maxDpi) {
-          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
-            docIndex,
-            pageIndex,
-          );
-          final String scaledImagePath = await imageProcessingManager
-              .scaleImageToDpi(
-                docIndex,
-                pageIndex,
-                versionIndex!,
-                maxDpi,
-                widthInInches,
-              );
-          imagePaths[pageIndex] = scaledImagePath;
-        }
-      }
-    }
 
     final albumName = "Scanned Documents";
     for (var (pageIndex, imagePath) in imagePaths.indexed) {
@@ -1183,12 +1162,13 @@ class FilesHelper {
     return (imagePaths, messenger);
   }
 
-  Future<(List<int>, double)> getPdfPageDpis(
+  Future<(List<int>, List<double>)> getPdfPageDpis(
     int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
+    bool useSameWidth = false,
   }) async {
-    List<String> imagePaths = await _getImagePaths(
+    List<String> imagePaths = await getImagePaths(
       pageIndexes,
       versionIndex,
       docIndex,
@@ -1210,7 +1190,9 @@ class FilesHelper {
 
     // 0. Default (localized)
     const double widthA4 = 21.0 * pdf.PdfPageFormat.cm;
+    const double heightA4 = 29.7 * pdf.PdfPageFormat.cm;
     const double widthLetterLegal = 8.5 * pdf.PdfPageFormat.inch;
+    const double heightLetter = 11 * pdf.PdfPageFormat.inch;
 
     String? country;
     try {
@@ -1219,47 +1201,62 @@ class FilesHelper {
     } catch (e) {
       dev.log("Error, getPdfPageDpis: deviceLocale not available");
     }
-    final double defaultWidth;
+    final bool imperial;
     const imperialCountries = {"US", "LR", "MM"}; // USA, Liberia, Myanmar
     if (country != null && imperialCountries.contains(country)) {
-      defaultWidth = widthLetterLegal;
+      imperial = true;
     } else {
-      defaultWidth = widthA4;
+      imperial = false;
     }
 
     // 1. Get common widths (shared across pages)
     final List<double> physicalWidths = [];
+    const double tolerance = 0.001;
     for (double? ratioValue in ratioValues) {
       // DIN A4
       if (ratioValue == math.sqrt2) {
-        physicalWidths.add(21.0 * pdf.PdfPageFormat.cm);
-      } else if (ratioValue == math.sqrt1_2) {
-        physicalWidths.add(29.7 * pdf.PdfPageFormat.cm);
+        physicalWidths.add(widthA4);
+      } else if (ratioValue != null &&
+          ratioValue <= math.sqrt1_2 + tolerance &&
+          ratioValue >= math.sqrt1_2 - tolerance) {
+        physicalWidths.add(heightA4);
       }
       // Letter / Legal
       else if (ratioValue == 11 / 8.5 || ratioValue == 14 / 8.5) {
-        physicalWidths.add(8.5 * pdf.PdfPageFormat.inch);
+        physicalWidths.add(widthLetterLegal);
       } else if (ratioValue == 8.5 / 11) {
         physicalWidths.add(11 * pdf.PdfPageFormat.inch);
       } else if (ratioValue == 8.5 / 14) {
         physicalWidths.add(14 * pdf.PdfPageFormat.inch);
       }
+      // Fallback: localized default
+      else if (ratioValue != null && ratioValue < 1.0) {
+        physicalWidths.add(imperial ? heightLetter : heightA4);
+      } else {
+        physicalWidths.add(imperial ? widthLetterLegal : widthA4);
+      }
     }
 
     // 2. Select Width
-    final double selectedWidth;
-    if (physicalWidths.contains(defaultWidth)) {
-      selectedWidth = defaultWidth;
-    } else if (defaultWidth != widthA4 && physicalWidths.contains(widthA4)) {
-      selectedWidth = widthA4;
-    } else if (defaultWidth != widthLetterLegal &&
-        physicalWidths.contains(widthLetterLegal)) {
-      selectedWidth = widthLetterLegal;
+    final double? selectedWidth;
+    final List<double> widthsInInches;
+    if (useSameWidth) {
+      if (physicalWidths.contains(imperial ? widthLetterLegal : widthA4)) {
+        selectedWidth = imperial ? widthLetterLegal : widthA4;
+      } else if (physicalWidths.contains(imperial ? heightLetter : heightA4)) {
+        selectedWidth = imperial ? heightLetter : heightA4;
+      } else {
+        selectedWidth = widthA4;
+      }
+      widthsInInches = [selectedWidth / pdf.PdfPageFormat.inch];
     } else {
-      selectedWidth = defaultWidth;
+      selectedWidth = null;
+      widthsInInches = List.generate(
+        physicalWidths.length,
+        (index) => physicalWidths[index] / pdf.PdfPageFormat.inch,
+      );
     }
 
-    double widthInInches = (selectedWidth / pdf.PdfPageFormat.inch);
     // Image Info
     List<DecodeInfo> imageInfos = [];
     for (var path in imagePaths) {
@@ -1269,51 +1266,34 @@ class FilesHelper {
     }
 
     List<int> dpis = [];
-    for (var info in imageInfos) {
-      dpis.add((info.width / widthInInches).toInt());
+    for (var i = 0; i < imageInfos.length; i++) {
+      dpis.add(
+        (imageInfos[i].width /
+                (useSameWidth ? widthsInInches.first : widthsInInches[i]))
+            .toInt(),
+      );
     }
-    return (dpis, widthInInches);
+    return (dpis, widthsInInches);
   }
 
   Future<pdfw.Document?> _convertImagesToPdf(
-    int docIndex, {
+    final int docIndex, {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
+    bool useSameWidth = false,
   }) async {
-    List<String> imagePaths = await _getImagePaths(
-      pageIndexes,
-      versionIndex,
-      docIndex,
-    );
-
     // DPI Scaling
-    if (maxDpi != null) {
-      List<int> pagesDpis;
-      double widthInInches;
-      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
-        docIndex,
-        pageIndexes: pageIndexes,
-        versionIndex: versionIndex,
-      );
-      for (var (pageIndex, dpi) in pagesDpis.indexed) {
-        if (dpi > maxDpi) {
-          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
-            docIndex,
-            pageIndex,
-          );
-          final String scaledImagePath = await imageProcessingManager
-              .scaleImageToDpi(
-                docIndex,
-                pageIndex,
-                versionIndex!,
-                maxDpi,
-                widthInInches,
-              );
-          imagePaths[pageIndex] = scaledImagePath;
-        }
-      }
-    }
+    List<String> imagePaths;
+    List<double> widthsInInches;
+    (imagePaths, widthsInInches) = await imageProcessingManager
+        .scaleImagesToMaxDpi(
+          docIndex,
+          pageIndexes,
+          versionIndex,
+          maxDpi,
+          useSameWidth: useSameWidth,
+        );
 
     // Page Formats (Aspect Ratio, physical Size etc.)
     List<double?> ratioValues = [];
@@ -1328,37 +1308,25 @@ class FilesHelper {
       );
     }
 
-    // Select Aspect ratio
-    double physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
-    // 1. Get common width (shared across pages)
-    for (double? ratioValue in ratioValues) {
-      if (ratioValue == math.sqrt2) // DIN A4
-      {
-        physicalWidth = 21.0 * pdf.PdfPageFormat.cm;
-        break;
-      } else if (ratioValue == 11 / 8.5 ||
-          ratioValue == 14 / 8.5) // Letter / Legal
-      {
-        physicalWidth = 8.5 * pdf.PdfPageFormat.inch;
-        break;
-      }
-    }
-    // Image Info
-    List<DecodeInfo> imageInfos = [];
-    for (var path in imagePaths) {
-      imageInfos.add((await AppGlobals.getImageInfo(path))!);
-    }
+    // Aspect Ratio
+
     // 2. Set correct aspect ratio
     List<pdf.PdfPageFormat> pageFormats = [];
     for (var (i, ratioValue) in ratioValues.indexed) {
-      late double physicalHeight;
+      final double physicalWidth = useSameWidth
+          ? widthsInInches.first
+          : widthsInInches[i] * pdf.PdfPageFormat.inch;
+      double? physicalHeight;
       if (versionIndex == 0) {
-        double photoRatio =
-            imageInfos[i].height.toDouble() / imageInfos[i].width.toDouble();
-        physicalHeight = physicalWidth * photoRatio;
-      } else {
-        physicalHeight = physicalWidth * (ratioValue ?? math.sqrt2);
+        // Calculate ratio for photo
+        DecodeInfo? imageInfo = await AppGlobals.getImageInfo(imagePaths[i]);
+        if (imageInfo != null) {
+          double photoRatio =
+              imageInfo.height.toDouble() / imageInfo.width.toDouble();
+          physicalHeight = physicalWidth * photoRatio;
+        }
       }
+      physicalHeight ??= physicalWidth * (ratioValue ?? math.sqrt2);
       pageFormats.add(pdf.PdfPageFormat(physicalWidth, physicalHeight));
     }
 
@@ -1400,7 +1368,7 @@ class FilesHelper {
     }
   }
 
-  Future<List<String>> _getImagePaths(
+  Future<List<String>> getImagePaths(
     List<int> pageIndexes,
     int? versionIndex,
     int docIndex,
@@ -1431,6 +1399,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
+    bool singleWidth = false,
   }) async {
     if (isTmpExternal) return;
 
@@ -1456,76 +1425,73 @@ class FilesHelper {
       );
     }
 
-    try {
-      // PDF Name
-      String docFileName = await _generateFileName(
-        docIndex,
-        pageIndexes,
-        versionIndex,
-        ".pdf",
-      );
+    // PDF Name
+    String docFileName = await _generateFileName(
+      docIndex,
+      pageIndexes,
+      versionIndex,
+      ".pdf",
+    );
 
-      // SnackBar
-      messenger?.showSnackBar(snackBar!);
+    // SnackBar
+    messenger?.showSnackBar(snackBar!);
 
-      // Save PDF
-      pdfw.Document? pdf;
-      pdf = await _convertImagesToPdf(
-        docIndex,
-        pageIndexes: pageIndexes,
-        versionIndex: versionIndex,
-        maxDpi: maxDpi,
-      );
-      // Ask user to pick a folder
-      isTmpExternal = true;
-      String? pdfPath;
-      if (pdf != null) {
-        try {
-          pdfPath = await FilePicker.platform.saveFile(
-            fileName: docFileName,
-            type: FileType.custom,
-            allowedExtensions: ["pdf"],
-            bytes: await pdf.save(),
-          );
-        } catch (e) {
-          dev.log("Error, pickFolderForDocumentPdf: $e");
-          messenger?.hideCurrentSnackBar();
-          isTmpExternal = false;
-          throw StateError("Error, pickFolderForDocumentPdf: $e");
-        }
-        if (pdfPath == null) {
-          dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
-          messenger?.hideCurrentSnackBar();
-          isTmpExternal = false;
-          return;
-        }
-      } else {
-        messenger?.hideCurrentSnackBar();
-        messenger?.showSnackBar(
-          SnackBar(content: Text(tr("snackbar.e_savePdf"))),
+    // Save PDF
+    pdfw.Document? pdf;
+    pdf = await _convertImagesToPdf(
+      docIndex,
+      pageIndexes: pageIndexes,
+      versionIndex: versionIndex,
+      maxDpi: maxDpi,
+      useSameWidth: singleWidth,
+    );
+    // Ask user to pick a folder
+    isTmpExternal = true;
+    String? pdfPath;
+    if (pdf != null) {
+      try {
+        pdfPath = await FilePicker.platform.saveFile(
+          fileName: docFileName,
+          type: FileType.custom,
+          allowedExtensions: ["pdf"],
+          bytes: await pdf.save(),
         );
+      } catch (e) {
+        dev.log("Error, pickFolderForDocumentPdf: $e");
+        messenger?.hideCurrentSnackBar();
+        isTmpExternal = false;
+        throw StateError("Error, pickFolderForDocumentPdf: $e");
+      }
+      if (pdfPath == null) {
+        dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
+        messenger?.hideCurrentSnackBar();
         isTmpExternal = false;
         return;
       }
+    } else {
       messenger?.hideCurrentSnackBar();
-      Future.delayed(Duration(seconds: 1), () {
-        isTmpExternal = false;
-      });
-
-      // Saved Toast
-      const String basePath = "/document/primary:";
-      final int filenamePos = pdfPath.lastIndexOf("/");
-      final String readablePath = pdfPath.startsWith(basePath)
-          ? pdfPath.substring(basePath.length, filenamePos)
-          : pdfPath;
-      dev.log("PDF saved at: $readablePath");
-      Fluttertoast.showToast(
-        msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
-        toastLength: Toast.LENGTH_LONG,
+      messenger?.showSnackBar(
+        SnackBar(content: Text(tr("snackbar.e_savePdf"))),
       );
-    } catch (e) {
-      throw StateError("Error, pickFolderForDocumentPdf: $e");
+      isTmpExternal = false;
+      return;
     }
+    messenger?.hideCurrentSnackBar();
+    Future.delayed(Duration(seconds: 1), () {
+      isTmpExternal = false;
+    });
+
+    // Saved Toast
+    const String basePath = "/document/primary:";
+    final int filenamePos = pdfPath.lastIndexOf("/");
+    final String readablePath = pdfPath.startsWith(basePath)
+        ? pdfPath.substring(basePath.length, filenamePos)
+        : pdfPath;
+    dev.log("PDF saved at: $readablePath");
+    Fluttertoast.showToast(
+      msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
+      toastLength: Toast.LENGTH_LONG,
+    );
   }
 
   Future<List<int>> getImagesFilesizes(
@@ -1533,7 +1499,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
   }) async {
-    List<String> imagePaths = await _getImagePaths(
+    List<String> imagePaths = await getImagePaths(
       pageIndexes,
       versionIndex,
       docIndex,
@@ -1595,40 +1561,17 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
+    bool useSameWidth = false,
   }) async {
-    List<String> imagePaths = await _getImagePaths(
+    // DPI Scaling
+    List<String> imagePaths;
+    (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
+      docIndex,
       pageIndexes,
       versionIndex,
-      docIndex,
+      maxDpi,
+      useSameWidth: useSameWidth,
     );
-
-    // DPI Scaling
-    if (maxDpi != null) {
-      List<int> pagesDpis;
-      double widthInInches;
-      (pagesDpis, widthInInches) = await g.filesHelper.getPdfPageDpis(
-        docIndex,
-        pageIndexes: pageIndexes,
-        versionIndex: versionIndex,
-      );
-      for (var (pageIndex, dpi) in pagesDpis.indexed) {
-        if (dpi > maxDpi) {
-          versionIndex ??= await MetadataHelper.readPageThumbnailIndex(
-            docIndex,
-            pageIndex,
-          );
-          final String scaledImagePath = await imageProcessingManager
-              .scaleImageToDpi(
-                docIndex,
-                pageIndex,
-                versionIndex!,
-                maxDpi,
-                widthInInches,
-              );
-          imagePaths[pageIndex] = scaledImagePath;
-        }
-      }
-    }
 
     List<XFile> xFiles = [];
     for (var (pageIndex, imagePath) in imagePaths.indexed) {
@@ -1670,6 +1613,7 @@ class FilesHelper {
     List<int> pageIndexes = const [],
     int? versionIndex,
     int? maxDpi,
+    bool singleWidth = false,
   }) async {
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -1712,6 +1656,7 @@ class FilesHelper {
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
       maxDpi: maxDpi,
+      useSameWidth: singleWidth,
     );
 
     // Isolate
