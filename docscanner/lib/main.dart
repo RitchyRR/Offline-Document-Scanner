@@ -6979,173 +6979,177 @@ Future<bool> _pagesPopup(
       return StreamBuilder<NotifierEvent>(
         stream: globalNotifier.stream,
         builder: (context, snapshot) {
-          final event = snapshot.data;
-          if (event == NotifierEvent.loadPagesThumbnails) {
-            if (versionIndex != null && pageIndexes.length == 1) {
-              Future.microtask(() async {
-                thumbnailPaths = [
-                  await g.filesHelper.getVersionPath(
-                    docIndex,
-                    pageIndexes.first,
-                    versionIndex,
-                  ),
-                ];
-              });
-            } else {
-              Future.microtask(() async {
-                var thumbs = await g.filesHelper.getPagesThumbnails(
-                  docIndex,
-                  pageIndexes: pageIndexes,
-                  fullSized: true,
-                  supressWarnings: true,
-                );
-                thumbnailPaths = thumbs.$1;
-              });
-            }
-            Future.microtask(() async {
-              imageRatios = await loadImageRatios(
-                docIndex,
-                pageIndexes,
-                pagesCount,
-              );
-            });
-            Future.microtask(() async {
-              loadingImages = await loadLoadingImages(
-                docIndex,
-                pageIndexes,
-                thumbnailPaths,
-                supressWarnings: true,
-              );
-              allPagesLoaded = loadingImages.every((element) => !element);
-            });
-            Future.microtask(() async {
-              imagesFilesizes = await g.filesHelper.getImagesFilesizes(
-                docIndex,
-                pageIndexes: pageIndexes,
-                versionIndex: versionIndex,
-              );
-            });
-            Future.microtask(() async {
-              pagesDpis = (await g.filesHelper.getPdfPageDpis(
-                docIndex,
-                pageIndexes: pageIndexes,
-                versionIndex: versionIndex,
-              )).$1;
-            });
-          }
-          String title;
-          if (isDocument) {
-            switch (type) {
-              case PopUpType.share:
-                title = tr(
-                  "popup.pagesPopup.document.share.title",
-                  namedArgs: {"docIndex": "${docIndex + 1}"},
-                );
-                break;
-              case PopUpType.save:
-                title = tr(
-                  "popup.pagesPopup.document.save.title",
-                  namedArgs: {"docIndex": "${docIndex + 1}"},
-                );
-                break;
-              case PopUpType.delete:
-                title = tr(
-                  "popup.pagesPopup.document.delete.title",
-                  namedArgs: {"docIndex": "${docIndex + 1}"},
-                );
-                break;
-            }
-          } else if (!isSinglePage) {
-            switch (type) {
-              case PopUpType.share:
-                title = tr(
-                  "popup.pagesPopup.pages.share.title",
-                  namedArgs: {"pagesCount": "$pagesCount"},
-                );
-                break;
-              case PopUpType.save:
-                title = tr(
-                  "popup.pagesPopup.pages.save.title",
-                  namedArgs: {"pagesCount": "$pagesCount"},
-                );
-                break;
-              case PopUpType.delete:
-                title = tr(
-                  "popup.pagesPopup.pages.delete.title",
-                  namedArgs: {"pagesCount": "$pagesCount"},
-                );
-                break;
-            }
-          } else {
-            switch (type) {
-              case PopUpType.share:
-                title = tr(
-                  "popup.pagesPopup.page.share.title",
-                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
-                );
-                break;
-              case PopUpType.save:
-                title = tr(
-                  "popup.pagesPopup.page.save.title",
-                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
-                );
-                break;
-              case PopUpType.delete:
-                title = tr(
-                  "popup.pagesPopup.page.delete.title",
-                  namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
-                );
-                break;
-            }
-            if (versionIndex != null &&
-                type != PopUpType.delete &&
-                !importedPdfMode) {
-              title += ", \n${versionNames[versionIndex]}";
-            }
-          }
-          String? deleteText;
-          if (type == PopUpType.delete) {
-            if (isDocument) {
-              deleteText = tr("popup.pagesPopup.document.delete.text");
-            } else if (!isSinglePage) {
-              deleteText = tr(
-                "popup.pagesPopup.pages.delete.text",
-                namedArgs: {"pagesCount": "$pagesCount"},
-              );
-            } else {
-              deleteText = tr("popup.pagesPopup.page.delete.text");
-            }
-          }
-          String? buttonTextImage;
-          String? buttonTextPdf;
-          if (!isSinglePage) {
-            switch (type) {
-              case PopUpType.share:
-                buttonTextImage = tr("popup.pagesPopup.pages.share.images");
-                buttonTextPdf = tr("popup.pagesPopup.pages.share.pdf");
-                break;
-              case PopUpType.save:
-                buttonTextImage = tr("popup.pagesPopup.pages.save.images");
-                buttonTextPdf = tr("popup.pagesPopup.pages.save.pdf");
-                break;
-              default:
-            }
-          } else {
-            switch (type) {
-              case PopUpType.share:
-                buttonTextImage = tr("popup.pagesPopup.page.share.image");
-                buttonTextPdf = tr("popup.pagesPopup.page.share.pdf");
-                break;
-              case PopUpType.save:
-                buttonTextImage = tr("popup.pagesPopup.page.save.image");
-                buttonTextPdf = tr("popup.pagesPopup.page.save.pdf");
-                break;
-              default:
-            }
-          }
-
           return StatefulBuilder(
             builder: (context, setStateDialog) {
+              final event = snapshot.data;
+              if (event == NotifierEvent.loadPagesThumbnails) {
+                Future<void> afterThumbnailsLoaded() async {
+                  loadingImages = await loadLoadingImages(
+                    docIndex,
+                    pageIndexes,
+                    thumbnailPaths,
+                    supressWarnings: true,
+                  );
+                  allPagesLoaded = loadingImages.every((element) => !element);
+                  setStateDialog(() {});
+                }
+
+                if (versionIndex != null && pageIndexes.length == 1) {
+                  Future.microtask(() async {
+                    thumbnailPaths = [
+                      await g.filesHelper.getVersionPath(
+                        docIndex,
+                        pageIndexes.first,
+                        versionIndex,
+                      ),
+                    ];
+                    afterThumbnailsLoaded();
+                  });
+                } else {
+                  Future.microtask(() async {
+                    var thumbs = await g.filesHelper.getPagesThumbnails(
+                      docIndex,
+                      pageIndexes: pageIndexes,
+                      fullSized: true,
+                      supressWarnings: true,
+                    );
+                    thumbnailPaths = thumbs.$1;
+                    afterThumbnailsLoaded();
+                  });
+                }
+                Future.microtask(() async {
+                  imageRatios = await loadImageRatios(
+                    docIndex,
+                    pageIndexes,
+                    pagesCount,
+                  );
+                });
+                Future.microtask(() async {
+                  imagesFilesizes = await g.filesHelper.getImagesFilesizes(
+                    docIndex,
+                    pageIndexes: pageIndexes,
+                    versionIndex: versionIndex,
+                  );
+                });
+                Future.microtask(() async {
+                  pagesDpis = (await g.filesHelper.getPdfPageDpis(
+                    docIndex,
+                    pageIndexes: pageIndexes,
+                    versionIndex: versionIndex,
+                  )).$1;
+                });
+              }
+              String title;
+              if (isDocument) {
+                switch (type) {
+                  case PopUpType.share:
+                    title = tr(
+                      "popup.pagesPopup.document.share.title",
+                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                    );
+                    break;
+                  case PopUpType.save:
+                    title = tr(
+                      "popup.pagesPopup.document.save.title",
+                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                    );
+                    break;
+                  case PopUpType.delete:
+                    title = tr(
+                      "popup.pagesPopup.document.delete.title",
+                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                    );
+                    break;
+                }
+              } else if (!isSinglePage) {
+                switch (type) {
+                  case PopUpType.share:
+                    title = tr(
+                      "popup.pagesPopup.pages.share.title",
+                      namedArgs: {"pagesCount": "$pagesCount"},
+                    );
+                    break;
+                  case PopUpType.save:
+                    title = tr(
+                      "popup.pagesPopup.pages.save.title",
+                      namedArgs: {"pagesCount": "$pagesCount"},
+                    );
+                    break;
+                  case PopUpType.delete:
+                    title = tr(
+                      "popup.pagesPopup.pages.delete.title",
+                      namedArgs: {"pagesCount": "$pagesCount"},
+                    );
+                    break;
+                }
+              } else {
+                switch (type) {
+                  case PopUpType.share:
+                    title = tr(
+                      "popup.pagesPopup.page.share.title",
+                      namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                    );
+                    break;
+                  case PopUpType.save:
+                    title = tr(
+                      "popup.pagesPopup.page.save.title",
+                      namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                    );
+                    break;
+                  case PopUpType.delete:
+                    title = tr(
+                      "popup.pagesPopup.page.delete.title",
+                      namedArgs: {"pageIndex": "${pageIndexes.first + 1}"},
+                    );
+                    break;
+                }
+                if (versionIndex != null &&
+                    type != PopUpType.delete &&
+                    !importedPdfMode) {
+                  title += ", \n${versionNames[versionIndex]}";
+                }
+              }
+              String? deleteText;
+              if (type == PopUpType.delete) {
+                if (isDocument) {
+                  deleteText = tr("popup.pagesPopup.document.delete.text");
+                } else if (!isSinglePage) {
+                  deleteText = tr(
+                    "popup.pagesPopup.pages.delete.text",
+                    namedArgs: {"pagesCount": "$pagesCount"},
+                  );
+                } else {
+                  deleteText = tr("popup.pagesPopup.page.delete.text");
+                }
+              }
+              String? buttonTextImage;
+              String? buttonTextPdf;
+              if (!isSinglePage) {
+                switch (type) {
+                  case PopUpType.share:
+                    buttonTextImage = tr("popup.pagesPopup.pages.share.images");
+                    buttonTextPdf = tr("popup.pagesPopup.pages.share.pdf");
+                    break;
+                  case PopUpType.save:
+                    buttonTextImage = tr("popup.pagesPopup.pages.save.images");
+                    buttonTextPdf = tr("popup.pagesPopup.pages.save.pdf");
+                    break;
+                  default:
+                }
+              } else {
+                switch (type) {
+                  case PopUpType.share:
+                    buttonTextImage = tr("popup.pagesPopup.page.share.image");
+                    buttonTextPdf = tr("popup.pagesPopup.page.share.pdf");
+                    break;
+                  case PopUpType.save:
+                    buttonTextImage = tr("popup.pagesPopup.page.save.image");
+                    buttonTextPdf = tr("popup.pagesPopup.page.save.pdf");
+                    break;
+                  default:
+                }
+              }
+
               IconData icon;
               switch (type) {
                 case PopUpType.share:
@@ -7225,6 +7229,7 @@ Future<bool> _pagesPopup(
                         setStateDialog(() {});
                       },
                       dpiLocked: dpiLocked,
+                      allPagesLoaded: allPagesLoaded,
                     ),
                   if (type != PopUpType.delete &&
                       !isSinglePage &&
@@ -7698,6 +7703,7 @@ class DpiDropdown extends StatefulWidget {
   final List<int> imagesFilesizes;
   final void Function(int? selectedDpi) onChanged;
   final bool dpiLocked;
+  final bool allPagesLoaded;
 
   const DpiDropdown({
     super.key,
@@ -7705,6 +7711,7 @@ class DpiDropdown extends StatefulWidget {
     required this.imagesFilesizes,
     required this.onChanged,
     required this.dpiLocked,
+    required this.allPagesLoaded,
   });
 
   @override
@@ -7747,7 +7754,8 @@ class _DpiDropdownState extends State<DpiDropdown> {
             if (i == 0) {
               dpiString = widget.pagesDpis.isEmpty
                   ? "--- DPI"
-                  : widget.pagesDpis.length == 1
+                  : (widget.pagesDpis.length == 1 &&
+                        widget.imagesFilesizes.length == 1)
                   ? "${widget.pagesDpis.first} DPI"
                   : "Ø ${widget.pagesDpis.average.toInt()} DPI";
 
@@ -7766,7 +7774,12 @@ class _DpiDropdownState extends State<DpiDropdown> {
               final int lowerDpi = lowerDpis[i - 1];
               double estimatedBytes = 0;
 
-              for (int i = 0; i < widget.imagesFilesizes.length; i++) {
+              for (
+                int i = 0;
+                i < widget.imagesFilesizes.length &&
+                    i < widget.pagesDpis.length;
+                i++
+              ) {
                 final int originalSize = widget.imagesFilesizes[i];
                 final int originalDpi = widget.pagesDpis[i];
 
@@ -7815,7 +7828,7 @@ class _DpiDropdownState extends State<DpiDropdown> {
               ),
             );
           }),
-          onChanged: widget.pagesDpis.isEmpty
+          onChanged: widget.pagesDpis.isEmpty || !widget.allPagesLoaded
               ? null
               : (int? newIndex) {
                   setState(() {
