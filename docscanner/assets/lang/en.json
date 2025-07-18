@@ -19,7 +19,7 @@
       "popup": {
         "title": "Edit Document {docIndex}",
         "name": "Name Document",
-        "move": "Move Document to new Index"
+        "move": "Move Document to"
       }
     }
   },
@@ -36,7 +36,7 @@
       "cancelSelection": "Cancel Selection"
     },
     "popup": {
-      "move": "Move Page to new Index",
+      "move": "Move Page to",
       "reverseOrder": "Reverse Order"
     }
   },

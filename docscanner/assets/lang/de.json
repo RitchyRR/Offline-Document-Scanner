@@ -19,7 +19,7 @@
       "popup": {
         "title": "Dokument {docIndex} bearbeiten",
         "name": "Dokument benennen",
-        "move": "Dokument an neue Position verschieben"
+        "move": "Dokument verschieben zu"
       }
     }
   },
@@ -36,7 +36,7 @@
       "cancelSelection": "Auswahl aufheben"
     },
     "popup": {
-      "move": "Seite an neue Position verschieben",
+      "move": "Seite verschieben zu",
       "reverseOrder": "Reihenfolge umkehren"
     }
   },
