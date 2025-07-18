@@ -6350,13 +6350,6 @@ class _WarpState extends State<Warp> {
                     _panningDelayed = true;
                   },
                   onPanUpdate: (details) {
-                    DateTime now = DateTime.now();
-                    // Haptic Feedback
-                    if (_cornerPositionHistory.isNotEmpty &&
-                        now.difference(_cornerPositionHistory.last.timestamp) >
-                            Duration(milliseconds: 25)) {
-                      HapticFeedback.selectionClick();
-                    }
                     final box =
                         _imageAreaKey.currentContext?.findRenderObject()
                             as RenderBox?;
@@ -6365,16 +6358,42 @@ class _WarpState extends State<Warp> {
                       details.globalPosition,
                     );
                     Offset newPos = localPosition - _touchOffset;
-                    double newX = newPos.dx.clamp(0.0, _screenWidth);
-                    double newY = newPos.dy.clamp(0.0, _displayHeigth);
+                    newPos = Offset(
+                      newPos.dx.clamp(0.0, _screenWidth),
+                      newPos.dy.clamp(0.0, _displayHeigth),
+                    );
 
                     // Limit relative corner positions
-                    (newX, newY) = _limitCornerPointPos(index, newX, newY);
+                    newPos = _limitCornerPointPos(index, newPos);
 
+                    DateTime now = DateTime.now();
+                    // Haptic Feedback
+                    if (_cornerPositionHistory.isNotEmpty &&
+                        now.difference(_cornerPositionHistory.last.timestamp) >
+                            Duration(milliseconds: 25)) {
+                      HapticFeedback.selectionClick();
+                    }
+                    // Average position over time -> new pos
+                    Offset avgPos = Offset(0, 0);
+                    int avgCount = 0;
+                    for (var timePos in _cornerPositionHistory) {
+                      if ((newPos - timePos.position).distance < 30.0) {
+                        avgPos += timePos.position;
+                        avgCount++;
+                      }
+                    }
+                    if (avgCount != 0) {
+                      avgPos /= avgCount.toDouble();
+                      avgPos += newPos * 0.5;
+                      avgPos /= 1.5;
+                    } else {
+                      avgPos = newPos;
+                    }
                     setState(() {
-                      _scaledPoints[index] = Offset(newX, newY);
+                      _scaledPoints[index] = avgPos;
                     });
                     _scaleImage();
+
                     // Add current position to history
                     _cornerPositionHistory.add(
                       PositionTimestamp(
@@ -6383,13 +6402,10 @@ class _WarpState extends State<Warp> {
                       ),
                     );
                     // Remove oldest position if older than _historyDurationMs
-                    if (_cornerPositionHistory.isNotEmpty &&
-                        now
-                                .difference(
-                                  _cornerPositionHistory.first.timestamp,
-                                )
-                                .inMilliseconds >
-                            _historyDelayMs) {
+                    if (now
+                            .difference(_cornerPositionHistory.first.timestamp)
+                            .inMilliseconds >
+                        _historyDelayMs) {
                       _cornerPositionHistory.removeAt(0);
                     }
                   },
@@ -6437,11 +6453,7 @@ class _WarpState extends State<Warp> {
     );
   }
 
-  (double newX, double newY) _limitCornerPointPos(
-    int cornerIndex,
-    double newX,
-    double newY,
-  ) {
+  Offset _limitCornerPointPos(int cornerIndex, Offset newPos) {
     switch (cornerIndex) {
       case 0: // top left
         double maxX = [
@@ -6452,11 +6464,11 @@ class _WarpState extends State<Warp> {
           _scaledPoints[1].dy,
           _scaledPoints[3].dy,
         ].reduce(math.min);
-        if (newX > maxX) {
-          newX = maxX;
+        if (newPos.dx > maxX) {
+          newPos = Offset(maxX, newPos.dy);
         }
-        if (newY > maxY) {
-          newY = maxY;
+        if (newPos.dy > maxY) {
+          newPos = Offset(newPos.dx, maxY);
         }
         break;
       case 1: // bottom left
@@ -6468,11 +6480,11 @@ class _WarpState extends State<Warp> {
           _scaledPoints[0].dy,
           _scaledPoints[2].dy,
         ].reduce(math.max);
-        if (newX > maxX) {
-          newX = maxX;
+        if (newPos.dx > maxX) {
+          newPos = Offset(maxX, newPos.dy);
         }
-        if (newY < minY) {
-          newY = minY;
+        if (newPos.dy < minY) {
+          newPos = Offset(newPos.dx, minY);
         }
         break;
       case 2: // top right
@@ -6484,11 +6496,11 @@ class _WarpState extends State<Warp> {
           _scaledPoints[1].dy,
           _scaledPoints[3].dy,
         ].reduce(math.min);
-        if (newX < minX) {
-          newX = minX;
+        if (newPos.dx < minX) {
+          newPos = Offset(minX, newPos.dy);
         }
-        if (newY > maxY) {
-          newY = maxY;
+        if (newPos.dy > maxY) {
+          newPos = Offset(newPos.dx, maxY);
         }
         break;
       case 3: // bottom right
@@ -6500,16 +6512,16 @@ class _WarpState extends State<Warp> {
           _scaledPoints[0].dy,
           _scaledPoints[2].dy,
         ].reduce(math.max);
-        if (newX < minX) {
-          newX = minX;
+        if (newPos.dx < minX) {
+          newPos = Offset(minX, newPos.dy);
         }
-        if (newY < minY) {
-          newY = minY;
+        if (newPos.dy < minY) {
+          newPos = Offset(newPos.dx, minY);
         }
         break;
       default:
     }
-    return (newX, newY);
+    return newPos;
   }
 
   void _handleEdgePan({
@@ -6519,6 +6531,8 @@ class _WarpState extends State<Warp> {
     required int neighborB,
     required DragUpdateDetails details,
   }) {
+    _allowPop = false;
+
     final Offset a = _scaledPoints[indexA];
     final Offset b = _scaledPoints[indexB];
     final Offset na = _scaledPoints[neighborA];
@@ -6527,34 +6541,39 @@ class _WarpState extends State<Warp> {
     final double dragAmount =
         -details.delta.dy; // fixed vertical axis + flipped
 
-    final Offset dirA = a - na;
-    final Offset dirB = b - nb;
-    if (dirA.distance == 0 || dirB.distance == 0) return;
+    Offset dirA = a - na;
+    Offset dirB = b - nb;
+    Offset dirNewA;
+    Offset dirNewB;
+    Offset newA;
+    Offset newB;
+    do {
+      final Offset normA = dirA / dirA.distance;
+      final Offset normB = dirB / dirB.distance;
 
-    final Offset normA = dirA / dirA.distance;
-    final Offset normB = dirB / dirB.distance;
+      final Offset moveA = normA * dragAmount;
+      final Offset moveB = normB * dragAmount;
 
-    final Offset moveA = normA * dragAmount;
-    final Offset moveB = normB * dragAmount;
+      newA = a + moveA;
+      newB = b + moveB;
 
-    Offset newA = a + moveA;
-    Offset newB = b + moveB;
+      newA = Offset(
+        newA.dx.clamp(0.0, _screenWidth),
+        newA.dy.clamp(0.0, _displayHeigth),
+      );
+      newB = Offset(
+        newB.dx.clamp(0.0, _screenWidth),
+        newB.dy.clamp(0.0, _displayHeigth),
+      );
 
-    newA = Offset(
-      newA.dx.clamp(0.0, _screenWidth),
-      newA.dy.clamp(0.0, _displayHeigth),
-    );
-    newB = Offset(
-      newB.dx.clamp(0.0, _screenWidth),
-      newB.dy.clamp(0.0, _displayHeigth),
-    );
+      dirNewA = newA - na;
+      dirNewB = newB - nb;
 
-    setState(() {
-      _scaledPoints[indexA] = newA;
-      _scaledPoints[indexB] = newB;
-    });
-
-    _scaleImage();
+      dirA *= -1;
+      dirB *= -1;
+    } while ((dirNewA.distance < 5 || dirNewB.distance < 5) &&
+        (dirNewA.distance < dirA.distance ||
+            dirNewB.distance < dirNewB.distance));
 
     DateTime now = DateTime.now();
     // Haptic Feedback
@@ -6563,15 +6582,42 @@ class _WarpState extends State<Warp> {
             Duration(milliseconds: 25)) {
       HapticFeedback.selectionClick();
     }
+    // Average position over time -> new pos
+    Offset avgPosA = Offset(0, 0);
+    Offset avgPosB = Offset(0, 0);
+    int avgCount = 0;
+    for (var edgeTimePos in _edgePositionHistory) {
+      if ((newA - edgeTimePos.$1.position).distance < 1.0) {
+        avgPosA += edgeTimePos.$1.position;
+        avgPosB += edgeTimePos.$2.position;
+        avgCount++;
+      }
+    }
+    if (avgCount != 0) {
+      avgPosA /= avgCount.toDouble();
+      avgPosB /= avgCount.toDouble();
+      avgPosA += newA * 1;
+      avgPosB += newB * 1;
+      avgPosA /= 2;
+      avgPosB /= 2;
+    } else {
+      avgPosA = newA;
+      avgPosB = newB;
+    }
+    setState(() {
+      _scaledPoints[indexA] = avgPosA;
+      _scaledPoints[indexB] = avgPosB;
+    });
+    _scaleImage();
+
     // Add current position to history
     _edgePositionHistory.add((
       PositionTimestamp(position: _scaledPoints[indexA], timestamp: now),
       PositionTimestamp(position: _scaledPoints[indexB], timestamp: now),
     ));
     // Remove oldest position if older than _historyDurationMs
-    if (_edgePositionHistory.isNotEmpty &&
-        now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
-            _historyDelayMs) {
+    if (now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
+        _historyDelayMs) {
       _edgePositionHistory.removeAt(0);
     }
   }
