@@ -149,12 +149,12 @@
         "save": {
           "title": "Save {pagesCount} Pages",
           "images": "Save Images to Gallery",
-          "pdf": "Save combined PDF to Directory"
+          "pdf": "Save as PDF to Directory"
         },
         "share": {
           "title": "Share {pagesCount} Pages",
           "images": "Share Images",
-          "pdf": "Share combined PDF"
+          "pdf": "Share as PDF"
         },
         "delete": {
           "title": "Delete {pagesCount} Pages",
