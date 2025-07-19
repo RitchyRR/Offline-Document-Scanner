@@ -81,11 +81,11 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
-    
+    <!-- Images -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <!-- for ads:-->
+    <!-- Ads -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 </manifest>
