@@ -29,9 +29,9 @@ const List<String> versionNamesInternal = [
 ];
 
 class ImageProcessingManager {
-  Map<(int, int), TaskKiller> taskKillers = {};
+  List<((int, int), TaskKiller)> taskKillers = [];
 
-  static void _processPageIsolate(
+  static void _processPageIsolateThumbnailVersion(
     (
       SendPort sendPort,
       RootIsolateToken token,
@@ -141,6 +141,9 @@ class ImageProcessingManager {
     List<int> borderCorrectionDepth = warpedRet.$3;
     double? ratioValue = warpedRet.$4;
     List<List<int>>? cornerPoints = warpedRet.$5;
+    // Send borderCorrectionDepth:
+    isolateExitPoint(kill);
+    sendPort.send(borderCorrectionDepth);
 
     isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
@@ -159,6 +162,7 @@ class ImageProcessingManager {
       ".png",
     );
 
+    // initialThumbnailIndex
     final int initialThumbnailIndex;
     int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
       docIndex,
@@ -178,12 +182,14 @@ class ImageProcessingManager {
     } else {
       initialThumbnailIndex = readThumbnailIndex;
     }
+    isolateExitPoint(kill);
+    sendPort.send(initialThumbnailIndex);
 
     // First process (default) Thumbnail version
-    Uint8List? processed2Bytes;
+
     if (initialThumbnailIndex > 1) {
       isolateExitPoint(kill);
-      Uint8List thumbnailVersionBytes = warpedBytes;
+      final Uint8List? thumbnailVersionBytes;
       switch (initialThumbnailIndex) {
         case 2:
           // Contrast
@@ -200,44 +206,88 @@ class ImageProcessingManager {
           );
           break;
         case 4:
+        case 5:
           // PRO
           isolateExitPoint(kill);
-          processed2Bytes = thumbnailVersionBytes = await cvHelper
-              .processImagePro(
-                ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
-              );
-          break;
-        case 5:
-          isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImagePro(
+          Uint8List processed2Bytes = await cvHelper.processImagePro(
             ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
           );
           // PRO 2
           isolateExitPoint(kill);
-          Uint8List processed3Bytes = await cvHelper.processImagePro2(
-            ParamsProcessImage3(warpedBytes, thumbnailVersionBytes),
+          thumbnailVersionBytes = await cvHelper.processImagePro2(
+            ParamsProcessImage3(warpedBytes, processed2Bytes),
           );
           await g.filesHelper.savePageVersion(
             docIndex,
             pageIndex,
-            5,
-            processed3Bytes,
+            4,
+            processed2Bytes,
             ".png",
           );
           break;
+        default:
+          thumbnailVersionBytes = null;
       }
       isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        initialThumbnailIndex == 5 ? 4 : initialThumbnailIndex,
-        thumbnailVersionBytes,
-        ".png",
-      );
+      if (thumbnailVersionBytes != null) {
+        await g.filesHelper.savePageVersion(
+          docIndex,
+          pageIndex,
+          initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
+          thumbnailVersionBytes,
+          ".png",
+        );
+      }
       // Update thumbnails:
       isolateExitPoint(kill);
       sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
+    Isolate.exit(sendPort, "done");
+  }
+
+  static void _processPageIsolateFilters(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      int initialThumbnailIndex,
+      List<int> borderCorrectionDepth,
+      AppGlobals g,
+    )
+    data,
+  ) async {
+    SendPort? sendPort = data.$1;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+
+    int initialThumbnailIndex = data.$5;
+    List<int> borderCorrectionDepth = data.$6;
+
+    AppGlobals g = data.$7;
+
+    OpenCVHelper cvHelper = OpenCVHelper(g);
+
+    // Warped
+    final String warpedPath = await g.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      1,
+    );
+    final Uint8List warpedBytes = File(warpedPath).readAsBytesSync();
 
     // Kontrast
     isolateExitPoint(kill);
@@ -271,10 +321,10 @@ class ImageProcessingManager {
       );
     }
 
-    // PRO
-    isolateExitPoint(kill);
     if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-      processed2Bytes = await cvHelper.processImagePro(
+      // PRO
+      isolateExitPoint(kill);
+      Uint8List processed2Bytes = await cvHelper.processImagePro(
         ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
       );
       isolateExitPoint(kill);
@@ -285,13 +335,11 @@ class ImageProcessingManager {
         processed2Bytes,
         ".png",
       );
-    }
 
-    // PRO 2
-    isolateExitPoint(kill);
-    if (initialThumbnailIndex != 5) {
+      // PRO 2
+      isolateExitPoint(kill);
       Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        ParamsProcessImage3(warpedBytes, processed2Bytes!),
+        ParamsProcessImage3(warpedBytes, processed2Bytes),
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -303,9 +351,6 @@ class ImageProcessingManager {
       );
     }
 
-    // Delete old Thumbnail
-    isolateExitPoint(kill);
-    _deleteScaledThumbnail(pagePath);
     // Set New Thumbnail
     isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(
@@ -333,7 +378,8 @@ class ImageProcessingManager {
     int rotationIn,
     bool isInitial,
     bool isPhotoAlreadyInPage,
-    IsolatePriority prio,
+    IsolatePriority prioThumbnailVersion,
+    IsolatePriority prioFilter,
   ) async {
     if (photoPath.isEmpty) return;
 
@@ -349,7 +395,7 @@ class ImageProcessingManager {
     final token = RootIsolateToken.instance!;
 
     TaskKiller killer = await IsolatesManager().runTask(
-      _processPageIsolate,
+      _processPageIsolateThumbnailVersion,
       (
         port.sendPort,
         token,
@@ -364,7 +410,7 @@ class ImageProcessingManager {
         g,
       ),
       portIn: port,
-      prio: prio,
+      prio: prioThumbnailVersion,
       onErrorFunction: (error, stack) async {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
         if (!error.toString().contains("No photo")) {
@@ -372,8 +418,10 @@ class ImageProcessingManager {
         }
       },
     );
+    taskKillers.add(((docIndex, pageIndex), killer));
 
-    taskKillers[(docIndex, pageIndex)] = killer;
+    late int initialThumbnailIndex;
+    late List<int> borderCorrectionDepth;
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -385,12 +433,60 @@ class ImageProcessingManager {
         }
       } else if (message is SendPort) {
         killer.setControlPort(message);
+      } else if (message is List<int>) {
+        borderCorrectionDepth = message;
+      } else if (message is int) {
+        initialThumbnailIndex = message;
       } else if (message == "done") {
-        taskKillers.removeWhere((key, value) => value == killer);
+        taskKillers.removeWhere((element) => element.$2 == killer);
         completer.complete();
       }
     });
     await completer.future;
+
+    // Other Filters
+    final completerFilters = Completer<void>();
+    final portFilters = ReceivePort();
+
+    TaskKiller killerFilters = await IsolatesManager().runTask(
+      _processPageIsolateFilters,
+      (
+        portFilters.sendPort,
+        token,
+        docIndex,
+        pageIndex,
+        initialThumbnailIndex,
+        borderCorrectionDepth,
+        g,
+      ),
+      portIn: portFilters,
+      prio: prioFilter,
+      onErrorFunction: (error, stack) async {
+        dev.log("_processPageIsolate, onErrorFunction: $error $stack");
+        if (!error.toString().contains("No photo")) {
+          repairPage(docIndex, pageIndex);
+        }
+      },
+    );
+    taskKillers.add(((docIndex, pageIndex), killerFilters));
+
+    portFilters.listen((message) async {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
+      } else if (message is SendPort) {
+        killerFilters.setControlPort(message);
+      } else if (message == "done") {
+        taskKillers.removeWhere((element) => element.$2 == killerFilters);
+        completerFilters.complete();
+      }
+    });
+    await completerFilters.future;
   }
 
   Future<void> saveOldVersionFileNames(
@@ -643,68 +739,72 @@ class ImageProcessingManager {
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     var key = (docIndex, pageIndex);
-    if (taskKillers.containsKey(key)) {
-      await (taskKillers[key]!).kill();
-      taskKillers.remove(key);
+    for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
+      taskKiller.$2.kill();
+      taskKillers.remove(taskKiller);
     }
   }
 
-  void delayIsolatesOfPage(int docIndex, int pageIndex) {
+  void changePrioForIsolatesOfPage(
+    int docIndex,
+    int pageIndex,
+    IsolatePriority newPrio,
+  ) {
     var key = (docIndex, pageIndex);
-    if (taskKillers.containsKey(key)) {
-      taskKillers[key]?.delay();
+    for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
+      taskKiller.$2.changePrio(newPrio);
     }
   }
 
   Future<void> killIsolatesOfDocument(int docIndex) async {
-    List<(int, int)> keys = [];
-    for (var key in taskKillers.keys) {
-      if (key.$1 == docIndex) {
-        keys.add(key);
-      }
-    }
     List<Future<void>> killerFutures = [];
-    for (var key in keys) {
-      killerFutures.add(taskKillers[key]!.kill());
-      taskKillers.remove(key);
+    for (var taskKiller in taskKillers.where(
+      (element) => element.$1.$1 == docIndex,
+    )) {
+      killerFutures.add(taskKiller.$2.kill());
+      taskKillers.remove(taskKiller);
     }
     await Future.wait(killerFutures);
   }
 
-  void delayIsolatesOfDocument(int docIndex) {
-    List<(int, int)> keys = [];
-    for (var key in taskKillers.keys) {
-      if (key.$1 == docIndex) {
-        keys.add(key);
-      }
-    }
-    for (var key in keys) {
-      taskKillers[key]?.delay();
+  void changePrioForIsolatesOfDocument(int docIndex, IsolatePriority newPrio) {
+    for (var taskKiller in taskKillers.where(
+      (element) => element.$1.$1 == docIndex,
+    )) {
+      taskKiller.$2.changePrio(newPrio);
     }
   }
 
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
     while (taskKillers.isNotEmpty) {
-      taskKillers.removeWhere((key, value) => value.exited);
-      final otherKeys = taskKillers.keys
-          .where((key) => key.$1 > docIndex)
-          .toList();
-      final otherIsolates = otherKeys.map((key) => taskKillers[key]!).toList();
-
-      if (otherIsolates.isEmpty) return;
+      int remainingCount = 0;
+      for (var taskKiller in taskKillers.where(
+        (element) => element.$1.$1 > docIndex,
+      )) {
+        if (taskKiller.$2.exited) {
+          taskKillers.remove(taskKiller);
+        } else {
+          remainingCount++;
+        }
+      }
+      if (remainingCount == 0) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
 
   Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
-      taskKillers.removeWhere((key, value) => value.exited);
-      final otherKeys = taskKillers.keys
-          .where((key) => key.$1 == docIndex && key.$2 > pageIndex)
-          .toList();
-      final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
-
-      if (higherTasks.isEmpty) return;
+      int remainingCount = 0;
+      for (var taskKiller in taskKillers.where(
+        (element) => element.$1.$1 == docIndex && element.$1.$2 > pageIndex,
+      )) {
+        if (taskKiller.$2.exited) {
+          taskKillers.remove(taskKiller);
+        } else {
+          remainingCount++;
+        }
+      }
+      if (remainingCount == 0) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
@@ -717,36 +817,44 @@ class ImageProcessingManager {
     int smallestIndex = pageIndexes.reduce(math.min);
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
-      taskKillers.removeWhere((key, value) => value.exited);
-      final otherKeys = taskKillers.keys
-          .where((key) => key.$1 == docIndexIn && key.$2 > smallestIndex)
-          .toList();
-      for (var pageIndex in pageIndexes) {
-        otherKeys.removeWhere((key) => key.$2 == pageIndex);
+      int remainingCount = 0;
+      for (var taskKiller in taskKillers.where(
+        (element) =>
+            element.$1.$1 == docIndexIn &&
+            element.$1.$2 > smallestIndex &&
+            !pageIndexesIn.contains(element.$1.$2),
+      )) {
+        if (taskKiller.$2.exited) {
+          taskKillers.remove(taskKiller);
+        } else {
+          remainingCount++;
+        }
       }
-      final higherTasks = otherKeys.map((key) => taskKillers[key]!).toList();
-
-      if (higherTasks.isEmpty) return;
+      if (remainingCount == 0) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
 
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
-      taskKillers.removeWhere((key, value) => value.exited);
-      final docKeys = taskKillers.keys
-          .where((key) => key.$1 == docIndex)
-          .toList();
-      final docKillers = docKeys.map((key) => taskKillers[key]!).toList();
-
-      if (docKillers.isEmpty) return;
+      int remainingCount = 0;
+      for (var taskKiller in taskKillers.where(
+        (element) => element.$1.$1 == docIndex,
+      )) {
+        if (taskKiller.$2.exited) {
+          taskKillers.remove(taskKiller);
+        } else {
+          remainingCount++;
+        }
+      }
+      if (remainingCount == 0) return;
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
 
   Future<void> awaitAllIsolates() async {
     while (taskKillers.isNotEmpty) {
-      taskKillers.removeWhere((key, value) => value.exited);
+      taskKillers.removeWhere((element) => element.$2.exited);
       await Future.delayed(Duration(milliseconds: 200));
     }
   }
@@ -770,6 +878,7 @@ class ImageProcessingManager {
       true,
       photosAlreadyInPages,
       IsolatePriority.immediate,
+      IsolatePriority.immediate,
     );
 
     // Remaining pages
@@ -786,6 +895,7 @@ class ImageProcessingManager {
           true,
           photosAlreadyInPages,
           IsolatePriority.regular,
+          IsolatePriority.late,
         );
       }
     }
@@ -800,7 +910,7 @@ class ImageProcessingManager {
     final int rotationIn,
   ) async {
     await killIsolatesOfPage(docIndex, pageIndex);
-    await _processPageWrapper(
+    _processPageWrapper(
       docIndex,
       pageIndex,
       pathIn,
@@ -809,6 +919,7 @@ class ImageProcessingManager {
       rotationIn,
       false,
       rotationIn == 0,
+      IsolatePriority.immediate,
       IsolatePriority.immediate,
     );
   }
@@ -829,7 +940,7 @@ class ImageProcessingManager {
         g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
       },
     );
-    taskKillers[(docIndex, pageIndex)] = killer;
+    taskKillers.add(((docIndex, pageIndex), killer));
 
     port.listen((message) async {
       if (message is NotifierEvent) {
@@ -844,7 +955,7 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         repairCompleter.complete();
-        taskKillers.removeWhere((key, value) => value == killer);
+        taskKillers.removeWhere((element) => element.$2 == killer);
       }
     });
     await repairCompleter.future;
@@ -947,11 +1058,6 @@ class ImageProcessingManager {
     // Update Thumbnail
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-    // Delete old Thumbnail
-    isolateExitPoint(kill);
-    _deleteScaledThumbnail(
-      await g.filesHelper.getPagePath(docIndex, pageIndex),
-    );
     // Set New Thumbnail
     isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(
@@ -985,7 +1091,7 @@ class ImageProcessingManager {
       portIn: port,
       prio: IsolatePriority.immediate,
     );
-    taskKillers[(docIndex, pageIndex)] = killer;
+    taskKillers.add(((docIndex, pageIndex), killer));
 
     port.listen((message) async {
       if (message is NotifierEvent) {
@@ -999,7 +1105,7 @@ class ImageProcessingManager {
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
-        taskKillers.removeWhere((key, value) => value == killer);
+        taskKillers.removeWhere((element) => element.$2 == killer);
         rotatePageCompleter.complete();
       }
     });
@@ -1129,20 +1235,6 @@ class ImageProcessingManager {
     return true;
   }
 
-  static void _deleteScaledThumbnail(String pagePath) {
-    for (FileSystemEntity fse in Directory(
-      pagePath,
-    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.contains("thumbnail")) {
-        try {
-          File(fse.path).deleteSync();
-        } catch (e) {
-          dev.log("Warning, _deleteScaledThumbnail: $e");
-        }
-      }
-    }
-  }
-
   static Future<void> _saveNewThumbnailIsolate(
     (
       SendPort sendPort,
@@ -1205,7 +1297,7 @@ class ImageProcessingManager {
       prio: IsolatePriority.regular,
     );
 
-    taskKillers[(docIndex, pageIndex)] = killer;
+    taskKillers.add(((docIndex, pageIndex), killer));
 
     final completer = Completer<void>();
     port.listen((message) async {
@@ -1220,7 +1312,7 @@ class ImageProcessingManager {
       } else if (message is SendPort) {
         killer.setControlPort(message);
       } else if (message == "done") {
-        taskKillers.removeWhere((key, value) => value == killer);
+        taskKillers.removeWhere((element) => element.$2 == killer);
         completer.complete();
       }
     });
@@ -1372,7 +1464,7 @@ class ImageProcessingManager {
         }
       },
     );
-    taskKillers[(docIndex, pageIndex)] = killer;
+    taskKillers.add(((docIndex, pageIndex), killer));
 
     port.listen((message) async {
       if (message is NotifierEvent) {
@@ -1387,7 +1479,7 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         wrapperCompleter.complete();
-        taskKillers.removeWhere((key, value) => value == killer);
+        taskKillers.removeWhere((element) => element.$2 == killer);
       }
     });
     await wrapperCompleter.future;
@@ -1538,7 +1630,7 @@ class ImageProcessingManager {
           portIn: port,
           prio: IsolatePriority.quick,
         );
-        taskKillers[(docIndex, pageIndex)] = killer;
+        taskKillers.add(((docIndex, pageIndex), killer));
 
         imagePaths[i] = scaledImagePath;
         final completer = Completer<void>();
@@ -1548,7 +1640,7 @@ class ImageProcessingManager {
             killer.setControlPort(message);
           } else if (message == "done") {
             completer.complete();
-            taskKillers.removeWhere((key, value) => value == killer);
+            taskKillers.removeWhere((element) => element.$2 == killer);
           }
         });
       }

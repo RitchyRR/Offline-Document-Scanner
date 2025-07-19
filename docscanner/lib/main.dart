@@ -6,7 +6,8 @@ import 'image_prosessing_manager.dart';
 import 'feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
-import 'package:docscanner/isolates_manager.dart' show IsolatesManager;
+import 'package:docscanner/isolates_manager.dart'
+    show IsolatesManager, IsolatePriority;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
@@ -4084,21 +4085,29 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   Future<void> _initAsync() async {
+    // Lower Page Isolates Priority
+    imageProcessingManager.changePrioForIsolatesOfPage(
+      widget.docIndex,
+      widget.pageIndex,
+      IsolatePriority.immediate,
+    );
+    // PDF Mode
     _importedPdfMode = await MetadataHelper.readPageImportedPdf(
       widget.docIndex,
       widget.pageIndex,
     );
     if (_importedPdfMode && mounted) setState(() {});
-    await _loadOldVersionFileNames(supressWarnings: true);
-    _pollImagesAndMetadata();
+    // Images
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: true,
     );
-    // if processing on init
+    await _loadOldVersionFileNames(supressWarnings: true);
+    _pollImagesAndMetadata();
+    // Feedback
     if (_versionPaths.any((element) => element.isEmpty)) {
-      // Feedback Popup
+      // if processing on init
       bool showRatingPopupWhileProcessing = feedbackHelper
           .canShowProcessingPopup();
       if (showRatingPopupWhileProcessing) {
@@ -4461,6 +4470,12 @@ class PagePreviewState extends State<PagePreview> {
           HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
         } else {
+          // Lower Page Isolates Priority
+          imageProcessingManager.changePrioForIsolatesOfPage(
+            widget.docIndex,
+            widget.pageIndex,
+            IsolatePriority.regular,
+          );
           // New thumbnail
           if (_processingIndex == 0) {
             // If done processing

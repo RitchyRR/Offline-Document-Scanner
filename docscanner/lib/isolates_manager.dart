@@ -9,11 +9,11 @@ import 'package:docscanner/app_globals.dart' show ErrorLogger;
 class TaskKiller {
   bool exited = false;
   final Future<void> Function() _kill;
-  final void Function() _delay;
+  final void Function(IsolatePriority newPrio) _changePrio;
   final void Function(SendPort controlPort) _setControlPort;
-  TaskKiller(this._kill, this._delay, this._setControlPort);
+  TaskKiller(this._kill, this._changePrio, this._setControlPort);
   Future<void> kill() => _kill();
-  void delay() => _delay();
+  void changePrio(IsolatePriority newPrio) => _changePrio(newPrio);
   void setControlPort(SendPort controlPort) => _setControlPort(controlPort);
 }
 
@@ -151,9 +151,9 @@ class IsolatesManager {
           await task.exitCompleter.future;
         }
       },
-      // delay
-      () {
-        task.prio = IsolatePriority.late;
+      // changePrio
+      (IsolatePriority newPrio) {
+        task.prio = newPrio;
       },
       // setControlPort(SendPort controlPort)
       (SendPort controlPortIn) {
