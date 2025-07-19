@@ -42,7 +42,6 @@ class ImageProcessingManager {
       List<List<int>>? cornerPointsIn,
       int rotationIn,
       bool isInitial,
-      bool isPhotoAlreadyInPage,
       AppGlobals g,
     )
     data,
@@ -69,8 +68,7 @@ class ImageProcessingManager {
     List<List<int>>? cornerPointsIn = data.$7;
     int rotationIn = data.$8;
     bool isInitial = data.$9;
-    bool isPhotoAlreadyInPage = data.$10;
-    AppGlobals g = data.$11;
+    AppGlobals g = data.$10;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
@@ -87,22 +85,7 @@ class ImageProcessingManager {
     }
 
     // Read Photo
-    isolateExitPoint(kill);
-    final imageRaw = g.filesHelper.readImageRaw(photoPath);
-    Uint8List photoBytes = imageRaw.$1;
-    String photoExtension = imageRaw.$2;
-    if (!isPhotoAlreadyInPage) {
-      // Write photo into storage
-      isolateExitPoint(kill);
-      await g.filesHelper.writeImageRaw(
-        docIndex,
-        pageIndex,
-        0,
-        photoBytes,
-        photoExtension,
-        gIn: g,
-      );
-    }
+    final Uint8List photoBytes = File(photoPath).readAsBytesSync();
 
     // Read Shape, if it exists
     isolateExitPoint(kill);
@@ -390,6 +373,21 @@ class ImageProcessingManager {
       isPhotoAlreadyInPage: isPhotoAlreadyInPage,
     );
 
+    // Photo
+    final imageRaw = g.filesHelper.readImageRaw(photoPath);
+    Uint8List photoBytes = imageRaw.$1;
+    String photoExtension = imageRaw.$2;
+    if (!isPhotoAlreadyInPage) {
+      await g.filesHelper.writeImageRaw(
+        docIndex,
+        pageIndex,
+        0,
+        photoBytes,
+        photoExtension,
+        gIn: g,
+      );
+    }
+
     final completer = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -406,7 +404,6 @@ class ImageProcessingManager {
         cornerPointsIn,
         rotationIn,
         isInitial,
-        isPhotoAlreadyInPage,
         g,
       ),
       portIn: port,
