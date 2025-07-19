@@ -436,6 +436,7 @@ class FilesHelper {
     bool fullSized = false,
     bool supressWarnings = false,
   }) async {
+    // Init
     int pagesCount;
     await _initializeDocumentsPath();
     if (pageIndexes.isEmpty) {
@@ -448,7 +449,7 @@ class FilesHelper {
       pagesCount = pageIndexes.length;
     }
     List<String> thumbnailPaths = List.generate(pagesCount, (_) => "");
-
+    // Find Thumbnails for Pages
     for (int pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
       final thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
@@ -456,10 +457,12 @@ class FilesHelper {
         pageIndex,
         supressWarnings: true,
       );
-      final thumbnailName = "thumbnail";
-      final backupName = thumbnailIndex != null
+      final versionName = thumbnailIndex != null
           ? versionNamesInternal[thumbnailIndex]
           : null;
+      if (versionName == null) continue;
+      final thumbnailName = "thumbnail";
+      // Find Thumbnail or versionName Image
       String? thumbnailPath;
       String? backupPath;
       try {
@@ -468,8 +471,7 @@ class FilesHelper {
         for (var version in versions) {
           if (!fullSized && version.path.contains(thumbnailName)) {
             thumbnailPath = version.path;
-          } else if (backupName != null &&
-              version.path.contains(backupName) &&
+          } else if (version.path.contains(versionName) &&
               !version.path.contains(thumbnailName)) {
             backupPath = version.path;
           }
@@ -486,7 +488,6 @@ class FilesHelper {
         dev.log("Warning: getPagesThumbnails: $e");
       }
     }
-
     return (thumbnailPaths, pagesCount);
   }
 
