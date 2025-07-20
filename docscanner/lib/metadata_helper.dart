@@ -144,7 +144,7 @@ class MetadataHelper {
     return null;
   }
 
-  Future<void> writeDocName(int docIndex, String newName) async {
+  Future<void> writeDocName(int docIndex, String? newName) async {
     _writeDoc(docIndex, "name", newName);
   }
 

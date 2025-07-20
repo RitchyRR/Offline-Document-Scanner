@@ -17,7 +17,7 @@
       "date": "Created: {creationDate}",
       "pagesCount": "Pages: {pagesCount}",
       "popup": {
-        "title": "Edit Document {docIndex}",
+        "title": "Document {docIndex}",
         "name": "Name Document",
         "move": "Move Document to"
       }

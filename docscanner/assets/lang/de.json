@@ -17,7 +17,7 @@
       "date": "Erstellt: {creationDate}",
       "pagesCount": "Seiten: {pagesCount}",
       "popup": {
-        "title": "Dokument {docIndex} bearbeiten",
+        "title": "Dokument {docIndex}",
         "name": "Dokument benennen",
         "move": "Dokument verschieben zu"
       }

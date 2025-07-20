@@ -698,7 +698,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
             content: StatefulBuilder(
               builder: (context, setState) {
                 isolatesFuture.whenComplete(() {
-                  setState(() => allowChangeDocIndex = true);
+                  if (mounted) setState(() => allowChangeDocIndex = true);
                 });
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -2653,13 +2653,18 @@ class _PagesState extends State<Pages> with RouteAware {
         resizeToAvoidBottomInset: false,
         appBar: !_selectMode
             ? AppBar(
-                // Regular
-                title: Text(
-                  _docName ??
-                      tr(
-                        "pages.title",
-                        namedArgs: {"docIndex": "${widget.docIndex + 1}"},
-                      ),
+                // Title
+                title: DocNameEditor(
+                  initialName: _docName,
+                  emptyName: tr(
+                    "pages.title",
+                    namedArgs: {"docIndex": "${widget.docIndex + 1}"},
+                  ),
+                  docIndex: widget.docIndex,
+                  onChanged: (newName) {
+                    _docName = newName;
+                    g.metadataHelper.writeDocName(widget.docIndex, newName);
+                  },
                 ),
                 actions: [
                   // Grid View Toggle
@@ -3592,6 +3597,102 @@ class _PagesState extends State<Pages> with RouteAware {
       return true;
     }
     return false;
+  }
+}
+
+class DocNameEditor extends StatefulWidget {
+  final String? initialName;
+  final String emptyName;
+  final int docIndex;
+  final ValueChanged<String?> onChanged;
+
+  const DocNameEditor({
+    super.key,
+    required this.initialName,
+    required this.emptyName,
+    required this.docIndex,
+    required this.onChanged,
+  });
+
+  @override
+  State<DocNameEditor> createState() => _DocNameEditorState();
+}
+
+class _DocNameEditorState extends State<DocNameEditor>
+    with WidgetsBindingObserver {
+  late final TextEditingController _controller;
+  final FocusNode _focusNode = FocusNode();
+  double _lastBottomInset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _controller = TextEditingController(
+      text: widget.initialName ?? widget.emptyName,
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Use MediaQuery via View.of(context)
+    if (!mounted) return;
+
+    final viewInsets = View.of(context).viewInsets.bottom;
+
+    if (_lastBottomInset > 0 && viewInsets == 0 && _focusNode.hasFocus) {
+      _focusNode.unfocus();
+
+      if (_controller.text.trim().isEmpty) {
+        _controller.text = widget.emptyName;
+        widget.onChanged(null);
+      }
+    }
+
+    _lastBottomInset = viewInsets;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.initialName != null) {
+      _controller.text = widget.initialName!;
+    }
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      onChanged: (newName) {
+        newName = newName.trim();
+        if (newName.isEmpty || newName == widget.emptyName) {
+          widget.onChanged(null);
+        } else {
+          widget.onChanged(newName);
+        }
+      },
+      onSubmitted: (newName) {
+        if (newName.trim().isEmpty) {
+          _controller.text = widget.emptyName;
+          widget.onChanged(null);
+        }
+        _focusNode.unfocus();
+      },
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: 22,
+      ),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
   }
 }
 
