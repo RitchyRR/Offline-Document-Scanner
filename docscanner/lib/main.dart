@@ -472,13 +472,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<List<String>> _openCamera() async {
     g.filesHelper.pickingImage = true;
-    final result = await Navigator.pushNamed(context, "/camera");
-    List<String> photoPaths = [];
-    if (result is List<XFile>) {
-      for (var xfile in result) {
-        photoPaths.add(xfile.path);
-      }
-    }
+    final cameraResult = await Navigator.pushNamed(context, "/camera");
+    List<String> photoPaths = cameraResult != null
+        ? cameraResult as List<String>
+        : [];
     g.filesHelper.pickingImage = false;
     return photoPaths;
   }
@@ -8064,7 +8061,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isFlashOn = false;
-  final List<Uint8List> _capturedImages = [];
+  final List<XFile> _capturedImages = [];
   double _cameraAspectRatio = 3 / 4;
   PermissionStatus _permissionStatus = PermissionStatus.denied;
 
@@ -8157,10 +8154,11 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   @override
-  void dispose() {
-    _controller?.setFlashMode(FlashMode.off);
-    _controller?.dispose();
+  void dispose() async {
     super.dispose();
+    await _controller?.setFlashMode(FlashMode.off);
+    _controller?.dispose();
+    _controller = null;
   }
 
   Future<void> _toggleFlash() async {
@@ -8190,19 +8188,20 @@ class _CameraScreenState extends State<CameraScreen> {
       setState(() {
         _cameraFlash = true;
       });
-      final XFile image = await _controller!.takePicture();
+      final XFile xFile = await _controller!.takePicture();
       // Scale down if too large
-      final String fileExtension = image.path.substring(
-        image.path.lastIndexOf("."),
+      final String fileExtension = xFile.path.substring(
+        xFile.path.lastIndexOf("."),
       );
-      final Uint8List imageBytes = await image.readAsBytes();
+      final Uint8List imageBytes = await xFile.readAsBytes();
       final Uint8List? scaledBytes =
           await ImageProcessingManager.scaleImageToMaxSize(
             imageBytes,
             fileExtension,
             gIn: g,
           );
-      _capturedImages.add(scaledBytes ?? imageBytes);
+      if (scaledBytes != null) File(xFile.path).writeAsBytesSync(scaledBytes);
+      _capturedImages.add(xFile);
       setState(() {
         _cameraFlash = false;
       });
@@ -8242,8 +8241,8 @@ class _CameraScreenState extends State<CameraScreen> {
                 return Stack(
                   children: [
                     Positioned.fill(
-                      child: Image.memory(
-                        _capturedImages[index],
+                      child: Image.file(
+                        File(_capturedImages[index].path),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -8339,7 +8338,11 @@ class _CameraScreenState extends State<CameraScreen> {
               onTap: () {
                 allowPop = true;
                 if (Navigator.canPop(context)) {
-                  Navigator.pop(context, _capturedImages);
+                  List<String> photoPaths = [];
+                  for (var xFile in _capturedImages) {
+                    photoPaths.add(xFile.path);
+                  }
+                  Navigator.pop(context, photoPaths);
                 }
               },
               icon: Icons.check,
@@ -8522,7 +8525,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 builder: (context, index) {
                   // Processed Images
                   return PhotoViewGalleryPageOptions(
-                    imageProvider: MemoryImage(_capturedImages[index]),
+                    imageProvider: FileImage(File(_capturedImages[index].path)),
                     filterQuality: FilterQuality.high,
                     minScale: PhotoViewComputedScale.contained,
                     maxScale: 1.0,
@@ -8654,7 +8657,7 @@ class CrosshairPainter extends CustomPainter {
 }
 
 class ThumbnailWithBadge extends StatelessWidget {
-  final Uint8List? image;
+  final XFile? image;
   final int count;
   final VoidCallback? onTap;
 
@@ -8687,7 +8690,7 @@ class ThumbnailWithBadge extends StatelessWidget {
               ),
               image: image != null
                   ? DecorationImage(
-                      image: MemoryImage(image!),
+                      image: FileImage(File(image!.path)),
                       fit: BoxFit.cover,
                     )
                   : null,
