@@ -177,7 +177,9 @@ class OpenCVHelper {
     cv.Mat preFiltered = _preFilter(matIn);
     //return (shape, shape, math.sqrt2, []);
     // 2. create a binary image, white representing the shape of the document
-    cv.Mat mask = _documentMask(preFiltered);
+    cv.Mat mask;
+    cv.Mat borderCorrectionMask;
+    (mask, borderCorrectionMask) = _documentMask(preFiltered);
     //return (mask, mask, math.sqrt2, []);
 
     if (cornerPointsIn == null) {
@@ -188,12 +190,12 @@ class OpenCVHelper {
     }
     if (ratioValueIn == null) {
       // 4. Perspective transformation
-      ratioValue = _calculateTransformation(mask.clone(), corners);
+      ratioValue = _calculateTransformation(borderCorrectionMask, corners);
     } else {
       ratioValue = ratioValueIn;
       _setHeightFromCorners(corners, ratioValue);
       //cv.Mat warpedShape = _transformImage(shape, corners);
-      _calculateBorderSize(mask, corners);
+      _calculateBorderSize(borderCorrectionMask, corners);
     }
 
     _applyBorderCutInToCorners(corners);
@@ -477,7 +479,7 @@ class OpenCVHelper {
   }
 
   /// Step 2: Edge Detection & Filling -> Shape of document
-  cv.Mat _documentMask(cv.Mat shape) {
+  (cv.Mat, cv.Mat) _documentMask(cv.Mat shape) {
     if (shape.isEmpty) {
       throw StateError("Error, Edge Detection & Filling: split channels");
     }
@@ -487,7 +489,7 @@ class OpenCVHelper {
     // 1. try just filling Edges
     cv.Mat edges = _rgbEdges(shape);
     //return edges;
-    cv.Mat edgesShape = _tightRiskyShape(edges);
+    cv.Mat edgesMask = _tightRiskyShape(edges);
     // 2. use Hough Edges
     cv.Mat houghEdges1 = _houghEdges1(edges, 18);
     cv.Mat houghEdges2 = _houghEdges2(edges, extendedBy: 0.25);
@@ -503,55 +505,71 @@ class OpenCVHelper {
         : houghEdges2;
     //return houghEdges;
     //cv.Mat houghShape1 = _houghShape(houghEdges1);
-    cv.Mat houghShape = _houghShape2(houghEdges);
+    cv.Mat houghMask = _houghShape2(houghEdges);
     // read maskSizes if contained
-    if (_testNoSpillover(edgesShape)) {
-      edgesMaskSize = edgesShape.countNoneZero;
+    if (_testNoSpillover(edgesMask)) {
+      edgesMaskSize = edgesMask.countNoneZero;
     } else {
-      edgesShape = _mediumShape(edges);
-      if (_testNoSpillover(edgesShape)) {
-        edgesMaskSize = edgesShape.countNoneZero;
+      edgesMask = _mediumShape(edges);
+      if (_testNoSpillover(edgesMask)) {
+        edgesMaskSize = edgesMask.countNoneZero;
       }
     }
-    if (_testNoSpillover(houghShape)) {
-      houghMaskSize = houghShape.countNoneZero;
+    if (_testNoSpillover(houghMask)) {
+      houghMaskSize = houghMask.countNoneZero;
     } else {
       houghEdges2 = _houghEdges2(edges, extendedBy: 0.5);
       houghEdges = hough1NoSpillover
           ? cv.multiply(houghEdges1, houghEdges2)
           : houghEdges2;
-      houghShape = _houghShape2(houghEdges);
-      if (_testNoSpillover(houghShape)) {
-        houghMaskSize = houghShape.countNoneZero;
+      houghMask = _houghShape2(houghEdges);
+      if (_testNoSpillover(houghMask)) {
+        houghMaskSize = houghMask.countNoneZero;
       } else {
         houghEdges2 = _houghEdges2(edges, extendedBy: 0.75);
         houghEdges = hough1NoSpillover
             ? cv.multiply(houghEdges1, houghEdges2)
             : houghEdges2;
-        houghShape = _houghShape2(houghEdges);
-        if (_testNoSpillover(houghShape)) {
-          houghMaskSize = houghShape.countNoneZero;
+        houghMask = _houghShape2(houghEdges);
+        if (_testNoSpillover(houghMask)) {
+          houghMaskSize = houghMask.countNoneZero;
         }
       }
     }
-    // return largest shape
+
+    cv.Mat? mask;
+    cv.Mat? borderCorrectionMask;
+
+    // Use larger mask (for corner detection)
     if (edgesMaskSize != 0 && edgesMaskSize > houghMaskSize) {
-      return edgesShape;
+      mask = edgesMask;
     } else if (houghMaskSize != 0) {
-      return houghShape;
+      mask = houghMask;
+      borderCutIn = null;
     }
     // Fallback: 3. Combine Edges and Hough Edges
-    edges = edges.add(houghEdges);
-    edgesShape = _tightRiskyShape(edges);
-    if (_testNoSpillover(edgesShape)) {
-      return edgesShape;
+    if (mask == null) {
+      edges = edges.add(houghEdges);
+      edgesMask = _tightRiskyShape(edges);
+      if (_testNoSpillover(edgesMask)) {
+        mask = edgesMask;
+      }
+      edgesMask = _mediumShape(edges);
+      if (_testNoSpillover(edgesMask)) {
+        mask = edgesMask;
+      }
     }
-    edgesShape = _mediumShape(edges);
-    if (_testNoSpillover(edgesShape)) {
-      return edgesShape;
+    // Use more detailed edgesMask for border correction
+    if (edgesMaskSize != 0) {
+      borderCorrectionMask = edgesMask;
     }
-    // return empty mat
-    return cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
+    // Empty if nothing worked
+    if (mask == null) {
+      mask = cv.Mat.zeros(rows, cols, cv.MatType.CV_8UC1);
+      borderCutIn = null;
+    }
+    borderCorrectionMask ??= mask;
+    return (mask, borderCorrectionMask);
   }
 
   cv.Mat _rgbEdges(cv.Mat shape) {
@@ -970,20 +988,26 @@ class OpenCVHelper {
   /// Step 4: Perspective Transformation
 
   // Step 4.1: Calculate Border Corrections
-  double _calculateTransformation(cv.Mat mask, List<List<int>> corners) {
+  double _calculateTransformation(
+    cv.Mat borderCorrectionMask,
+    List<List<int>> corners,
+  ) {
     // Estimate aspect ratio
     double calculatedRatio = _calculateAspectRatio(corners);
     final matchedRatio = matchAspectRatioAndOrientation(calculatedRatio);
 
     _setHeightFromCorners(corners, matchedRatio);
 
-    _calculateBorderSize(mask, corners);
+    _calculateBorderSize(borderCorrectionMask, corners);
 
     return matchedRatio;
   }
 
-  void _calculateBorderSize(cv.Mat mask, List<List<int>> corners) {
-    cv.Mat warpedMask = _transformImage(mask, corners);
+  void _calculateBorderSize(
+    cv.Mat borderCorrectionMask,
+    List<List<int>> corners,
+  ) {
+    cv.Mat warpedBCMask = _transformImage(borderCorrectionMask, corners);
     final int maxBorderSize = (borderCutIn == null)
         ? (K * 0.4).toInt().clamp(1, -1 >>> 1)
         : (K * 0.7).toInt().clamp(1, -1 >>> 1);
@@ -992,7 +1016,7 @@ class OpenCVHelper {
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = 0; i < maxBorderSize; i++) {
-        if (warpedMask.at<int>(i, j) == 0) {
+        if (warpedBCMask.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
         } else {
@@ -1006,7 +1030,7 @@ class OpenCVHelper {
     depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       for (int i = height - 1; i > height - maxBorderSize; i--) {
-        if (warpedMask.at<int>(i, j) == 0) {
+        if (warpedBCMask.at<int>(i, j) == 0) {
           int val = height - i;
           depths[j] = val;
         } else {
@@ -1020,7 +1044,7 @@ class OpenCVHelper {
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < maxBorderSize; j++) {
-        if (warpedMask.at<int>(i, j) == 0) {
+        if (warpedBCMask.at<int>(i, j) == 0) {
           int val = j;
           depths[i] = val;
         } else {
@@ -1034,7 +1058,7 @@ class OpenCVHelper {
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
       for (int j = width - 1; j > width - maxBorderSize; j--) {
-        if (warpedMask.at<int>(i, j) == 0) {
+        if (warpedBCMask.at<int>(i, j) == 0) {
           int val = width - j;
           depths[i] = val;
         } else {
@@ -1141,7 +1165,7 @@ class OpenCVHelper {
 
   // Step 4.1.1: Set Border Corrections
   void _setTransformation(int borderIndex, List<int> depths) {
-    final int borderTolerance = 4 + (K ~/ 12);
+    final int borderTolerance = 5 + (K ~/ 8);
     depths = depths.sublist(depths.length ~/ 20, depths.length * 19 ~/ 20);
 
     if (borderCutIn != null) {
@@ -1416,9 +1440,8 @@ class OpenCVHelper {
 
   /// Step 8: Border Correction
   cv.Mat _correctBorder(cv.Mat imIn) {
-    final int whiteThreshold = 244;
+    final int whiteThreshold = 254;
     cv.Mat borderCorrect = imIn.clone();
-    bool wasWhite = false;
 
     cv.Mat reference = cv.cvtColor(
       borderCorrect,
@@ -1426,56 +1449,64 @@ class OpenCVHelper {
     ); // to check if wasWhite, also using prior border corrections for better corners.
     // Top border
     for (int j = 0; j < width; j++) {
-      wasWhite = false;
-      for (int i = borderCorrectionDepth[0]; i >= 0; i--) {
-        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
-          wasWhite = true;
+      int whiteAt = 0;
+      for (; whiteAt <= borderCorrectionDepth[0]; whiteAt++) {
+        if (reference.at<int>(whiteAt, j) >= whiteThreshold) {
+          break;
         }
-        if (wasWhite) {
-          borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
-        }
+      }
+      if (whiteAt > borderCorrectionDepth[0]) continue;
+
+      for (int i = whiteAt; i >= 0; i--) {
+        borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
       }
     }
 
     reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Bottom border
     for (int j = 0; j < width; j++) {
-      wasWhite = false;
-      for (int i = height - borderCorrectionDepth[1] - 1; i < height; i++) {
-        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
-          wasWhite = true;
+      int whiteAt = height - 1;
+      for (; whiteAt >= height - borderCorrectionDepth[1] - 1; whiteAt--) {
+        if (reference.at<int>(whiteAt, j) >= whiteThreshold) {
+          break;
         }
-        if (wasWhite) {
-          borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
-        }
+      }
+      if (whiteAt < height - borderCorrectionDepth[1] - 1) continue;
+
+      for (int i = whiteAt; i < height; i++) {
+        borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
       }
     }
 
     reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Left border
     for (int i = 0; i < height; i++) {
-      wasWhite = false;
-      for (int j = borderCorrectionDepth[2]; j >= 0; j--) {
-        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
-          wasWhite = true;
+      int whiteAt = 0;
+      for (; whiteAt <= borderCorrectionDepth[2]; whiteAt++) {
+        if (reference.at<int>(i, whiteAt) >= whiteThreshold) {
+          break;
         }
-        if (wasWhite) {
-          borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
-        }
+      }
+      if (whiteAt > borderCorrectionDepth[2]) continue;
+
+      for (int j = whiteAt; j >= 0; j--) {
+        borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
       }
     }
 
     reference = cv.cvtColor(borderCorrect, cv.COLOR_BGR2GRAY);
     // Right border
     for (int i = 0; i < height; i++) {
-      wasWhite = false;
-      for (int j = width - borderCorrectionDepth[3] - 1; j < width; j++) {
-        if (!wasWhite && reference.at<int>(i, j) >= whiteThreshold) {
-          wasWhite = true;
+      int whiteAt = width - 1;
+      for (; whiteAt >= width - borderCorrectionDepth[3] - 1; whiteAt--) {
+        if (reference.at<int>(i, whiteAt) >= whiteThreshold) {
+          break;
         }
-        if (wasWhite) {
-          borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
-        }
+      }
+      if (whiteAt < width - borderCorrectionDepth[3] - 1) continue;
+
+      for (int j = whiteAt; j < width; j++) {
+        borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
       }
     }
 

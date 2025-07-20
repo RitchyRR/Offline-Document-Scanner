@@ -645,7 +645,8 @@ class ImageProcessingManager {
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
-    for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
+    final limited = taskKillers.where((element) => element.$1 == key);
+    for (var taskKiller in limited) {
       taskKiller.$2.kill();
       taskKillers.remove(taskKiller);
     }
@@ -658,7 +659,8 @@ class ImageProcessingManager {
   ) {
     if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
-    for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
+    final limited = taskKillers.where((element) => element.$1 == key);
+    for (var taskKiller in limited) {
       taskKiller.$2.changePrio(newPrio);
     }
   }
@@ -666,9 +668,8 @@ class ImageProcessingManager {
   Future<void> killIsolatesOfDocument(int docIndex) async {
     if (taskKillers.isEmpty) return;
     List<Future<void>> killerFutures = [];
-    for (var taskKiller in taskKillers.where(
-      (element) => element.$1.$1 == docIndex,
-    )) {
+    final limited = taskKillers.where((element) => element.$1.$1 == docIndex);
+    for (var taskKiller in limited) {
       killerFutures.add(taskKiller.$2.kill());
       taskKillers.remove(taskKiller);
     }
@@ -677,9 +678,8 @@ class ImageProcessingManager {
 
   void changePrioForIsolatesOfDocument(int docIndex, IsolatePriority newPrio) {
     if (taskKillers.isEmpty) return;
-    for (var taskKiller in taskKillers.where(
-      (element) => element.$1.$1 == docIndex,
-    )) {
+    final limited = taskKillers.where((element) => element.$1.$1 == docIndex);
+    for (var taskKiller in limited) {
       taskKiller.$2.changePrio(newPrio);
     }
   }
@@ -687,9 +687,8 @@ class ImageProcessingManager {
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      for (var taskKiller in taskKillers.where(
-        (element) => element.$1.$1 > docIndex,
-      )) {
+      final limited = taskKillers.where((element) => element.$1.$1 > docIndex);
+      for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
         } else {
@@ -704,9 +703,10 @@ class ImageProcessingManager {
   Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      for (var taskKiller in taskKillers.where(
+      final limited = taskKillers.where(
         (element) => element.$1.$1 == docIndex && element.$1.$2 > pageIndex,
-      )) {
+      );
+      for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
         } else {
@@ -728,12 +728,13 @@ class ImageProcessingManager {
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      for (var taskKiller in taskKillers.where(
+      final limited = taskKillers.where(
         (element) =>
             element.$1.$1 == docIndexIn &&
             element.$1.$2 > smallestIndex &&
             !pageIndexesIn.contains(element.$1.$2),
-      )) {
+      );
+      for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
         } else {
@@ -748,9 +749,8 @@ class ImageProcessingManager {
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      for (var taskKiller in taskKillers.where(
-        (element) => element.$1.$1 == docIndex,
-      )) {
+      final limited = taskKillers.where((element) => element.$1.$1 == docIndex);
+      for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
         } else {

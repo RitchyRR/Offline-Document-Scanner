@@ -2327,8 +2327,31 @@ class _PagesState extends State<Pages> with RouteAware {
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true, supressWarnings: true);
     _initPushToPreview();
-    _loadSelectAllButtonUsed();
+    _initAsync();
     _loadGridView();
+  }
+
+  bool selectAllButtonUsed = true;
+  String? _docName;
+  _initAsync() async {
+    // Set Title to Doc Name
+    _docName = await g.metadataHelper.readDocName(widget.docIndex);
+
+    // Check if selectAllButtonUsed
+    final prefs = await SharedPreferences.getInstance();
+    selectAllButtonUsed = prefs.getBool("selectAllButtonUsed") ?? false;
+    // Reset if long ago
+    if (selectAllButtonUsed) {
+      final String? dateString = prefs.getString("selectAllButtonUsedDate");
+      if (dateString != null) {
+        final now = DateTime.now();
+        final date = DateTime.tryParse(dateString);
+        if (date != null && now.difference(date).inDays > 45) {
+          dev.log("_getSelectAllButtonUsed: reset to CustomExpandingButton");
+          _setSelectAllButtonUsed(false);
+        }
+      }
+    }
   }
 
   @override
@@ -2554,24 +2577,6 @@ class _PagesState extends State<Pages> with RouteAware {
     });
   }
 
-  bool selectAllButtonUsed = true;
-  _loadSelectAllButtonUsed() async {
-    final prefs = await SharedPreferences.getInstance();
-    selectAllButtonUsed = prefs.getBool("selectAllButtonUsed") ?? false;
-    // reset if long ago
-    if (selectAllButtonUsed) {
-      final String? dateString = prefs.getString("selectAllButtonUsedDate");
-      if (dateString != null) {
-        final now = DateTime.now();
-        final date = DateTime.tryParse(dateString);
-        if (date != null && now.difference(date).inDays > 45) {
-          dev.log("_getSelectAllButtonUsed: reset to CustomExpandingButton");
-          _setSelectAllButtonUsed(false);
-        }
-      }
-    }
-  }
-
   _setSelectAllButtonUsed(bool set) async {
     if (set == selectAllButtonUsed) return;
     selectAllButtonUsed = set;
@@ -2650,10 +2655,11 @@ class _PagesState extends State<Pages> with RouteAware {
             ? AppBar(
                 // Regular
                 title: Text(
-                  tr(
-                    "pages.title",
-                    namedArgs: {"docIndex": "${widget.docIndex + 1}"},
-                  ),
+                  _docName ??
+                      tr(
+                        "pages.title",
+                        namedArgs: {"docIndex": "${widget.docIndex + 1}"},
+                      ),
                 ),
                 actions: [
                   // Grid View Toggle
