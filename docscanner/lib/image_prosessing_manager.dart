@@ -108,12 +108,10 @@ class ImageProcessingManager {
     // Warped + Metadata
     isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
-      ParamsWarpImage(
-        photoBytes,
-        shapeBytes,
-        ratioValueIn: ratioValueIn,
-        cornerPoints: cornerPointsIn,
-      ),
+      photoBytes,
+      shapeBytes,
+      ratioValueIn: ratioValueIn,
+      cornerPoints: cornerPointsIn,
     );
     Uint8List warpedBytes = warpedRet.$1;
     if (shapeBytes == null) {
@@ -178,14 +176,14 @@ class ImageProcessingManager {
           // Contrast
           isolateExitPoint(kill);
           thumbnailVersionBytes = await cvHelper.processImageContrast(
-            ParamsProcessImage1(warpedBytes),
+            warpedBytes,
           );
           break;
         case 3:
           // Document
           isolateExitPoint(kill);
           thumbnailVersionBytes = await cvHelper.processImageDocument(
-            ParamsProcessImage1(warpedBytes),
+            warpedBytes,
           );
           break;
         case 4:
@@ -193,12 +191,14 @@ class ImageProcessingManager {
           // PRO
           isolateExitPoint(kill);
           Uint8List processed2Bytes = await cvHelper.processImagePro(
-            ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+            warpedBytes,
+            borderCorrectionDepth,
           );
           // PRO 2
           isolateExitPoint(kill);
           thumbnailVersionBytes = await cvHelper.processImagePro2(
-            ParamsProcessImage3(warpedBytes, processed2Bytes),
+            warpedBytes,
+            processed2Bytes,
           );
           await g.filesHelper.savePageVersion(
             docIndex,
@@ -276,7 +276,7 @@ class ImageProcessingManager {
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 2) {
       Uint8List contrastBytes = await cvHelper.processImageContrast(
-        ParamsProcessImage1(warpedBytes),
+        warpedBytes,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -292,7 +292,7 @@ class ImageProcessingManager {
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 3) {
       Uint8List processed1Bytes = await cvHelper.processImageDocument(
-        ParamsProcessImage1(warpedBytes),
+        warpedBytes,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -308,7 +308,8 @@ class ImageProcessingManager {
       // PRO
       isolateExitPoint(kill);
       Uint8List processed2Bytes = await cvHelper.processImagePro(
-        ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+        warpedBytes,
+        borderCorrectionDepth,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -322,7 +323,8 @@ class ImageProcessingManager {
       // PRO 2
       isolateExitPoint(kill);
       Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        ParamsProcessImage3(warpedBytes, processed2Bytes),
+        warpedBytes,
+        processed2Bytes,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -592,13 +594,11 @@ class ImageProcessingManager {
     // Warped
     isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
-      ParamsWarpImage(
-        File(versionPaths[0]).readAsBytesSync(),
-        shapePath.isNotEmpty ? File(shapePath).readAsBytesSync() : null,
-        ratioValueIn: ratioValue,
-        cornerPoints: cornerPoints,
-        onlyCalculateBorder: versionPaths[1].isNotEmpty,
-      ),
+      File(versionPaths[0]).readAsBytesSync(),
+      shapePath.isNotEmpty ? File(shapePath).readAsBytesSync() : null,
+      ratioValueIn: ratioValue,
+      cornerPoints: cornerPoints,
+      onlyCalculateBorder: versionPaths[1].isNotEmpty,
     );
     Uint8List warpedBytes = warpedRet.$1;
     if (warpedBytes.lengthInBytes == 0) {
@@ -647,7 +647,7 @@ class ImageProcessingManager {
             versionPaths[2].contains(oldVersionFileNames[2]))) {
       isolateExitPoint(kill);
       Uint8List contrastBytes = await cvHelper.processImageContrast(
-        ParamsProcessImage1(warpedBytes),
+        warpedBytes,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -664,9 +664,7 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[3].contains(oldVersionFileNames[3]))) {
       isolateExitPoint(kill);
-      Uint8List processed1 = await cvHelper.processImageDocument(
-        ParamsProcessImage1(warpedBytes),
-      );
+      Uint8List processed1 = await cvHelper.processImageDocument(warpedBytes);
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -684,7 +682,8 @@ class ImageProcessingManager {
             versionPaths[4].contains(oldVersionFileNames[4]))) {
       isolateExitPoint(kill);
       processed2Bytes = await cvHelper.processImagePro(
-        ParamsProcessImage2(warpedBytes, borderCorrectionDepth),
+        warpedBytes,
+        borderCorrectionDepth,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
@@ -704,7 +703,8 @@ class ImageProcessingManager {
       processed2Bytes ??= File(versionPaths[4]).readAsBytesSync();
       isolateExitPoint(kill);
       Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        ParamsProcessImage3(warpedBytes, processed2Bytes),
+        warpedBytes,
+        processed2Bytes,
       );
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(

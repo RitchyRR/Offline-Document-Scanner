@@ -4,42 +4,6 @@ import 'package:docscanner/app_globals.dart';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 
-class ParamsWarpImage {
-  Uint8List imageBytesIn;
-  Uint8List? shapeBytes;
-  double? ratioValueIn;
-  List<List<int>>? cornerPoints;
-  bool onlyCalculateBorder;
-
-  ParamsWarpImage(
-    this.imageBytesIn,
-    this.shapeBytes, {
-    this.ratioValueIn,
-    this.cornerPoints,
-    this.onlyCalculateBorder = false,
-  });
-}
-
-class ParamsProcessImage1 {
-  Uint8List imageBytesIn;
-
-  ParamsProcessImage1(this.imageBytesIn);
-}
-
-class ParamsProcessImage2 {
-  Uint8List imageBytesIn;
-  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
-
-  ParamsProcessImage2(this.imageBytesIn, this.borderCorrectionDepth);
-}
-
-class ParamsProcessImage3 {
-  Uint8List warpedBytesIn;
-  Uint8List processed2BytesIn;
-
-  ParamsProcessImage3(this.warpedBytesIn, this.processed2BytesIn);
-}
-
 class OpenCVHelper {
   int K = 0;
   int rows = 0;
@@ -53,24 +17,26 @@ class OpenCVHelper {
   OpenCVHelper(gIn) : g = gIn;
 
   Future<(Uint8List, Uint8List, List<int>, double, List<List<int>>)> warpImage(
-    ParamsWarpImage params,
-  ) async {
-    cv.Mat imageMat = _loadImage(params.imageBytesIn);
-    cv.Mat? existingMask = (params.shapeBytes != null)
-        ? _loadImage(params.shapeBytes!)
-        : null;
+    Uint8List imageBytesIn,
+    Uint8List? shapeBytes, {
+    double? ratioValueIn,
+    List<List<int>>? cornerPoints,
+    bool onlyCalculateBorder = false,
+  }) async {
+    cv.Mat imageMat = _loadImage(imageBytesIn);
+    cv.Mat? existingMask = (shapeBytes != null) ? _loadImage(shapeBytes) : null;
 
     final warpedRes = _warpImage(
       imageMat,
       existingMask,
-      params.ratioValueIn,
-      params.cornerPoints,
-      params.onlyCalculateBorder,
+      ratioValueIn,
+      cornerPoints,
+      onlyCalculateBorder,
     );
     cv.Mat? warped = warpedRes.$1;
     cv.Mat mask = warpedRes.$2;
     double ratioValue = warpedRes.$3;
-    List<List<int>> cornerPoints = warpedRes.$4;
+    cornerPoints = warpedRes.$4;
     return (
       await _returnImage(warped),
       await _returnImage(mask),
@@ -80,35 +46,41 @@ class OpenCVHelper {
     );
   }
 
-  Future<Uint8List> processImageContrast(ParamsProcessImage1 params) {
-    cv.Mat? warped = _loadWarped(params.imageBytesIn);
+  Future<Uint8List> processImageContrast(Uint8List imageBytesIn) {
+    cv.Mat? warped = _loadWarped(imageBytesIn);
 
     cv.Mat? filtered1 = _filterImage0(warped);
 
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImageDocument(ParamsProcessImage1 params) {
-    cv.Mat warped = _loadWarped(params.imageBytesIn);
+  Future<Uint8List> processImageDocument(Uint8List imageBytesIn) {
+    cv.Mat warped = _loadWarped(imageBytesIn);
 
     cv.Mat filtered1 = _filterImage1(warped);
 
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImagePro(ParamsProcessImage2 params) async {
-    borderCorrectionDepth = params.borderCorrectionDepth;
+  Future<Uint8List> processImagePro(
+    Uint8List imageBytesIn,
+    List<int> borderCorrectionDepth,
+  ) async {
+    borderCorrectionDepth = borderCorrectionDepth;
 
-    cv.Mat warped = _loadWarped(params.imageBytesIn);
+    cv.Mat warped = _loadWarped(imageBytesIn);
 
     cv.Mat filtered2 = _filterImage2(warped);
 
     return _returnImage(filtered2);
   }
 
-  Future<Uint8List> processImagePro2(ParamsProcessImage3 params) {
-    cv.Mat warped = _loadWarped(params.warpedBytesIn);
-    cv.Mat processed2 = _loadWarped(params.processed2BytesIn);
+  Future<Uint8List> processImagePro2(
+    Uint8List warpedBytesIn,
+    Uint8List processed2BytesIn,
+  ) {
+    cv.Mat warped = _loadWarped(warpedBytesIn);
+    cv.Mat processed2 = _loadWarped(processed2BytesIn);
 
     cv.Mat processed3 = _filterImage3(warped, processed2);
 
