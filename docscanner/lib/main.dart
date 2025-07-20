@@ -4131,7 +4131,7 @@ class PagePreviewState extends State<PagePreview> {
     if (oldVersionFileNames == null) return;
     if (oldVersionFileNames.every((element) => element.isEmpty)) return;
     List<String> versionPaths;
-    (versionPaths, _, _) = await g.filesHelper.getImagePathsForPage(
+    (versionPaths, _) = await g.filesHelper.getImagePathsForPage(
       widget.docIndex,
       widget.pageIndex,
     );
@@ -5086,12 +5086,13 @@ class PagePreviewState extends State<PagePreview> {
     bool customCorners = false;
 
     // Read Matadata
-    var metadata = await g.metadataHelper.readPageProcessingMetadata(
+    var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: _importedPdfMode,
     );
-    double? ratioValue = metadata.$1;
+    List<int>? borderCorrectionDepth = processingMetadata.$1;
+    double? ratioValue = processingMetadata.$2;
 
     await imageProcessingManager.killIsolatesOfPage(
       widget.docIndex,
@@ -5116,7 +5117,7 @@ class PagePreviewState extends State<PagePreview> {
     // Use new / rotate old corner points
     List<List<int>>? newCornerPoints;
     if (newCornerPointsIn == null) {
-      newCornerPoints = metadata.$2;
+      newCornerPoints = processingMetadata.$3;
       if (newCornerPoints != null) {
         newCornerPoints = rotateCornerPoints(newCornerPoints);
       }
@@ -5129,6 +5130,7 @@ class PagePreviewState extends State<PagePreview> {
     await MetadataHelper.writePageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
+      null,
       customCorners ? null : _guiRatioValue,
       newCornerPoints,
     );
@@ -5150,6 +5152,22 @@ class PagePreviewState extends State<PagePreview> {
     // Can't rotate if during processing, because rotatePage needas all images of the page
     if (onlyRotation && _processingIndex != 0) {
       onlyRotation = false;
+    }
+    // rotate borderCorrectionDepth
+    if (quarterTurns != 0 && borderCorrectionDepth != null) {
+      for (var i = 0; i < quarterTurns; i++) {
+        borderCorrectionDepth = [
+          borderCorrectionDepth![2],
+          borderCorrectionDepth[3],
+          borderCorrectionDepth[1],
+          borderCorrectionDepth[0],
+        ];
+      }
+      await MetadataHelper.writePageBorderCorrectionDepth(
+        widget.docIndex,
+        widget.pageIndex,
+        borderCorrectionDepth!,
+      );
     }
 
     if (onlyRotation &&
@@ -5174,6 +5192,7 @@ class PagePreviewState extends State<PagePreview> {
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated image
+        borderCorrectionDepth,
         customCorners ? null : _guiRatioValue,
         newCornerPoints,
         _totalRotation,

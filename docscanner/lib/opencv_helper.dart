@@ -11,78 +11,84 @@ class OpenCVHelper {
   int height = 0;
   int width = 0;
   List<int>? borderCutIn = List<int>.generate(8, (_) => 0);
-  var borderCorrectionDepth = List<int>.generate(4, (_) => 0);
+  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
+  cv.Mat? warped;
+  cv.Mat? processed2;
 
   AppGlobals g;
   OpenCVHelper(gIn) : g = gIn;
 
-  Future<(Uint8List, Uint8List, List<int>, double, List<List<int>>)> warpImage(
-    Uint8List imageBytesIn,
-    Uint8List? shapeBytes, {
+  Future<(Uint8List, List<int>, double, List<List<int>>)> warpImage(
+    Uint8List imageBytesIn, {
+    List<int>? borderCorrectionDepthIn,
     double? ratioValueIn,
     List<List<int>>? cornerPoints,
     bool onlyCalculateBorder = false,
   }) async {
+    if (borderCorrectionDepthIn != null) {
+      borderCorrectionDepth = borderCorrectionDepthIn;
+    }
     cv.Mat imageMat = _loadImage(imageBytesIn);
-    cv.Mat? existingMask = (shapeBytes != null) ? _loadImage(shapeBytes) : null;
 
-    final warpedRes = _warpImage(
-      imageMat,
-      existingMask,
-      ratioValueIn,
-      cornerPoints,
-      onlyCalculateBorder,
-    );
-    cv.Mat? warped = warpedRes.$1;
-    cv.Mat mask = warpedRes.$2;
-    double ratioValue = warpedRes.$3;
-    cornerPoints = warpedRes.$4;
+    final warpedRes = _warpImage(imageMat, ratioValueIn, cornerPoints);
+    warped = warpedRes.$1;
+    double ratioValue = warpedRes.$2;
+    cornerPoints = warpedRes.$3;
     return (
       await _returnImage(warped),
-      await _returnImage(mask),
       borderCorrectionDepth,
       ratioValue,
       cornerPoints,
     );
   }
 
-  Future<Uint8List> processImageContrast(Uint8List imageBytesIn) {
-    cv.Mat? warped = _loadWarped(imageBytesIn);
+  void setWarped(Uint8List warpedBytesIn) async {
+    warped = _loadImage(warpedBytesIn);
+  }
 
-    cv.Mat? filtered1 = _filterImage0(warped);
+  void setProecessed2(Uint8List processed2BytesIn) async {
+    processed2 = _loadImage(processed2BytesIn);
+  }
+
+  Future<Uint8List> processImageContrast() {
+    if (warped == null) {
+      throw StateError("Error: processImageContrast: warped is null");
+    }
+    cv.Mat? filtered1 = _filterImage0(warped!);
 
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImageDocument(Uint8List imageBytesIn) {
-    cv.Mat warped = _loadWarped(imageBytesIn);
-
-    cv.Mat filtered1 = _filterImage1(warped);
+  Future<Uint8List> processImageDocument() {
+    if (warped == null) {
+      throw StateError("Error: processImageDocument: warped is null");
+    }
+    cv.Mat filtered1 = _filterImage1(warped!);
 
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImagePro(
-    Uint8List imageBytesIn,
-    List<int> borderCorrectionDepth,
-  ) async {
-    borderCorrectionDepth = borderCorrectionDepth;
+  Future<Uint8List> processImagePro(List<int> borderCorrectionDepthIn) async {
+    if (warped == null) {
+      throw StateError("Error: processImagePro: warped is null");
+    }
 
-    cv.Mat warped = _loadWarped(imageBytesIn);
+    borderCorrectionDepth = borderCorrectionDepthIn;
 
-    cv.Mat filtered2 = _filterImage2(warped);
+    cv.Mat filtered2 = _filterImage2(warped!);
 
     return _returnImage(filtered2);
   }
 
-  Future<Uint8List> processImagePro2(
-    Uint8List warpedBytesIn,
-    Uint8List processed2BytesIn,
-  ) {
-    cv.Mat warped = _loadWarped(warpedBytesIn);
-    cv.Mat processed2 = _loadWarped(processed2BytesIn);
+  Future<Uint8List> processImagePro2() {
+    if (warped == null) {
+      throw StateError("Error: processImagePro2: warped is null");
+    }
+    if (processed2 == null) {
+      throw StateError("Error: processImagePro2: processed2 is null");
+    }
 
-    cv.Mat processed3 = _filterImage3(warped, processed2);
+    cv.Mat processed3 = _filterImage3(warped!, processed2!);
 
     return _returnImage(processed3);
   }
@@ -107,7 +113,7 @@ class OpenCVHelper {
     Uint8List imageBytesIn,
     int newWidth,
   ) async {
-    cv.Mat mat = _loadWarped(imageBytesIn);
+    cv.Mat mat = _loadImage(imageBytesIn);
 
     int newHeight = (mat.height * newWidth / mat.width).toInt();
     //dev.log("$width x $height -> $newWidth x $newHeight");
@@ -135,29 +141,9 @@ class OpenCVHelper {
     // Compute K based on image dimensions
     rows = imageMat.rows;
     cols = imageMat.cols;
-    K = ((rows + cols) ~/ 100.0).clamp(3, -1 >>> 1);
+    if (K == 0) K = ((rows + cols) ~/ 100.0).clamp(3, -1 >>> 1);
     //dev.log("rows = $rows");
     //dev.log("cols = $cols");
-    //dev.log("K = $K");
-
-    return imageMat;
-  }
-
-  cv.Mat _loadWarped(Uint8List imageBytes) {
-    // Load image
-    cv.Mat? imageMat = cv.imdecode(imageBytes, cv.IMREAD_COLOR);
-    if (imageMat.isEmpty) {
-      throw StateError(
-        "Error: Failed to load warped/processed1/processed2 image.",
-      );
-    }
-
-    // Compute K based on image dimensions
-    height = imageMat.rows;
-    width = imageMat.cols;
-    K = ((height + width) ~/ 50.0).clamp(3, -1 >>> 1);
-    //dev.log("height = $height");
-    //dev.log("width = $width");
     //dev.log("K = $K");
 
     return imageMat;
@@ -178,29 +164,22 @@ class OpenCVHelper {
   }
 
   /// Warp Image: Edge detection, stretch to A4
-  (cv.Mat?, cv.Mat, double, List<List<int>>) _warpImage(
-    cv.Mat imageMat,
-    cv.Mat? mask,
+  (cv.Mat?, double, List<List<int>>) _warpImage(
+    cv.Mat matIn,
     final double? ratioValueIn,
     final List<List<int>>? cornerPointsIn,
-    final bool onlyCalculateBorder,
   ) {
     List<List<int>> corners;
     double ratioValue;
     if (cornerPointsIn != null) borderCutIn = null;
 
-    if (mask == null) {
-      // 1. Isolate remove Text and Images to get Shape
-      cv.Mat preFiltered = _preFilter(imageMat);
-      //return (shape, shape, math.sqrt2, []);
-      // 2. create a binary image, white representing the shape of the document
-      mask = _documentMask(preFiltered);
-      //return (mask, mask, math.sqrt2, []);
-    } else {
-      if (mask.type != cv.MatType.CV_8UC1) {
-        mask = cv.split(mask)[0]; //cv.cvtColor(shape, cv.COLOR_BGR2GRAY);
-      }
-    }
+    // 1. Isolate remove Text and Images to get Shape
+    cv.Mat preFiltered = _preFilter(matIn);
+    //return (shape, shape, math.sqrt2, []);
+    // 2. create a binary image, white representing the shape of the document
+    cv.Mat mask = _documentMask(preFiltered);
+    //return (mask, mask, math.sqrt2, []);
+
     if (cornerPointsIn == null) {
       // 3. Corner detection
       corners = _detectCorners(mask);
@@ -217,21 +196,14 @@ class OpenCVHelper {
       _calculateBorderSize(mask, corners);
     }
 
-    cv.Mat? warped;
-    cv.Mat warpedMask = mask;
-    if (!onlyCalculateBorder) {
-      _applyBorderCutInToCorners(corners);
-      warped = _transformImage(imageMat, corners);
-      warpedMask = _transformImage(mask, corners);
-    }
+    _applyBorderCutInToCorners(corners);
+    warped = _transformImage(matIn, corners);
 
-    return (warped, warpedMask, ratioValue, corners);
+    return (warped, ratioValue, corners);
   }
 
   /// Filter Image 0: contrast
-  cv.Mat? _filterImage0(cv.Mat? imageMat) {
-    if (imageMat == null) return null;
-
+  cv.Mat? _filterImage0(cv.Mat imageMat) {
     // 5. Simple background subtraction
     imageMat = _contrastImage(imageMat);
 
@@ -247,21 +219,17 @@ class OpenCVHelper {
   }
 
   /// Filter Image 2: subtract background fully
-  cv.Mat _filterImage2(cv.Mat? imageMat) {
-    if (imageMat == null) {
-      throw StateError("Error, _filterImage2: Input is null");
-    }
-
+  cv.Mat _filterImage2(cv.Mat imageMat) {
     // 5. Background subtraction
-    cv.Mat processed2 = _isolateAndSubtractBG(imageMat);
+    processed2 = _isolateAndSubtractBG(imageMat);
 
     // 6. Border correction
-    processed2 = _correctBorder(processed2);
+    processed2 = _correctBorder(processed2!);
 
     // 7. Sharpen
-    processed2 = _sharpenImage(processed2, sharpeningStrength: 0.5);
+    processed2 = _sharpenImage(processed2!, sharpeningStrength: 0.5);
 
-    return processed2;
+    return processed2!;
   }
 
   /// Filter Image 3: subtract background fully

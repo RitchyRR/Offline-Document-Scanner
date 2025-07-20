@@ -31,13 +31,14 @@ const List<String> versionNamesInternal = [
 class ImageProcessingManager {
   List<((int, int), TaskKiller)> taskKillers = [];
 
-  static void _processPageIsolateThumbnailVersion(
+  static void _processPageIsolate(
     (
       SendPort sendPort,
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      String photoPath,
+      Uint8List photoBytes,
+      List<int>? borderCorrectionDepth,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -62,16 +63,65 @@ class ImageProcessingManager {
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    String photoPath = data.$5;
+    Uint8List photoBytes = data.$5;
 
-    double? ratioValueIn = data.$6;
-    List<List<int>>? cornerPointsIn = data.$7;
-    int rotationIn = data.$8;
-    bool isInitial = data.$9;
-    AppGlobals g = data.$10;
+    List<int>? borderCorrectionDepth = data.$6;
+    double? ratioValueIn = data.$7;
+    List<List<int>>? cornerPointsIn = data.$8;
+    int rotationIn = data.$9;
+    bool isInitial = data.$10;
+    AppGlobals g = data.$11;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    final int initialThumbnailIndex;
+    (
+      initialThumbnailIndex,
+      borderCorrectionDepth,
+    ) = await _processPageIsolateThumbnailVersion(
+      sendPort,
+      docIndex,
+      pageIndex,
+      photoBytes,
+      borderCorrectionDepth,
+      ratioValueIn,
+      cornerPointsIn,
+      rotationIn,
+      isInitial,
+      g,
+      kill,
+      cvHelper,
+    );
+
+    await _processPageIsolateFilters(
+      sendPort,
+      docIndex,
+      pageIndex,
+      initialThumbnailIndex,
+      borderCorrectionDepth,
+      g,
+      kill,
+      cvHelper,
+    );
+
+    Isolate.exit(sendPort, "done");
+  }
+
+  static Future<(int, List<int>)> _processPageIsolateThumbnailVersion(
+    SendPort sendPort,
+    int docIndex,
+    int pageIndex,
+    Uint8List photoBytes,
+    List<int>? borderCorrectionDepthIn,
+    double? ratioValueIn,
+    List<List<int>>? cornerPointsIn,
+    int rotationIn,
+    bool isInitial,
+    AppGlobals g,
+
+    bool kill,
+    OpenCVHelper cvHelper,
+  ) async {
     isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -80,56 +130,28 @@ class ImageProcessingManager {
     );
     if (!Directory(pagePath).existsSync()) {
       throw StateError(
-        "Error, _processPageIsolate: pagePath $pagePath does not exist",
+        "Error, _processPageIsolateThumbnailVersion: pagePath $pagePath does not exist",
       );
-    }
-
-    // Read Photo
-    final Uint8List photoBytes = File(photoPath).readAsBytesSync();
-
-    // Read Shape, if it exists
-    isolateExitPoint(kill);
-    String shapePath = await g.filesHelper.getPageShape(
-      docIndex,
-      pageIndex,
-      supressWarnings: isInitial,
-    );
-    Uint8List? shapeBytes;
-    if (shapePath.isNotEmpty && File(shapePath).existsSync()) {
-      isolateExitPoint(kill);
-      shapeBytes = File(shapePath).readAsBytesSync();
-    }
-    // Rotate shape
-    if (shapeBytes != null && rotationIn != 0) {
-      isolateExitPoint(kill);
-      shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
     }
 
     // Warped + Metadata
     isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
       photoBytes,
-      shapeBytes,
+      borderCorrectionDepthIn: borderCorrectionDepthIn,
       ratioValueIn: ratioValueIn,
       cornerPoints: cornerPointsIn,
     );
     Uint8List warpedBytes = warpedRet.$1;
-    if (shapeBytes == null) {
-      shapeBytes = warpedRet.$2;
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytes);
-    }
-    List<int> borderCorrectionDepth = warpedRet.$3;
-    double? ratioValue = warpedRet.$4;
-    List<List<int>>? cornerPoints = warpedRet.$5;
-    // Send borderCorrectionDepth:
-    isolateExitPoint(kill);
-    sendPort.send(borderCorrectionDepth);
+    List<int>? borderCorrectionDepth = warpedRet.$2;
+    double? ratioValue = warpedRet.$3;
+    List<List<int>>? cornerPoints = warpedRet.$4;
 
     isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
+      borderCorrectionDepth,
       ratioValue,
       cornerPoints,
       gIn: g,
@@ -163,11 +185,8 @@ class ImageProcessingManager {
     } else {
       initialThumbnailIndex = readThumbnailIndex;
     }
-    isolateExitPoint(kill);
-    sendPort.send(initialThumbnailIndex);
 
     // First process (default) Thumbnail version
-
     if (initialThumbnailIndex > 1) {
       isolateExitPoint(kill);
       final Uint8List? thumbnailVersionBytes;
@@ -175,31 +194,23 @@ class ImageProcessingManager {
         case 2:
           // Contrast
           isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImageContrast(
-            warpedBytes,
-          );
+          thumbnailVersionBytes = await cvHelper.processImageContrast();
           break;
         case 3:
           // Document
           isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImageDocument(
-            warpedBytes,
-          );
+          thumbnailVersionBytes = await cvHelper.processImageDocument();
           break;
         case 4:
         case 5:
           // PRO
           isolateExitPoint(kill);
           Uint8List processed2Bytes = await cvHelper.processImagePro(
-            warpedBytes,
             borderCorrectionDepth,
           );
           // PRO 2
           isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImagePro2(
-            warpedBytes,
-            processed2Bytes,
-          );
+          thumbnailVersionBytes = await cvHelper.processImagePro2();
           await g.filesHelper.savePageVersion(
             docIndex,
             pageIndex,
@@ -225,59 +236,24 @@ class ImageProcessingManager {
       isolateExitPoint(kill);
       sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
-    Isolate.exit(sendPort, "done");
+    return (initialThumbnailIndex, borderCorrectionDepth);
   }
 
-  static void _processPageIsolateFilters(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      int docIndex,
-      int pageIndex,
-      int initialThumbnailIndex,
-      List<int> borderCorrectionDepth,
-      AppGlobals g,
-    )
-    data,
+  static Future<void> _processPageIsolateFilters(
+    SendPort sendPort,
+    int docIndex,
+    int pageIndex,
+    int initialThumbnailIndex,
+    List<int> borderCorrectionDepth,
+    AppGlobals g,
+
+    bool kill,
+    OpenCVHelper cvHelper,
   ) async {
-    SendPort? sendPort = data.$1;
-    // Control Port for exiting gracefully
-    final controlPort = ReceivePort();
-    sendPort.send(controlPort.sendPort);
-    bool kill = false;
-    controlPort.listen((msg) {
-      if (msg == "kill") {
-        kill = true;
-      }
-    });
-
-    RootIsolateToken token = data.$2;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-
-    int initialThumbnailIndex = data.$5;
-    List<int> borderCorrectionDepth = data.$6;
-
-    AppGlobals g = data.$7;
-
-    OpenCVHelper cvHelper = OpenCVHelper(g);
-
-    // Warped
-    final String warpedPath = await g.filesHelper.getVersionPath(
-      docIndex,
-      pageIndex,
-      1,
-    );
-    final Uint8List warpedBytes = File(warpedPath).readAsBytesSync();
-
     // Kontrast
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 2) {
-      Uint8List contrastBytes = await cvHelper.processImageContrast(
-        warpedBytes,
-      );
+      Uint8List contrastBytes = await cvHelper.processImageContrast();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -291,9 +267,7 @@ class ImageProcessingManager {
     // Dokument
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 3) {
-      Uint8List processed1Bytes = await cvHelper.processImageDocument(
-        warpedBytes,
-      );
+      Uint8List processed1Bytes = await cvHelper.processImageDocument();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -308,7 +282,6 @@ class ImageProcessingManager {
       // PRO
       isolateExitPoint(kill);
       Uint8List processed2Bytes = await cvHelper.processImagePro(
-        warpedBytes,
         borderCorrectionDepth,
       );
       isolateExitPoint(kill);
@@ -322,10 +295,7 @@ class ImageProcessingManager {
 
       // PRO 2
       isolateExitPoint(kill);
-      Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        warpedBytes,
-        processed2Bytes,
-      );
+      Uint8List processed3Bytes = await cvHelper.processImagePro2();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -345,7 +315,6 @@ class ImageProcessingManager {
       pageIndex,
       g,
     );
-    Isolate.exit(sendPort, "done");
   }
 
   static void isolateExitPoint(final bool kill) {
@@ -358,13 +327,13 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String photoPath,
+    List<int>? borderCorrectionDepth,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
     bool isInitial,
     bool isPhotoAlreadyInPage,
-    IsolatePriority prioThumbnailVersion,
-    IsolatePriority prioFilter,
+    IsolatePriority prio,
   ) async {
     if (photoPath.isEmpty) return;
 
@@ -395,13 +364,14 @@ class ImageProcessingManager {
     final token = RootIsolateToken.instance!;
 
     TaskKiller killer = await IsolatesManager().runTask(
-      _processPageIsolateThumbnailVersion,
+      _processPageIsolate,
       (
         port.sendPort,
         token,
         docIndex,
         pageIndex,
-        photoPath,
+        photoBytes,
+        borderCorrectionDepth,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
@@ -409,7 +379,7 @@ class ImageProcessingManager {
         g,
       ),
       portIn: port,
-      prio: prioThumbnailVersion,
+      prio: prio,
       onErrorFunction: (error, stack) async {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
         if (!error.toString().contains("No photo")) {
@@ -419,8 +389,6 @@ class ImageProcessingManager {
     );
     taskKillers.add(((docIndex, pageIndex), killer));
 
-    late int initialThumbnailIndex;
-    late List<int> borderCorrectionDepth;
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -432,60 +400,12 @@ class ImageProcessingManager {
         }
       } else if (message is SendPort) {
         killer.setControlPort(message);
-      } else if (message is List<int>) {
-        borderCorrectionDepth = message;
-      } else if (message is int) {
-        initialThumbnailIndex = message;
       } else if (message == "done") {
         taskKillers.removeWhere((element) => element.$2 == killer);
         completer.complete();
       }
     });
     await completer.future;
-
-    // Other Filters
-    final completerFilters = Completer<void>();
-    final portFilters = ReceivePort();
-
-    TaskKiller killerFilters = await IsolatesManager().runTask(
-      _processPageIsolateFilters,
-      (
-        portFilters.sendPort,
-        token,
-        docIndex,
-        pageIndex,
-        initialThumbnailIndex,
-        borderCorrectionDepth,
-        g,
-      ),
-      portIn: portFilters,
-      prio: prioFilter,
-      onErrorFunction: (error, stack) async {
-        dev.log("_processPageIsolate, onErrorFunction: $error $stack");
-        if (!error.toString().contains("No photo")) {
-          repairPage(docIndex, pageIndex);
-        }
-      },
-    );
-    taskKillers.add(((docIndex, pageIndex), killerFilters));
-
-    portFilters.listen((message) async {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-        if (message == NotifierEvent.loadPagesThumbnails) {
-          if (pageIndex == 0) {
-            await Future.delayed(Duration(milliseconds: 100));
-            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-          }
-        }
-      } else if (message is SendPort) {
-        killerFilters.setControlPort(message);
-      } else if (message == "done") {
-        taskKillers.removeWhere((element) => element.$2 == killerFilters);
-        completerFilters.complete();
-      }
-    });
-    await completerFilters.future;
   }
 
   Future<void> saveOldVersionFileNames(
@@ -494,7 +414,7 @@ class ImageProcessingManager {
     bool isPhotoAlreadyInPage = false,
   }) async {
     List<String> versionPaths;
-    (versionPaths, _, _) = await g.filesHelper.getImagePathsForPage(
+    (versionPaths, _) = await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
     );
@@ -573,8 +493,9 @@ class ImageProcessingManager {
       pageIndex,
       gIn: g,
     );
-    double? ratioValue = processingMetadata.$1;
-    List<List<int>>? cornerPoints = processingMetadata.$2;
+    List<int>? borderCorrectionDepth = processingMetadata.$1;
+    double? ratioValue = processingMetadata.$2;
+    List<List<int>>? cornerPoints = processingMetadata.$3;
 
     isolateExitPoint(kill);
     var imagePaths = await g.filesHelper.getImagePathsForPage(
@@ -582,8 +503,7 @@ class ImageProcessingManager {
       pageIndex,
     );
     final List<String> versionPaths = imagePaths.$1;
-    String shapePath = imagePaths.$2;
-    String thumbnailPath = imagePaths.$3;
+    String thumbnailPath = imagePaths.$2;
 
     isolateExitPoint(kill);
     final photoFile = File(versionPaths[0]);
@@ -592,45 +512,21 @@ class ImageProcessingManager {
     }
 
     // Warped
-    isolateExitPoint(kill);
-    var warpedRet = await cvHelper.warpImage(
-      File(versionPaths[0]).readAsBytesSync(),
-      shapePath.isNotEmpty ? File(shapePath).readAsBytesSync() : null,
-      ratioValueIn: ratioValue,
-      cornerPoints: cornerPoints,
-      onlyCalculateBorder: versionPaths[1].isNotEmpty,
-    );
-    Uint8List warpedBytes = warpedRet.$1;
-    if (warpedBytes.lengthInBytes == 0) {
-      if (versionPaths[1].isNotEmpty) {
-        warpedBytes = File(versionPaths[1]).readAsBytesSync();
-      } else {
-        throw StateError("Error, _repairPageIsolate: No warped");
-      }
-    }
-    Uint8List shapeBytesWarped = warpedRet.$2;
-    isolateExitPoint(kill);
-    if (shapePath.isEmpty) {
-      g.filesHelper.savePageShape(docIndex, pageIndex, shapeBytesWarped);
-    }
-    List<int> borderCorrectionDepth = warpedRet.$3;
-
-    // Metadata
-    ratioValue = warpedRet.$4;
-    cornerPoints = warpedRet.$5;
-    isolateExitPoint(kill);
-    await MetadataHelper.writePageProcessingMetadata(
-      docIndex,
-      pageIndex,
-      ratioValue,
-      cornerPoints,
-      gIn: g,
-    );
-
-    // Warped
+    Uint8List? warpedBytes;
     if (versionPaths[1].isEmpty ||
         (oldVersionFileNames != null &&
-            versionPaths[1].contains(oldVersionFileNames[1]))) {
+            versionPaths[1].contains(oldVersionFileNames[1])) ||
+        (borderCorrectionDepth == null ||
+            ratioValue == null ||
+            cornerPoints == null)) {
+      isolateExitPoint(kill);
+      var warpedRet = await cvHelper.warpImage(
+        File(versionPaths[0]).readAsBytesSync(),
+        ratioValueIn: ratioValue,
+        cornerPoints: cornerPoints,
+        onlyCalculateBorder: versionPaths[1].isNotEmpty,
+      );
+      warpedBytes = warpedRet.$1;
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -639,16 +535,33 @@ class ImageProcessingManager {
         warpedBytes,
         ".png",
       );
+
+      // Metadata
+      borderCorrectionDepth = warpedRet.$2;
+      ratioValue = warpedRet.$3;
+      cornerPoints = warpedRet.$4;
+    } else {
+      warpedBytes = File(versionPaths[1]).readAsBytesSync();
+      cvHelper.setWarped(warpedBytes);
     }
+
+    // Metadata
+    isolateExitPoint(kill);
+    await MetadataHelper.writePageProcessingMetadata(
+      docIndex,
+      pageIndex,
+      borderCorrectionDepth,
+      ratioValue,
+      cornerPoints,
+      gIn: g,
+    );
 
     // Contrast
     if (versionPaths[2].isEmpty ||
         (oldVersionFileNames != null &&
             versionPaths[2].contains(oldVersionFileNames[2]))) {
       isolateExitPoint(kill);
-      Uint8List contrastBytes = await cvHelper.processImageContrast(
-        warpedBytes,
-      );
+      Uint8List contrastBytes = await cvHelper.processImageContrast();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -664,7 +577,7 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[3].contains(oldVersionFileNames[3]))) {
       isolateExitPoint(kill);
-      Uint8List processed1 = await cvHelper.processImageDocument(warpedBytes);
+      Uint8List processed1 = await cvHelper.processImageDocument();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -681,10 +594,7 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[4].contains(oldVersionFileNames[4]))) {
       isolateExitPoint(kill);
-      processed2Bytes = await cvHelper.processImagePro(
-        warpedBytes,
-        borderCorrectionDepth,
-      );
+      processed2Bytes = await cvHelper.processImagePro(borderCorrectionDepth);
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -701,11 +611,9 @@ class ImageProcessingManager {
             versionPaths[5].contains(oldVersionFileNames[5]))) {
       isolateExitPoint(kill);
       processed2Bytes ??= File(versionPaths[4]).readAsBytesSync();
+      cvHelper.setProecessed2(processed2Bytes);
       isolateExitPoint(kill);
-      Uint8List processed3Bytes = await cvHelper.processImagePro2(
-        warpedBytes,
-        processed2Bytes,
-      );
+      Uint8List processed3Bytes = await cvHelper.processImagePro2();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -735,6 +643,7 @@ class ImageProcessingManager {
   }
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+    if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
     for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
       taskKiller.$2.kill();
@@ -747,6 +656,7 @@ class ImageProcessingManager {
     int pageIndex,
     IsolatePriority newPrio,
   ) {
+    if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
     for (var taskKiller in taskKillers.where((element) => element.$1 == key)) {
       taskKiller.$2.changePrio(newPrio);
@@ -754,6 +664,7 @@ class ImageProcessingManager {
   }
 
   Future<void> killIsolatesOfDocument(int docIndex) async {
+    if (taskKillers.isEmpty) return;
     List<Future<void>> killerFutures = [];
     for (var taskKiller in taskKillers.where(
       (element) => element.$1.$1 == docIndex,
@@ -765,6 +676,7 @@ class ImageProcessingManager {
   }
 
   void changePrioForIsolatesOfDocument(int docIndex, IsolatePriority newPrio) {
+    if (taskKillers.isEmpty) return;
     for (var taskKiller in taskKillers.where(
       (element) => element.$1.$1 == docIndex,
     )) {
@@ -810,6 +722,7 @@ class ImageProcessingManager {
     int docIndexIn,
     List<int> pageIndexesIn,
   ) async {
+    if (taskKillers.isEmpty) return;
     final pageIndexes = List<int>.from(pageIndexesIn);
     int smallestIndex = pageIndexes.reduce(math.min);
     pageIndexes.remove(smallestIndex);
@@ -871,10 +784,10 @@ class ImageProcessingManager {
       photoPathsIn[0],
       null,
       null,
+      null,
       0,
       true,
       photosAlreadyInPages,
-      IsolatePriority.immediate,
       IsolatePriority.immediate,
     );
 
@@ -888,11 +801,11 @@ class ImageProcessingManager {
           path,
           null,
           null,
+          null,
           0,
           true,
           photosAlreadyInPages,
           IsolatePriority.regular,
-          IsolatePriority.late,
         );
       }
     }
@@ -902,6 +815,7 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String pathIn,
+    List<int>? borderCorrectionDepth,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     final int rotationIn,
@@ -911,12 +825,12 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       pathIn,
+      borderCorrectionDepth,
       ratioValueIn,
       cornerPointsIn,
       rotationIn,
       false,
       rotationIn == 0,
-      IsolatePriority.immediate,
       IsolatePriority.immediate,
     );
   }
@@ -1019,21 +933,6 @@ class ImageProcessingManager {
 
     /// 2. rotate processed -> save
     if (!isImportedPdf) {
-      // Shape
-      isolateExitPoint(kill);
-      String? shapePath = await g.filesHelper.getPageShape(docIndex, pageIndex);
-      if (shapePath.isNotEmpty) {
-        isolateExitPoint(kill);
-        Uint8List shapeBytes = File(shapePath).readAsBytesSync();
-        isolateExitPoint(kill);
-        shapeBytes = await cvHelper.rotateImage(shapeBytes, rotationIn);
-        isolateExitPoint(kill);
-        shapePath = await g.filesHelper.savePageShape(
-          docIndex,
-          pageIndex,
-          shapeBytes,
-        );
-      }
       // Warped, Contrast, Processed1, Processed2
       for (int i = 1; i < versionPaths.length; i++) {
         isolateExitPoint(kill);
@@ -1550,6 +1449,7 @@ class ImageProcessingManager {
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
+      null,
       ratioValueIn,
       null,
       gIn: g,

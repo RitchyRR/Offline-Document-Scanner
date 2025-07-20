@@ -340,52 +340,6 @@ class FilesHelper {
     return versionPath;
   }
 
-  Future<String> savePageShape(
-    int docIndex,
-    int pageIndex,
-    Uint8List pngBytes,
-  ) async {
-    await _initializeDocumentsPath();
-    String pagePath = await getPagePath(docIndex, pageIndex);
-    String fileName = "shape";
-    for (var fse in Directory(
-      pagePath,
-    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.contains("$fileName.")) {
-        fse.deleteSync();
-      }
-    }
-    String filePath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$fileName.png";
-    File(filePath).writeAsBytesSync(pngBytes);
-    if (!File(filePath).existsSync()) {
-      throw StateError("Error, saveImage: Failed to save $filePath");
-    }
-    //dev.log("Shape saved at: $filePath");
-    return filePath;
-  }
-
-  Future<String> getPageShape(
-    int docIndex,
-    int pageIndex, {
-    bool supressWarnings = false,
-  }) async {
-    await _initializeDocumentsPath();
-    String pagePath = await getPagePath(docIndex, pageIndex);
-    String fileName = "shape";
-    for (var fse in Directory(
-      pagePath,
-    ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-      if (fse.path.contains("$fileName.")) {
-        return fse.path;
-      }
-    }
-    if (!supressWarnings) {
-      dev.log("Warning, getPageShape: No shape in page");
-    }
-    return "";
-  }
-
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
     int docsCount = await g.filesHelper.getDocumentsCount();
@@ -863,7 +817,7 @@ class FilesHelper {
     return firstPageIndex;
   }
 
-  Future<(List<String>, String, String)> getImagePathsForPage(
+  Future<(List<String>, String)> getImagePathsForPage(
     int docIndex,
     int pageIndex,
   ) async {
@@ -872,7 +826,6 @@ class FilesHelper {
       versionNamesInternal.length,
       (_) => "",
     );
-    String shapePath = "";
     String thumbnailPath = "";
     try {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
@@ -885,9 +838,6 @@ class FilesHelper {
             break;
           }
         }
-        if (fse.path.contains("shape")) {
-          shapePath = fse.path;
-        }
         if (fse.path.contains("thumbnail")) {
           thumbnailPath = fse.path;
         }
@@ -896,7 +846,7 @@ class FilesHelper {
       throw StateError("Error, getImagePathsForPage: $e");
     }
 
-    return (versionPaths, shapePath, thumbnailPath);
+    return (versionPaths, thumbnailPath);
   }
 
   Future<String> getVersionPath(

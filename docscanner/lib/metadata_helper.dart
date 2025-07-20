@@ -250,9 +250,24 @@ class MetadataHelper {
     }
   }
 
+  static Future<void> writePageBorderCorrectionDepth(
+    int docIndex,
+    int pageIndex,
+    List<int> borderCorrectionDepth,
+  ) async {
+    await _writePage(
+      docIndex,
+      pageIndex,
+      "borderCorrectionDepth",
+      borderCorrectionDepth,
+      g,
+    );
+  }
+
   static Future<void> writePageProcessingMetadata(
     int docIndex,
     int pageIndex,
+    List<int>? borderCorrectionDepth,
     double? ratioValue,
     List<List<int>>? cornerPoints, {
     AppGlobals? gIn,
@@ -276,6 +291,9 @@ class MetadataHelper {
 
     try {
       // Write + Encrypt
+      if (borderCorrectionDepth != null) {
+        metadata["borderCorrectionDepth"] = borderCorrectionDepth;
+      }
       if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
       if (cornerPoints != null) metadata["corners"] = cornerPoints;
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
@@ -285,12 +303,14 @@ class MetadataHelper {
     }
   }
 
-  Future<(double?, List<List<int>>?)> readPageProcessingMetadata(
+  Future<(List<int>? borderCorrectionDepth, double?, List<List<int>>?)>
+  readPageProcessingMetadata(
     int docIndex,
     int pageIndex, {
     bool supressWarnings = false,
     AppGlobals? gIn,
   }) async {
+    List<int>? borderCorrectionDepth;
     double? ratioValue;
     List<List<int>>? cornerPoints;
 
@@ -306,6 +326,17 @@ class MetadataHelper {
         file,
         supressWarnings: supressWarnings,
       );
+      try {
+        borderCorrectionDepth = (metadata["borderCorrectionDepth"] as List)
+            .map((v) => v as int)
+            .toList();
+      } catch (e) {
+        if (!supressWarnings) {
+          dev.log(
+            "Warning, readPageProcessingMetadata, borderCorrectionDepth: $e",
+          );
+        }
+      }
       try {
         ratioValue = double.tryParse(metadata["aspectRatio"]);
         if (ratioValue == 0.0) {
@@ -330,7 +361,7 @@ class MetadataHelper {
         "Warning, readPageProcessingMetadata: Metadata does not exist for $pagePath",
       );
     }
-    return (ratioValue, cornerPoints);
+    return (borderCorrectionDepth, ratioValue, cornerPoints);
   }
 
   static Future<void> writePageThumbnailIndex(
