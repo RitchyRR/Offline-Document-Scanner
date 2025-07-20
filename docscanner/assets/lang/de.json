@@ -134,13 +134,13 @@
     "pagesPopup": {
       "document": {
         "save": {
-          "title": "Dokument {docIndex} speichern"
+          "title": "{docName} speichern"
         },
         "share": {
-          "title": "Dokument {docIndex} teilen"
+          "title": "{docName} teilen"
         },
         "delete": {
-          "title": "Dokument {docIndex} löschen",
+          "title": "{docName} löschen",
           "text": "Möchtest du dieses Dokument wirklich dauerhaft löschen?"
         }
       },

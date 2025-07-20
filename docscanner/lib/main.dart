@@ -7158,6 +7158,8 @@ Future<bool> _pagesPopup(
   );
   // Pages exporte with same width
   bool sameWidth = false;
+  // Document Name
+  String? customDocName = await g.metadataHelper.readDocName(docIndex);
 
   await showDialog(
     // ignore: use_build_context_synchronously
@@ -7228,23 +7230,29 @@ Future<bool> _pagesPopup(
               }
               String title;
               if (isDocument) {
+                String docName =
+                    customDocName ??
+                    tr(
+                      "documents.card.popup.title",
+                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                    );
                 switch (type) {
                   case PopUpType.share:
                     title = tr(
                       "popup.pagesPopup.document.share.title",
-                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                      namedArgs: {"docName": docName},
                     );
                     break;
                   case PopUpType.save:
                     title = tr(
                       "popup.pagesPopup.document.save.title",
-                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                      namedArgs: {"docName": docName},
                     );
                     break;
                   case PopUpType.delete:
                     title = tr(
                       "popup.pagesPopup.document.delete.title",
-                      namedArgs: {"docIndex": "${docIndex + 1}"},
+                      namedArgs: {"docName": docName},
                     );
                     break;
                 }

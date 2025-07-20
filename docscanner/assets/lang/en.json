@@ -135,13 +135,13 @@
     "pagesPopup": {
       "document": {
         "save": {
-          "title": "Save Document {docIndex}"
+          "title": "Save {docName}"
         },
         "share": {
-          "title": "Share Document {docIndex}"
+          "title": "Share {docName}"
         },
         "delete": {
-          "title": "Delete Document {docIndex}",
+          "title": "Delete {docName}",
           "text": "Are you sure you want to \npermanently delete this Document?"
         }
       },
