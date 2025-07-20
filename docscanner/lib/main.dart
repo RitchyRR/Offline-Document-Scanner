@@ -7180,7 +7180,7 @@ Future<bool> _pagesPopup(
                     supressWarnings: true,
                   );
                   allPagesLoaded = loadingImages.every((element) => !element);
-                  setStateDialog(() {});
+                  if (context.mounted) setStateDialog(() {});
                 }
 
                 if (versionIndex != null && pageIndexes.length == 1) {
@@ -7433,7 +7433,7 @@ Future<bool> _pagesPopup(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: PagesWidthDropdown(
                         allPagesLoaded: allPagesLoaded,
-                        onChanged: (useSameWidth) async {
+                        onChanged: (useSameWidth) {
                           sameWidth = useSameWidth;
                           setStateDialog(() {});
                         },
