@@ -3655,12 +3655,14 @@ class _DocNameEditorState extends State<DocNameEditor>
     final viewInsets = View.of(context).viewInsets.bottom;
 
     if (_lastBottomInset > 0 && viewInsets == 0 && _focusNode.hasFocus) {
-      _focusNode.unfocus();
-
-      if (_controller.text.trim().isEmpty) {
-        _controller.text = widget.emptyName;
+      String newName = _controller.text.trim();
+      if (newName.isEmpty || newName == widget.emptyName) {
         widget.onChanged(null);
+        _controller.text = widget.emptyName;
+      } else if (newName != widget.initialName) {
+        widget.onChanged(newName);
       }
+      _focusNode.unfocus();
     }
 
     _lastBottomInset = viewInsets;
@@ -3674,18 +3676,13 @@ class _DocNameEditorState extends State<DocNameEditor>
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
-      onChanged: (newName) {
+      onSubmitted: (newName) {
         newName = newName.trim();
         if (newName.isEmpty || newName == widget.emptyName) {
           widget.onChanged(null);
-        } else {
-          widget.onChanged(newName);
-        }
-      },
-      onSubmitted: (newName) {
-        if (newName.trim().isEmpty) {
           _controller.text = widget.emptyName;
-          widget.onChanged(null);
+        } else if (newName != widget.initialName) {
+          widget.onChanged(newName);
         }
         _focusNode.unfocus();
       },
