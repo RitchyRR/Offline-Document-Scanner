@@ -537,6 +537,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   List<String> _docDates = [];
   List<double> _thumbnailRatios = [];
   int _docsCount = 0;
+  int _displayDocsCount = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
     bool supressWarnings = onInit;
     // Thumbnails
@@ -592,6 +593,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       thumbnailPaths,
       supressWarnings: supressWarnings,
     );
+    _displayDocsCount = _docsCount - _deletedDocs.length;
 
     // Refresh Display
     if (mounted) {
@@ -901,6 +903,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   Widget build(BuildContext context) {
     g.translateAspectRatios(context);
+    final visibleRatios = _thumbnailRatios
+        .whereIndexed((index, element) => !_deletedDocs.contains(index))
+        .toList();
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -1093,24 +1098,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ),
         ],
       ),
-      body: _docThumbnails.isNotEmpty && _thumbnailRatios.isNotEmpty
+      body: _displayDocsCount > 0
           // Documents Cards
           ? CustomScrollbar(
               controller: _scrollController,
-              pageAspectRatios: _thumbnailRatios
-                  .whereIndexed(
-                    (index, element) => !_deletedDocs.contains(index),
-                  )
-                  .toList(),
+              pageAspectRatios: visibleRatios,
               scrollRangeStart: 0.1,
               scrollRangeEnd: 0.675,
               noTumb: true,
 
               child: ListView.builder(
                 controller: _scrollController,
-                itemCount: _docsCount,
+                itemCount: _displayDocsCount,
                 itemBuilder: (BuildContext context, int docIndex) {
-                  if (_deletedDocs.contains(docIndex)) return SizedBox();
+                  while (_deletedDocs.contains(docIndex)) {
+                    docIndex++;
+                  }
                   final displayDocIndex =
                       1 +
                       docIndex -
@@ -2308,6 +2311,7 @@ class _PagesState extends State<Pages> with RouteAware {
   List<String> _pageThumbnails = [];
   List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
+  int _displayPagesCount = 0;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2396,7 +2400,6 @@ class _PagesState extends State<Pages> with RouteAware {
   // didPopNext() triggers before PopScope is finished, use signals instead if possible
   //@override
   //Future<void> didPopNext() async {}
-
   Future<void> _loadPagesThumbnails({
     bool onInit = false,
     bool supressWarnings = false,
@@ -2437,8 +2440,9 @@ class _PagesState extends State<Pages> with RouteAware {
       thumbnailPaths,
       supressWarnings: supressWarnings,
     );
+    _displayPagesCount = _pagesCount - _deletedPages.length;
 
-    if (thumbnailPaths.isEmpty) {
+    if (_displayPagesCount <= 0) {
       if (!onInit && mounted && context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
       }
@@ -2638,7 +2642,7 @@ class _PagesState extends State<Pages> with RouteAware {
   Widget build(BuildContext context) {
     //final bool isTopOfNavigationStack =
     //    ModalRoute.of(context)?.isCurrent ?? false;
-    final displayPagesCount = _pagesCount - _deletedPages.length;
+    _displayPagesCount = _pagesCount - _deletedPages.length;
     return PopScope(
       canPop: !_selectMode,
       onPopInvokedWithResult: (didPop, _) async {
@@ -2734,10 +2738,10 @@ class _PagesState extends State<Pages> with RouteAware {
                         padding: EdgeInsets.fromLTRB(15, 6, 15, 24),
                         controller: _scrollController,
                         cacheExtent: 1000,
-                        itemCount: _pagesCount,
+                        itemCount: _displayPagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
-                          if (_deletedPages.contains(pageIndex)) {
-                            return SizedBox();
+                          while (_deletedPages.contains(pageIndex)) {
+                            pageIndex++;
                           }
                           final displayPageIndex =
                               1 +
@@ -2888,7 +2892,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                                 CrossAxisAlignment.center,
                                             children: [
                                               Text(
-                                                "$displayPageIndex/$displayPagesCount",
+                                                "$displayPageIndex/$_displayPagesCount",
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 14,
@@ -2929,10 +2933,10 @@ class _PagesState extends State<Pages> with RouteAware {
                         padding: EdgeInsets.fromLTRB(15, 6, 15, 36),
                         controller: _scrollController,
                         cacheExtent: 1000,
-                        itemCount: _pagesCount,
+                        itemCount: _displayPagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
-                          if (_deletedPages.contains(pageIndex)) {
-                            return SizedBox();
+                          while (_deletedPages.contains(pageIndex)) {
+                            pageIndex++;
                           }
                           final displayPageIndex =
                               1 +
@@ -3075,7 +3079,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                               CrossAxisAlignment.center,
                                           children: [
                                             Text(
-                                              "$displayPageIndex/$displayPagesCount",
+                                              "$displayPageIndex/$_displayPagesCount",
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,

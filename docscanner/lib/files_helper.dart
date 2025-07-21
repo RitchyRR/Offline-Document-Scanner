@@ -623,6 +623,9 @@ class FilesHelper {
     } else {
       await _deletePages(docIndex, pageIndexes);
     }
+    if (IsolatesManager().getIsolatesCount() == 0) {
+      g.filesHelper.repairDirectoryStructure();
+    }
   }
 
   Future<void> _deleteDocument(
@@ -688,6 +691,7 @@ class FilesHelper {
 
   Future<void> _deletePages(int docIndex, List<int> deletePageIndexes) async {
     final oldPagesCount = await getPagesCount(docIndex);
+    if (deletePageIndexes.isEmpty) return;
     deletePageIndexes.sort();
     List<int> displayPageIndexes = [];
     for (var pageIndex in deletePageIndexes) {
