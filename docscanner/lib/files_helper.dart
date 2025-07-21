@@ -882,12 +882,11 @@ class FilesHelper {
     return "";
   }
 
-  changeDocumentIndex(int currentIndex, int newIndex) async {
-    //int pagesCount = await getDocumentsCount();
+  moveDocumentIndex(int currentIndex, int newIndex) async {
     String currentPath = await getDocumentPath(currentIndex);
-    var tmpDoc = await _reserveNewDocument();
-    String tmpDocPath = tmpDoc.$1;
-    //String tmpDocIndex = tmpDoc.$1;
+    int tmpIndex;
+    String tmpDocPath;
+    (tmpDocPath, tmpIndex) = await _reserveNewDocument();
     await Directory(currentPath).rename(tmpDocPath);
     // up or down?
     if (currentIndex < newIndex) {
@@ -921,6 +920,7 @@ class FilesHelper {
     }
     String newPath = await getDocumentPath(newIndex);
     await Directory(tmpDocPath).rename(newPath);
+    g.filesHelper.deleteImages(null, tmpIndex);
   }
 
   changePageIndex(int docIndex, int currentIndex, int newIndex) async {

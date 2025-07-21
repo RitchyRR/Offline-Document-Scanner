@@ -422,12 +422,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
     Future.microtask(() async {
       // Creation Date
       final now = DateTime.now();
-      g.metadataHelper.writeDocDate(
+      await g.metadataHelper.writeDocDate(
         docIndex,
         now.toString(),
         supressWarnings: true,
       );
-      await Future.delayed(Duration(milliseconds: 50));
       await imageProcessingManager.processPages(docIndex, 0, photoPaths, false);
     });
 
@@ -770,13 +769,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 child: Text(tr("popup.cancel")),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   // Save changes and close
-                  setState(() {
-                    _docNames[docIndex] = nameController.text.trim();
-                  });
-                  g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
-                  Navigator.pop(context, currentIndex);
+                  String newName = nameController.text.trim();
+                  if (newName.isNotEmpty && newName != _docNames[docIndex]) {
+                    setState(() {
+                      _docNames[docIndex] = newName;
+                    });
+                    await g.metadataHelper.writeDocName(
+                      docIndex,
+                      _docNames[docIndex],
+                    );
+                  }
+                  if (context.mounted) Navigator.pop(context, currentIndex);
                 },
                 child: Text(tr("popup.ok")),
               ),
@@ -787,7 +792,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
       // Handle the result after the popup closes
       if (selectedIndex != null && selectedIndex != docIndex) {
-        await g.filesHelper.changeDocumentIndex(docIndex, selectedIndex);
+        await g.filesHelper.moveDocumentIndex(docIndex, selectedIndex);
         _loadDocsDisplay();
       }
     }
