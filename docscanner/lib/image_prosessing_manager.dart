@@ -86,6 +86,7 @@ class ImageProcessingManager {
       cvHelper,
     );
 
+    isolateExitPoint(kill);
     await _processPageIsolateFilters(
       sendPort,
       docIndex,
@@ -155,6 +156,7 @@ class ImageProcessingManager {
 
     // initialThumbnailIndex
     final int initialThumbnailIndex;
+    isolateExitPoint(kill);
     int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
       docIndex,
       pageIndex,
@@ -163,6 +165,7 @@ class ImageProcessingManager {
     );
     if (readThumbnailIndex == null) {
       initialThumbnailIndex = g.defaultIndex;
+      isolateExitPoint(kill);
       await MetadataHelper.writePageThumbnailIndex(
         docIndex,
         pageIndex,

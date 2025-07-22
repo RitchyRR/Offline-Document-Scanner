@@ -57,7 +57,7 @@ class FilesHelper {
     return _markedDeletedPages[docIndex];
   }
 
-  void _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+  Future<void> _addMarkedDeletedPage(int docIndex, int pageIndex) async {
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
@@ -66,11 +66,12 @@ class FilesHelper {
     _markedDeletedPages[docIndex].sort();
     _markedDeletedPages[docIndex] = _markedDeletedPages[docIndex].reversed
         .toList();
-    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
     // prefs
     final prefs = await SharedPreferences.getInstance();
     final jsonString = jsonEncode(_markedDeletedPages);
     await prefs.setString("markedDeletedPages", jsonString);
+    // signal
+    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
   Future<void> _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
@@ -97,18 +98,19 @@ class FilesHelper {
     return _markedDeletedDocs;
   }
 
-  void _addMarkedDeletedDoc(int docIndex) async {
+  Future<void> _addMarkedDeletedDoc(int docIndex) async {
     if (_markedDeletedDocs.contains(docIndex)) return;
     _markedDeletedDocs.add(docIndex);
     List<int> tmp = _markedDeletedDocs.toList();
     tmp.sort();
     _markedDeletedDocs.clear();
     _markedDeletedDocs.addAll(tmp.reversed.toList());
-    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
     // prefs
     final prefs = await SharedPreferences.getInstance();
     final jsonString = jsonEncode(_markedDeletedDocs);
     await prefs.setString("markedDeletedDocs", jsonString);
+    // signal
+    globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
   Future<void> _removeMarkedDeletedDoc(int docIndex) async {
@@ -615,11 +617,8 @@ class FilesHelper {
     int docIndex, {
     List<int> pageIndexes = const [],
   }) async {
-    if (pageIndexes.isEmpty ||
-        pageIndexes.length == await getPagesCount(docIndex)) {
+    if (pageIndexes.isEmpty) {
       await _deleteDocument(docIndex);
-    } else if (pageIndexes.length == 1) {
-      await _deletePage(docIndex, pageIndexes.first);
     } else {
       await _deletePages(docIndex, pageIndexes);
     }
@@ -640,7 +639,7 @@ class FilesHelper {
       );
     } else {
       dev.log("deleteDocument: Starting deleting document directory: $docPath");
-      _addMarkedDeletedDoc(docIndex);
+      Future markDeletedFuture = _addMarkedDeletedDoc(docIndex);
       if (!supressInfo) {
         Fluttertoast.showToast(
           msg: tr(
@@ -653,10 +652,11 @@ class FilesHelper {
       Future killFuture = imageProcessingManager.killIsolatesOfDocument(
         docIndex,
       );
-      Future future = imageProcessingManager
+      Future higherIndexedDocsFuture = imageProcessingManager
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
+      await markDeletedFuture;
       await killFuture;
-      await future;
+      await higherIndexedDocsFuture;
       await imageProcessingManager.pdfProcessingFutures[docIndex];
 
       Directory(docPath).deleteSync(recursive: true);
@@ -701,9 +701,10 @@ class FilesHelper {
 
     // Show deleted in Frontend
     // Kill Isolates of Pages
+    List<Future<void>> markDeletedFutures = [];
     List<Future<void>> killFutures = [];
     for (var pageIndex in deletePageIndexes) {
-      _addMarkedDeletedPage(docIndex, pageIndex);
+      markDeletedFutures.add(_addMarkedDeletedPage(docIndex, pageIndex));
       killFutures.add(
         imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
       );
@@ -722,6 +723,7 @@ class FilesHelper {
     // Await Isolates
     Future higherIndexedPagesFuture = imageProcessingManager
         .awaitIsolatesOfHigherIndexPages(docIndex, deletePageIndexes);
+    await Future.wait(markDeletedFutures);
     await Future.wait(killFutures);
     await higherIndexedPagesFuture;
     await imageProcessingManager.pdfProcessingFutures[docIndex];
@@ -1768,10 +1770,10 @@ class FilesHelper {
     for (var angle = 90; angle <= 270; angle += 90) {
       paths.add("${tmpDir.path}/rotated_$angle.png");
     }
-    _deleteImages(paths);
+    _deleteImagePaths(paths);
   }
 
-  static Future<void> _deleteImages(List<String> paths) async {
+  static Future<void> _deleteImagePaths(List<String> paths) async {
     List<Future<void>> futures = [];
     for (var path in paths) {
       final file = File(path);
