@@ -1011,7 +1011,7 @@ class OpenCVHelper {
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
       int i = 0;
-      for (int i = 0; i < maxCutIn; i++) {
+      for (; i < maxCutIn; i++) {
         if (warpedBCMask.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
