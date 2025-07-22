@@ -11,35 +11,25 @@ class OpenCVHelper {
   int height = 0;
   int width = 0;
   List<int>? borderCutIn = List<int>.generate(8, (_) => 0);
-  List<int> borderCorrectionDepth = List<int>.generate(4, (_) => 0);
   cv.Mat? warped;
   cv.Mat? processed2;
 
   AppGlobals g;
   OpenCVHelper(gIn) : g = gIn;
 
-  Future<(Uint8List, List<int>, double, List<List<int>>)> warpImage(
+  Future<(Uint8List, double, List<List<int>>)> warpImage(
     Uint8List imageBytesIn, {
-    List<int>? borderCorrectionDepthIn,
     double? ratioValueIn,
     List<List<int>>? cornerPoints,
     bool onlyCalculateBorder = false,
   }) async {
-    if (borderCorrectionDepthIn != null) {
-      borderCorrectionDepth = borderCorrectionDepthIn;
-    }
     cv.Mat imageMat = _loadImage(imageBytesIn);
 
     final warpedRes = _warpImage(imageMat, ratioValueIn, cornerPoints);
     warped = warpedRes.$1;
     double ratioValue = warpedRes.$2;
     cornerPoints = warpedRes.$3;
-    return (
-      await _returnImage(warped),
-      borderCorrectionDepth,
-      ratioValue,
-      cornerPoints,
-    );
+    return (await _returnImage(warped), ratioValue, cornerPoints);
   }
 
   void setWarped(Uint8List warpedBytesIn) async {
@@ -68,12 +58,10 @@ class OpenCVHelper {
     return _returnImage(filtered1);
   }
 
-  Future<Uint8List> processImagePro(List<int> borderCorrectionDepthIn) async {
+  Future<Uint8List> processImagePro() async {
     if (warped == null) {
       throw StateError("Error: processImagePro: warped is null");
     }
-
-    borderCorrectionDepth = borderCorrectionDepthIn;
 
     cv.Mat filtered2 = _filterImage2(warped!);
 
@@ -194,12 +182,15 @@ class OpenCVHelper {
     } else {
       ratioValue = ratioValueIn;
       _setHeightFromCorners(corners, ratioValue);
-      //cv.Mat warpedShape = _transformImage(shape, corners);
-      _calculateBorderSize(borderCorrectionMask, corners);
+      _calculateBorderCutIn(borderCorrectionMask, corners);
     }
 
     _applyBorderCutInToCorners(corners);
     warped = _transformImage(matIn, corners);
+
+    width = warped!.width;
+    height = warped!.height;
+    K = ((height + width) ~/ 50.0).clamp(3, -1 >>> 1);
 
     return (warped, ratioValue, corners);
   }
@@ -478,6 +469,8 @@ class OpenCVHelper {
     return false;
   }
 
+  bool usingHough = false;
+
   /// Step 2: Edge Detection & Filling -> Shape of document
   (cv.Mat, cv.Mat) _documentMask(cv.Mat shape) {
     if (shape.isEmpty) {
@@ -545,7 +538,8 @@ class OpenCVHelper {
       mask = edgesMask;
     } else if (houghMaskSize != 0) {
       mask = houghMask;
-      borderCutIn = null;
+      usingHough = true;
+      //borderCutIn = null;
     }
     // Fallback: 3. Combine Edges and Hough Edges
     if (mask == null) {
@@ -998,24 +992,26 @@ class OpenCVHelper {
 
     _setHeightFromCorners(corners, matchedRatio);
 
-    _calculateBorderSize(borderCorrectionMask, corners);
+    _calculateBorderCutIn(borderCorrectionMask, corners);
 
     return matchedRatio;
   }
 
-  void _calculateBorderSize(
+  void _calculateBorderCutIn(
     cv.Mat borderCorrectionMask,
     List<List<int>> corners,
   ) {
+    if (borderCutIn == null) return;
     cv.Mat warpedBCMask = _transformImage(borderCorrectionMask, corners);
-    final int maxBorderSize = (borderCutIn == null)
-        ? (K * 0.4).toInt().clamp(1, -1 >>> 1)
-        : (K * 0.7).toInt().clamp(1, -1 >>> 1);
+    final int maxCutIn = usingHough
+        ? (K * 0.2).toInt().clamp(1, -1 >>> 1)
+        : (K * 0.4).toInt().clamp(1, -1 >>> 1);
 
     // Top border
     var depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
-      for (int i = 0; i < maxBorderSize; i++) {
+      int i = 0;
+      for (int i = 0; i < maxCutIn; i++) {
         if (warpedBCMask.at<int>(i, j) == 0) {
           int val = i;
           depths[j] = val;
@@ -1023,13 +1019,15 @@ class OpenCVHelper {
           break;
         }
       }
+      //if (i >= maxCutIn) depths[j] = 0;
     }
-    _setTransformation(0, depths);
+    _calculateBorderCutInPerSide(0, depths);
 
     // Bottom border
     depths = List<int>.generate(width, (_) => 0);
     for (int j = 0; j < width; j++) {
-      for (int i = height - 1; i > height - maxBorderSize; i--) {
+      int i = height - 1;
+      for (; i > height - maxCutIn; i--) {
         if (warpedBCMask.at<int>(i, j) == 0) {
           int val = height - i;
           depths[j] = val;
@@ -1037,13 +1035,15 @@ class OpenCVHelper {
           break;
         }
       }
+      //if (i <= height - maxCutIn) depths[j] = 0;
     }
-    _setTransformation(1, depths);
+    _calculateBorderCutInPerSide(1, depths);
 
     // Left border
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
-      for (int j = 0; j < maxBorderSize; j++) {
+      int j = 0;
+      for (; j < maxCutIn; j++) {
         if (warpedBCMask.at<int>(i, j) == 0) {
           int val = j;
           depths[i] = val;
@@ -1051,13 +1051,15 @@ class OpenCVHelper {
           break;
         }
       }
+      //if (j >= maxCutIn) depths[i] = 0;
     }
-    _setTransformation(2, depths);
+    _calculateBorderCutInPerSide(2, depths);
 
     // Right border
     depths = List<int>.generate(height, (_) => 0);
     for (int i = 0; i < height; i++) {
-      for (int j = width - 1; j > width - maxBorderSize; j--) {
+      int j = width - 1;
+      for (; j > width - maxCutIn; j--) {
         if (warpedBCMask.at<int>(i, j) == 0) {
           int val = width - j;
           depths[i] = val;
@@ -1065,8 +1067,9 @@ class OpenCVHelper {
           break;
         }
       }
+      //if (j <= height - maxCutIn) depths[i] = 0;
     }
-    _setTransformation(3, depths);
+    _calculateBorderCutInPerSide(3, depths);
 
     //dev.log("borderCutIn: $borderCutIn");
     //dev.log("borderCorrectionDepth: $borderCorrectionDepth");
@@ -1089,6 +1092,7 @@ class OpenCVHelper {
     }
     height = height.clamp(10, -1 >>> 1);
     width = width.clamp(10, -1 >>> 1);
+    K = ((height + width) ~/ 50.0).clamp(3, -1 >>> 1);
   }
 
   double _calculateAspectRatio(final List<List<int>> corners) {
@@ -1164,9 +1168,8 @@ class OpenCVHelper {
   }
 
   // Step 4.1.1: Set Border Corrections
-  void _setTransformation(int borderIndex, List<int> depths) {
-    final int borderTolerance = 5 + (K ~/ 8);
-    depths = depths.sublist(depths.length ~/ 20, depths.length * 19 ~/ 20);
+  void _calculateBorderCutInPerSide(int borderIndex, List<int> depths) {
+    depths = depths.sublist(depths.length ~/ 40, depths.length * 39 ~/ 40);
 
     if (borderCutIn != null) {
       borderCutIn![borderIndex * 2] = _percentileValueInt(
@@ -1178,15 +1181,6 @@ class OpenCVHelper {
         0.75,
       );
     }
-    borderCorrectionDepth[borderIndex] =
-        (depths.reduce(math.max) -
-                (borderCutIn == null
-                    ? 0
-                    : (borderCutIn![borderIndex * 2] +
-                              borderCutIn![borderIndex * 2 + 1]) ~/
-                          2) +
-                borderTolerance)
-            .clamp(1, (K * 0.4).toInt());
   }
 
   // Step 4.2: Apply Border Corrections and Transformation
@@ -1442,6 +1436,7 @@ class OpenCVHelper {
   cv.Mat _correctBorder(cv.Mat imIn) {
     final int whiteThreshold = 254;
     cv.Mat borderCorrect = imIn.clone();
+    final int maxBorderSize = (K * 0.3).toInt().clamp(1, -1 >>> 1);
 
     cv.Mat reference = cv.cvtColor(
       borderCorrect,
@@ -1450,12 +1445,12 @@ class OpenCVHelper {
     // Top border
     for (int j = 0; j < width; j++) {
       int whiteAt = 0;
-      for (; whiteAt <= borderCorrectionDepth[0]; whiteAt++) {
+      for (; whiteAt <= maxBorderSize; whiteAt++) {
         if (reference.at<int>(whiteAt, j) >= whiteThreshold) {
           break;
         }
       }
-      if (whiteAt > borderCorrectionDepth[0]) continue;
+      if (whiteAt > maxBorderSize) continue;
 
       for (int i = whiteAt; i >= 0; i--) {
         borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
@@ -1466,12 +1461,12 @@ class OpenCVHelper {
     // Bottom border
     for (int j = 0; j < width; j++) {
       int whiteAt = height - 1;
-      for (; whiteAt >= height - borderCorrectionDepth[1] - 1; whiteAt--) {
+      for (; whiteAt >= height - maxBorderSize - 1; whiteAt--) {
         if (reference.at<int>(whiteAt, j) >= whiteThreshold) {
           break;
         }
       }
-      if (whiteAt < height - borderCorrectionDepth[1] - 1) continue;
+      if (whiteAt < height - maxBorderSize - 1) continue;
 
       for (int i = whiteAt; i < height; i++) {
         borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
@@ -1482,12 +1477,12 @@ class OpenCVHelper {
     // Left border
     for (int i = 0; i < height; i++) {
       int whiteAt = 0;
-      for (; whiteAt <= borderCorrectionDepth[2]; whiteAt++) {
+      for (; whiteAt <= maxBorderSize; whiteAt++) {
         if (reference.at<int>(i, whiteAt) >= whiteThreshold) {
           break;
         }
       }
-      if (whiteAt > borderCorrectionDepth[2]) continue;
+      if (whiteAt > maxBorderSize) continue;
 
       for (int j = whiteAt; j >= 0; j--) {
         borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));
@@ -1498,12 +1493,12 @@ class OpenCVHelper {
     // Right border
     for (int i = 0; i < height; i++) {
       int whiteAt = width - 1;
-      for (; whiteAt >= width - borderCorrectionDepth[3] - 1; whiteAt--) {
+      for (; whiteAt >= width - maxBorderSize - 1; whiteAt--) {
         if (reference.at<int>(i, whiteAt) >= whiteThreshold) {
           break;
         }
       }
-      if (whiteAt < width - borderCorrectionDepth[3] - 1) continue;
+      if (whiteAt < width - maxBorderSize - 1) continue;
 
       for (int j = whiteAt; j < width; j++) {
         borderCorrect.set<cv.Vec3b>(i, j, cv.Vec3b(255, 255, 255));

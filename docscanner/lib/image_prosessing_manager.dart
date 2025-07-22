@@ -38,7 +38,6 @@ class ImageProcessingManager {
       int docIndex,
       int pageIndex,
       Uint8List photoBytes,
-      List<int>? borderCorrectionDepth,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -65,25 +64,19 @@ class ImageProcessingManager {
     int pageIndex = data.$4;
     Uint8List photoBytes = data.$5;
 
-    List<int>? borderCorrectionDepth = data.$6;
-    double? ratioValueIn = data.$7;
-    List<List<int>>? cornerPointsIn = data.$8;
-    int rotationIn = data.$9;
-    bool isInitial = data.$10;
-    AppGlobals g = data.$11;
+    double? ratioValueIn = data.$6;
+    List<List<int>>? cornerPointsIn = data.$7;
+    int rotationIn = data.$8;
+    bool isInitial = data.$9;
+    AppGlobals g = data.$10;
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
-    final int initialThumbnailIndex;
-    (
-      initialThumbnailIndex,
-      borderCorrectionDepth,
-    ) = await _processPageIsolateThumbnailVersion(
+    final int initialThumbnailIndex = await _processPageIsolateThumbnailVersion(
       sendPort,
       docIndex,
       pageIndex,
       photoBytes,
-      borderCorrectionDepth,
       ratioValueIn,
       cornerPointsIn,
       rotationIn,
@@ -98,7 +91,6 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       initialThumbnailIndex,
-      borderCorrectionDepth,
       g,
       kill,
       cvHelper,
@@ -107,12 +99,11 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  static Future<(int, List<int>)> _processPageIsolateThumbnailVersion(
+  static Future<int> _processPageIsolateThumbnailVersion(
     SendPort sendPort,
     int docIndex,
     int pageIndex,
     Uint8List photoBytes,
-    List<int>? borderCorrectionDepthIn,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
@@ -138,20 +129,17 @@ class ImageProcessingManager {
     isolateExitPoint(kill);
     var warpedRet = await cvHelper.warpImage(
       photoBytes,
-      borderCorrectionDepthIn: borderCorrectionDepthIn,
       ratioValueIn: ratioValueIn,
       cornerPoints: cornerPointsIn,
     );
     Uint8List warpedBytes = warpedRet.$1;
-    List<int>? borderCorrectionDepth = warpedRet.$2;
-    double? ratioValue = warpedRet.$3;
-    List<List<int>>? cornerPoints = warpedRet.$4;
+    double? ratioValue = warpedRet.$2;
+    List<List<int>>? cornerPoints = warpedRet.$3;
 
     isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      borderCorrectionDepth,
       ratioValue,
       cornerPoints,
       gIn: g,
@@ -205,9 +193,7 @@ class ImageProcessingManager {
         case 5:
           // PRO
           isolateExitPoint(kill);
-          Uint8List processed2Bytes = await cvHelper.processImagePro(
-            borderCorrectionDepth,
-          );
+          Uint8List processed2Bytes = await cvHelper.processImagePro();
           // PRO 2
           isolateExitPoint(kill);
           thumbnailVersionBytes = await cvHelper.processImagePro2();
@@ -236,7 +222,7 @@ class ImageProcessingManager {
       isolateExitPoint(kill);
       sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
-    return (initialThumbnailIndex, borderCorrectionDepth);
+    return initialThumbnailIndex;
   }
 
   static Future<void> _processPageIsolateFilters(
@@ -244,7 +230,6 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     int initialThumbnailIndex,
-    List<int> borderCorrectionDepth,
     AppGlobals g,
 
     bool kill,
@@ -281,9 +266,7 @@ class ImageProcessingManager {
     if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
       // PRO
       isolateExitPoint(kill);
-      Uint8List processed2Bytes = await cvHelper.processImagePro(
-        borderCorrectionDepth,
-      );
+      Uint8List processed2Bytes = await cvHelper.processImagePro();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -327,7 +310,6 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String photoPath,
-    List<int>? borderCorrectionDepth,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
@@ -371,7 +353,6 @@ class ImageProcessingManager {
         docIndex,
         pageIndex,
         photoBytes,
-        borderCorrectionDepth,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
@@ -493,9 +474,8 @@ class ImageProcessingManager {
       pageIndex,
       gIn: g,
     );
-    List<int>? borderCorrectionDepth = processingMetadata.$1;
-    double? ratioValue = processingMetadata.$2;
-    List<List<int>>? cornerPoints = processingMetadata.$3;
+    double? ratioValue = processingMetadata.$1;
+    List<List<int>>? cornerPoints = processingMetadata.$2;
 
     isolateExitPoint(kill);
     var imagePaths = await g.filesHelper.getImagePathsForPage(
@@ -516,9 +496,7 @@ class ImageProcessingManager {
     if (versionPaths[1].isEmpty ||
         (oldVersionFileNames != null &&
             versionPaths[1].contains(oldVersionFileNames[1])) ||
-        (borderCorrectionDepth == null ||
-            ratioValue == null ||
-            cornerPoints == null)) {
+        (ratioValue == null || cornerPoints == null)) {
       isolateExitPoint(kill);
       var warpedRet = await cvHelper.warpImage(
         File(versionPaths[0]).readAsBytesSync(),
@@ -537,9 +515,8 @@ class ImageProcessingManager {
       );
 
       // Metadata
-      borderCorrectionDepth = warpedRet.$2;
-      ratioValue = warpedRet.$3;
-      cornerPoints = warpedRet.$4;
+      ratioValue = warpedRet.$2;
+      cornerPoints = warpedRet.$3;
     } else {
       warpedBytes = File(versionPaths[1]).readAsBytesSync();
       cvHelper.setWarped(warpedBytes);
@@ -550,7 +527,6 @@ class ImageProcessingManager {
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      borderCorrectionDepth,
       ratioValue,
       cornerPoints,
       gIn: g,
@@ -594,7 +570,7 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[4].contains(oldVersionFileNames[4]))) {
       isolateExitPoint(kill);
-      processed2Bytes = await cvHelper.processImagePro(borderCorrectionDepth);
+      processed2Bytes = await cvHelper.processImagePro();
       isolateExitPoint(kill);
       await g.filesHelper.savePageVersion(
         docIndex,
@@ -645,7 +621,7 @@ class ImageProcessingManager {
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
     if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
-    final limited = taskKillers.where((element) => element.$1 == key);
+    final limited = taskKillers.where((element) => element.$1 == key).toList();
     for (var taskKiller in limited) {
       taskKiller.$2.kill();
       taskKillers.remove(taskKiller);
@@ -668,7 +644,9 @@ class ImageProcessingManager {
   Future<void> killIsolatesOfDocument(int docIndex) async {
     if (taskKillers.isEmpty) return;
     List<Future<void>> killerFutures = [];
-    final limited = taskKillers.where((element) => element.$1.$1 == docIndex);
+    final limited = taskKillers
+        .where((element) => element.$1.$1 == docIndex)
+        .toList();
     for (var taskKiller in limited) {
       killerFutures.add(taskKiller.$2.kill());
       taskKillers.remove(taskKiller);
@@ -687,7 +665,9 @@ class ImageProcessingManager {
   Future<void> awaitIsolatesOfHigherIndexedDocuments(int docIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      final limited = taskKillers.where((element) => element.$1.$1 > docIndex);
+      final limited = taskKillers
+          .where((element) => element.$1.$1 > docIndex)
+          .toList();
       for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
@@ -703,9 +683,11 @@ class ImageProcessingManager {
   Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      final limited = taskKillers.where(
-        (element) => element.$1.$1 == docIndex && element.$1.$2 > pageIndex,
-      );
+      final limited = taskKillers
+          .where(
+            (element) => element.$1.$1 == docIndex && element.$1.$2 > pageIndex,
+          )
+          .toList();
       for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
@@ -728,12 +710,14 @@ class ImageProcessingManager {
     pageIndexes.remove(smallestIndex);
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      final limited = taskKillers.where(
-        (element) =>
-            element.$1.$1 == docIndexIn &&
-            element.$1.$2 > smallestIndex &&
-            !pageIndexesIn.contains(element.$1.$2),
-      );
+      final limited = taskKillers
+          .where(
+            (element) =>
+                element.$1.$1 == docIndexIn &&
+                element.$1.$2 > smallestIndex &&
+                !pageIndexesIn.contains(element.$1.$2),
+          )
+          .toList();
       for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
@@ -749,7 +733,9 @@ class ImageProcessingManager {
   Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
-      final limited = taskKillers.where((element) => element.$1.$1 == docIndex);
+      final limited = taskKillers
+          .where((element) => element.$1.$1 == docIndex)
+          .toList();
       for (var taskKiller in limited) {
         if (taskKiller.$2.exited) {
           taskKillers.remove(taskKiller);
@@ -784,7 +770,6 @@ class ImageProcessingManager {
       photoPathsIn[0],
       null,
       null,
-      null,
       0,
       true,
       photosAlreadyInPages,
@@ -801,7 +786,6 @@ class ImageProcessingManager {
           path,
           null,
           null,
-          null,
           0,
           true,
           photosAlreadyInPages,
@@ -815,7 +799,6 @@ class ImageProcessingManager {
     int docIndex,
     int pageIndex,
     String pathIn,
-    List<int>? borderCorrectionDepth,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     final int rotationIn,
@@ -825,7 +808,6 @@ class ImageProcessingManager {
       docIndex,
       pageIndex,
       pathIn,
-      borderCorrectionDepth,
       ratioValueIn,
       cornerPointsIn,
       rotationIn,
@@ -1449,7 +1431,6 @@ class ImageProcessingManager {
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      null,
       ratioValueIn,
       null,
       gIn: g,
