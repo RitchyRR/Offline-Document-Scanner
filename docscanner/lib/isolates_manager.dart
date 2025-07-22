@@ -247,6 +247,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
       errorPort.close();
       _cleanup?.call("exit");
       exitCompleter.complete();
+      killer?.exited = true;
     });
     errorPort.listen((e) {
       errorPort.close();
@@ -264,7 +265,6 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
 
           _cleanup = (String reason) {
             if (_cleanedUp) return;
-            killer?.exited = true;
             _cleanedUp = true;
 
             entryPointPort.close();

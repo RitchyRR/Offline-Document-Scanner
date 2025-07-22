@@ -407,8 +407,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
         setState(() {});
         break;
       case NotifierEvent.imagesDeleted:
-        _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-        setState(() {});
+        _loadDocsDisplay();
         break;
       default:
     }
@@ -588,6 +587,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
     _thumbnailRatios = newThumbnailRatios;
     _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+    _displayDocsCount = _docsCount - _deletedDocs.length;
     _loadingDocs = await _loadLoadingDocs(
       thumbnailPaths,
       supressWarnings: supressWarnings,
@@ -1306,7 +1306,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         ).colorScheme.surfaceBright,
                                       ),
                                       // Thumbnail
-                                      if (_thumbnailRatios.length > docIndex &&
+                                      if (_docThumbnails.length > docIndex &&
                                           _docThumbnails[docIndex].isNotEmpty)
                                         AnimatedSwitcher(
                                           duration: Duration(milliseconds: 200),

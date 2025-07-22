@@ -47,15 +47,6 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort? sendPort = data.$1;
-    // Control Port for exiting gracefully
-    final controlPort = ReceivePort();
-    sendPort.send(controlPort.sendPort);
-    bool kill = false;
-    controlPort.listen((msg) {
-      if (msg == "kill") {
-        kill = true;
-      }
-    });
 
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
@@ -82,18 +73,15 @@ class ImageProcessingManager {
       rotationIn,
       isInitial,
       g,
-      kill,
       cvHelper,
     );
 
-    isolateExitPoint(kill);
     await _processPageIsolateFilters(
       sendPort,
       docIndex,
       pageIndex,
       initialThumbnailIndex,
       g,
-      kill,
       cvHelper,
     );
 
@@ -110,10 +98,18 @@ class ImageProcessingManager {
     int rotationIn,
     bool isInitial,
     AppGlobals g,
-
-    bool kill,
     OpenCVHelper cvHelper,
   ) async {
+    // Control Port for exiting gracefully
+    bool kill = false;
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
     isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -234,10 +230,18 @@ class ImageProcessingManager {
     int pageIndex,
     int initialThumbnailIndex,
     AppGlobals g,
-
-    bool kill,
     OpenCVHelper cvHelper,
   ) async {
+    // Control Port for exiting gracefully
+    bool kill = false;
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
     // Kontrast
     isolateExitPoint(kill);
     if (initialThumbnailIndex != 2) {
