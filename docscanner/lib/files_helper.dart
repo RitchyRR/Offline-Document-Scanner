@@ -884,9 +884,8 @@ class FilesHelper {
 
   moveDocumentIndex(int currentIndex, int newIndex) async {
     String currentPath = await getDocumentPath(currentIndex);
-    int tmpIndex;
     String tmpDocPath;
-    (tmpDocPath, tmpIndex) = await _reserveNewDocument();
+    (tmpDocPath, _) = await _reserveNewDocument();
     await Directory(currentPath).rename(tmpDocPath);
     // up or down?
     if (currentIndex < newIndex) {
@@ -920,16 +919,15 @@ class FilesHelper {
     }
     String newPath = await getDocumentPath(newIndex);
     await Directory(tmpDocPath).rename(newPath);
-    g.filesHelper.deleteImages(null, tmpIndex);
   }
 
-  changePageIndex(int docIndex, int currentIndex, int newIndex) async {
+  movePageIndex(int docIndex, int currentIndex, int newIndex) async {
     // pages Count
     //int pagesCount = await getPagesCount(docIndex);
     String currentPath = await getPagePath(docIndex, currentIndex);
-    var tmpPage = await _reserveNewPage(docIndex);
-    String tmpPath = tmpPage.$1;
-    await Directory(currentPath).rename(tmpPath);
+    String tmpPagePath;
+    (tmpPagePath, _) = await _reserveNewPage(docIndex);
+    await Directory(currentPath).rename(tmpPagePath);
     // up or down?
     if (currentIndex < newIndex) {
       // move down
@@ -963,7 +961,8 @@ class FilesHelper {
       }
     }
     String newPath = await getPagePath(docIndex, newIndex);
-    await Directory(tmpPath).rename(newPath);
+    await Directory(tmpPagePath).rename(newPath);
+    Directory(tmpPagePath).deleteSync();
   }
 
   Future<void> reversePagesOrder(int docIndex) async {

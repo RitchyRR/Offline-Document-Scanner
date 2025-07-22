@@ -3454,7 +3454,7 @@ class _PagesState extends State<Pages> with RouteAware {
 
     // Handle Results after Dialog closes
     if (selectedIndex != null && selectedIndex != pageIndex) {
-      await g.filesHelper.changePageIndex(
+      await g.filesHelper.movePageIndex(
         widget.docIndex,
         pageIndex,
         selectedIndex,
