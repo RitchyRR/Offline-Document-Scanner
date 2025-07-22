@@ -592,7 +592,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
       thumbnailPaths,
       supressWarnings: supressWarnings,
     );
-    _displayDocsCount = _docsCount - _deletedDocs.length;
 
     // Refresh Display
     if (mounted) {
@@ -911,6 +910,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final visibleRatios = _thumbnailRatios
         .whereIndexed((index, element) => !_deletedDocs.contains(index))
         .toList();
+    _displayDocsCount = _docsCount - _deletedDocs.length;
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(

@@ -563,16 +563,18 @@ class FilesHelper {
                 }
               }
             }
-            // versions + 1 for thumbnail (ignoring shape and metadata)
+
             pageIncomplete = isImportedPdf
-                ? countVersionsAndThumbnail != 2
-                : countVersionsAndThumbnail < versionNamesInternal.length + 1;
+                ? countVersionsAndThumbnail !=
+                      2 // photo + thumbnail
+                : countVersionsAndThumbnail <
+                      versionNamesInternal.length + 1; // versions +  thumbnail
           }
 
           if (pageIncomplete) {
             anyChange = true;
             bool photoExists = true;
-            if (countVersionsAndThumbnail == 0 || isImportedPdf) {
+            if (countVersionsAndThumbnail <= 0 || isImportedPdf) {
               dev.log("Deleting empty page, Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex);
             } else {
