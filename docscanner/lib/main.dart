@@ -6409,10 +6409,13 @@ class _WarpState extends State<Warp> {
               final center = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
               final length = (b - a).distance;
               final angle = math.atan2(b.dy - a.dy, b.dx - a.dx);
+              final edgeThickness = 20.0;
+              final lengthUsed = 0.5;
 
               return Positioned(
-                left: center.dx - length / 2,
-                top: center.dy - 12,
+                left: center.dx - length * lengthUsed / 2,
+                top: center.dy - edgeThickness / 2,
+
                 child: Transform.rotate(
                   angle: angle,
                   child: GestureDetector(
@@ -6434,8 +6437,8 @@ class _WarpState extends State<Warp> {
                       );
                     },
                     child: Container(
-                      width: length,
-                      height: 24,
+                      width: length * lengthUsed,
+                      height: edgeThickness,
                       color: Colors.transparent,
                     ),
                   ),
@@ -6713,7 +6716,7 @@ class _WarpState extends State<Warp> {
     Offset avgPosB = Offset(0, 0);
     int avgCount = 0;
     for (var edgeTimePos in _edgePositionHistory) {
-      if ((newA - edgeTimePos.$1.position).distance < 1.0) {
+      if ((newA - edgeTimePos.$1.position).distance < 0.9) {
         avgPosA += edgeTimePos.$1.position;
         avgPosB += edgeTimePos.$2.position;
         avgCount++;
@@ -6722,10 +6725,10 @@ class _WarpState extends State<Warp> {
     if (avgCount != 0) {
       avgPosA /= avgCount.toDouble();
       avgPosB /= avgCount.toDouble();
-      avgPosA += newA * 1;
-      avgPosB += newB * 1;
-      avgPosA /= 2;
-      avgPosB /= 2;
+      avgPosA += newA * 2;
+      avgPosB += newB * 2;
+      avgPosA /= 3;
+      avgPosB /= 3;
     } else {
       avgPosA = newA;
       avgPosB = newB;
