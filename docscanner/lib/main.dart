@@ -6040,8 +6040,8 @@ class _WarpState extends State<Warp> {
   double _imageScale = 0;
 
   ui.Image? _magnifierImage;
-  bool _magnifierImageLoading = true;
   static const double _magnifierSize = 200;
+  double _sideMagnifierSize = 0;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -6063,14 +6063,15 @@ class _WarpState extends State<Warp> {
     ui.Image image = await decodeImageFromList(
       File(widget.imagePath).readAsBytesSync(),
     );
+    if (!mounted) return;
     _imagePixelWidth = image.width;
     _imagePixelHeight = image.height;
-    if (mounted) {
-      _screenWidth = MediaQuery.of(context).size.width;
-      _screenHeight = MediaQuery.of(context).size.height - 430;
-    }
+    _screenWidth = MediaQuery.of(context).size.width;
+    _screenHeight = MediaQuery.of(context).size.height - 430;
+
     _pointsScale = _screenWidth / _imagePixelWidth;
     _displayHeigth = _imagePixelHeight * _pointsScale;
+    _sideMagnifierSize = ((_screenWidth - _magnifierSize) / 2) - 8;
 
     var rotatedPoints = widget.pagePreviewState.rotateCornerPoints(
       widget.cornerPoints,
@@ -6129,7 +6130,6 @@ class _WarpState extends State<Warp> {
     final frameInfo = await codec.getNextFrame();
     if (mounted) {
       _magnifierImage = frameInfo.image;
-      _magnifierImageLoading = false;
       setState(() {});
     }
   }
@@ -6186,44 +6186,118 @@ class _WarpState extends State<Warp> {
   // Warp
   @override
   Widget build(BuildContext context) {
-    Rect cropRect =
+    bool switchSideMagnifiers = _currentEdge != null && _currentEdge!.$1 != 0;
+    (int, int)? sideMagnifiers = _currentEdge != null
+        ? _currentEdge!.$1 == 0
+              ? (_currentEdge!.$1, _currentEdge!.$2)
+              : (_currentEdge!.$2, _currentEdge!.$1)
+        : _currentCorner != null
+        ? _currentCorner! == 0
+              ? (1, 2)
+              : _currentCorner! == 1
+              ? (0, 3)
+              : _currentCorner! == 2
+              ? (0, 3)
+              : _currentCorner! == 3
+              ? (1, 2)
+              : null
+        : null;
+    double cropSize =
+        _circleSize / _imageScale / _screenWidth * _imagePixelWidth;
+    Rect magnifierCrop =
         _scaledPoints.isNotEmpty &&
-            _currentCorner != null &&
             _imageScale != 0 &&
             _screenWidth != 0 &&
             _imagePixelWidth != 0
-        ? Rect.fromCenter(
-            center: Offset(
-              _scaledPoints[_currentCorner!].dx / _pointsScale,
-              _scaledPoints[_currentCorner!].dy / _pointsScale,
-            ),
-            width: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
-            height: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
-          )
-        : _scaledPoints.isNotEmpty &&
-              _currentEdge != null &&
-              _imageScale != 0 &&
-              _screenWidth != 0 &&
-              _imagePixelWidth != 0
-        ? Rect.fromCenter(
-            center: Offset(
-              Offset.lerp(
-                    _scaledPoints[_currentEdge!.$1],
-                    _scaledPoints[_currentEdge!.$2],
-                    0.5,
-                  )!.dx /
-                  _pointsScale,
-              Offset.lerp(
-                    _scaledPoints[_currentEdge!.$1],
-                    _scaledPoints[_currentEdge!.$2],
-                    0.5,
-                  )!.dy /
-                  _pointsScale,
-            ),
-            width: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
-            height: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
-          )
+        ? _currentCorner != null
+              ? Rect.fromCenter(
+                  center: Offset(
+                    _scaledPoints[_currentCorner!].dx / _pointsScale,
+                    _scaledPoints[_currentCorner!].dy / _pointsScale,
+                  ),
+                  width: cropSize,
+                  height: cropSize,
+                )
+              : _currentEdge != null
+              ? Rect.fromCenter(
+                  center: Offset(
+                    Offset.lerp(
+                          _scaledPoints[_currentEdge!.$1],
+                          _scaledPoints[_currentEdge!.$2],
+                          0.5,
+                        )!.dx /
+                        _pointsScale,
+                    Offset.lerp(
+                          _scaledPoints[_currentEdge!.$1],
+                          _scaledPoints[_currentEdge!.$2],
+                          0.5,
+                        )!.dy /
+                        _pointsScale,
+                  ),
+                  width: cropSize,
+                  height: cropSize,
+                )
+              : Rect.zero
         : Rect.zero;
+    (Rect, Rect) sideMagnifierCrops =
+        _scaledPoints.isNotEmpty &&
+            _imageScale != 0 &&
+            _screenWidth != 0 &&
+            _imagePixelWidth != 0
+        ? _currentEdge != null
+              ? (
+                  Rect.fromCenter(
+                    center: _scaledPoints[_currentEdge!.$1] / _pointsScale,
+                    width: cropSize,
+                    height: cropSize,
+                  ),
+                  Rect.fromCenter(
+                    center: _scaledPoints[_currentEdge!.$2] / _pointsScale,
+                    width: cropSize,
+                    height: cropSize,
+                  ),
+                )
+              : _currentCorner != null
+              ? (
+                  Rect.fromCenter(
+                    center:
+                        Offset(
+                          Offset.lerp(
+                            _scaledPoints[_currentCorner!],
+                            _scaledPoints[sideMagnifiers!.$1],
+                            0.5,
+                          )!.dx,
+                          Offset.lerp(
+                            _scaledPoints[_currentCorner!],
+                            _scaledPoints[sideMagnifiers.$1],
+                            0.5,
+                          )!.dy,
+                        ) /
+                        _pointsScale,
+                    width: cropSize,
+                    height: cropSize,
+                  ),
+                  Rect.fromCenter(
+                    center:
+                        Offset(
+                          Offset.lerp(
+                            _scaledPoints[_currentCorner!],
+                            _scaledPoints[sideMagnifiers.$2],
+                            0.5,
+                          )!.dx,
+                          Offset.lerp(
+                            _scaledPoints[_currentCorner!],
+                            _scaledPoints[sideMagnifiers.$2],
+                            0.5,
+                          )!.dy,
+                        ) /
+                        _pointsScale,
+                    width: cropSize,
+                    height: cropSize,
+                  ),
+                )
+              : (Rect.zero, Rect.zero)
+        : (Rect.zero, Rect.zero);
     return PopScope(
       canPop: _allowPop,
       onPopInvokedWithResult: (didPop, _) async {
@@ -6257,53 +6331,166 @@ class _WarpState extends State<Warp> {
           child: Column(
             children: [
               // Magnifier
-              SizedBox(
-                width: _magnifierSize,
-                height: _magnifierSize,
-                child:
-                    !_magnifierImageLoading &&
-                        (_currentCorner != null || _currentEdge != null)
-                    ? Stack(
-                        children: [
-                          SizedBox(
-                            width: _magnifierSize,
-                            height: _magnifierSize,
-                            child: CustomPaint(
-                              painter: CircularCropPainter(
-                                image: _magnifierImage!,
-                                cropRect: cropRect,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  if (_sideMagnifierSize > 0)
+                    SizedBox(
+                      width: _sideMagnifierSize,
+                      height: _sideMagnifierSize,
+                      child:
+                          _magnifierImage != null &&
+                              (_currentCorner != null || _currentEdge != null)
+                          ? Stack(
+                              children: [
+                                SizedBox(
+                                  width: _sideMagnifierSize,
+                                  height: _sideMagnifierSize,
+                                  child: CustomPaint(
+                                    painter: CircularCropPainter(
+                                      image: _magnifierImage!,
+                                      cropRect: switchSideMagnifiers
+                                          ? sideMagnifierCrops.$2
+                                          : sideMagnifierCrops.$1,
+                                    ),
+                                  ),
+                                ),
+                                if (_screenWidth != 0 && _currentCorner != null)
+                                  CustomPaint(
+                                    size: Size(_screenWidth, _displayHeigth),
+                                    painter: ZoomEdgePainter(
+                                      cornerPoints: _scaledPoints,
+                                      color: Colors.white,
+                                      strokeWidth: 1.0,
+                                      colorBg: Colors.black45,
+                                      strokeWidthBg: 3.0,
+                                      currentEdge: (
+                                        _currentCorner!,
+                                        sideMagnifiers!.$1,
+                                      ),
+                                      zoomSize: _sideMagnifierSize,
+                                    ),
+                                  ),
+                                if (_screenWidth != 0 && _currentEdge != null)
+                                  CustomPaint(
+                                    size: Size(_screenWidth, _displayHeigth),
+                                    painter: ZoomCornerPainter(
+                                      cornerPoints: _scaledPoints,
+                                      color: Colors.white,
+                                      strokeWidth: 1.0,
+                                      colorBg: Colors.black45,
+                                      strokeWidthBg: 3.0,
+                                      currentCorner: sideMagnifiers!.$1,
+                                      zoomSize: _sideMagnifierSize,
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : SizedBox(),
+                    ),
+                  SizedBox(
+                    width: _magnifierSize,
+                    height: _magnifierSize,
+                    child:
+                        _magnifierImage != null &&
+                            (_currentCorner != null || _currentEdge != null)
+                        ? Stack(
+                            children: [
+                              SizedBox(
+                                width: _magnifierSize,
+                                height: _magnifierSize,
+                                child: CustomPaint(
+                                  painter: CircularCropPainter(
+                                    image: _magnifierImage!,
+                                    cropRect: magnifierCrop,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          if (_screenWidth != 0 && _currentCorner != null)
-                            CustomPaint(
-                              size: Size(_screenWidth, _displayHeigth),
-                              painter: ZoomCornerPainter(
-                                cornerPoints: _scaledPoints,
-                                color: Colors.white,
-                                strokeWidth: 1.0,
-                                colorBg: Colors.black45,
-                                strokeWidthBg: 3.0,
-                                currentCorner: _currentCorner!,
-                                zoomSize: _magnifierSize,
-                              ),
-                            ),
-                          if (_screenWidth != 0 && _currentEdge != null)
-                            CustomPaint(
-                              size: Size(_screenWidth, _displayHeigth),
-                              painter: ZoomEdgePainter(
-                                cornerPoints: _scaledPoints,
-                                color: Colors.white,
-                                strokeWidth: 1.0,
-                                colorBg: Colors.black45,
-                                strokeWidthBg: 3.0,
-                                currentEdge: _currentEdge!,
-                                zoomSize: _magnifierSize,
-                              ),
-                            ),
-                        ],
-                      )
-                    : SizedBox(),
+                              if (_screenWidth != 0 && _currentCorner != null)
+                                CustomPaint(
+                                  size: Size(_screenWidth, _displayHeigth),
+                                  painter: ZoomCornerPainter(
+                                    cornerPoints: _scaledPoints,
+                                    color: Colors.white,
+                                    strokeWidth: 1.0,
+                                    colorBg: Colors.black45,
+                                    strokeWidthBg: 3.0,
+                                    currentCorner: _currentCorner!,
+                                    zoomSize: _magnifierSize,
+                                  ),
+                                ),
+                              if (_screenWidth != 0 && _currentEdge != null)
+                                CustomPaint(
+                                  size: Size(_screenWidth, _displayHeigth),
+                                  painter: ZoomEdgePainter(
+                                    cornerPoints: _scaledPoints,
+                                    color: Colors.white,
+                                    strokeWidth: 1.0,
+                                    colorBg: Colors.black45,
+                                    strokeWidthBg: 3.0,
+                                    currentEdge: _currentEdge!,
+                                    zoomSize: _magnifierSize,
+                                  ),
+                                ),
+                            ],
+                          )
+                        : SizedBox(),
+                  ),
+                  if (_sideMagnifierSize > 0)
+                    SizedBox(
+                      width: _sideMagnifierSize,
+                      height: _sideMagnifierSize,
+                      child:
+                          _magnifierImage != null &&
+                              (_currentCorner != null || _currentEdge != null)
+                          ? Stack(
+                              children: [
+                                SizedBox(
+                                  width: _sideMagnifierSize,
+                                  height: _sideMagnifierSize,
+                                  child: CustomPaint(
+                                    painter: CircularCropPainter(
+                                      image: _magnifierImage!,
+                                      cropRect: switchSideMagnifiers
+                                          ? sideMagnifierCrops.$1
+                                          : sideMagnifierCrops.$2,
+                                    ),
+                                  ),
+                                ),
+                                if (_screenWidth != 0 && _currentCorner != null)
+                                  CustomPaint(
+                                    size: Size(_screenWidth, _displayHeigth),
+                                    painter: ZoomEdgePainter(
+                                      cornerPoints: _scaledPoints,
+                                      color: Colors.white,
+                                      strokeWidth: 1.0,
+                                      colorBg: Colors.black45,
+                                      strokeWidthBg: 3.0,
+                                      currentEdge: (
+                                        _currentCorner!,
+                                        sideMagnifiers!.$2,
+                                      ),
+                                      zoomSize: _sideMagnifierSize,
+                                    ),
+                                  ),
+                                if (_screenWidth != 0 && _currentEdge != null)
+                                  CustomPaint(
+                                    size: Size(_screenWidth, _displayHeigth),
+                                    painter: ZoomCornerPainter(
+                                      cornerPoints: _scaledPoints,
+                                      color: Colors.white,
+                                      strokeWidth: 1.0,
+                                      colorBg: Colors.black45,
+                                      strokeWidthBg: 3.0,
+                                      currentCorner: sideMagnifiers!.$2,
+                                      zoomSize: _sideMagnifierSize,
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : SizedBox(),
+                    ),
+                ],
               ),
               SizedBox(height: 24),
               // Image + CornersOverlay
@@ -6353,7 +6540,6 @@ class _WarpState extends State<Warp> {
     // Only reload the image if the imagePath changed
     if (widget.imagePath != oldWidget.imagePath) {
       setState(() {
-        _magnifierImageLoading = true;
         _magnifierImage = null;
       });
       _initMagnifier();
