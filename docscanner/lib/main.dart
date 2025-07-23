@@ -540,7 +540,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     bool supressWarnings = onInit;
     // Thumbnails
     var thumbs = await g.filesHelper.getDocThumbnails();
-    List<String> thumbnailPaths = thumbs.$1;
+    _docThumbnails = thumbs.$1;
     _docsCount = thumbs.$2;
     // Page Counts
     _docPageCounts = [];
@@ -561,12 +561,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // Document Metadata (Names, Dates, AspectRatios)
     _docNames = List.generate(_docsCount, (_) => "");
     _docDates = List.generate(_docsCount, (_) => "");
-    List<double> newThumbnailRatios = List.generate(
-      _docsCount,
-      (_) => 1.0 / math.sqrt2,
-    ); // first collect here, because random setState()s will otherwise show wrong ratios, while still awaiting all ratios
+    List<double> newRatios = List.generate(_docsCount, (_) => math.sqrt1_2);
 
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
+      // Metadata
       _docDates[docIndex] =
           (await g.metadataHelper.readDocDate(docIndex)) ?? "";
       String? docName = await g.metadataHelper.readDocName(docIndex);
@@ -575,29 +573,23 @@ class _DocumentsHomeState extends State<DocumentsHome>
       } else {
         g.metadataHelper.writeDocName(docIndex, _docNames[docIndex]);
       }
-      double ratioValue =
-          await MetadataHelper.readPageRatioValue(
-            docIndex,
-            0,
-            supressWarnings:
-                supressWarnings || thumbnailPaths[docIndex].isEmpty,
-          ) ??
-          math.sqrt2;
-      newThumbnailRatios[docIndex] = 1.0 / ratioValue;
+      double? ratioValue = await MetadataHelper.readPageRatioValue(
+        docIndex,
+        0,
+        supressWarnings: supressWarnings || _docThumbnails[docIndex].isEmpty,
+      );
+      if (ratioValue != null) newRatios[docIndex] = 1.0 / ratioValue;
     }
-    _thumbnailRatios = newThumbnailRatios;
+    _thumbnailRatios = newRatios;
     _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
     _displayDocsCount = _docsCount - _deletedDocs.length;
     _loadingDocs = await _loadLoadingDocs(
-      thumbnailPaths,
+      _docThumbnails,
       supressWarnings: supressWarnings,
     );
 
-    // Refresh Display
     if (mounted) {
-      setState(() {
-        _docThumbnails = thumbnailPaths;
-      });
+      setState(() {});
     }
   }
 
@@ -2405,6 +2397,7 @@ class _PagesState extends State<Pages> with RouteAware {
   // didPopNext() triggers before PopScope is finished, use signals instead if possible
   //@override
   //Future<void> didPopNext() async {}
+
   Future<void> _loadPagesThumbnails({
     bool onInit = false,
     bool supressWarnings = false,
@@ -2412,33 +2405,17 @@ class _PagesState extends State<Pages> with RouteAware {
     var thumbs = await g.filesHelper.getPagesThumbnails(widget.docIndex);
     _pagesCount = thumbs.$2;
     List<String> thumbnailPaths = thumbs.$1;
+    List<double> newRatios = List.generate(_pagesCount, (_) => math.sqrt1_2);
 
-    bool newThumbnails = false;
-    if (_pagesCount != _pageThumbnails.length) {
-      newThumbnails = true;
-    }
-    List<double> newThumbnailRatios = List.generate(
-      _pagesCount,
-      (_) => 1.0 / math.sqrt2,
-    ); // first collect here, because random setState()s will otherwise show wrong ratios, while still awaiting all ratios
     for (var pageIndex = 0; pageIndex < _pagesCount; pageIndex++) {
-      if (!newThumbnails &&
-          (_pageThumbnails.length <= pageIndex ||
-              thumbnailPaths[pageIndex] != _pageThumbnails[pageIndex])) {
-        newThumbnails = true;
-      }
-      bool supressWarnings_ = supressWarnings;
-      if (thumbnailPaths[pageIndex].isEmpty) supressWarnings_ = true;
-      double ratioValue =
-          await MetadataHelper.readPageRatioValue(
-            widget.docIndex,
-            pageIndex,
-            supressWarnings: supressWarnings_,
-          ) ??
-          math.sqrt2;
-      newThumbnailRatios[pageIndex] = 1.0 / ratioValue;
+      double? ratioValue = await MetadataHelper.readPageRatioValue(
+        widget.docIndex,
+        pageIndex,
+        supressWarnings: thumbnailPaths[pageIndex].isEmpty,
+      );
+      if (ratioValue != null) newRatios[pageIndex] = 1.0 / ratioValue;
     }
-    _thumbnailRatios = newThumbnailRatios;
+    _thumbnailRatios = newRatios;
     _deletedPages = await g.filesHelper.getMarkedDeletedPages(widget.docIndex);
     _loadingPages = await _loadLoadingPages(
       widget.docIndex,
@@ -2452,7 +2429,7 @@ class _PagesState extends State<Pages> with RouteAware {
         Navigator.pop(context);
       }
       return;
-    } else if (newThumbnails) {
+    } else {
       if (mounted) {
         setState(() {
           _pageThumbnails = thumbnailPaths;

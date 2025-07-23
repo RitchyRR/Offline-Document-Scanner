@@ -921,13 +921,11 @@ class FilesHelper {
         await Directory(fromPath).rename(toPath);
       }
     }
-    String newPath = await getDocumentPath(newIndex);
+    String newPath = await getDocumentPath(newIndex, supressWarnings: true);
     await Directory(tmpDocPath).rename(newPath);
   }
 
   movePageIndex(int docIndex, int currentIndex, int newIndex) async {
-    // pages Count
-    //int pagesCount = await getPagesCount(docIndex);
     String currentPath = await getPagePath(docIndex, currentIndex);
     String tmpPagePath;
     (tmpPagePath, _) = await _reserveNewPage(docIndex);
@@ -964,9 +962,12 @@ class FilesHelper {
         await Directory(fromPath).rename(toPath);
       }
     }
-    String newPath = await getPagePath(docIndex, newIndex);
+    String newPath = await getPagePath(
+      docIndex,
+      newIndex,
+      supressWarnings: true,
+    );
     await Directory(tmpPagePath).rename(newPath);
-    Directory(tmpPagePath).deleteSync();
   }
 
   Future<void> reversePagesOrder(int docIndex) async {
