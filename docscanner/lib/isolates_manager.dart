@@ -236,8 +236,8 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   @override
   int compareTo(_QueuedTask other) => other.prio.level.compareTo(prio.level);
 
-  void startIsolate(_Worker worker) {
-    _worker = worker;
+  void startIsolate(_Worker workerIn) {
+    _worker = workerIn;
 
     // Exit / Error
     final exitPort = ReceivePort();
@@ -248,6 +248,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
       _cleanup?.call("exit");
       exitCompleter.complete();
       killer?.exited = true;
+      _worker?.isBusy = false;
     });
     errorPort.listen((e) {
       errorPort.close();
@@ -261,7 +262,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           onError: errorPort.sendPort,
         )
         .then((isolate) {
-          worker.isolate = isolate;
+          workerIn.isolate = isolate;
 
           _cleanup = (String reason) {
             if (_cleanedUp) return;
@@ -272,17 +273,17 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
             if (controlPort != null) {
               controlPort!.send("kill");
             } else {
-              if (worker.isolate != null) {
+              if (workerIn.isolate != null) {
                 dev.log(
                   "$reason: Ending isolate without controlPort: ${isolate.debugName}",
                 );
-                worker.isolate!.kill(priority: Isolate.beforeNextEvent);
+                workerIn.isolate!.kill(priority: Isolate.beforeNextEvent);
               }
             }
-            worker.reset();
+            workerIn.reset();
             if (IsolatesManager()._workers.length >
                 IsolatesManager().maxIsolates - 1) {
-              IsolatesManager()._workers.remove(worker);
+              IsolatesManager()._workers.remove(workerIn);
             }
             IsolatesManager()._tryStartNext();
           };
@@ -294,7 +295,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
           });
         })
         .catchError((e) {
-          worker.reset();
+          workerIn.reset();
           onBadExit(e);
           IsolatesManager()._tryStartNext();
         });
@@ -326,6 +327,5 @@ class _Worker<T> {
   reset() {
     isolate = null;
     task = null;
-    isBusy = false;
   }
 }
