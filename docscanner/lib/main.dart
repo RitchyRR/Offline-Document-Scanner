@@ -6034,6 +6034,7 @@ class _WarpState extends State<Warp> {
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   int? _currentCorner;
+  (int, int)? _currentEdge;
   Offset _touchOffset = Offset(0, 0);
   bool _cornerDragging = false;
   double _imageScale = 0;
@@ -6199,6 +6200,29 @@ class _WarpState extends State<Warp> {
             width: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
             height: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
           )
+        : _scaledPoints.isNotEmpty &&
+              _currentEdge != null &&
+              _imageScale != 0 &&
+              _screenWidth != 0 &&
+              _imagePixelWidth != 0
+        ? Rect.fromCenter(
+            center: Offset(
+              Offset.lerp(
+                    _scaledPoints[_currentEdge!.$1],
+                    _scaledPoints[_currentEdge!.$2],
+                    0.5,
+                  )!.dx /
+                  _pointsScale,
+              Offset.lerp(
+                    _scaledPoints[_currentEdge!.$1],
+                    _scaledPoints[_currentEdge!.$2],
+                    0.5,
+                  )!.dy /
+                  _pointsScale,
+            ),
+            width: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
+            height: _circleSize / _imageScale / _screenWidth * _imagePixelWidth,
+          )
         : Rect.zero;
     return PopScope(
       canPop: _allowPop,
@@ -6236,7 +6260,9 @@ class _WarpState extends State<Warp> {
               SizedBox(
                 width: _magnifierSize,
                 height: _magnifierSize,
-                child: !_magnifierImageLoading && _currentCorner != null
+                child:
+                    !_magnifierImageLoading &&
+                        (_currentCorner != null || _currentEdge != null)
                     ? Stack(
                         children: [
                           SizedBox(
@@ -6249,20 +6275,32 @@ class _WarpState extends State<Warp> {
                               ),
                             ),
                           ),
-                          _screenWidth != 0
-                              ? CustomPaint(
-                                  size: Size(_screenWidth, _displayHeigth),
-                                  painter: _ZoomLinePainter(
-                                    cornerPoints: _scaledPoints,
-                                    color: Colors.white,
-                                    strokeWidth: 1.0,
-                                    colorBg: Colors.black45,
-                                    strokeWidthBg: 3.0,
-                                    currentCorner: _currentCorner!,
-                                    zoomSize: _magnifierSize,
-                                  ),
-                                )
-                              : SizedBox(),
+                          if (_screenWidth != 0 && _currentCorner != null)
+                            CustomPaint(
+                              size: Size(_screenWidth, _displayHeigth),
+                              painter: ZoomCornerPainter(
+                                cornerPoints: _scaledPoints,
+                                color: Colors.white,
+                                strokeWidth: 1.0,
+                                colorBg: Colors.black45,
+                                strokeWidthBg: 3.0,
+                                currentCorner: _currentCorner!,
+                                zoomSize: _magnifierSize,
+                              ),
+                            ),
+                          if (_screenWidth != 0 && _currentEdge != null)
+                            CustomPaint(
+                              size: Size(_screenWidth, _displayHeigth),
+                              painter: ZoomEdgePainter(
+                                cornerPoints: _scaledPoints,
+                                color: Colors.white,
+                                strokeWidth: 1.0,
+                                colorBg: Colors.black45,
+                                strokeWidthBg: 3.0,
+                                currentEdge: _currentEdge!,
+                                zoomSize: _magnifierSize,
+                              ),
+                            ),
                         ],
                       )
                     : SizedBox(),
@@ -6334,19 +6372,19 @@ class _WarpState extends State<Warp> {
         height: _displayHeigth,
         child: Stack(
           children: [
-            // Dark frame
-            CustomPaint(
-              size: Size(_screenWidth, _displayHeigth),
-              painter: _MiddleLinePainter(
-                points: _scaledPoints,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onPrimaryFixed.withAlpha(100),
-                strokeWidth: 7.0 / counterScale,
-                normalizedOffset: true,
-                offset: (_circleSize + 8) / counterScale / 2,
-              ),
-            ),
+            //// Dark frame
+            //CustomPaint(
+            //  size: Size(_screenWidth, _displayHeigth),
+            //  painter: _MiddleLinePainter(
+            //    points: _scaledPoints,
+            //    color: Theme.of(
+            //      context,
+            //    ).colorScheme.onPrimaryFixed.withAlpha(100),
+            //    strokeWidth: 7.0 / counterScale,
+            //    normalizedOffset: true,
+            //    offset: (_circleSize + 8) / counterScale / 2,
+            //  ),
+            //),
             // Sharp corners reaching outside circle
             IgnorePointer(
               child: CustomPaint(
@@ -6356,19 +6394,6 @@ class _WarpState extends State<Warp> {
                   color: Theme.of(context).colorScheme.primaryFixed,
                   strokeWidth: 1.0 / counterScale,
                   offset: 0.25,
-                  normalizedOffset: false,
-                ),
-              ),
-            ),
-            // Sharp middle section
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _MiddleLinePainter(
-                  points: _scaledPoints,
-                  color: Theme.of(context).colorScheme.primaryFixed,
-                  strokeWidth: 1.0,
-                  offset: 0.55,
                   normalizedOffset: false,
                 ),
               ),
@@ -6389,34 +6414,48 @@ class _WarpState extends State<Warp> {
               final edgeThickness = 20.0;
               final lengthUsed = 0.5;
 
+              bool isCurrent = _currentEdge == (points[0], points[1]);
+
               return Positioned(
                 left: center.dx - length * lengthUsed / 2,
                 top: center.dy - edgeThickness / 2,
 
                 child: Transform.rotate(
                   angle: angle,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      _handleEdgePan(
-                        indexA: points[0],
-                        indexB: points[1],
-                        neighborA: points[2],
-                        neighborB: points[3],
-                        details: details,
-                      );
-                    },
-                    onPanEnd: (details) {
-                      _handleEdgePanEnd(
-                        indexA: points[0],
-                        indexB: points[1],
-                        neighborA: points[2],
-                        neighborB: points[3],
-                      );
-                    },
-                    child: Container(
-                      width: length * lengthUsed,
-                      height: edgeThickness,
-                      color: Colors.transparent,
+                  child: Container(
+                    width: length * lengthUsed,
+                    height: edgeThickness,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(edgeThickness / 2),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primaryFixed,
+                        width: isCurrent ? 4.0 : 2.0,
+                        strokeAlign: BorderSide.strokeAlignOutside,
+                      ),
+                      color: Colors.black12,
+                    ),
+                    child: GestureDetector(
+                      onPanStart: (details) {
+                        _currentEdge = (points[0], points[1]);
+                        _currentCorner = null;
+                      },
+                      onPanUpdate: (details) {
+                        _handleEdgePan(
+                          indexA: points[0],
+                          indexB: points[1],
+                          neighborA: points[2],
+                          neighborB: points[3],
+                          details: details,
+                        );
+                      },
+                      onPanEnd: (details) {
+                        _handleEdgePanEnd(
+                          indexA: points[0],
+                          indexB: points[1],
+                          neighborA: points[2],
+                          neighborB: points[3],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -6437,6 +6476,7 @@ class _WarpState extends State<Warp> {
                     if (_cornerDragging) return;
                     _allowPop = false;
                     _currentCorner = index;
+                    _currentEdge = null;
                     final box =
                         _imageAreaKey.currentContext?.findRenderObject()
                             as RenderBox?;
@@ -6540,6 +6580,20 @@ class _WarpState extends State<Warp> {
                 ),
               );
             }),
+
+            // Sharp edge in middle section
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size(_screenWidth, _displayHeigth),
+                painter: _MiddleLinePainter(
+                  points: _scaledPoints,
+                  color: Colors.white,
+                  strokeWidth: 1.0,
+                  offset: 0.55,
+                  normalizedOffset: false,
+                ),
+              ),
+            ),
             // Sharp corners inside circle
             IgnorePointer(
               child: CustomPaint(
@@ -6818,7 +6872,7 @@ class CircularCropPainter extends CustomPainter {
   }
 }
 
-class _ZoomLinePainter extends CustomPainter {
+class ZoomCornerPainter extends CustomPainter {
   final List<Offset> cornerPoints;
   final Color color;
   final double strokeWidth;
@@ -6827,7 +6881,7 @@ class _ZoomLinePainter extends CustomPainter {
   final int currentCorner;
   final double zoomSize;
 
-  _ZoomLinePainter({
+  ZoomCornerPainter({
     required this.cornerPoints,
     required this.color,
     required this.strokeWidth,
@@ -6893,9 +6947,71 @@ class _ZoomLinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ZoomLinePainter oldDelegate) =>
+  bool shouldRepaint(covariant ZoomCornerPainter oldDelegate) =>
       oldDelegate.cornerPoints != cornerPoints ||
       oldDelegate.currentCorner != currentCorner;
+}
+
+class ZoomEdgePainter extends CustomPainter {
+  final List<Offset> cornerPoints;
+  final Color color;
+  final double strokeWidth;
+  final Color colorBg;
+  final double strokeWidthBg;
+  final (int, int) currentEdge;
+  final double zoomSize;
+
+  ZoomEdgePainter({
+    required this.cornerPoints,
+    required this.color,
+    required this.strokeWidth,
+    required this.colorBg,
+    required this.strokeWidthBg,
+    required this.currentEdge,
+    required this.zoomSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (cornerPoints.length < 4) return;
+    final double radius = zoomSize / 2;
+
+    final paintBg = Paint()
+      ..color = colorBg
+      ..strokeWidth = strokeWidthBg
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    Offset vector = cornerPoints[currentEdge.$1] - cornerPoints[currentEdge.$2];
+    Offset normVector = vector / vector.distance;
+
+    // Draw line
+    Offset center = Offset(radius, radius);
+
+    final path = Path();
+    path.moveTo(
+      (center + normVector * radius).dx,
+      (center + normVector * radius).dy,
+    );
+    path.lineTo(
+      (center - normVector * radius).dx,
+      (center - normVector * radius).dy,
+    );
+
+    canvas.drawPath(path, paintBg);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant ZoomEdgePainter oldDelegate) =>
+      oldDelegate.cornerPoints != cornerPoints ||
+      oldDelegate.currentEdge != currentEdge;
 }
 
 class PositionTimestamp {
