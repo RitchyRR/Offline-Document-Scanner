@@ -617,8 +617,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
               break;
             }
           }
-        } else {
-          thumbnailLoading = true;
         }
       }
       thumbnailsLoading.add(thumbnailLoading);
@@ -2463,8 +2461,6 @@ class _PagesState extends State<Pages> with RouteAware {
               break;
             }
           }
-        } else {
-          thumbnailLoading = true;
         }
       }
       thumbnailsLoading.add(thumbnailLoading);
@@ -8078,8 +8074,6 @@ Future<List<bool>> loadLoadingImages(
             break;
           }
         }
-      } else {
-        thumbnailLoading = true;
       }
     }
     thumbnailsLoading.add(thumbnailLoading);
