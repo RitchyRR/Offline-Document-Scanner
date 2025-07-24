@@ -732,6 +732,7 @@ class FilesHelper {
 
     // Delete
     List<String> deletedPagePaths = [];
+    List<Future> removeMarkedDeletetedFutures = [];
     for (var (i, deletePageIndex) in deletePageIndexes.indexed) {
       deletedPagePaths.add(await getPagePath(docIndex, deletePageIndex));
       final deletePageDir = Directory(deletedPagePaths[i]);
@@ -746,7 +747,9 @@ class FilesHelper {
         // Delete
         deletePageDir.deleteSync(recursive: true);
         dev.log("_deletePages: Deleted page directory: ${deletedPagePaths[i]}");
-        _removeMarkedDeletedPage(docIndex, deletePageIndex);
+        removeMarkedDeletetedFutures.add(
+          _removeMarkedDeletedPage(docIndex, deletePageIndex),
+        );
       }
     }
 
@@ -772,6 +775,7 @@ class FilesHelper {
       }
     }
 
+    await Future.wait(removeMarkedDeletetedFutures);
     // Check if document is now empty and delete it
     if (newPagesCount == 0) {
       dev.log("Deleting empty Document $docIndex");

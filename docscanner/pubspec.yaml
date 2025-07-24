@@ -49,6 +49,7 @@ dependencies:
   collection:
   pdf_render:
   crypto:
+  synchronized: ^3.4.0
 
 dev_dependencies:
   flutter_test:

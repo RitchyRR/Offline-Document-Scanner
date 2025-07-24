@@ -6,6 +6,7 @@ import 'package:docscanner/main.dart'
     show globalNotifier, imageProcessingManager;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
+import 'package:synchronized/synchronized.dart';
 // my packages:
 import 'package:docscanner/app_globals.dart';
 import 'package:docscanner/image_prosessing_manager.dart';
@@ -14,44 +15,48 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart';
 
 class MetadataHelper {
+  static final Lock _docLock = Lock();
+
   static Future<void> _writeDoc(
     int docIndex,
     String keyIn,
     dynamic valueIn, {
     bool supressWarnings = false,
   }) async {
-    final docPath = await g.filesHelper.getDocumentPath(docIndex);
-    if (!Directory(docPath).existsSync()) {
-      Directory(docPath).createSync(recursive: true);
-    }
-    final file = File("$docPath/metadata.json");
-    Map<String, dynamic> metadata = {};
-
-    // Read + Decrypt
-    if (file.existsSync()) {
-      try {
-        metadata = await MetadataCryptoHelper.decryptMetadata(
-          file,
-          supressWarnings: supressWarnings,
-        );
-      } catch (e) {
-        dev.log("Warning, _writeDoc, $keyIn: Reading metadata: $e");
+    await _docLock.synchronized(() async {
+      final docPath = await g.filesHelper.getDocumentPath(docIndex);
+      if (!Directory(docPath).existsSync()) {
+        Directory(docPath).createSync(recursive: true);
       }
-    } else if (!supressWarnings) {
-      dev.log(
-        "Warning, _writeDoc, $keyIn: No existing metadata, creating new one.",
-      );
-      file.createSync();
-    }
+      final file = File("$docPath/metadata.json");
+      Map<String, dynamic> metadata = {};
 
-    // Write + Encrypt
-    if (valueIn == null) {
-      await metadata.remove(keyIn);
-    } else {
-      metadata[keyIn] = valueIn;
-    }
-    final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
-    await file.writeAsString(encrypted);
+      // Read + Decrypt
+      if (file.existsSync()) {
+        try {
+          metadata = await MetadataCryptoHelper.decryptMetadata(
+            file,
+            supressWarnings: supressWarnings,
+          );
+        } catch (e) {
+          dev.log("Warning, _writeDoc, $keyIn: Reading metadata: $e");
+        }
+      } else if (!supressWarnings) {
+        dev.log(
+          "Warning, _writeDoc, $keyIn: No existing metadata, creating new one.",
+        );
+        file.createSync();
+      }
+
+      // Write + Encrypt
+      if (valueIn == null) {
+        await metadata.remove(keyIn);
+      } else {
+        metadata[keyIn] = valueIn;
+      }
+      final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
+      await file.writeAsString(encrypted);
+    });
   }
 
   static Future<dynamic> _readDoc(int docIndex, String keyIn) async {
@@ -268,10 +273,10 @@ class MetadataHelper {
     List<List<int>>? cornerPoints, {
     AppGlobals? gIn,
   }) async {
+    gIn ??= g;
     if (ratioValue == 0.0) {
       throw StateError("aspectRatio should not be saved as 0");
     }
-    gIn ??= g;
     String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
     final file = File("$pagePath/metadata.json");
     Map<String, dynamic> metadata = {};
@@ -287,8 +292,12 @@ class MetadataHelper {
 
     try {
       // Write + Encrypt
-      if (ratioValue != null) metadata["aspectRatio"] = (ratioValue).toString();
-      if (cornerPoints != null) metadata["corners"] = cornerPoints;
+      if (ratioValue != null) {
+        metadata["aspectRatio"] = (ratioValue).toString();
+      }
+      if (cornerPoints != null) {
+        metadata["corners"] = cornerPoints;
+      }
       final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
       await file.writeAsString(encrypted);
     } catch (e) {
@@ -353,7 +362,6 @@ class MetadataHelper {
     bool supressWarnings = false,
   }) async {
     gIn ??= g;
-
     if (gIn.proFilterIndexes.contains(thumbnailIndexIn) &&
         !(gIn.proUnlocked == true) &&
         !tmpPro) {
