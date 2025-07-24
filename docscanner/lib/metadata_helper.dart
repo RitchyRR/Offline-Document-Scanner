@@ -45,7 +45,11 @@ class MetadataHelper {
     }
 
     // Write + Encrypt
-    metadata[keyIn] = valueIn;
+    if (valueIn == null) {
+      await metadata.remove(keyIn);
+    } else {
+      metadata[keyIn] = valueIn;
+    }
     final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
     await file.writeAsString(encrypted);
   }
@@ -79,7 +83,7 @@ class MetadataHelper {
     int docIndex,
     int pageIndex,
     String keyIn,
-    dynamic value,
+    dynamic valueIn,
     AppGlobals? gIn,
   ) async {
     gIn ??= g;
@@ -102,7 +106,11 @@ class MetadataHelper {
     }
 
     // Write + Encrypt
-    metadata[keyIn] = value;
+    if (valueIn == null) {
+      await metadata.remove(keyIn);
+    } else {
+      metadata[keyIn] = valueIn;
+    }
     final encrypted = await MetadataCryptoHelper.encryptMetadata(metadata);
     await file.writeAsString(encrypted);
   }
@@ -162,6 +170,9 @@ class MetadataHelper {
     String newDate, {
     bool supressWarnings = false,
   }) async {
+    if (newDate.isEmpty) {
+      throw StateError("Error, writeDocDate: newDate is empty");
+    }
     await _writeDoc(
       docIndex,
       "date",
@@ -643,7 +654,7 @@ class MetadataCryptoHelper {
   }
 
   static Future<Map<String, dynamic>> decryptMetadata(
-    File metadataFile, {
+    final File metadataFile, {
     RootIsolateToken? token,
     bool supressWarnings = false,
   }) async {
