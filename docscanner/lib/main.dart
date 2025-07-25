@@ -4747,63 +4747,7 @@ class PagePreviewState extends State<PagePreview> {
               },
             ),
             // Reprocessing Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Align(
-                alignment: _selectedVersion == 0
-                    ? Alignment.topCenter
-                    : Alignment.topLeft,
-
-                child: Container(
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [smallBoxShadow(context)],
-                  ),
-                  child: _selectedVersion == 0
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            spacing: 4,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                spacing: 6,
-                                children: [
-                                  if (_importedPdfMode) _pdfBadge(context),
-                                  if (!_importedPdfMode)
-                                    _aspectRatioDropDown(context),
-                                  if (!_importedPdfMode)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: _orientationDropDown(context),
-                                    ),
-                                  _rotateButton(
-                                    context,
-                                    -90,
-                                    Icons.rotate_left,
-                                    tr("pagePreview.editBar.rotateL"),
-                                  ),
-                                  _rotateButton(
-                                    context,
-                                    90,
-                                    Icons.rotate_right,
-                                    tr("pagePreview.editBar.rotateR"),
-                                  ),
-                                ],
-                              ),
-                              _confirmReProcessingButton(
-                                context,
-                                noReprocessingChanges,
-                              ),
-                            ],
-                          ),
-                        )
-                      : _toEditingButton(context),
-                ),
-              ),
-            ),
+            _reprocessingBar(context, noReprocessingChanges),
           ],
         ),
         // Floating Action Buttons
@@ -5071,22 +5015,78 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Padding _toEditingButton(BuildContext context) {
+  Padding _reprocessingBar(BuildContext context, bool noReprocessingChanges) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0),
-      child: CustomIconButton(
-        tooltip: tr("pagePreview.editBar.redirect"),
-        onTap: () {
-          setState(() => _selectedVersion = 0);
-          _pageController.jumpToPage(0);
-        },
-        isFlat: true,
-        icon: Icons.keyboard_arrow_left,
-        iconColor: Theme.of(context).colorScheme.onSurface,
-        buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        constraints: BoxConstraints(maxHeight: 48, maxWidth: 80),
-        child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Align(
+        alignment: _selectedVersion == 0
+            ? Alignment.topCenter
+            : Alignment.topLeft,
+
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [smallBoxShadow(context)],
+          ),
+          child: _selectedVersion == 0
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 0, 0),
+                  child: Row(
+                    spacing: 4,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        spacing: 6,
+                        children: [
+                          if (_importedPdfMode) _pdfBadge(context),
+                          if (!_importedPdfMode) _aspectRatioDropDown(context),
+                          if (!_importedPdfMode)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: _orientationDropDown(context),
+                            ),
+                          _rotateButton(
+                            context,
+                            -90,
+                            Icons.rotate_left,
+                            tr("pagePreview.editBar.rotateL"),
+                          ),
+                          _rotateButton(
+                            context,
+                            90,
+                            Icons.rotate_right,
+                            tr("pagePreview.editBar.rotateR"),
+                          ),
+                        ],
+                      ),
+                      _confirmReProcessingButton(
+                        context,
+                        noReprocessingChanges,
+                      ),
+                    ],
+                  ),
+                )
+              : _toEditingButton(context),
+        ),
       ),
+    );
+  }
+
+  CustomIconButton _toEditingButton(BuildContext context) {
+    return CustomIconButton(
+      tooltip: tr("pagePreview.editBar.redirect"),
+      onTap: () {
+        setState(() => _selectedVersion = 0);
+        _pageController.jumpToPage(0);
+      },
+      isFlat: true,
+      icon: Icons.keyboard_arrow_left,
+      iconColor: Theme.of(context).colorScheme.onSurface,
+      buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      constraints: BoxConstraints(maxHeight: 48, maxWidth: 80),
+      child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
     );
   }
 
@@ -5144,7 +5144,7 @@ class PagePreviewState extends State<PagePreview> {
     bool noReprocessingChanges,
   ) {
     return CustomIconButton(
-      constraints: BoxConstraints(maxHeight: 30, maxWidth: 30),
+      constraints: BoxConstraints(maxHeight: 48, maxWidth: 48),
       buttonColor: Theme.of(context).colorScheme.primaryContainer,
       icon: Icons.check,
       iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -5167,6 +5167,13 @@ class PagePreviewState extends State<PagePreview> {
 
     bool onlyRotation = true;
     bool customCorners = false;
+
+    await MetadataHelper.writePageThumbnailIndex(
+      widget.docIndex,
+      widget.pageIndex,
+      _selectedThumbnail,
+      supressWarnings: true,
+    );
 
     // Read Matadata
     var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
@@ -5250,7 +5257,6 @@ class PagePreviewState extends State<PagePreview> {
         widget.pageIndex,
         _versionPaths,
         _totalRotation,
-        _selectedThumbnail,
       );
     } else {
       imageProcessingManager.reprocessPage(

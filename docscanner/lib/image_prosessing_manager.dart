@@ -961,7 +961,6 @@ class ImageProcessingManager {
     int pageIndex,
     List<String> versionPaths, //[0] is rotated
     final int angle,
-    int pageThumbnailIndexIn,
   ) async {
     // Save current (to be outdated) filenames to metadata
     await saveOldVersionFileNames(docIndex, pageIndex);
