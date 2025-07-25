@@ -5406,7 +5406,7 @@ class PagePreviewState extends State<PagePreview> {
     }
   }
 
-  Container _aspectRatioDropDown(BuildContext context) {
+  Widget _aspectRatioDropDown(BuildContext context) {
     const double height = 30;
     int? initialIndex = g.availableAspectRatios.indexWhere(
       (element) =>
@@ -5467,7 +5467,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Container _orientationDropDown(BuildContext context) {
+  Widget _orientationDropDown(BuildContext context) {
     const double height = 30;
     List<String> orientationsList = [
       tr("pagePreview.editBar.portrait"),
@@ -5532,44 +5532,25 @@ class PagePreviewState extends State<PagePreview> {
     }
     int quarterTurns = _totalRotation ~/ 90;
 
-    double displayHeight;
-    double displayWidth;
-    if (quarterTurns.isEven) {
-      if (_evenPhotoScale == 0.0 && _photoScale != _oddPhotoScale) {
-        _evenPhotoScale = _photoScale;
-      } else if (_evenPhotoScale != 0.0) {
-        _photoScale = _evenPhotoScale;
-      }
-      displayHeight = _imagePixelHeight * _photoScale;
-      displayWidth = _imagePixelWidth * _photoScale;
-    } else {
-      if (_oddPhotoScale == 0.0 && _photoScale != _evenPhotoScale) {
-        _oddPhotoScale = _photoScale;
-      } else if (_oddPhotoScale != 0.0) {
-        _photoScale = _oddPhotoScale;
-      }
-      displayHeight = _imagePixelWidth * _photoScale;
-      displayWidth = _imagePixelHeight * _photoScale;
-    }
+    final double displayHeight = _imagePixelHeight * _photoScale;
+    final double displayWidth = _imagePixelWidth * _photoScale;
     _unZoomedScale = _photoScale;
 
     // Apply rotation to corner points visually
-    List<Offset> scaledPoints = _cornerPoints!.map((point) {
-      double x = point[1] * _photoScale;
-      double y = point[0] * _photoScale;
-      return Offset(x, y);
-    }).toList();
+    List<Offset> scaledPoints = _cornerPoints!
+        .map((point) => Offset(point[1] * _photoScale, point[0] * _photoScale))
+        .toList();
 
     return IgnorePointer(
       child: Center(
-        child: SizedBox(
-          width: displayWidth,
-          height: displayHeight,
-          child: RotatedBox(
-            quarterTurns: quarterTurns,
+        child: RotatedBox(
+          quarterTurns: quarterTurns,
+          child: SizedBox(
+            width: displayWidth,
+            height: displayHeight,
             child: Stack(
               children: [
-                /// Corner
+                /// Corners
                 CustomPaint(
                   size: Size(displayWidth, displayHeight),
                   painter: _CornerLinePainter(
@@ -5610,7 +5591,7 @@ class PagePreviewState extends State<PagePreview> {
                     normalizedOffset: false,
                   ),
                 ),
-                // Middle Section
+                // Middle Sections
                 CustomPaint(
                   size: Size(displayWidth, displayHeight),
                   painter: _MiddleLinePainter(
