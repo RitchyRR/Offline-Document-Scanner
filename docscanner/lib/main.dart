@@ -7,7 +7,7 @@ import 'feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
 import 'package:docscanner/isolates_manager.dart'
-    show IsolatePriority, IsolatesManager, immediate;
+    show IsolatePriority, IsolatesManager;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
