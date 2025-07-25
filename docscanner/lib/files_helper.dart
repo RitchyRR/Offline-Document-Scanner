@@ -33,7 +33,6 @@ import 'image_prosessing_manager.dart';
 import 'main.dart'
     show globalNotifier, imageProcessingManager, isTmpExternal, versionNames;
 import 'metadata_helper.dart';
-import 'opencv_helper.dart';
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
 class FilesHelper {
@@ -1714,61 +1713,6 @@ class FilesHelper {
             ? ", $displayPageIndexes"
             : ""}$extension";
     return docFileName;
-  }
-
-  static Future<String> rotateImageInTmpDir(
-    String imagePath,
-    int rotationIn,
-  ) async {
-    final port = ReceivePort();
-    final tmpDir = await getTemporaryDirectory();
-    final rotatedFilePath = "${tmpDir.path}/rotated_$rotationIn.png";
-
-    if (!File(rotatedFilePath).existsSync()) {
-      //RootIsolateToken token = RootIsolateToken.instance!;
-      IsolatesManager().runTask(
-        _rotateImageInTmpDirIsolate,
-        (
-          port.sendPort,
-          //token,
-          imagePath,
-          rotatedFilePath,
-          rotationIn,
-          g,
-        ),
-        portIn: port,
-        prio: IsolatePriority.immediate,
-      );
-      await port.first;
-    }
-
-    return rotatedFilePath;
-  }
-
-  static Future<void> _rotateImageInTmpDirIsolate(
-    (
-      SendPort sendPort,
-      //RootIsolateToken token,
-      String imagePath,
-      String rotatedFilePath,
-      int angle,
-      AppGlobals gIn,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    //RootIsolateToken token = data.$2;
-    String imagePath = data.$2;
-    String rotatedFilePath = data.$3;
-    int angle = data.$4;
-    AppGlobals gIn = data.$5;
-    //BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    Uint8List imageBytes = await File(imagePath).readAsBytes();
-    Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
-    File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
-    Isolate.exit(sendPort, true);
   }
 
   static Future<void> deleteCachedRoatedImages() async {

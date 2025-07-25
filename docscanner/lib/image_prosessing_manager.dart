@@ -1653,4 +1653,70 @@ class ImageProcessingManager {
     (scaledBytes, _) = await cvHelper.scaleImageToWidth(imgBytes, newWidth);
     return scaledBytes;
   }
+
+  Future<List<String>> rotatePhoto(
+    String photoPath,
+    int docIndex,
+    int pageIndex,
+  ) async {
+    final List<String> roatedFilePaths = [];
+
+    for (int rotation = 90; rotation <= 270; rotation += 90) {
+      final tmpDir = await getTemporaryDirectory();
+      roatedFilePaths.add("${tmpDir.path}/rotated_$rotation.png");
+
+      if (!File(roatedFilePaths.last).existsSync()) {
+        final port = ReceivePort();
+        //final token = RootIsolateToken.instance!;
+
+        TaskKiller killer = await IsolatesManager().runTask(
+          _rotatePhotoIsolate,
+          (
+            port.sendPort,
+            //token,
+            photoPath,
+            roatedFilePaths.last,
+            rotation,
+            g,
+          ),
+          portIn: port,
+          prio: IsolatePriority.regular,
+        );
+        taskKillers.add(((docIndex, pageIndex), killer));
+        port.listen((message) async {
+          if (message == "done") {
+            taskKillers.removeWhere((element) => element.$2 == killer);
+          }
+        });
+      }
+    }
+
+    return roatedFilePaths;
+  }
+
+  static Future<void> _rotatePhotoIsolate(
+    (
+      SendPort sendPort,
+      //RootIsolateToken token,
+      String imagePath,
+      String rotatedFilePath,
+      int angle,
+      AppGlobals gIn,
+    )
+    data,
+  ) async {
+    SendPort sendPort = data.$1;
+    //RootIsolateToken token = data.$2;
+    String imagePath = data.$2;
+    String rotatedFilePath = data.$3;
+    int angle = data.$4;
+    AppGlobals gIn = data.$5;
+    //BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+    OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    Uint8List imageBytes = await File(imagePath).readAsBytes();
+    Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
+    File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
+    Isolate.exit(sendPort, "done");
+  }
 }

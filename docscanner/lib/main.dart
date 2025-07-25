@@ -7,7 +7,7 @@ import 'feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
 import 'package:docscanner/isolates_manager.dart'
-    show IsolatesManager, IsolatePriority;
+    show IsolatePriority, IsolatesManager, immediate;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:photo_view/photo_view.dart';
@@ -4102,10 +4102,7 @@ class PagePreviewState extends State<PagePreview> {
     versionNames.length,
     (_) => true,
   );
-  final List<Future<String>> _rotatedPhotoPaths = List.generate(
-    3,
-    (_) => Future<String>.value(""),
-  );
+  List<String> _rotatedPhotoPaths = [];
   String _photoPath = "";
   // Reprocessing Parameters
   double? _ratioValue;
@@ -4188,7 +4185,6 @@ class PagePreviewState extends State<PagePreview> {
     );
     await _loadOldVersionFileNames(supressWarnings: true);
     _pollImagesAndMetadata();
-    // Feedback
     if (_versionPaths.any((element) => element.isEmpty)) {
       // if processing on init
       bool showRatingPopupWhileProcessing = feedbackHelper
@@ -4307,12 +4303,19 @@ class PagePreviewState extends State<PagePreview> {
             supressWarnings: true,
           );
         },
-        onComplete: () {
+        onComplete: () async {
           if (thisProcessingIndex != _processingIndex || !mounted) return;
           if (i == 0) {
             _versionPaths[i] = _photoPath = polledPath;
-            FilesHelper.deleteCachedRoatedImages();
             _refreshCornersOverlay(supressWarnings: true);
+
+            FilesHelper.deleteCachedRoatedImages();
+            // Preload rotated photo
+            _rotatedPhotoPaths = await imageProcessingManager.rotatePhoto(
+              _photoPath,
+              widget.docIndex,
+              widget.pageIndex,
+            );
           } else {
             _versionPaths[i] = polledPath;
           }
@@ -4647,22 +4650,6 @@ class PagePreviewState extends State<PagePreview> {
                               !_metadataBlocked
                           ? () => _openWarpManuallyPage()
                           : null,
-                      //onVerticalDragStart:
-                      //    !pdfMode &&
-                      //        !_overlayZoomed &&
-                      //        !_hideOverlayReprocessing &&
-                      //        enableFAB0 &&
-                      //        !_metadataBlocked
-                      //    ? (_) => _openWarpManuallyPage()
-                      //    : null,
-                      //onTap:
-                      //    !pdfMode &&
-                      //        !_overlayZoomed &&
-                      //        !_hideOverlayReprocessing &&
-                      //        enableFAB0 &&
-                      //        !_metadataBlocked
-                      //    ? () => _openWarpManuallyPage()
-                      //    : null,
                       child: Stack(
                         children: [
                           PhotoView(
@@ -4719,6 +4706,21 @@ class PagePreviewState extends State<PagePreview> {
 
                           // Corner Points
                           _displayCornersOverlay(context),
+
+                          if (_isRotating)
+                            Positioned.fill(
+                              child: Material(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHigh
+                                    .withAlpha(150),
+                                child: Center(
+                                  child: IndicatorProcessingImage(
+                                    text: tr("loading.rotating"),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -5032,7 +5034,7 @@ class PagePreviewState extends State<PagePreview> {
           ),
           child: _selectedVersion == 0
               ? Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 0, 0),
+                  padding: const EdgeInsets.only(left: 10),
                   child: Row(
                     spacing: 4,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -5099,7 +5101,7 @@ class PagePreviewState extends State<PagePreview> {
     return CustomIconButton(
       constraints: BoxConstraints(maxHeight: 42, maxWidth: 42),
       isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
-      onTap: () async {
+      onTap: () {
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
         //_photoViewController.rotation = math.pi / 2 * quarterTurns;
@@ -5116,18 +5118,26 @@ class PagePreviewState extends State<PagePreview> {
             _isRotating = false;
           });
         } else {
-          _rotatedPhotoPaths[quarterTurns - 1] =
-              FilesHelper.rotateImageInTmpDir(_photoPath, _totalRotation);
-          _rotatedPhotoPaths[quarterTurns - 1].whenComplete(() async {
-            // if image matches current rotation
-            if (_totalRotation ~/ 90 == quarterTurns) {
-              _versionPaths[0] = await _rotatedPhotoPaths[quarterTurns - 1];
-              if (mounted) {
-                _isRotating = false;
-                setState(() {});
-              }
+          Future<void> pollRoatedPhoto() async {
+            while (_rotatedPhotoPaths.length <= quarterTurns - 1 ||
+                !File(_rotatedPhotoPaths[quarterTurns - 1]).existsSync() &&
+                    quarterTurns == _totalRotation ~/ 90) {
+              await Future.delayed(Duration(milliseconds: 100));
             }
-          });
+            // if polling for correct rotation
+            if (quarterTurns == _totalRotation ~/ 90) {
+              _versionPaths[0] = _rotatedPhotoPaths[quarterTurns - 1];
+              _isRotating = false;
+              if (mounted) setState(() {});
+            }
+          }
+
+          pollRoatedPhoto();
+          imageProcessingManager.changePrioForIsolatesOfPage(
+            widget.docIndex,
+            widget.pageIndex,
+            IsolatePriority.immediate,
+          );
         }
       },
       isFlat: true,
@@ -5139,26 +5149,30 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  CustomIconButton _confirmReProcessingButton(
+  Padding _confirmReProcessingButton(
     BuildContext context,
     bool noReprocessingChanges,
   ) {
-    return CustomIconButton(
-      constraints: BoxConstraints(maxHeight: 48, maxWidth: 48),
-      buttonColor: Theme.of(context).colorScheme.primaryContainer,
-      icon: Icons.check,
-      iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
-      isDisabled:
-          _metadataBlocked ||
-          _isRotating ||
-          _versionPaths.isEmpty ||
-          _versionPaths.first.isEmpty ||
-          !File(_versionPaths.first).existsSync(),
-      isHidden: noReprocessingChanges,
-      tooltip: tr("pagePreview.editBar.confirm"),
-      onTap: () async {
-        reprocessPhoto();
-      },
+    final double size = 48;
+    return Padding(
+      padding: EdgeInsets.all((48 - size) / 2),
+      child: CustomIconButton(
+        constraints: BoxConstraints(maxHeight: size, maxWidth: size),
+        buttonColor: Theme.of(context).colorScheme.primaryContainer,
+        icon: Icons.check,
+        iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        isDisabled:
+            _metadataBlocked ||
+            _isRotating ||
+            _versionPaths.isEmpty ||
+            _versionPaths.first.isEmpty ||
+            !File(_versionPaths.first).existsSync(),
+        isHidden: noReprocessingChanges,
+        tooltip: tr("pagePreview.editBar.confirm"),
+        onTap: () async {
+          reprocessPhoto();
+        },
+      ),
     );
   }
 
@@ -5537,6 +5551,7 @@ class PagePreviewState extends State<PagePreview> {
       displayHeight = _imagePixelWidth * _photoScale;
       displayWidth = _imagePixelHeight * _photoScale;
     }
+    _unZoomedScale = _photoScale;
 
     // Apply rotation to corner points visually
     List<Offset> scaledPoints = _cornerPoints!.map((point) {
@@ -5875,7 +5890,8 @@ class _MiddleLinePainter extends CustomPainter {
 }
 
 class IndicatorProcessingImage extends StatelessWidget {
-  const IndicatorProcessingImage({super.key});
+  final String? text;
+  const IndicatorProcessingImage({super.key, this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -5884,7 +5900,10 @@ class IndicatorProcessingImage extends StatelessWidget {
       children: [
         const CircularProgressIndicator(),
         const SizedBox(height: 16),
-        Text(tr("loading.processingImage"), textAlign: TextAlign.center),
+        Text(
+          text ?? tr("loading.processingImage"),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }

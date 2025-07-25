@@ -232,7 +232,8 @@
     "importingImages": "Bilder werden importiert...",
     "importingPdf": "PDF wird importiert...",
     "importingPdfs": "PDFs werden importiert...",
-    "changingThumbnails": "Thumbnails werden geändert..."
+    "changingThumbnails": "Thumbnails werden geändert...",
+    "rotating": "Bild wird gedreht..."
   },
   "toast": {
     "feedback": "Danke für dein Feedback!",

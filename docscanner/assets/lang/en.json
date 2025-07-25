@@ -233,7 +233,8 @@
     "importingImages": "Importing Images...",
     "importingPdf": "Importing PDF...",
     "importingPdfs": "Importing PDFs...",
-    "changingThumbnails": "Changing Thumbnails..."
+    "changingThumbnails": "Changing Thumbnails...",
+    "rotating": "Rotating Image..."
   },
   "toast": {
     "feedback": "Thank you for your feedback!",
