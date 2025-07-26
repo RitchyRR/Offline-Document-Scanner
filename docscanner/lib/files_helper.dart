@@ -1715,16 +1715,7 @@ class FilesHelper {
     return docFileName;
   }
 
-  static Future<void> deleteCachedRoatedImages() async {
-    List<String> paths = [];
-    final tmpDir = await getTemporaryDirectory();
-    for (var angle = 90; angle <= 270; angle += 90) {
-      paths.add("${tmpDir.path}/rotated_$angle.png");
-    }
-    _deleteImagePaths(paths);
-  }
-
-  static Future<void> _deleteImagePaths(List<String> paths) async {
+  static Future<void> deleteImagePaths(List<String> paths) async {
     List<Future<void>> futures = [];
     for (var path in paths) {
       final file = File(path);

@@ -2,6 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:docscanner/files_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:async';
@@ -1654,6 +1655,7 @@ class ImageProcessingManager {
     return scaledBytes;
   }
 
+  List<TaskKiller> rotatePhotoKillers = [];
   Future<List<String>> rotatePhoto(
     String photoPath,
     int docIndex,
@@ -1667,24 +1669,21 @@ class ImageProcessingManager {
 
       if (!File(roatedFilePaths.last).existsSync()) {
         final port = ReceivePort();
-        //final token = RootIsolateToken.instance!;
 
         TaskKiller killer = await IsolatesManager().runTask(
           _rotatePhotoIsolate,
-          (
-            port.sendPort,
-            //token,
-            photoPath,
-            roatedFilePaths.last,
-            rotation,
-            g,
-          ),
+          (port.sendPort, photoPath, roatedFilePaths.last, rotation, g),
           portIn: port,
-          prio: IsolatePriority.regular,
+          prio: IsolatePriority.quick,
         );
+        rotatePhotoKillers.add(killer);
         taskKillers.add(((docIndex, pageIndex), killer));
+
         port.listen((message) async {
-          if (message == "done") {
+          if (message is SendPort) {
+            killer.setControlPort(message);
+          } else if (message == "done") {
+            rotatePhotoKillers.removeWhere((element) => element == killer);
             taskKillers.removeWhere((element) => element.$2 == killer);
           }
         });
@@ -1697,7 +1696,6 @@ class ImageProcessingManager {
   static Future<void> _rotatePhotoIsolate(
     (
       SendPort sendPort,
-      //RootIsolateToken token,
       String imagePath,
       String rotatedFilePath,
       int angle,
@@ -1706,17 +1704,43 @@ class ImageProcessingManager {
     data,
   ) async {
     SendPort sendPort = data.$1;
-    //RootIsolateToken token = data.$2;
+    // Control Port for exiting gracefully
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    bool kill = false;
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
     String imagePath = data.$2;
     String rotatedFilePath = data.$3;
     int angle = data.$4;
     AppGlobals gIn = data.$5;
-    //BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
+    isolateExitPoint(kill);
     OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    isolateExitPoint(kill);
     Uint8List imageBytes = await File(imagePath).readAsBytes();
+    isolateExitPoint(kill);
     Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
+    isolateExitPoint(kill);
     File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
     Isolate.exit(sendPort, "done");
+  }
+
+  Future<void> deleteRotatedPhotos() async {
+    List<String> paths = [];
+    final tmpDir = await getTemporaryDirectory();
+    for (var angle = 90; angle <= 270; angle += 90) {
+      paths.add("${tmpDir.path}/rotated_$angle.png");
+    }
+    FilesHelper.deleteImagePaths(paths);
+    for (var killer in rotatePhotoKillers) {
+      killer.kill();
+      taskKillers.removeWhere((element) => element.$2 == killer);
+    }
+    rotatePhotoKillers.clear();
   }
 }

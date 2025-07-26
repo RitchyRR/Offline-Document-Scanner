@@ -1,6 +1,5 @@
 // my packages:
 import 'app_globals.dart';
-import 'files_helper.dart';
 import 'metadata_helper.dart';
 import 'image_prosessing_manager.dart';
 import 'feedback_helper.dart';
@@ -4150,7 +4149,6 @@ class PagePreviewState extends State<PagePreview> {
   void initState() {
     super.initState();
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
-    FilesHelper.deleteCachedRoatedImages();
     _initAsync();
 
     _photoViewController.outputStateStream.listen((
@@ -4226,7 +4224,7 @@ class PagePreviewState extends State<PagePreview> {
     _photoViewController.dispose();
     _thumbnailScrollController.dispose();
     _eventSubscription.cancel();
-    FilesHelper.deleteCachedRoatedImages();
+    imageProcessingManager.deleteRotatedPhotos();
     super.dispose();
   }
 
@@ -4307,7 +4305,7 @@ class PagePreviewState extends State<PagePreview> {
             _versionPaths[i] = _photoPath = polledPath;
             _refreshCornersOverlay(supressWarnings: true);
 
-            FilesHelper.deleteCachedRoatedImages();
+            await imageProcessingManager.deleteRotatedPhotos();
             // Preload rotated photo
             _rotatedPhotoPaths = await imageProcessingManager.rotatePhoto(
               _photoPath,
