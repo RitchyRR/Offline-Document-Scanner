@@ -6563,245 +6563,261 @@ class _WarpState extends State<Warp> {
     double yOffset = (_displayHeigth - scaledHeight) / 2;
 
     List<Offset> scaledPoints = _screenSpaceCorners
-        .map((e) => Offset(e.dx * _imageScale + xOffset, e.dy * _imageScale))
+        .map(
+          (e) => Offset(
+            e.dx * _imageScale + xOffset,
+            e.dy * _imageScale + _circleSize,
+          ),
+        )
         .toList();
 
     return Center(
-      child: SizedBox(
-        key: _imageAreaKey,
-        width: _screenWidth,
-        height: _displayHeigth,
-        child: Stack(
-          children: [
-            // Sharp corners reaching outside circle
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _CornerLinePainter(
-                  points: scaledPoints,
-                  color: Theme.of(context).colorScheme.primaryFixed,
-                  strokeWidth: 1.0,
-                  offset: 0.25,
-                  normalizedOffset: false,
-                ),
-              ),
-            ),
-
-            // Draggable edges
-            ...[
-              [0, 2, 1, 3], // top
-              [2, 3, 0, 1], // right
-              [3, 1, 2, 0], // bottom
-              [1, 0, 3, 2], // left
-            ].map((points) {
-              final a = scaledPoints[points[0]];
-              final b = scaledPoints[points[1]];
-              final center = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
-              final length = (b - a).distance;
-              final angle = math.atan2(b.dy - a.dy, b.dx - a.dx);
-              final edgeThickness = 20.0;
-              final lengthUsed = 0.5;
-
-              bool isCurrent = _currentEdge == (points[0], points[1]);
-
-              return Positioned(
-                left: center.dx - length * lengthUsed / 2,
-                top: center.dy - edgeThickness / 2,
-
-                child: Transform.rotate(
-                  angle: angle,
-                  child: Container(
-                    width: length * lengthUsed,
-                    height: edgeThickness,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(edgeThickness / 2),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primaryFixed,
-                        width: isCurrent ? 4.0 : 2.0,
-                        strokeAlign: BorderSide.strokeAlignOutside,
-                      ),
-                      color: Colors.black12,
-                    ),
-                    child: GestureDetector(
-                      onPanStart: (details) {
-                        _currentEdge = (points[0], points[1]);
-                        _currentCorner = null;
-                      },
-                      onPanUpdate: (details) {
-                        _handleEdgePan(
-                          indexA: points[0],
-                          indexB: points[1],
-                          neighborA: points[2],
-                          neighborB: points[3],
-                          details: details,
-                        );
-                      },
-                      onPanEnd: (details) {
-                        _handleEdgePanEnd(
-                          indexA: points[0],
-                          indexB: points[1],
-                          neighborA: points[2],
-                          neighborB: points[3],
-                        );
-                      },
-                    ),
+      child: Transform.translate(
+        offset: Offset(0, -_circleSize),
+        child: SizedBox(
+          key: _imageAreaKey,
+          width: _screenWidth,
+          height: _displayHeigth + _circleSize * 2,
+          child: Stack(
+            children: [
+              // Sharp corners reaching outside circle
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size(_screenWidth, _displayHeigth),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
+                    color: Theme.of(context).colorScheme.primaryFixed,
+                    strokeWidth: 1.0,
+                    offset: 0.25,
+                    normalizedOffset: false,
                   ),
                 ),
-              );
-            }),
+              ),
 
-            // Draggable corner points
-            ...scaledPoints.asMap().entries.map((entry) {
-              final index = entry.key;
-              final offset = entry.value;
-              final isCurrent = index == _currentCorner;
+              // Draggable edges
+              ...[
+                [0, 2, 1, 3], // top
+                [2, 3, 0, 1], // right
+                [3, 1, 2, 0], // bottom
+                [1, 0, 3, 2], // left
+              ].map((points) {
+                final a = scaledPoints[points[0]];
+                final b = scaledPoints[points[1]];
+                final center = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+                final length = (b - a).distance;
+                final angle = math.atan2(b.dy - a.dy, b.dx - a.dx);
+                final edgeThickness = 20.0;
+                final lengthUsed = 0.5;
 
-              return Positioned(
-                left: offset.dx - _circleSize / 2,
-                top: offset.dy - _circleSize / 2,
-                child: GestureDetector(
-                  onPanStart: (details) {
-                    if (_cornerDragging) return;
-                    _allowPop = false;
-                    _currentCorner = index;
-                    _currentEdge = null;
-                    final box =
-                        _imageAreaKey.currentContext?.findRenderObject()
-                            as RenderBox?;
-                    if (box == null) return;
+                bool isCurrent = _currentEdge == (points[0], points[1]);
 
-                    Offset localPosition =
-                        (box.globalToLocal(details.globalPosition) -
-                            Offset(xOffset, yOffset)) /
-                        _imageScale;
-                    _touchOffset = localPosition - _screenSpaceCorners[index];
+                return Positioned(
+                  left: center.dx - length * lengthUsed / 2,
+                  top: center.dy - edgeThickness / 2,
 
-                    _cornerPositionHistory.clear();
-                    _cornerPositionHistory.add(
-                      PositionTimestamp(
-                        position: _screenSpaceCorners[index],
-                        timestamp: DateTime.now(),
+                  child: Transform.rotate(
+                    angle: angle,
+                    child: Container(
+                      width: length * lengthUsed,
+                      height: edgeThickness,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(edgeThickness / 2),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primaryFixed,
+                          width: isCurrent ? 4.0 : 2.0,
+                          strokeAlign: BorderSide.strokeAlignOutside,
+                        ),
+                        color: Colors.black12,
                       ),
-                    );
-                    _cornerDragging = true;
-                    _panningDelayed = true;
-                  },
-                  onPanUpdate: (details) {
-                    final box =
-                        _imageAreaKey.currentContext?.findRenderObject()
-                            as RenderBox?;
-                    if (box == null) return;
+                      child: GestureDetector(
+                        onPanStart: (details) {
+                          _currentEdge = (points[0], points[1]);
+                          _currentCorner = null;
+                        },
+                        onPanUpdate: (details) {
+                          _handleEdgePan(
+                            indexA: points[0],
+                            indexB: points[1],
+                            neighborA: points[2],
+                            neighborB: points[3],
+                            details: details,
+                          );
+                        },
+                        onPanEnd: (details) {
+                          _handleEdgePanEnd(
+                            indexA: points[0],
+                            indexB: points[1],
+                            neighborA: points[2],
+                            neighborB: points[3],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              }),
 
-                    Offset localPosition =
-                        (box.globalToLocal(details.globalPosition) -
-                            Offset(xOffset, yOffset)) /
-                        _imageScale;
-                    Offset newPos = localPosition - _touchOffset;
+              // Draggable corner points
+              ...scaledPoints.asMap().entries.map((entry) {
+                final index = entry.key;
+                final offset = entry.value;
+                final isCurrent = index == _currentCorner;
 
-                    newPos = Offset(
-                      newPos.dx.clamp(0.0, _screenWidth),
-                      newPos.dy.clamp(0.0, _displayHeigth),
-                    );
+                return Positioned(
+                  left: offset.dx - _circleSize / 2,
+                  top: offset.dy - _circleSize / 2,
+                  child: GestureDetector(
+                    onPanStart: (details) {
+                      if (_cornerDragging) return;
+                      _allowPop = false;
+                      _currentCorner = index;
+                      _currentEdge = null;
+                      final box =
+                          _imageAreaKey.currentContext?.findRenderObject()
+                              as RenderBox?;
+                      if (box == null) return;
 
-                    // Limit relative corner positions
-                    newPos = _limitCornerPointPos(index, newPos);
+                      Offset localPosition =
+                          (box.globalToLocal(details.globalPosition) -
+                              Offset(xOffset, yOffset)) /
+                          _imageScale;
+                      _touchOffset = localPosition - _screenSpaceCorners[index];
 
-                    DateTime now = DateTime.now();
-                    // Haptic Feedback
-                    if (_cornerPositionHistory.isNotEmpty &&
-                        now.difference(_cornerPositionHistory.last.timestamp) >
-                            Duration(milliseconds: 25)) {
-                      HapticFeedback.selectionClick();
-                    }
-                    // Average position over time -> new pos
-                    Offset avgPos = Offset(0, 0);
-                    int avgCount = 0;
-                    for (var timePos in _cornerPositionHistory) {
-                      if ((newPos - timePos.position).distance < 30.0) {
-                        avgPos += timePos.position;
-                        avgCount++;
+                      _cornerPositionHistory.clear();
+                      _cornerPositionHistory.add(
+                        PositionTimestamp(
+                          position: _screenSpaceCorners[index],
+                          timestamp: DateTime.now(),
+                        ),
+                      );
+                      _cornerDragging = true;
+                      _panningDelayed = true;
+                    },
+                    onPanUpdate: (details) {
+                      final box =
+                          _imageAreaKey.currentContext?.findRenderObject()
+                              as RenderBox?;
+                      if (box == null) return;
+
+                      Offset localPosition =
+                          (box.globalToLocal(details.globalPosition) -
+                              Offset(xOffset, yOffset)) /
+                          _imageScale;
+                      Offset newPos = localPosition - _touchOffset;
+
+                      newPos = Offset(
+                        newPos.dx.clamp(0.0, _screenWidth),
+                        newPos.dy.clamp(0.0, _displayHeigth),
+                      );
+
+                      // Limit relative corner positions
+                      newPos = _limitCornerPointPos(index, newPos);
+
+                      DateTime now = DateTime.now();
+                      // Haptic Feedback
+                      if (_cornerPositionHistory.isNotEmpty &&
+                          now.difference(
+                                _cornerPositionHistory.last.timestamp,
+                              ) >
+                              Duration(milliseconds: 25)) {
+                        HapticFeedback.selectionClick();
                       }
-                    }
-                    if (avgCount != 0) {
-                      avgPos /= avgCount.toDouble();
-                      avgPos += newPos * 0.5;
-                      avgPos /= 1.5;
-                    } else {
-                      avgPos = newPos;
-                    }
-                    setState(() {
-                      _screenSpaceCorners[index] = avgPos;
-                    });
-                    _scaleImage();
+                      // Average position over time -> new pos
+                      Offset avgPos = Offset(0, 0);
+                      int avgCount = 0;
+                      for (var timePos in _cornerPositionHistory) {
+                        if ((newPos - timePos.position).distance < 30.0) {
+                          avgPos += timePos.position;
+                          avgCount++;
+                        }
+                      }
+                      if (avgCount != 0) {
+                        avgPos /= avgCount.toDouble();
+                        avgPos += newPos * 0.5;
+                        avgPos /= 1.5;
+                      } else {
+                        avgPos = newPos;
+                      }
+                      setState(() {
+                        _screenSpaceCorners[index] = avgPos;
+                      });
+                      _scaleImage();
 
-                    // Add current position to history
-                    _cornerPositionHistory.add(
-                      PositionTimestamp(
-                        position: _screenSpaceCorners[index],
-                        timestamp: now,
+                      // Add current position to history
+                      _cornerPositionHistory.add(
+                        PositionTimestamp(
+                          position: _screenSpaceCorners[index],
+                          timestamp: now,
+                        ),
+                      );
+                      // Remove oldest position if older than _historyDurationMs
+                      if (now
+                              .difference(
+                                _cornerPositionHistory.first.timestamp,
+                              )
+                              .inMilliseconds >
+                          _historyDelayMs) {
+                        _cornerPositionHistory.removeAt(0);
+                      }
+                    },
+                    onPanEnd: (details) => _handleCornerPanEnd(index),
+                    onPanCancel: () => _handleCornerPanEnd(index),
+                    // Circle
+                    child: Container(
+                      width: _circleSize,
+                      height: _circleSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black26,
+                        border: isCurrent
+                            ? Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryFixed,
+                                width: 4 / _imageScale,
+                                strokeAlign: BorderSide.strokeAlignOutside,
+                              )
+                            : Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryFixed,
+                                width: 2 / _imageScale,
+                                strokeAlign: BorderSide.strokeAlignOutside,
+                              ),
                       ),
-                    );
-                    // Remove oldest position if older than _historyDurationMs
-                    if (now
-                            .difference(_cornerPositionHistory.first.timestamp)
-                            .inMilliseconds >
-                        _historyDelayMs) {
-                      _cornerPositionHistory.removeAt(0);
-                    }
-                  },
-                  onPanEnd: (details) => _handleCornerPanEnd(index),
-                  onPanCancel: () => _handleCornerPanEnd(index),
-                  // Circle
-                  child: Container(
-                    width: _circleSize,
-                    height: _circleSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black26,
-                      border: isCurrent
-                          ? Border.all(
-                              color: Theme.of(context).colorScheme.primaryFixed,
-                              width: 4 / _imageScale,
-                              strokeAlign: BorderSide.strokeAlignOutside,
-                            )
-                          : Border.all(
-                              color: Theme.of(context).colorScheme.primaryFixed,
-                              width: 2 / _imageScale,
-                              strokeAlign: BorderSide.strokeAlignOutside,
-                            ),
                     ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
 
-            // Sharp edge in middle section
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _MiddleLinePainter(
-                  points: scaledPoints,
-                  color: Colors.white,
-                  strokeWidth: 1.0,
-                  offset: 0.55,
-                  normalizedOffset: false,
+              // Sharp edge in middle section
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size(_screenWidth, _displayHeigth),
+                  painter: _MiddleLinePainter(
+                    points: scaledPoints,
+                    color: Colors.white,
+                    strokeWidth: 1.0,
+                    offset: 0.55,
+                    normalizedOffset: false,
+                  ),
                 ),
               ),
-            ),
-            // Sharp corners inside circle
-            IgnorePointer(
-              child: CustomPaint(
-                size: Size(_screenWidth, _displayHeigth),
-                painter: _CornerLinePainter(
-                  points: scaledPoints,
-                  color: Colors.white,
-                  strokeWidth: 1.0 / _imageScale,
-                  offset: (_circleSize + 2) / _imageScale / 2,
-                  normalizedOffset: true,
+              // Sharp corners inside circle
+              IgnorePointer(
+                child: CustomPaint(
+                  size: Size(_screenWidth, _displayHeigth),
+                  painter: _CornerLinePainter(
+                    points: scaledPoints,
+                    color: Colors.white,
+                    strokeWidth: 1.0 / _imageScale,
+                    offset: (_circleSize + 2) / _imageScale / 2,
+                    normalizedOffset: true,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
