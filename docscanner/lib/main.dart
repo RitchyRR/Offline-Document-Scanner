@@ -4384,7 +4384,7 @@ class PagePreviewState extends State<PagePreview> {
     _cornerPoints = await MetadataHelper.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
-      supressWarnings: supressWarnings,
+      supressWarnings: supressWarnings || _importedPdfMode,
     );
     // Image pixel size
     final imageFile = File(_versionPaths[0]);
@@ -5250,9 +5250,9 @@ class PagePreviewState extends State<PagePreview> {
       onlyRotation = false;
     }
 
-    if (onlyRotation &&
-        (_importedPdfMode ||
-            _versionPaths.every((path) => File(path).existsSync()))) {
+    if (_importedPdfMode ||
+        onlyRotation &&
+            _versionPaths.every((path) => File(path).existsSync())) {
       if (newCornerPoints != null) {
         await MetadataHelper.writePageCornerPoints(
           widget.docIndex,
