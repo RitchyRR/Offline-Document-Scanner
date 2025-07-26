@@ -6772,14 +6772,14 @@ class _WarpState extends State<Warp> {
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.primaryFixed,
-                                width: 4 / _imageScale,
+                                width: 4,
                                 strokeAlign: BorderSide.strokeAlignOutside,
                               )
                             : Border.all(
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.primaryFixed,
-                                width: 2 / _imageScale,
+                                width: 2,
                                 strokeAlign: BorderSide.strokeAlignOutside,
                               ),
                       ),
@@ -6808,8 +6808,8 @@ class _WarpState extends State<Warp> {
                   painter: _CornerLinePainter(
                     points: scaledPoints,
                     color: Colors.white,
-                    strokeWidth: 1.0 / _imageScale,
-                    offset: (_circleSize + 2) / _imageScale / 2,
+                    strokeWidth: 1.0,
+                    offset: (_circleSize + 2) / 2,
                     normalizedOffset: true,
                   ),
                 ),
