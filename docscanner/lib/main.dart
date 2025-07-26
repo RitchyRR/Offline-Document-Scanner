@@ -5013,7 +5013,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Padding _reprocessingBar(BuildContext context, bool noReprocessingChanges) {
+  Widget _reprocessingBar(BuildContext context, bool noReprocessingChanges) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Align(
@@ -5083,7 +5083,8 @@ class PagePreviewState extends State<PagePreview> {
       icon: Icons.keyboard_arrow_left,
       iconColor: Theme.of(context).colorScheme.onSurface,
       buttonColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      constraints: BoxConstraints(maxHeight: 48, maxWidth: 80),
+      width: 80,
+      height: 48,
       child: Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurface),
     );
   }
@@ -5095,7 +5096,8 @@ class PagePreviewState extends State<PagePreview> {
     String tooltip,
   ) {
     return CustomIconButton(
-      constraints: BoxConstraints(maxHeight: 42, maxWidth: 42),
+      width: 42,
+      height: 42,
       isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
       onTap: () {
         _totalRotation = (_totalRotation + rotation) % 360;
@@ -5151,7 +5153,8 @@ class PagePreviewState extends State<PagePreview> {
     return Padding(
       padding: EdgeInsets.all((48 - size) / 2),
       child: CustomIconButton(
-        constraints: BoxConstraints(maxHeight: size, maxWidth: size),
+        width: size,
+        height: size,
         buttonColor: Theme.of(context).colorScheme.primaryContainer,
         icon: Icons.check,
         iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -5916,7 +5919,8 @@ BoxShadow tinyBoxShadow(BuildContext context) {
 
 class CustomIconButton extends StatelessWidget {
   final VoidCallback? onTap;
-  final BoxConstraints constraints;
+  final double width;
+  final double height;
   final Color? buttonColor;
   final IconData icon;
   final Color? iconColor;
@@ -5929,7 +5933,8 @@ class CustomIconButton extends StatelessWidget {
   const CustomIconButton({
     super.key,
     required this.onTap,
-    this.constraints = const BoxConstraints(maxHeight: 36, maxWidth: 36),
+    this.width = 36.0,
+    this.height = 36.0,
     this.buttonColor,
     this.icon = Icons.check,
     this.iconColor,
@@ -5942,14 +5947,14 @@ class CustomIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double radius =
-        math.min(constraints.maxHeight, constraints.maxWidth) / 2;
+    final double radius = math.min(width, height) / 2;
     return isHidden
         ? Stack()
         : Stack(
             children: [
               Container(
-                constraints: constraints,
+                width: width,
+                height: height,
                 decoration: isFlat
                     ? null
                     : BoxDecoration(
@@ -5966,8 +5971,8 @@ class CustomIconButton extends StatelessWidget {
                       ),
               ),
               SizedBox(
-                height: constraints.maxHeight,
-                width: constraints.maxWidth,
+                width: width,
+                height: height,
                 child: Tooltip(
                   message: tooltip ?? "",
                   waitDuration: Duration(milliseconds: 400),
@@ -6331,199 +6336,340 @@ class _WarpState extends State<Warp> {
         ),
         body: OverflowBox(
           alignment: Alignment.topCenter,
-          minHeight: 24.0,
+          minHeight: 1.0,
           maxHeight: double.infinity,
-          child: Column(
+          child: Stack(
             children: [
-              // Magnifier
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              // Buttons
+              _warpButtons(context),
+
+              Column(
                 children: [
-                  if (_sideMagnifierSize > 0)
-                    SizedBox(
-                      width: _sideMagnifierSize,
-                      height: _sideMagnifierSize,
-                      child:
-                          _magnifierImage != null &&
-                              (_currentCorner != null || _currentEdge != null)
-                          ? Stack(
-                              children: [
-                                SizedBox(
-                                  width: _sideMagnifierSize,
-                                  height: _sideMagnifierSize,
-                                  child: CustomPaint(
-                                    painter: CircularCropPainter(
-                                      image: _magnifierImage!,
-                                      cropRect: switchSideMagnifiers
-                                          ? sideMagnifierCrops.$2
-                                          : sideMagnifierCrops.$1,
-                                    ),
-                                  ),
-                                ),
-                                if (_screenWidth != 0 && _currentCorner != null)
-                                  CustomPaint(
-                                    size: Size(_screenWidth, _displayHeigth),
-                                    painter: ZoomEdgePainter(
-                                      cornerPoints: _screenSpaceCorners,
-                                      color: Colors.white,
-                                      strokeWidth: 1.0,
-                                      colorBg: Colors.black45,
-                                      strokeWidthBg: 3.0,
-                                      currentEdge: (
-                                        _currentCorner!,
-                                        sideMagnifiers!.$1,
+                  // Magnifier
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      if (_sideMagnifierSize > 0)
+                        SizedBox(
+                          width: _sideMagnifierSize,
+                          height: _sideMagnifierSize,
+                          child:
+                              _magnifierImage != null &&
+                                  (_currentCorner != null ||
+                                      _currentEdge != null)
+                              ? Stack(
+                                  children: [
+                                    SizedBox(
+                                      width: _sideMagnifierSize,
+                                      height: _sideMagnifierSize,
+                                      child: CustomPaint(
+                                        painter: CircularCropPainter(
+                                          image: _magnifierImage!,
+                                          cropRect: switchSideMagnifiers
+                                              ? sideMagnifierCrops.$2
+                                              : sideMagnifierCrops.$1,
+                                        ),
                                       ),
-                                      zoomSize: _sideMagnifierSize,
+                                    ),
+                                    if (_screenWidth != 0 &&
+                                        _currentCorner != null)
+                                      CustomPaint(
+                                        size: Size(
+                                          _screenWidth,
+                                          _displayHeigth,
+                                        ),
+                                        painter: ZoomEdgePainter(
+                                          cornerPoints: _screenSpaceCorners,
+                                          color: Colors.white,
+                                          strokeWidth: 1.0,
+                                          colorBg: Colors.black45,
+                                          strokeWidthBg: 3.0,
+                                          currentEdge: (
+                                            _currentCorner!,
+                                            sideMagnifiers!.$1,
+                                          ),
+                                          zoomSize: _sideMagnifierSize,
+                                        ),
+                                      ),
+                                    if (_screenWidth != 0 &&
+                                        _currentEdge != null)
+                                      CustomPaint(
+                                        size: Size(
+                                          _screenWidth,
+                                          _displayHeigth,
+                                        ),
+                                        painter: ZoomCornerPainter(
+                                          cornerPoints: _screenSpaceCorners,
+                                          color: Colors.white,
+                                          strokeWidth: 1.0,
+                                          colorBg: Colors.black45,
+                                          strokeWidthBg: 3.0,
+                                          currentCorner: sideMagnifiers!.$1,
+                                          zoomSize: _sideMagnifierSize,
+                                        ),
+                                      ),
+                                  ],
+                                )
+                              : SizedBox(),
+                        ),
+                      SizedBox(
+                        width: _magnifierSize,
+                        height: _magnifierSize,
+                        child:
+                            _magnifierImage != null &&
+                                (_currentCorner != null || _currentEdge != null)
+                            ? Stack(
+                                children: [
+                                  SizedBox(
+                                    width: _magnifierSize,
+                                    height: _magnifierSize,
+                                    child: CustomPaint(
+                                      painter: CircularCropPainter(
+                                        image: _magnifierImage!,
+                                        cropRect: magnifierCrop,
+                                      ),
                                     ),
                                   ),
-                                if (_screenWidth != 0 && _currentEdge != null)
-                                  CustomPaint(
-                                    size: Size(_screenWidth, _displayHeigth),
-                                    painter: ZoomCornerPainter(
-                                      cornerPoints: _screenSpaceCorners,
-                                      color: Colors.white,
-                                      strokeWidth: 1.0,
-                                      colorBg: Colors.black45,
-                                      strokeWidthBg: 3.0,
-                                      currentCorner: sideMagnifiers!.$1,
-                                      zoomSize: _sideMagnifierSize,
+                                  if (_screenWidth != 0 &&
+                                      _currentCorner != null)
+                                    CustomPaint(
+                                      size: Size(_screenWidth, _displayHeigth),
+                                      painter: ZoomCornerPainter(
+                                        cornerPoints: _screenSpaceCorners,
+                                        color: Colors.white,
+                                        strokeWidth: 1.0,
+                                        colorBg: Colors.black45,
+                                        strokeWidthBg: 3.0,
+                                        currentCorner: _currentCorner!,
+                                        zoomSize: _magnifierSize,
+                                      ),
                                     ),
-                                  ),
-                              ],
-                            )
-                          : SizedBox(),
-                    ),
-                  SizedBox(
-                    width: _magnifierSize,
-                    height: _magnifierSize,
-                    child:
-                        _magnifierImage != null &&
-                            (_currentCorner != null || _currentEdge != null)
-                        ? Stack(
-                            children: [
-                              SizedBox(
-                                width: _magnifierSize,
-                                height: _magnifierSize,
-                                child: CustomPaint(
-                                  painter: CircularCropPainter(
-                                    image: _magnifierImage!,
-                                    cropRect: magnifierCrop,
+                                  if (_screenWidth != 0 && _currentEdge != null)
+                                    CustomPaint(
+                                      size: Size(_screenWidth, _displayHeigth),
+                                      painter: ZoomEdgePainter(
+                                        cornerPoints: _screenSpaceCorners,
+                                        color: Colors.white,
+                                        strokeWidth: 1.0,
+                                        colorBg: Colors.black45,
+                                        strokeWidthBg: 3.0,
+                                        currentEdge: _currentEdge!,
+                                        zoomSize: _magnifierSize,
+                                      ),
+                                    ),
+                                ],
+                              )
+                            : SizedBox(),
+                      ),
+                      if (_sideMagnifierSize > 0)
+                        SizedBox(
+                          width: _sideMagnifierSize,
+                          height: _sideMagnifierSize,
+                          child:
+                              _magnifierImage != null &&
+                                  (_currentCorner != null ||
+                                      _currentEdge != null)
+                              ? Stack(
+                                  children: [
+                                    SizedBox(
+                                      width: _sideMagnifierSize,
+                                      height: _sideMagnifierSize,
+                                      child: CustomPaint(
+                                        painter: CircularCropPainter(
+                                          image: _magnifierImage!,
+                                          cropRect: switchSideMagnifiers
+                                              ? sideMagnifierCrops.$1
+                                              : sideMagnifierCrops.$2,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_screenWidth != 0 &&
+                                        _currentCorner != null)
+                                      CustomPaint(
+                                        size: Size(
+                                          _screenWidth,
+                                          _displayHeigth,
+                                        ),
+                                        painter: ZoomEdgePainter(
+                                          cornerPoints: _screenSpaceCorners,
+                                          color: Colors.white,
+                                          strokeWidth: 1.0,
+                                          colorBg: Colors.black45,
+                                          strokeWidthBg: 3.0,
+                                          currentEdge: (
+                                            _currentCorner!,
+                                            sideMagnifiers!.$2,
+                                          ),
+                                          zoomSize: _sideMagnifierSize,
+                                        ),
+                                      ),
+                                    if (_screenWidth != 0 &&
+                                        _currentEdge != null)
+                                      CustomPaint(
+                                        size: Size(
+                                          _screenWidth,
+                                          _displayHeigth,
+                                        ),
+                                        painter: ZoomCornerPainter(
+                                          cornerPoints: _screenSpaceCorners,
+                                          color: Colors.white,
+                                          strokeWidth: 1.0,
+                                          colorBg: Colors.black45,
+                                          strokeWidthBg: 3.0,
+                                          currentCorner: sideMagnifiers!.$2,
+                                          zoomSize: _sideMagnifierSize,
+                                        ),
+                                      ),
+                                  ],
+                                )
+                              : SizedBox(),
+                        ),
+                    ],
+                  ),
+
+                  // Image + CornersOverlay
+                  _displayHeigth != 0 && _imageScale != 0
+                      ? Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 24),
+                              child: Transform.translate(
+                                offset: Offset(
+                                  0,
+                                  ((_imageScale * _displayHeigth -
+                                          _displayHeigth) /
+                                      2),
+                                ),
+                                child: Transform.scale(
+                                  scale: _imageScale,
+                                  child: Center(
+                                    child: Image.file(File(widget.imagePath)),
                                   ),
                                 ),
                               ),
-                              if (_screenWidth != 0 && _currentCorner != null)
-                                CustomPaint(
-                                  size: Size(_screenWidth, _displayHeigth),
-                                  painter: ZoomCornerPainter(
-                                    cornerPoints: _screenSpaceCorners,
-                                    color: Colors.white,
-                                    strokeWidth: 1.0,
-                                    colorBg: Colors.black45,
-                                    strokeWidthBg: 3.0,
-                                    currentCorner: _currentCorner!,
-                                    zoomSize: _magnifierSize,
-                                  ),
-                                ),
-                              if (_screenWidth != 0 && _currentEdge != null)
-                                CustomPaint(
-                                  size: Size(_screenWidth, _displayHeigth),
-                                  painter: ZoomEdgePainter(
-                                    cornerPoints: _screenSpaceCorners,
-                                    color: Colors.white,
-                                    strokeWidth: 1.0,
-                                    colorBg: Colors.black45,
-                                    strokeWidthBg: 3.0,
-                                    currentEdge: _currentEdge!,
-                                    zoomSize: _magnifierSize,
-                                  ),
-                                ),
-                            ],
-                          )
-                        : SizedBox(),
-                  ),
-                  if (_sideMagnifierSize > 0)
-                    SizedBox(
-                      width: _sideMagnifierSize,
-                      height: _sideMagnifierSize,
-                      child:
-                          _magnifierImage != null &&
-                              (_currentCorner != null || _currentEdge != null)
-                          ? Stack(
-                              children: [
-                                SizedBox(
-                                  width: _sideMagnifierSize,
-                                  height: _sideMagnifierSize,
-                                  child: CustomPaint(
-                                    painter: CircularCropPainter(
-                                      image: _magnifierImage!,
-                                      cropRect: switchSideMagnifiers
-                                          ? sideMagnifierCrops.$1
-                                          : sideMagnifierCrops.$2,
-                                    ),
-                                  ),
-                                ),
-                                if (_screenWidth != 0 && _currentCorner != null)
-                                  CustomPaint(
-                                    size: Size(_screenWidth, _displayHeigth),
-                                    painter: ZoomEdgePainter(
-                                      cornerPoints: _screenSpaceCorners,
-                                      color: Colors.white,
-                                      strokeWidth: 1.0,
-                                      colorBg: Colors.black45,
-                                      strokeWidthBg: 3.0,
-                                      currentEdge: (
-                                        _currentCorner!,
-                                        sideMagnifiers!.$2,
-                                      ),
-                                      zoomSize: _sideMagnifierSize,
-                                    ),
-                                  ),
-                                if (_screenWidth != 0 && _currentEdge != null)
-                                  CustomPaint(
-                                    size: Size(_screenWidth, _displayHeigth),
-                                    painter: ZoomCornerPainter(
-                                      cornerPoints: _screenSpaceCorners,
-                                      color: Colors.white,
-                                      strokeWidth: 1.0,
-                                      colorBg: Colors.black45,
-                                      strokeWidthBg: 3.0,
-                                      currentCorner: sideMagnifiers!.$2,
-                                      zoomSize: _sideMagnifierSize,
-                                    ),
-                                  ),
-                              ],
-                            )
-                          : SizedBox(),
-                    ),
+                            ),
+                            _draggableCornersOverlay(verticalPadding: 24),
+                          ],
+                        )
+                      : SizedBox(),
                 ],
               ),
-              // Image + CornersOverlay
-              _displayHeigth != 0 && _imageScale != 0
-                  ? Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 24),
-                          child: Transform.translate(
-                            offset: Offset(
-                              0,
-                              ((_imageScale * _displayHeigth - _displayHeigth) /
-                                  2),
-                            ),
-                            child: Transform.scale(
-                              scale: _imageScale,
-                              child: Center(
-                                child: Image.file(File(widget.imagePath)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        _draggableCornersOverlay(verticalPadding: 24),
-                      ],
-                    )
-                  : SizedBox(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  SizedBox _warpButtons(BuildContext context) {
+    // Buttons
+    const double buttonSize = 36;
+    const double buttonSpacing = 10;
+    const double buttonPadding = 4;
+    return SizedBox(
+      width: _screenWidth,
+      //margin: EdgeInsets.only(top: _magnifierSize - buttonSize),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: EdgeInsets.fromLTRB(
+              buttonSpacing,
+              buttonPadding,
+              buttonPadding,
+              buttonPadding,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+              boxShadow: [smallBoxShadow(context)],
+            ),
+            child: Row(
+              spacing: buttonSpacing,
+              children: [
+                CustomIconButton(
+                  onTap: () {
+                    _screenSpaceCorners = [
+                      Offset(0, 0),
+                      Offset(0, _displayHeigth - 1),
+                      Offset(_screenWidth - 1, 0),
+                      Offset(_screenWidth - 1, _displayHeigth - 1),
+                    ];
+                    _scaleImage(init: true);
+                  },
+                  icon: Icons.fullscreen,
+                  tooltip: tr("FULLSCREEN"), //TODO tr
+                  isFlat: false,
+                  buttonColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  width: buttonSize,
+                  height: buttonSize,
+                ),
+                CustomIconButton(
+                  onTap: () {
+                    _screenSpaceCorners = _initialScreenSpaceCorners;
+                    _scaleImage(init: true);
+                  },
+                  icon: Icons.restart_alt,
+                  tooltip: tr("RESET"), //TODO tr
+                  isFlat: false,
+                  buttonColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  width: buttonSize,
+                  height: buttonSize,
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.fromLTRB(
+              buttonPadding,
+              buttonPadding,
+              buttonSpacing,
+              buttonPadding,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.horizontal(left: Radius.circular(24)),
+              boxShadow: [smallBoxShadow(context)],
+            ),
+            child: Row(
+              spacing: buttonSpacing,
+              children: [
+                CustomIconButton(
+                  onTap: () {
+                    //TODO undo
+                    _scaleImage(init: true);
+                  },
+                  icon: Icons.undo,
+                  tooltip: tr("UNDO"), //TODO tr
+                  isFlat: false,
+                  buttonColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  width: buttonSize,
+                  height: buttonSize,
+                ),
+                CustomIconButton(
+                  onTap: () {
+                    //TODO redo
+                    _scaleImage(init: true);
+                  },
+                  icon: Icons.redo,
+                  tooltip: tr("REDO"), //TODO tr
+                  isFlat: false,
+                  buttonColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                  width: buttonSize,
+                  height: buttonSize,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -6685,8 +6831,8 @@ class _WarpState extends State<Warp> {
                         _imageScale;
                     _touchOffset = localPosition - _screenSpaceCorners[index];
 
-                    _cornerPositionHistory.clear();
-                    _cornerPositionHistory.add(
+                    _recentCornerPositions.clear();
+                    _recentCornerPositions.add(
                       PositionTimestamp(
                         position: _screenSpaceCorners[index],
                         timestamp: DateTime.now(),
@@ -6717,15 +6863,15 @@ class _WarpState extends State<Warp> {
 
                     DateTime now = DateTime.now();
                     // Haptic Feedback
-                    if (_cornerPositionHistory.isNotEmpty &&
-                        now.difference(_cornerPositionHistory.last.timestamp) >
+                    if (_recentCornerPositions.isNotEmpty &&
+                        now.difference(_recentCornerPositions.last.timestamp) >
                             Duration(milliseconds: 25)) {
                       HapticFeedback.selectionClick();
                     }
                     // Average position over time -> new pos
                     Offset avgPos = Offset(0, 0);
                     int avgCount = 0;
-                    for (var timePos in _cornerPositionHistory) {
+                    for (var timePos in _recentCornerPositions) {
                       if ((newPos - timePos.position).distance < 30.0) {
                         avgPos += timePos.position;
                         avgCount++;
@@ -6744,7 +6890,7 @@ class _WarpState extends State<Warp> {
                     _scaleImage();
 
                     // Add current position to history
-                    _cornerPositionHistory.add(
+                    _recentCornerPositions.add(
                       PositionTimestamp(
                         position: _screenSpaceCorners[index],
                         timestamp: now,
@@ -6752,10 +6898,10 @@ class _WarpState extends State<Warp> {
                     );
                     // Remove oldest position if older than _historyDurationMs
                     if (now
-                            .difference(_cornerPositionHistory.first.timestamp)
+                            .difference(_recentCornerPositions.first.timestamp)
                             .inMilliseconds >
                         _historyDelayMs) {
-                      _cornerPositionHistory.removeAt(0);
+                      _recentCornerPositions.removeAt(0);
                     }
                   },
                   onPanEnd: (details) => _handleCornerPanEnd(index),
@@ -7013,28 +7159,28 @@ class _WarpState extends State<Warp> {
     _edgePositionHistory.clear();
   }
 
-  final List<PositionTimestamp> _cornerPositionHistory = [];
+  final List<PositionTimestamp> _recentCornerPositions = [];
   static const int _historyDelayMs = 300;
   void _handleCornerPanEnd(int index) {
     if (!_cornerDragging) return;
     // Remove positions older than _historyDurationMs
     DateTime now = DateTime.now();
-    while (_cornerPositionHistory.isNotEmpty &&
-        now.difference(_cornerPositionHistory.first.timestamp).inMilliseconds >
+    while (_recentCornerPositions.isNotEmpty &&
+        now.difference(_recentCornerPositions.first.timestamp).inMilliseconds >
             _historyDelayMs) {
-      _cornerPositionHistory.removeAt(0);
+      _recentCornerPositions.removeAt(0);
     }
     // Use oldest position in history
-    if (_cornerPositionHistory.isNotEmpty) {
-      if ((_cornerPositionHistory.first.position - _screenSpaceCorners[index])
+    if (_recentCornerPositions.isNotEmpty) {
+      if ((_recentCornerPositions.first.position - _screenSpaceCorners[index])
               .distance <
           50) {
         setState(() {
-          _screenSpaceCorners[index] = _cornerPositionHistory.first.position;
+          _screenSpaceCorners[index] = _recentCornerPositions.first.position;
         });
       }
     }
-    _cornerPositionHistory.clear();
+    _recentCornerPositions.clear();
     _cornerDragging = false;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(Duration(milliseconds: 600));
