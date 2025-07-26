@@ -4124,8 +4124,6 @@ class PagePreviewState extends State<PagePreview> {
   final PageController _pageController = PageController();
   final PhotoViewController _photoViewController = PhotoViewController();
   double _photoScale = 0.0;
-  double _evenPhotoScale = 0.0;
-  double _oddPhotoScale = 0.0;
   // Thumbnail Bar
   final ScrollController _thumbnailScrollController = ScrollController();
   final double _thumbnailBarSize = 50;
@@ -4411,8 +4409,6 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   void _reprocessingCleanup() {
-    _evenPhotoScale = 0.0;
-    _oddPhotoScale = 0.0;
     _refreshCornersOverlay();
     _pollImagesAndMetadata();
     _totalRotation = 0;
@@ -5536,7 +5532,6 @@ class PagePreviewState extends State<PagePreview> {
     final double displayWidth = _imagePixelWidth * _photoScale;
     _unZoomedScale = _photoScale;
 
-    // Apply rotation to corner points visually
     List<Offset> scaledPoints = _cornerPoints!
         .map((point) => Offset(point[1] * _photoScale, point[0] * _photoScale))
         .toList();
@@ -6027,12 +6022,13 @@ class Warp extends StatefulWidget {
 }
 
 class _WarpState extends State<Warp> {
-  List<Offset> _initialScaledPoints = [];
-  List<Offset> _scaledPoints = [];
+  List<Offset> _initialScreenSpaceCorners = [];
+  List<Offset> _screenSpaceCorners = [];
+  List<List<int>> _corners = [];
   double _screenWidth = 0;
   double _screenHeight = 0;
   double _displayHeigth = 0;
-  double _pointsScale = 1.0;
+  double _screenSpaceScale = 1.0;
   int _imagePixelWidth = 0;
   int _imagePixelHeight = 0;
   int? _currentCorner;
@@ -6071,34 +6067,35 @@ class _WarpState extends State<Warp> {
     _screenWidth = MediaQuery.of(context).size.width;
     _screenHeight = MediaQuery.of(context).size.height - 430;
 
-    _pointsScale = _screenWidth / _imagePixelWidth;
-    _displayHeigth = _imagePixelHeight * _pointsScale;
+    _screenSpaceScale = _screenWidth / _imagePixelWidth;
+    _displayHeigth = _imagePixelHeight * _screenSpaceScale;
     _sideMagnifierSize = ((_screenWidth - _magnifierSize) / 2) - 8;
 
-    var rotatedPoints = widget.pagePreviewState.rotateCornerPoints(
-      widget.cornerPoints,
-    );
+    _corners = widget.pagePreviewState.rotateCornerPoints(widget.cornerPoints);
 
-    _scaledPoints = rotatedPoints.map((point) {
-      double x = point[1] * _pointsScale;
-      double y = point[0] * _pointsScale;
-      return Offset(x, y);
-    }).toList();
-    _initialScaledPoints = List<Offset>.from(_scaledPoints);
+    _screenSpaceCorners = _corners
+        .map(
+          (point) => Offset(
+            point[1] * _screenSpaceScale,
+            point[0] * _screenSpaceScale,
+          ),
+        )
+        .toList();
+    _initialScreenSpaceCorners = List<Offset>.from(_screenSpaceCorners);
 
     _scaleImage(init: true);
   }
 
   void _scaleImage({bool init = false}) {
     double scaleDownY = 0.0;
-    for (var point in _scaledPoints) {
+    for (var point in _screenSpaceCorners) {
       double pointScaleDownY = point.dy - _screenHeight;
       if (pointScaleDownY > scaleDownY) {
         scaleDownY = pointScaleDownY;
       }
     }
     double scaleDownX = 0.0;
-    for (var point in _scaledPoints) {
+    for (var point in _screenSpaceCorners) {
       double pointScaleDownX1 = point.dx - (_screenWidth - _magnifierSize / 4);
       double pointScaleDownX2 = (_magnifierSize / 4) - point.dx;
       double pointScaleDownX = math.max(pointScaleDownX1, pointScaleDownX2);
@@ -6137,10 +6134,10 @@ class _WarpState extends State<Warp> {
   }
 
   Future<bool> _leaveConfirmationDialog() async {
-    if (_initialScaledPoints[0] == _scaledPoints[0] &&
-        _initialScaledPoints[1] == _scaledPoints[1] &&
-        _initialScaledPoints[2] == _scaledPoints[2] &&
-        _initialScaledPoints[3] == _scaledPoints[3] &&
+    if (_initialScreenSpaceCorners[0] == _screenSpaceCorners[0] &&
+        _initialScreenSpaceCorners[1] == _screenSpaceCorners[1] &&
+        _initialScreenSpaceCorners[2] == _screenSpaceCorners[2] &&
+        _initialScreenSpaceCorners[3] == _screenSpaceCorners[3] &&
         !_panningDelayed) {
       return true;
     }
@@ -6207,15 +6204,15 @@ class _WarpState extends State<Warp> {
     double cropSize =
         _circleSize / _imageScale / _screenWidth * _imagePixelWidth;
     Rect magnifierCrop =
-        _scaledPoints.isNotEmpty &&
+        _screenSpaceCorners.isNotEmpty &&
             _imageScale != 0 &&
             _screenWidth != 0 &&
             _imagePixelWidth != 0
         ? _currentCorner != null
               ? Rect.fromCenter(
                   center: Offset(
-                    _scaledPoints[_currentCorner!].dx / _pointsScale,
-                    _scaledPoints[_currentCorner!].dy / _pointsScale,
+                    _screenSpaceCorners[_currentCorner!].dx / _screenSpaceScale,
+                    _screenSpaceCorners[_currentCorner!].dy / _screenSpaceScale,
                   ),
                   width: cropSize,
                   height: cropSize,
@@ -6224,17 +6221,17 @@ class _WarpState extends State<Warp> {
               ? Rect.fromCenter(
                   center: Offset(
                     Offset.lerp(
-                          _scaledPoints[_currentEdge!.$1],
-                          _scaledPoints[_currentEdge!.$2],
+                          _screenSpaceCorners[_currentEdge!.$1],
+                          _screenSpaceCorners[_currentEdge!.$2],
                           0.5,
                         )!.dx /
-                        _pointsScale,
+                        _screenSpaceScale,
                     Offset.lerp(
-                          _scaledPoints[_currentEdge!.$1],
-                          _scaledPoints[_currentEdge!.$2],
+                          _screenSpaceCorners[_currentEdge!.$1],
+                          _screenSpaceCorners[_currentEdge!.$2],
                           0.5,
                         )!.dy /
-                        _pointsScale,
+                        _screenSpaceScale,
                   ),
                   width: cropSize,
                   height: cropSize,
@@ -6242,19 +6239,23 @@ class _WarpState extends State<Warp> {
               : Rect.zero
         : Rect.zero;
     (Rect, Rect) sideMagnifierCrops =
-        _scaledPoints.isNotEmpty &&
+        _screenSpaceCorners.isNotEmpty &&
             _imageScale != 0 &&
             _screenWidth != 0 &&
             _imagePixelWidth != 0
         ? _currentEdge != null
               ? (
                   Rect.fromCenter(
-                    center: _scaledPoints[_currentEdge!.$1] / _pointsScale,
+                    center:
+                        _screenSpaceCorners[_currentEdge!.$1] /
+                        _screenSpaceScale,
                     width: cropSize,
                     height: cropSize,
                   ),
                   Rect.fromCenter(
-                    center: _scaledPoints[_currentEdge!.$2] / _pointsScale,
+                    center:
+                        _screenSpaceCorners[_currentEdge!.$2] /
+                        _screenSpaceScale,
                     width: cropSize,
                     height: cropSize,
                   ),
@@ -6265,17 +6266,17 @@ class _WarpState extends State<Warp> {
                     center:
                         Offset(
                           Offset.lerp(
-                            _scaledPoints[_currentCorner!],
-                            _scaledPoints[sideMagnifiers!.$1],
+                            _screenSpaceCorners[_currentCorner!],
+                            _screenSpaceCorners[sideMagnifiers!.$1],
                             0.5,
                           )!.dx,
                           Offset.lerp(
-                            _scaledPoints[_currentCorner!],
-                            _scaledPoints[sideMagnifiers.$1],
+                            _screenSpaceCorners[_currentCorner!],
+                            _screenSpaceCorners[sideMagnifiers.$1],
                             0.5,
                           )!.dy,
                         ) /
-                        _pointsScale,
+                        _screenSpaceScale,
                     width: cropSize,
                     height: cropSize,
                   ),
@@ -6283,17 +6284,17 @@ class _WarpState extends State<Warp> {
                     center:
                         Offset(
                           Offset.lerp(
-                            _scaledPoints[_currentCorner!],
-                            _scaledPoints[sideMagnifiers.$2],
+                            _screenSpaceCorners[_currentCorner!],
+                            _screenSpaceCorners[sideMagnifiers.$2],
                             0.5,
                           )!.dx,
                           Offset.lerp(
-                            _scaledPoints[_currentCorner!],
-                            _scaledPoints[sideMagnifiers.$2],
+                            _screenSpaceCorners[_currentCorner!],
+                            _screenSpaceCorners[sideMagnifiers.$2],
                             0.5,
                           )!.dy,
                         ) /
-                        _pointsScale,
+                        _screenSpaceScale,
                     width: cropSize,
                     height: cropSize,
                   ),
@@ -6361,7 +6362,7 @@ class _WarpState extends State<Warp> {
                                   CustomPaint(
                                     size: Size(_screenWidth, _displayHeigth),
                                     painter: ZoomEdgePainter(
-                                      cornerPoints: _scaledPoints,
+                                      cornerPoints: _screenSpaceCorners,
                                       color: Colors.white,
                                       strokeWidth: 1.0,
                                       colorBg: Colors.black45,
@@ -6377,7 +6378,7 @@ class _WarpState extends State<Warp> {
                                   CustomPaint(
                                     size: Size(_screenWidth, _displayHeigth),
                                     painter: ZoomCornerPainter(
-                                      cornerPoints: _scaledPoints,
+                                      cornerPoints: _screenSpaceCorners,
                                       color: Colors.white,
                                       strokeWidth: 1.0,
                                       colorBg: Colors.black45,
@@ -6412,7 +6413,7 @@ class _WarpState extends State<Warp> {
                                 CustomPaint(
                                   size: Size(_screenWidth, _displayHeigth),
                                   painter: ZoomCornerPainter(
-                                    cornerPoints: _scaledPoints,
+                                    cornerPoints: _screenSpaceCorners,
                                     color: Colors.white,
                                     strokeWidth: 1.0,
                                     colorBg: Colors.black45,
@@ -6425,7 +6426,7 @@ class _WarpState extends State<Warp> {
                                 CustomPaint(
                                   size: Size(_screenWidth, _displayHeigth),
                                   painter: ZoomEdgePainter(
-                                    cornerPoints: _scaledPoints,
+                                    cornerPoints: _screenSpaceCorners,
                                     color: Colors.white,
                                     strokeWidth: 1.0,
                                     colorBg: Colors.black45,
@@ -6463,7 +6464,7 @@ class _WarpState extends State<Warp> {
                                   CustomPaint(
                                     size: Size(_screenWidth, _displayHeigth),
                                     painter: ZoomEdgePainter(
-                                      cornerPoints: _scaledPoints,
+                                      cornerPoints: _screenSpaceCorners,
                                       color: Colors.white,
                                       strokeWidth: 1.0,
                                       colorBg: Colors.black45,
@@ -6479,7 +6480,7 @@ class _WarpState extends State<Warp> {
                                   CustomPaint(
                                     size: Size(_screenWidth, _displayHeigth),
                                     painter: ZoomCornerPainter(
-                                      cornerPoints: _scaledPoints,
+                                      cornerPoints: _screenSpaceCorners,
                                       color: Colors.white,
                                       strokeWidth: 1.0,
                                       colorBg: Colors.black45,
@@ -6497,21 +6498,23 @@ class _WarpState extends State<Warp> {
               SizedBox(height: 24),
               // Image + CornersOverlay
               _displayHeigth != 0 && _imageScale != 0
-                  ? Transform.translate(
-                      offset: Offset(
-                        0,
-                        ((_imageScale * _displayHeigth - _displayHeigth) / 2),
-                      ),
-                      child: Transform.scale(
-                        scale: _imageScale,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Center(child: Image.file(File(widget.imagePath))),
-                            _draggableCornersOverlay(_imageScale),
-                          ],
+                  ? Stack(
+                      children: [
+                        Transform.translate(
+                          offset: Offset(
+                            0,
+                            ((_imageScale * _displayHeigth - _displayHeigth) /
+                                2),
+                          ),
+                          child: Transform.scale(
+                            scale: _imageScale,
+                            child: Center(
+                              child: Image.file(File(widget.imagePath)),
+                            ),
+                          ),
                         ),
-                      ),
+                        _draggableCornersOverlay(),
+                      ],
                     )
                   : SizedBox(),
             ],
@@ -6522,10 +6525,10 @@ class _WarpState extends State<Warp> {
   }
 
   _saveCorners() {
-    for (var (i, scaledPoint) in _scaledPoints.indexed) {
+    for (var (i, scaledPoint) in _screenSpaceCorners.indexed) {
       widget.cornerPoints[i] = [
-        (scaledPoint.dy / _pointsScale).toInt(),
-        (scaledPoint.dx / _pointsScale).toInt(),
+        (scaledPoint.dy / _screenSpaceScale).toInt(),
+        (scaledPoint.dx / _screenSpaceScale).toInt(),
       ];
     }
     widget.pagePreviewState.reprocessPhoto(
@@ -6548,10 +6551,20 @@ class _WarpState extends State<Warp> {
     }
   }
 
-  Widget _draggableCornersOverlay(double counterScale) {
-    if (_screenWidth == 0 || counterScale == 0) {
+  Widget _draggableCornersOverlay() {
+    if (_screenWidth == 0 || _imageScale == 0) {
       return SizedBox();
     }
+
+    double scaledWidth = _screenWidth * _imageScale;
+    double scaledHeight = _displayHeigth * _imageScale;
+
+    double xOffset = (_screenWidth - scaledWidth) / 2;
+    double yOffset = (_displayHeigth - scaledHeight) / 2;
+
+    List<Offset> scaledPoints = _screenSpaceCorners
+        .map((e) => Offset(e.dx * _imageScale + xOffset, e.dy * _imageScale))
+        .toList();
 
     return Center(
       child: SizedBox(
@@ -6560,27 +6573,14 @@ class _WarpState extends State<Warp> {
         height: _displayHeigth,
         child: Stack(
           children: [
-            //// Dark frame
-            //CustomPaint(
-            //  size: Size(_screenWidth, _displayHeigth),
-            //  painter: _MiddleLinePainter(
-            //    points: _scaledPoints,
-            //    color: Theme.of(
-            //      context,
-            //    ).colorScheme.onPrimaryFixed.withAlpha(100),
-            //    strokeWidth: 7.0 / counterScale,
-            //    normalizedOffset: true,
-            //    offset: (_circleSize + 8) / counterScale / 2,
-            //  ),
-            //),
             // Sharp corners reaching outside circle
             IgnorePointer(
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _CornerLinePainter(
-                  points: _scaledPoints,
+                  points: scaledPoints,
                   color: Theme.of(context).colorScheme.primaryFixed,
-                  strokeWidth: 1.0 / counterScale,
+                  strokeWidth: 1.0,
                   offset: 0.25,
                   normalizedOffset: false,
                 ),
@@ -6594,8 +6594,8 @@ class _WarpState extends State<Warp> {
               [3, 1, 2, 0], // bottom
               [1, 0, 3, 2], // left
             ].map((points) {
-              final a = _scaledPoints[points[0]];
-              final b = _scaledPoints[points[1]];
+              final a = scaledPoints[points[0]];
+              final b = scaledPoints[points[1]];
               final center = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
               final length = (b - a).distance;
               final angle = math.atan2(b.dy - a.dy, b.dx - a.dx);
@@ -6651,14 +6651,14 @@ class _WarpState extends State<Warp> {
             }),
 
             // Draggable corner points
-            ..._scaledPoints.asMap().entries.map((entry) {
+            ...scaledPoints.asMap().entries.map((entry) {
               final index = entry.key;
               final offset = entry.value;
               final isCurrent = index == _currentCorner;
 
               return Positioned(
-                left: offset.dx - _circleSize / counterScale / 2,
-                top: offset.dy - _circleSize / counterScale / 2,
+                left: offset.dx - _circleSize / 2,
+                top: offset.dy - _circleSize / 2,
                 child: GestureDetector(
                   onPanStart: (details) {
                     if (_cornerDragging) return;
@@ -6669,14 +6669,17 @@ class _WarpState extends State<Warp> {
                         _imageAreaKey.currentContext?.findRenderObject()
                             as RenderBox?;
                     if (box == null) return;
-                    Offset localPosition = box.globalToLocal(
-                      details.globalPosition,
-                    );
-                    _touchOffset = localPosition - _scaledPoints[index];
+
+                    Offset localPosition =
+                        (box.globalToLocal(details.globalPosition) -
+                            Offset(xOffset, yOffset)) /
+                        _imageScale;
+                    _touchOffset = localPosition - _screenSpaceCorners[index];
+
                     _cornerPositionHistory.clear();
                     _cornerPositionHistory.add(
                       PositionTimestamp(
-                        position: _scaledPoints[index],
+                        position: _screenSpaceCorners[index],
                         timestamp: DateTime.now(),
                       ),
                     );
@@ -6688,10 +6691,13 @@ class _WarpState extends State<Warp> {
                         _imageAreaKey.currentContext?.findRenderObject()
                             as RenderBox?;
                     if (box == null) return;
-                    Offset localPosition = box.globalToLocal(
-                      details.globalPosition,
-                    );
+
+                    Offset localPosition =
+                        (box.globalToLocal(details.globalPosition) -
+                            Offset(xOffset, yOffset)) /
+                        _imageScale;
                     Offset newPos = localPosition - _touchOffset;
+
                     newPos = Offset(
                       newPos.dx.clamp(0.0, _screenWidth),
                       newPos.dy.clamp(0.0, _displayHeigth),
@@ -6724,14 +6730,14 @@ class _WarpState extends State<Warp> {
                       avgPos = newPos;
                     }
                     setState(() {
-                      _scaledPoints[index] = avgPos;
+                      _screenSpaceCorners[index] = avgPos;
                     });
                     _scaleImage();
 
                     // Add current position to history
                     _cornerPositionHistory.add(
                       PositionTimestamp(
-                        position: _scaledPoints[index],
+                        position: _screenSpaceCorners[index],
                         timestamp: now,
                       ),
                     );
@@ -6747,20 +6753,20 @@ class _WarpState extends State<Warp> {
                   onPanCancel: () => _handleCornerPanEnd(index),
                   // Circle
                   child: Container(
-                    width: _circleSize / counterScale,
-                    height: _circleSize / counterScale,
+                    width: _circleSize,
+                    height: _circleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withAlpha(50),
+                      color: Colors.black26,
                       border: isCurrent
                           ? Border.all(
                               color: Theme.of(context).colorScheme.primaryFixed,
-                              width: 4 / counterScale,
+                              width: 4 / _imageScale,
                               strokeAlign: BorderSide.strokeAlignOutside,
                             )
                           : Border.all(
                               color: Theme.of(context).colorScheme.primaryFixed,
-                              width: 2 / counterScale,
+                              width: 2 / _imageScale,
                               strokeAlign: BorderSide.strokeAlignOutside,
                             ),
                     ),
@@ -6774,7 +6780,7 @@ class _WarpState extends State<Warp> {
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _MiddleLinePainter(
-                  points: _scaledPoints,
+                  points: scaledPoints,
                   color: Colors.white,
                   strokeWidth: 1.0,
                   offset: 0.55,
@@ -6787,10 +6793,10 @@ class _WarpState extends State<Warp> {
               child: CustomPaint(
                 size: Size(_screenWidth, _displayHeigth),
                 painter: _CornerLinePainter(
-                  points: _scaledPoints,
+                  points: scaledPoints,
                   color: Colors.white,
-                  strokeWidth: 1.0 / counterScale,
-                  offset: (_circleSize + 2) / counterScale / 2,
+                  strokeWidth: 1.0 / _imageScale,
+                  offset: (_circleSize + 2) / _imageScale / 2,
                   normalizedOffset: true,
                 ),
               ),
@@ -6805,12 +6811,12 @@ class _WarpState extends State<Warp> {
     switch (cornerIndex) {
       case 0: // top left
         double maxX = [
-          _scaledPoints[2].dx,
-          _scaledPoints[3].dx,
+          _screenSpaceCorners[2].dx,
+          _screenSpaceCorners[3].dx,
         ].reduce(math.min);
         double maxY = [
-          _scaledPoints[1].dy,
-          _scaledPoints[3].dy,
+          _screenSpaceCorners[1].dy,
+          _screenSpaceCorners[3].dy,
         ].reduce(math.min);
         if (newPos.dx > maxX) {
           newPos = Offset(maxX, newPos.dy);
@@ -6821,12 +6827,12 @@ class _WarpState extends State<Warp> {
         break;
       case 1: // bottom left
         double maxX = [
-          _scaledPoints[2].dx,
-          _scaledPoints[3].dx,
+          _screenSpaceCorners[2].dx,
+          _screenSpaceCorners[3].dx,
         ].reduce(math.min);
         double minY = [
-          _scaledPoints[0].dy,
-          _scaledPoints[2].dy,
+          _screenSpaceCorners[0].dy,
+          _screenSpaceCorners[2].dy,
         ].reduce(math.max);
         if (newPos.dx > maxX) {
           newPos = Offset(maxX, newPos.dy);
@@ -6837,12 +6843,12 @@ class _WarpState extends State<Warp> {
         break;
       case 2: // top right
         double minX = [
-          _scaledPoints[0].dx,
-          _scaledPoints[1].dx,
+          _screenSpaceCorners[0].dx,
+          _screenSpaceCorners[1].dx,
         ].reduce(math.max);
         double maxY = [
-          _scaledPoints[1].dy,
-          _scaledPoints[3].dy,
+          _screenSpaceCorners[1].dy,
+          _screenSpaceCorners[3].dy,
         ].reduce(math.min);
         if (newPos.dx < minX) {
           newPos = Offset(minX, newPos.dy);
@@ -6853,12 +6859,12 @@ class _WarpState extends State<Warp> {
         break;
       case 3: // bottom right
         double minX = [
-          _scaledPoints[0].dx,
-          _scaledPoints[1].dx,
+          _screenSpaceCorners[0].dx,
+          _screenSpaceCorners[1].dx,
         ].reduce(math.max);
         double minY = [
-          _scaledPoints[0].dy,
-          _scaledPoints[2].dy,
+          _screenSpaceCorners[0].dy,
+          _screenSpaceCorners[2].dy,
         ].reduce(math.max);
         if (newPos.dx < minX) {
           newPos = Offset(minX, newPos.dy);
@@ -6881,10 +6887,10 @@ class _WarpState extends State<Warp> {
   }) {
     _allowPop = false;
 
-    final Offset a = _scaledPoints[indexA];
-    final Offset b = _scaledPoints[indexB];
-    final Offset na = _scaledPoints[neighborA];
-    final Offset nb = _scaledPoints[neighborB];
+    final Offset a = _screenSpaceCorners[indexA];
+    final Offset b = _screenSpaceCorners[indexB];
+    final Offset na = _screenSpaceCorners[neighborA];
+    final Offset nb = _screenSpaceCorners[neighborB];
 
     final double dragAmount =
         -details.delta.dy; // fixed vertical axis + flipped
@@ -6953,15 +6959,15 @@ class _WarpState extends State<Warp> {
       avgPosB = newB;
     }
     setState(() {
-      _scaledPoints[indexA] = avgPosA;
-      _scaledPoints[indexB] = avgPosB;
+      _screenSpaceCorners[indexA] = avgPosA;
+      _screenSpaceCorners[indexB] = avgPosB;
     });
     _scaleImage();
 
     // Add current position to history
     _edgePositionHistory.add((
-      PositionTimestamp(position: _scaledPoints[indexA], timestamp: now),
-      PositionTimestamp(position: _scaledPoints[indexB], timestamp: now),
+      PositionTimestamp(position: _screenSpaceCorners[indexA], timestamp: now),
+      PositionTimestamp(position: _screenSpaceCorners[indexB], timestamp: now),
     ));
     // Remove oldest position if older than _historyDurationMs
     if (now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
@@ -6986,12 +6992,12 @@ class _WarpState extends State<Warp> {
     }
     // Use oldest position in history
     if (_edgePositionHistory.isNotEmpty) {
-      if ((_edgePositionHistory.first.$1.position - _scaledPoints[indexA])
+      if ((_edgePositionHistory.first.$1.position - _screenSpaceCorners[indexA])
               .distance <
           50) {
         setState(() {
-          _scaledPoints[indexA] = _edgePositionHistory.first.$1.position;
-          _scaledPoints[indexB] = _edgePositionHistory.first.$2.position;
+          _screenSpaceCorners[indexA] = _edgePositionHistory.first.$1.position;
+          _screenSpaceCorners[indexB] = _edgePositionHistory.first.$2.position;
         });
       }
     }
@@ -7011,11 +7017,11 @@ class _WarpState extends State<Warp> {
     }
     // Use oldest position in history
     if (_cornerPositionHistory.isNotEmpty) {
-      if ((_cornerPositionHistory.first.position - _scaledPoints[index])
+      if ((_cornerPositionHistory.first.position - _screenSpaceCorners[index])
               .distance <
           50) {
         setState(() {
-          _scaledPoints[index] = _cornerPositionHistory.first.position;
+          _screenSpaceCorners[index] = _cornerPositionHistory.first.position;
         });
       }
     }
