@@ -4115,14 +4115,14 @@ class PagePreviewState extends State<PagePreview> {
   int _imagePixelHeight = 0;
   bool _hideOverlayReprocessing = false;
   bool _overlayZoomed = false;
-  double? _unZoomedScale;
+  double? _initialPhotoScale;
   // Status
   bool _isRotating = false;
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
   final PhotoViewController _photoViewController = PhotoViewController();
-  double _photoScale = 0.0;
+  double _currentPhotoScale = 0.0;
   // Thumbnail Bar
   final ScrollController _thumbnailScrollController = ScrollController();
   final double _thumbnailBarSize = 50;
@@ -4155,7 +4155,7 @@ class PagePreviewState extends State<PagePreview> {
       PhotoViewControllerValue value,
     ) {
       setState(() {
-        _photoScale = value.scale ?? _photoScale;
+        _currentPhotoScale = value.scale ?? _currentPhotoScale;
       });
     });
   }
@@ -4191,7 +4191,7 @@ class PagePreviewState extends State<PagePreview> {
       }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _unZoomedScale = _photoViewController.scale;
+      _initialPhotoScale = _photoViewController.scale;
     });
   }
 
@@ -4266,7 +4266,7 @@ class PagePreviewState extends State<PagePreview> {
       },
       onComplete: () async {
         await _loadPageMetadata(supressWarnings: true);
-        _unZoomedScale = _photoViewController.scale;
+        _initialPhotoScale = _photoViewController.scale;
       },
     );
   }
@@ -4372,7 +4372,7 @@ class PagePreviewState extends State<PagePreview> {
       if ((_cornerPoints != null || _importedPdfMode) &&
           _guiRatioValue != null) {
         _hideOverlayReprocessing = false;
-        _unZoomedScale = null;
+        _initialPhotoScale = null;
         _metadataBlocked = false;
       }
       setState(() {});
@@ -4658,20 +4658,22 @@ class PagePreviewState extends State<PagePreview> {
                                 color: Theme.of(context).disabledColor,
                               );
                             },
+
                             backgroundDecoration: BoxDecoration(
                               color: Colors.transparent,
                             ),
                             scaleStateChangedCallback: (scaleState) async {
                               // if zoomed in / out: hide overlay
-                              if (scaleState == PhotoViewScaleState.initial ||
-                                  scaleState == PhotoViewScaleState.covering &&
-                                      _photoViewController.scale != 1.0) {
-                                _unZoomedScale ??= _photoViewController.scale;
+                              if (scaleState == PhotoViewScaleState.initial &&
+                                  _photoViewController.scale != 1.0) {
+                                _initialPhotoScale ??=
+                                    _photoViewController.scale;
                               }
                               _overlayZoomed =
-                                  _photoViewController.scale != _unZoomedScale;
+                                  _photoViewController.scale !=
+                                  _initialPhotoScale;
                               setState(() {});
-                              if (_unZoomedScale == null) return;
+                              if (_initialPhotoScale == null) return;
                               WidgetsBinding.instance.addPostFrameCallback((
                                 _,
                               ) async {
@@ -4679,7 +4681,7 @@ class PagePreviewState extends State<PagePreview> {
                                 // one frame delay to recheck when zooming in
                                 _overlayZoomed =
                                     _photoViewController.scale !=
-                                    _unZoomedScale;
+                                    _initialPhotoScale;
                                 setState(() {});
                                 if (!_overlayZoomed) return;
                                 // delay to update after zoom animation
@@ -4691,7 +4693,7 @@ class PagePreviewState extends State<PagePreview> {
                                   if (!mounted) return;
                                   _overlayZoomed =
                                       _photoViewController.scale !=
-                                      _unZoomedScale;
+                                      _initialPhotoScale;
                                 }
                                 setState(() {});
                               });
@@ -5098,19 +5100,17 @@ class PagePreviewState extends State<PagePreview> {
       onTap: () {
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
-        //_photoViewController.rotation = math.pi / 2 * quarterTurns;
-
-        setState(() {
-          _isRotating = true;
-          _guiOrientationIndex =
-              ((_guiOrientationIndex ?? 0) - 1) * (-1); // toggle
-          _guiRatioValue = 1.0 / _guiRatioValue!;
-        });
+        _currentPhotoScale = 0.0;
+        _initialPhotoScale = null;
+        _isRotating = true;
+        _guiOrientationIndex = // toggle
+            ((_guiOrientationIndex ?? 0) - 1) * (-1);
+        _guiRatioValue = 1.0 / _guiRatioValue!;
+        setState(() {});
         if (_totalRotation == 0) {
-          setState(() {
-            _versionPaths[0] = _photoPath;
-            _isRotating = false;
-          });
+          _versionPaths[0] = _photoPath;
+          _isRotating = false;
+          setState(() {});
         } else {
           Future<void> pollRoatedPhoto() async {
             while (_rotatedPhotoPaths.length <= quarterTurns - 1 ||
@@ -5118,8 +5118,8 @@ class PagePreviewState extends State<PagePreview> {
                     quarterTurns == _totalRotation ~/ 90) {
               await Future.delayed(Duration(milliseconds: 100));
             }
-            // if polling for correct rotation
             if (quarterTurns == _totalRotation ~/ 90) {
+              // if polling for correct rotation
               _versionPaths[0] = _rotatedPhotoPaths[quarterTurns - 1];
               _isRotating = false;
               if (mounted) setState(() {});
@@ -5163,7 +5163,7 @@ class PagePreviewState extends State<PagePreview> {
             !File(_versionPaths.first).existsSync(),
         isHidden: noReprocessingChanges,
         tooltip: tr("pagePreview.editBar.confirm"),
-        onTap: () async {
+        onTap: () {
           reprocessPhoto();
         },
       ),
@@ -5516,7 +5516,7 @@ class PagePreviewState extends State<PagePreview> {
   Widget _displayCornersOverlay(BuildContext context) {
     if (_importedPdfMode ||
         (_cornerPoints == null || _cornerPoints!.isEmpty) ||
-        _photoScale == 0.0 ||
+        _currentPhotoScale == 0.0 ||
         _isRotating ||
         _hideOverlayReprocessing ||
         _overlayZoomed ||
@@ -5526,12 +5526,16 @@ class PagePreviewState extends State<PagePreview> {
     }
     int quarterTurns = _totalRotation ~/ 90;
 
-    final double displayHeight = _imagePixelHeight * _photoScale;
-    final double displayWidth = _imagePixelWidth * _photoScale;
-    _unZoomedScale = _photoScale;
+    final double displayHeight = _imagePixelHeight * _currentPhotoScale;
+    final double displayWidth = _imagePixelWidth * _currentPhotoScale;
 
     List<Offset> scaledPoints = _cornerPoints!
-        .map((point) => Offset(point[1] * _photoScale, point[0] * _photoScale))
+        .map(
+          (point) => Offset(
+            point[1] * _currentPhotoScale,
+            point[0] * _currentPhotoScale,
+          ),
+        )
         .toList();
 
     return IgnorePointer(
