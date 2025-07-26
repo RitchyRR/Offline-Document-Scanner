@@ -111,6 +111,9 @@ class ImageProcessingManager {
       }
     });
 
+    // Delete Thumbnail
+    await _deleteThumbnailInIsolate(docIndex, pageIndex, g);
+
     isolateExitPoint(kill);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
@@ -218,10 +221,10 @@ class ImageProcessingManager {
           ".png",
         );
       }
-      // Update thumbnails:
-      isolateExitPoint(kill);
-      sendPort.send(NotifierEvent.loadPagesThumbnails);
     }
+    // Update thumbnails:
+    isolateExitPoint(kill);
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
     return initialThumbnailIndex;
   }
 
@@ -299,13 +302,7 @@ class ImageProcessingManager {
 
     // Set New Thumbnail
     isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      g,
-    );
+    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
   }
 
   static void isolateExitPoint(final bool kill) {
@@ -614,13 +611,7 @@ class ImageProcessingManager {
     // Set New Thumbnail
     if (thumbnailPath.isEmpty) {
       isolateExitPoint(kill);
-      await _scaleAndSaveThumbnailInIsolate(
-        sendPort,
-        kill,
-        docIndex,
-        pageIndex,
-        g,
-      );
+      await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
     }
 
     Isolate.exit(sendPort, "done");
@@ -899,6 +890,9 @@ class ImageProcessingManager {
       throw StateError("photo ${versionPaths[0]} does not exist");
     }
 
+    // Delete Thumbnail
+    await _deleteThumbnailInIsolate(docIndex, pageIndex, g);
+
     /// 1. save rotated photo
     isolateExitPoint(kill);
     final rotatedPhotoRaw = g.filesHelper.readImageRaw(versionPaths[0]);
@@ -946,13 +940,7 @@ class ImageProcessingManager {
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     // Set New Thumbnail
     isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      g,
-    );
+    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
 
     Isolate.exit(sendPort, "done");
   }
@@ -999,11 +987,21 @@ class ImageProcessingManager {
 
   static Future<bool> _scaleAndSaveThumbnailInIsolate(
     SendPort sendPort,
-    bool kill,
     int docIndex,
     int pageIndex,
     AppGlobals gIn,
   ) async {
+    bool kill = false;
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+    // Overwrites controlPort, so it has to be last in Isolate,
+    // or the Isolate has to send its controlPort anew
+
     // Get thumbnailIndex from metadata, else set it in metadata
     int? metadataThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
       docIndex,
@@ -1120,6 +1118,34 @@ class ImageProcessingManager {
     return true;
   }
 
+  static Future<void> _deleteThumbnailInIsolate(
+    int docIndex,
+    int pageIndex,
+    AppGlobals gIn,
+  ) async {
+    String pagePath;
+    try {
+      pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
+    } catch (e) {
+      throw StateError(
+        "Error, _scaleAndSaveThumbnailInIsolate, getPagePath, getVersionPath: $e",
+      );
+    }
+    try {
+      for (FileSystemEntity fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        if (fse.path.contains("thumbnail")) {
+          File(fse.path).deleteSync();
+        }
+      }
+    } catch (e) {
+      dev.log(
+        "Warning, _scaleAndSaveThumbnailIsolate: Could not delete old thumbnail: $e",
+      );
+    }
+  }
+
   static Future<void> _saveNewThumbnailIsolate(
     (
       SendPort sendPort,
@@ -1149,13 +1175,8 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
     isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      gIn,
-    );
+    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, gIn);
+
     Isolate.exit(sendPort, "done");
   }
 
@@ -1451,13 +1472,7 @@ class ImageProcessingManager {
       gIn: g,
     );
     isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(
-      sendPort,
-      kill,
-      docIndex,
-      pageIndex,
-      g,
-    );
+    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
 
     Isolate.exit(sendPort, "done");
   }
