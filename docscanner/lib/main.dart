@@ -1,4 +1,6 @@
 // my packages:
+import 'package:flutter/foundation.dart' show listEquals;
+
 import 'app_globals.dart';
 import 'metadata_helper.dart';
 import 'image_prosessing_manager.dart';
@@ -6088,7 +6090,7 @@ class _WarpState extends State<Warp> {
           ),
         )
         .toList();
-    _initialScreenSpaceCorners = List<Offset>.from(_screenSpaceCorners);
+    _initialScreenSpaceCorners = List.from(_screenSpaceCorners);
     _cornersHistory.add(List.of(_screenSpaceCorners));
 
     _scaleImage(init: true);
@@ -6601,6 +6603,12 @@ class _WarpState extends State<Warp> {
                     _addCurrentToCornersHistory();
                     _scaleImage(init: true);
                   },
+                  isDisabled: listEquals(_screenSpaceCorners, [
+                    Offset(0, 0),
+                    Offset(0, _displayHeigth - 1),
+                    Offset(_screenWidth - 1, 0),
+                    Offset(_screenWidth - 1, _displayHeigth - 1),
+                  ]),
                   icon: Icons.fullscreen,
                   tooltip: tr("warp.buttons.fullscreen"),
                   buttonColor: Theme.of(
@@ -6615,6 +6623,10 @@ class _WarpState extends State<Warp> {
                     _addCurrentToCornersHistory();
                     _scaleImage(init: true);
                   },
+                  isDisabled: listEquals(
+                    _screenSpaceCorners,
+                    _initialScreenSpaceCorners,
+                  ),
                   icon: Icons.restart_alt,
                   tooltip: tr("warp.buttons.reset"),
                   buttonColor: Theme.of(
