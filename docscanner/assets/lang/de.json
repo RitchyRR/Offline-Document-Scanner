@@ -68,6 +68,12 @@
       "title": "Eckanpassungen verwerfen",
       "text": "Bist du sicher, dass du die Anpassungen der Ecken verwerfen möchtest?",
       "discard": "Verwerfen"
+    },
+    "buttons": {
+      "fullscreen": "Fullscreen",
+      "reset": "Reset",
+      "undo": "Undo",
+      "redo": "Redo"
     }
   },
   "camera": {

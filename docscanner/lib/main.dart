@@ -6089,6 +6089,7 @@ class _WarpState extends State<Warp> {
         )
         .toList();
     _initialScreenSpaceCorners = List<Offset>.from(_screenSpaceCorners);
+    _cornersHistory.add(List.of(_screenSpaceCorners));
 
     _scaleImage(init: true);
   }
@@ -6561,6 +6562,8 @@ class _WarpState extends State<Warp> {
     );
   }
 
+  final List<List<Offset>> _cornersHistory = [];
+  int _cornersHistoryIndex = 0;
   SizedBox _warpButtons(BuildContext context) {
     // Buttons
     const double buttonSize = 36;
@@ -6595,11 +6598,11 @@ class _WarpState extends State<Warp> {
                       Offset(_screenWidth - 1, 0),
                       Offset(_screenWidth - 1, _displayHeigth - 1),
                     ];
+                    _addCurrentToCornersHistory();
                     _scaleImage(init: true);
                   },
                   icon: Icons.fullscreen,
-                  tooltip: tr("FULLSCREEN"), //TODO tr
-                  isFlat: false,
+                  tooltip: tr("warp.buttons.fullscreen"),
                   buttonColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
@@ -6609,11 +6612,11 @@ class _WarpState extends State<Warp> {
                 CustomIconButton(
                   onTap: () {
                     _screenSpaceCorners = _initialScreenSpaceCorners;
+                    _addCurrentToCornersHistory();
                     _scaleImage(init: true);
                   },
                   icon: Icons.restart_alt,
-                  tooltip: tr("RESET"), //TODO tr
-                  isFlat: false,
+                  tooltip: tr("warp.buttons.reset"),
                   buttonColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
@@ -6640,12 +6643,15 @@ class _WarpState extends State<Warp> {
               children: [
                 CustomIconButton(
                   onTap: () {
-                    //TODO undo
+                    _screenSpaceCorners = List.of(
+                      _cornersHistory[++_cornersHistoryIndex],
+                    );
                     _scaleImage(init: true);
                   },
+                  isDisabled:
+                      _cornersHistoryIndex + 1 >= _cornersHistory.length,
                   icon: Icons.undo,
-                  tooltip: tr("UNDO"), //TODO tr
-                  isFlat: false,
+                  tooltip: tr("warp.buttons.undo"),
                   buttonColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
@@ -6654,12 +6660,14 @@ class _WarpState extends State<Warp> {
                 ),
                 CustomIconButton(
                   onTap: () {
-                    //TODO redo
+                    _screenSpaceCorners = List.of(
+                      _cornersHistory[--_cornersHistoryIndex],
+                    );
                     _scaleImage(init: true);
                   },
+                  isDisabled: (_cornersHistoryIndex <= 0),
                   icon: Icons.redo,
-                  tooltip: tr("REDO"), //TODO tr
-                  isFlat: false,
+                  tooltip: tr("warp.buttons.redo"),
                   buttonColor: Theme.of(
                     context,
                   ).colorScheme.surfaceContainerHighest,
@@ -6672,6 +6680,15 @@ class _WarpState extends State<Warp> {
         ],
       ),
     );
+  }
+
+  void _addCurrentToCornersHistory() {
+    final int maxSize = (_cornersHistory.length).clamp(0, 100);
+    final subList = _cornersHistory.sublist(_cornersHistoryIndex, maxSize);
+    _cornersHistory.clear();
+    _cornersHistory.addAll(subList);
+    _cornersHistory.insert(0, List.of(_screenSpaceCorners));
+    _cornersHistoryIndex = 0;
   }
 
   _saveCorners() {
@@ -6782,23 +6799,19 @@ class _WarpState extends State<Warp> {
                         _currentEdge = (points[0], points[1]);
                         _currentCorner = null;
                       },
-                      onPanUpdate: (details) {
-                        _handleEdgePan(
-                          indexA: points[0],
-                          indexB: points[1],
-                          neighborA: points[2],
-                          neighborB: points[3],
-                          details: details,
-                        );
-                      },
-                      onPanEnd: (details) {
-                        _handleEdgePanEnd(
-                          indexA: points[0],
-                          indexB: points[1],
-                          neighborA: points[2],
-                          neighborB: points[3],
-                        );
-                      },
+                      onPanUpdate: (details) => _handleEdgePan(
+                        indexA: points[0],
+                        indexB: points[1],
+                        neighborA: points[2],
+                        neighborB: points[3],
+                        details: details,
+                      ),
+                      onPanEnd: (details) => _handleEdgePanEnd(
+                        indexA: points[0],
+                        indexB: points[1],
+                        neighborA: points[2],
+                        neighborB: points[3],
+                      ),
                     ),
                   ),
                 ),
@@ -7086,8 +7099,8 @@ class _WarpState extends State<Warp> {
 
     DateTime now = DateTime.now();
     // Haptic Feedback
-    if (_edgePositionHistory.isNotEmpty &&
-        now.difference(_edgePositionHistory.last.$1.timestamp) >
+    if (_recentEdgePositions.isNotEmpty &&
+        now.difference(_recentEdgePositions.last.$1.timestamp) >
             Duration(milliseconds: 25)) {
       HapticFeedback.selectionClick();
     }
@@ -7095,7 +7108,7 @@ class _WarpState extends State<Warp> {
     Offset avgPosA = Offset(0, 0);
     Offset avgPosB = Offset(0, 0);
     int avgCount = 0;
-    for (var edgeTimePos in _edgePositionHistory) {
+    for (var edgeTimePos in _recentEdgePositions) {
       if ((newA - edgeTimePos.$1.position).distance < 0.9) {
         avgPosA += edgeTimePos.$1.position;
         avgPosB += edgeTimePos.$2.position;
@@ -7120,18 +7133,18 @@ class _WarpState extends State<Warp> {
     _scaleImage();
 
     // Add current position to history
-    _edgePositionHistory.add((
+    _recentEdgePositions.add((
       PositionTimestamp(position: _screenSpaceCorners[indexA], timestamp: now),
       PositionTimestamp(position: _screenSpaceCorners[indexB], timestamp: now),
     ));
     // Remove oldest position if older than _historyDurationMs
-    if (now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
+    if (now.difference(_recentEdgePositions.first.$1.timestamp).inMilliseconds >
         _historyDelayMs) {
-      _edgePositionHistory.removeAt(0);
+      _recentEdgePositions.removeAt(0);
     }
   }
 
-  final List<(PositionTimestamp, PositionTimestamp)> _edgePositionHistory = [];
+  final List<(PositionTimestamp, PositionTimestamp)> _recentEdgePositions = [];
   void _handleEdgePanEnd({
     required int indexA,
     required int indexB,
@@ -7140,23 +7153,24 @@ class _WarpState extends State<Warp> {
   }) {
     // Remove positions older than _historyDurationMs
     DateTime now = DateTime.now();
-    while (_edgePositionHistory.isNotEmpty &&
-        now.difference(_edgePositionHistory.first.$1.timestamp).inMilliseconds >
+    while (_recentEdgePositions.isNotEmpty &&
+        now.difference(_recentEdgePositions.first.$1.timestamp).inMilliseconds >
             _historyDelayMs) {
-      _edgePositionHistory.removeAt(0);
+      _recentEdgePositions.removeAt(0);
     }
     // Use oldest position in history
-    if (_edgePositionHistory.isNotEmpty) {
-      if ((_edgePositionHistory.first.$1.position - _screenSpaceCorners[indexA])
+    if (_recentEdgePositions.isNotEmpty) {
+      if ((_recentEdgePositions.first.$1.position - _screenSpaceCorners[indexA])
               .distance <
           50) {
         setState(() {
-          _screenSpaceCorners[indexA] = _edgePositionHistory.first.$1.position;
-          _screenSpaceCorners[indexB] = _edgePositionHistory.first.$2.position;
+          _screenSpaceCorners[indexA] = _recentEdgePositions.first.$1.position;
+          _screenSpaceCorners[indexB] = _recentEdgePositions.first.$2.position;
         });
       }
     }
-    _edgePositionHistory.clear();
+    _recentEdgePositions.clear();
+    _addCurrentToCornersHistory();
   }
 
   final List<PositionTimestamp> _recentCornerPositions = [];
@@ -7186,6 +7200,7 @@ class _WarpState extends State<Warp> {
       await Future.delayed(Duration(milliseconds: 600));
       _panningDelayed = false;
     });
+    _addCurrentToCornersHistory();
   }
 }
 

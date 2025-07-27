@@ -68,6 +68,12 @@
       "title": "Discard Corner Adjustments",
       "text": "Are you sure you want to discard your corner adjustments?",
       "discard": "Discard"
+    },
+    "buttons": {
+      "fullscreen": "Vollbild",
+      "reset": "Zurücksetzen",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen"
     }
   },
   "camera": {
