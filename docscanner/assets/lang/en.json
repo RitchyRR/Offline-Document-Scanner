@@ -70,10 +70,10 @@
       "discard": "Discard"
     },
     "buttons": {
-      "fullscreen": "Vollbild",
-      "reset": "Zurücksetzen",
-      "undo": "Rückgängig",
-      "redo": "Wiederholen"
+      "fullscreen": "Fullscreen",
+      "reset": "Reset",
+      "undo": "Undo",
+      "redo": "Redo"
     }
   },
   "camera": {
