@@ -67,7 +67,13 @@ class ImageProcessingManager {
     List<Future<void>> ioFutures = [];
     List<Future<void>> filterFutures = [];
 
-    final int initialThumbnailIndex = await _processPageIsolateThumbnailVersion(
+    final int initialThumbnailIndex;
+
+    (
+      initialThumbnailIndex,
+      ioFutures,
+      filterFutures,
+    ) = await _processPageIsolateThumbnailVersion(
       sendPort,
       docIndex,
       pageIndex,
@@ -82,7 +88,7 @@ class ImageProcessingManager {
       filterFutures,
     );
 
-    await _processPageIsolateFilters(
+    (ioFutures, filterFutures) = await _processPageIsolateFilters(
       sendPort,
       docIndex,
       pageIndex,
@@ -98,7 +104,8 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  static Future<int> _processPageIsolateThumbnailVersion(
+  static Future<(int, List<Future<void>>, List<Future<void>>)>
+  _processPageIsolateThumbnailVersion(
     SendPort sendPort,
     int docIndex,
     int pageIndex,
@@ -240,6 +247,7 @@ class ImageProcessingManager {
     }
 
     filterFutures.add(processThumbnailVersion());
+
     // Update thumbnails:
     await isolateExitPoint(kill, ioFutures: ioFutures);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -254,10 +262,11 @@ class ImageProcessingManager {
       gIn: g,
     );
 
-    return initialThumbnailIndex;
+    return (initialThumbnailIndex, ioFutures, filterFutures);
   }
 
-  static Future<void> _processPageIsolateFilters(
+  static Future<(List<Future<void>>, List<Future<void>>)>
+  _processPageIsolateFilters(
     SendPort sendPort,
     int docIndex,
     int pageIndex,
@@ -358,6 +367,8 @@ class ImageProcessingManager {
     ioFutures.add(
       _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g),
     );
+
+    return (ioFutures, filterFutures);
   }
 
   static Future<void> isolateExitPoint(

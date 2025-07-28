@@ -168,7 +168,7 @@ class OpenCVHelper {
     cv.Mat mask;
     cv.Mat borderCorrectionMask;
     (mask, borderCorrectionMask) = _documentMask(preFiltered);
-    //return (mask, mask, math.sqrt2, []);
+    //return (mask, math.sqrt2, []);
 
     if (cornerPointsIn == null) {
       // 3. Corner detection
@@ -481,7 +481,7 @@ class OpenCVHelper {
     int houghMaskSize = 0;
     // 1. try just filling Edges
     cv.Mat edges = _rgbEdges(shape);
-    //return edges;
+    //return (edges, edges);
     cv.Mat edgesMask = _tightRiskyShape(edges);
     // 2. use Hough Edges
     cv.Mat houghEdges1 = _houghEdges1(edges, 18);
@@ -566,32 +566,33 @@ class OpenCVHelper {
     return (mask, borderCorrectionMask);
   }
 
-  cv.Mat _rgbEdges(cv.Mat shape) {
+  cv.Mat _rgbEdges(cv.Mat prefiltered) {
     // Initial guess for Canny thresholds
     double baseThreshold = 55.0;
     double highT = baseThreshold + K * 0.1;
     double lowT = 0.7 * highT;
 
     // Step 1: Run Canny with initial thresholds on all channels
-    cv.VecMat channelsVec = cv.split(shape);
-    cv.Mat edgesInitial = cv.Mat.zeros(
-      shape.rows,
-      shape.cols,
-      cv.MatType.CV_8UC1,
-    );
-    for (cv.Mat channel in channelsVec) {
-      cv.Mat channelEdges = cv.canny(channel, lowT, highT);
-      edgesInitial = cv.add(edgesInitial, channelEdges);
-    }
+    //cv.VecMat channelsVec = cv.split(prefiltered);
+    cv.Mat gray = cv.cvtColor(prefiltered, cv.COLOR_BGR2GRAY);
+    //cv.Mat edgesInitial = cv.Mat.zeros(
+    //  prefiltered.rows,
+    //  prefiltered.cols,
+    //  cv.MatType.CV_8UC1,
+    //);
+    //for (cv.Mat channel in channelsVec) {
+    cv.Mat edges = cv.canny(gray, lowT, highT);
+    //edgesInitial += cv.add(edgesInitial, channelEdges);
+    //}
     // Add saturation edges
-    cv.VecMat hsv = cv.split(cv.cvtColor(shape, cv.COLOR_BGR2HSV));
+    cv.VecMat hsv = cv.split(cv.cvtColor(prefiltered, cv.COLOR_BGR2HSV));
     cv.Mat sEdges = cv.canny(hsv[1], lowT, highT);
-    edgesInitial = cv.add(edgesInitial, sEdges);
+    edges = cv.add(edges, sEdges);
 
     // Step 2: Calculate edge density
-    int edgePixels = cv.countNonZero(edgesInitial);
-    int totalPixels = shape.rows * shape.cols;
-    double edgeDensity = edgePixels / totalPixels;
+    int edgePixelsCount = cv.countNonZero(edges);
+    int totalPixels = prefiltered.rows * prefiltered.cols;
+    double edgeDensity = edgePixelsCount / totalPixels;
 
     // Step 3: Define target edge density and adjust thresholds
     double targetDensity = 0.004;
@@ -604,25 +605,25 @@ class OpenCVHelper {
     lowT = 0.7 * highT;
 
     // Step 4: Run Canny again with adjusted thresholds
-    cv.Mat finalEdges = cv.Mat.zeros(
-      shape.rows,
-      shape.cols,
-      cv.MatType.CV_8UC1,
-    );
-    for (cv.Mat channel in channelsVec) {
-      cv.Mat channelEdges = cv.canny(channel, lowT, highT);
-      finalEdges = cv.add(finalEdges, channelEdges);
-    }
+    //cv.Mat finalEdges = cv.Mat.zeros(
+    //  prefiltered.rows,
+    //  prefiltered.cols,
+    //  cv.MatType.CV_8UC1,
+    //);
+    //for (cv.Mat channel in channelsVec) {
+    cv.Mat finalEdges = cv.canny(gray, lowT, highT);
+    //finalEdges = cv.add(finalEdges, channelEdges);
+    //}
     // Add saturation edges
-    hsv = cv.split(cv.cvtColor(shape, cv.COLOR_BGR2HSV));
-    sEdges = cv.canny(hsv[1], lowT * 0.75, highT * 0.75);
+    hsv = cv.split(cv.cvtColor(prefiltered, cv.COLOR_BGR2HSV));
+    sEdges = cv.canny(hsv[1], lowT, highT);
     finalEdges = cv.add(finalEdges, sEdges);
 
-    //int edgePixels2 = cv.countNonZero(finalEdges);
-    //double edgeDensity2 = edgePixels2 / totalPixels;
-    //dev.log(
-    //  "density $edgeDensity -> $edgeDensity2, (target: $targetDensity, scale: $scale)",
-    //);
+    int edgePixels2 = cv.countNonZero(finalEdges);
+    double edgeDensity2 = edgePixels2 / totalPixels;
+    dev.log(
+      "density: $edgeDensity -> $edgeDensity2, (target: $targetDensity, scale: $scale)",
+    );
 
     return finalEdges;
   }
