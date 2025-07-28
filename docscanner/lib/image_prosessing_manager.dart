@@ -64,6 +64,9 @@ class ImageProcessingManager {
 
     OpenCVHelper cvHelper = OpenCVHelper(g);
 
+    List<Future<void>> ioFutures = [];
+    List<Future<void>> filterFutures = [];
+
     final int initialThumbnailIndex = await _processPageIsolateThumbnailVersion(
       sendPort,
       docIndex,
@@ -75,6 +78,8 @@ class ImageProcessingManager {
       isInitial,
       g,
       cvHelper,
+      ioFutures,
+      filterFutures,
     );
 
     await _processPageIsolateFilters(
@@ -84,8 +89,12 @@ class ImageProcessingManager {
       initialThumbnailIndex,
       g,
       cvHelper,
+      ioFutures,
+      filterFutures,
     );
 
+    await Future.wait(filterFutures);
+    await Future.wait(ioFutures);
     Isolate.exit(sendPort, "done");
   }
 
@@ -100,7 +109,12 @@ class ImageProcessingManager {
     bool isInitial,
     AppGlobals g,
     OpenCVHelper cvHelper,
+    List<Future<void>> ioFutures,
+    List<Future<void>> filterFutures,
   ) async {
+    List<Future<void>> ioFutures = [];
+    List<Future<void>> filterFutures = [];
+
     // Control Port for exiting gracefully
     bool kill = false;
     final controlPort = ReceivePort();
@@ -112,9 +126,9 @@ class ImageProcessingManager {
     });
 
     // Delete Thumbnail
-    await _deleteThumbnailInIsolate(docIndex, pageIndex, g);
+    ioFutures.add(_deleteThumbnailInIsolate(docIndex, pageIndex, g));
 
-    isolateExitPoint(kill);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     String pagePath = await g.filesHelper.getPagePath(
       docIndex,
       pageIndex,
@@ -126,8 +140,8 @@ class ImageProcessingManager {
       );
     }
 
-    // Warped + Metadata
-    isolateExitPoint(kill);
+    // Warped
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     var warpedRet = await cvHelper.warpImage(
       photoBytes,
       ratioValueIn: ratioValueIn,
@@ -137,26 +151,20 @@ class ImageProcessingManager {
     double? ratioValue = warpedRet.$2;
     List<List<int>>? cornerPoints = warpedRet.$3;
 
-    isolateExitPoint(kill);
-    await MetadataHelper.writePageProcessingMetadata(
-      docIndex,
-      pageIndex,
-      ratioValue,
-      cornerPoints,
-      gIn: g,
-    );
-    isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      1,
-      warpedBytes,
-      ".png",
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    ioFutures.add(
+      g.filesHelper.savePageVersion(
+        docIndex,
+        pageIndex,
+        1,
+        warpedBytes,
+        ".png",
+      ),
     );
 
     // initialThumbnailIndex
     final int initialThumbnailIndex;
-    isolateExitPoint(kill);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
       docIndex,
       pageIndex,
@@ -165,66 +173,87 @@ class ImageProcessingManager {
     );
     if (readThumbnailIndex == null) {
       initialThumbnailIndex = g.defaultIndex;
-      isolateExitPoint(kill);
-      await MetadataHelper.writePageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        initialThumbnailIndex,
-        gIn: g,
-        supressWarnings: true,
+      await isolateExitPoint(kill, ioFutures: ioFutures);
+      ioFutures.add(
+        MetadataHelper.writePageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          initialThumbnailIndex,
+          gIn: g,
+          supressWarnings: true,
+        ),
       );
     } else {
       initialThumbnailIndex = readThumbnailIndex;
     }
 
     // First process (default) Thumbnail version
-    if (initialThumbnailIndex > 1) {
-      isolateExitPoint(kill);
-      final Uint8List? thumbnailVersionBytes;
-      switch (initialThumbnailIndex) {
-        case 2:
-          // Contrast
-          isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImageContrast();
-          break;
-        case 3:
-          // Document
-          isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImageDocument();
-          break;
-        case 4:
-        case 5:
-          // PRO
-          isolateExitPoint(kill);
-          Uint8List processed2Bytes = await cvHelper.processImagePro();
-          // PRO 2
-          isolateExitPoint(kill);
-          thumbnailVersionBytes = await cvHelper.processImagePro2();
-          await g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            4,
-            processed2Bytes,
-            ".png",
+    Future<void> processThumbnailVersion() async {
+      if (initialThumbnailIndex > 1) {
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        final Uint8List? thumbnailVersionBytes;
+        switch (initialThumbnailIndex) {
+          case 2:
+            // Contrast
+            await isolateExitPoint(kill, ioFutures: ioFutures);
+            thumbnailVersionBytes = await cvHelper.processImageContrast();
+            break;
+          case 3:
+            // Document
+            await isolateExitPoint(kill, ioFutures: ioFutures);
+            thumbnailVersionBytes = await cvHelper.processImageDocument();
+            break;
+          case 4:
+          case 5:
+            // PRO
+            await isolateExitPoint(kill, ioFutures: ioFutures);
+            Uint8List processed2Bytes = await cvHelper.processImagePro();
+            // PRO 2
+            await isolateExitPoint(kill, ioFutures: ioFutures);
+            thumbnailVersionBytes = await cvHelper.processImagePro2();
+            ioFutures.add(
+              g.filesHelper.savePageVersion(
+                docIndex,
+                pageIndex,
+                4,
+                processed2Bytes,
+                ".png",
+              ),
+            );
+            break;
+          default:
+            thumbnailVersionBytes = null;
+        }
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        if (thumbnailVersionBytes != null) {
+          ioFutures.add(
+            g.filesHelper.savePageVersion(
+              docIndex,
+              pageIndex,
+              initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
+              thumbnailVersionBytes,
+              ".png",
+            ),
           );
-          break;
-        default:
-          thumbnailVersionBytes = null;
-      }
-      isolateExitPoint(kill);
-      if (thumbnailVersionBytes != null) {
-        await g.filesHelper.savePageVersion(
-          docIndex,
-          pageIndex,
-          initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
-          thumbnailVersionBytes,
-          ".png",
-        );
+        }
       }
     }
+
+    filterFutures.add(processThumbnailVersion());
     // Update thumbnails:
-    isolateExitPoint(kill);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
+
+    // Metadata
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    await MetadataHelper.writePageProcessingMetadata(
+      docIndex,
+      pageIndex,
+      ratioValue,
+      cornerPoints,
+      gIn: g,
+    );
+
     return initialThumbnailIndex;
   }
 
@@ -235,6 +264,8 @@ class ImageProcessingManager {
     int initialThumbnailIndex,
     AppGlobals g,
     OpenCVHelper cvHelper,
+    List<Future<void>> ioFutures,
+    List<Future<void>> filterFutures,
   ) async {
     // Control Port for exiting gracefully
     bool kill = false;
@@ -247,66 +278,94 @@ class ImageProcessingManager {
     });
 
     // Kontrast
-    isolateExitPoint(kill);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     if (initialThumbnailIndex != 2) {
-      Uint8List contrastBytes = await cvHelper.processImageContrast();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        2,
-        contrastBytes,
-        ".png",
-      );
+      Future<void> processContrastFilter() async {
+        Uint8List contrastBytes = await cvHelper.processImageContrast();
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        ioFutures.add(
+          g.filesHelper.savePageVersion(
+            docIndex,
+            pageIndex,
+            2,
+            contrastBytes,
+            ".png",
+          ),
+        );
+      }
+
+      filterFutures.add(processContrastFilter());
     }
 
     // Dokument
-    isolateExitPoint(kill);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     if (initialThumbnailIndex != 3) {
-      Uint8List processed1Bytes = await cvHelper.processImageDocument();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        3,
-        processed1Bytes,
-        ".png",
-      );
+      Future<void> processDocumentFilter() async {
+        Uint8List processed1Bytes = await cvHelper.processImageDocument();
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        ioFutures.add(
+          g.filesHelper.savePageVersion(
+            docIndex,
+            pageIndex,
+            3,
+            processed1Bytes,
+            ".png",
+          ),
+        );
+      }
+
+      filterFutures.add(processDocumentFilter());
     }
 
     if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-      // PRO
-      isolateExitPoint(kill);
-      Uint8List processed2Bytes = await cvHelper.processImagePro();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        4,
-        processed2Bytes,
-        ".png",
-      );
+      Future<void> processPROFilters() async {
+        // PRO
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        Uint8List processed2Bytes = await cvHelper.processImagePro();
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        ioFutures.add(
+          g.filesHelper.savePageVersion(
+            docIndex,
+            pageIndex,
+            4,
+            processed2Bytes,
+            ".png",
+          ),
+        );
 
-      // PRO 2
-      isolateExitPoint(kill);
-      Uint8List processed3Bytes = await cvHelper.processImagePro2();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        5,
-        processed3Bytes,
-        ".png",
-      );
+        // PRO 2
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        Uint8List processed3Bytes = await cvHelper.processImagePro2();
+        await isolateExitPoint(kill, ioFutures: ioFutures);
+        ioFutures.add(
+          g.filesHelper.savePageVersion(
+            docIndex,
+            pageIndex,
+            5,
+            processed3Bytes,
+            ".png",
+          ),
+        );
+      }
+
+      filterFutures.add(processPROFilters());
     }
 
     // Set New Thumbnail
-    isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    await Future.wait(ioFutures);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    ioFutures.add(
+      _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g),
+    );
   }
 
-  static void isolateExitPoint(final bool kill) {
+  static Future<void> isolateExitPoint(
+    final bool kill, {
+    List<Future<void>> ioFutures = const [],
+  }) async {
     if (kill) {
+      await Future.wait(ioFutures);
       Isolate.exit();
     }
   }
@@ -876,6 +935,8 @@ class ImageProcessingManager {
       }
     });
 
+    List<Future<void>> futures = [];
+
     RootIsolateToken token = data.$2;
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
@@ -891,7 +952,7 @@ class ImageProcessingManager {
     }
 
     // Delete Thumbnail
-    await _deleteThumbnailInIsolate(docIndex, pageIndex, g);
+    futures.add(_deleteThumbnailInIsolate(docIndex, pageIndex, g));
 
     /// 1. save rotated photo
     isolateExitPoint(kill);
@@ -899,13 +960,15 @@ class ImageProcessingManager {
     Uint8List rotatedPhotoBytes = rotatedPhotoRaw.$1;
     String rotatedPhotoExtension = rotatedPhotoRaw.$2;
     isolateExitPoint(kill);
-    versionPaths[0] = await g.filesHelper.writeImageRaw(
-      docIndex,
-      pageIndex,
-      0,
-      rotatedPhotoBytes,
-      rotatedPhotoExtension,
-      gIn: g,
+    futures.add(
+      g.filesHelper.writeImageRaw(
+        docIndex,
+        pageIndex,
+        0,
+        rotatedPhotoBytes,
+        rotatedPhotoExtension,
+        gIn: g,
+      ),
     );
 
     bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
@@ -919,24 +982,29 @@ class ImageProcessingManager {
     if (!isImportedPdf) {
       // Warped, Contrast, Processed1, Processed2
       for (int i = 1; i < versionPaths.length; i++) {
-        isolateExitPoint(kill);
-        Uint8List bytes = await cvHelper.rotateImage(
-          File(versionPaths[i]).readAsBytesSync(),
-          rotationIn,
-        );
-        isolateExitPoint(kill);
-        await g.filesHelper.savePageVersion(
-          docIndex,
-          pageIndex,
-          i,
-          bytes,
-          ".png",
-        );
+        Future<void> rotateVersion() async {
+          isolateExitPoint(kill);
+          Uint8List bytes = await cvHelper.rotateImage(
+            File(versionPaths[i]).readAsBytesSync(),
+            rotationIn,
+          );
+          isolateExitPoint(kill);
+          await g.filesHelper.savePageVersion(
+            docIndex,
+            pageIndex,
+            i,
+            bytes,
+            ".png",
+          );
+        }
+
+        futures.add(rotateVersion());
       }
     }
 
     // Update Thumbnail
     isolateExitPoint(kill);
+    Future.wait(futures);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
     // Set New Thumbnail
     isolateExitPoint(kill);
