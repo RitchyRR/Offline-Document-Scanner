@@ -162,12 +162,12 @@ class OpenCVHelper {
     if (cornerPointsIn != null) borderCutIn = null;
 
     // 1. Isolate remove Text and Images to get Shape
-    cv.Mat preFiltered = _preFilter(matIn);
+    cv.Mat prefiltered = _preFilter(matIn);
     //return (shape, shape, math.sqrt2, []);
     // 2. create a binary image, white representing the shape of the document
     cv.Mat mask;
     cv.Mat borderCorrectionMask;
-    (mask, borderCorrectionMask) = _documentMask(preFiltered);
+    (mask, borderCorrectionMask) = _documentMask(prefiltered);
     //return (mask, math.sqrt2, []);
 
     if (cornerPointsIn == null) {
@@ -472,15 +472,15 @@ class OpenCVHelper {
   bool usingHough = false;
 
   /// Step 2: Edge Detection & Filling -> Shape of document
-  (cv.Mat, cv.Mat) _documentMask(cv.Mat shape) {
-    if (shape.isEmpty) {
+  (cv.Mat, cv.Mat) _documentMask(cv.Mat prefiltered) {
+    if (prefiltered.isEmpty) {
       throw StateError("Error, Edge Detection & Filling: split channels");
     }
 
     int edgesMaskSize = 0;
     int houghMaskSize = 0;
     // 1. try just filling Edges
-    cv.Mat edges = _rgbEdges(shape);
+    cv.Mat edges = _edges(prefiltered);
     //return (edges, edges);
     cv.Mat edgesMask = _tightRiskyShape(edges);
     // 2. use Hough Edges
@@ -566,25 +566,16 @@ class OpenCVHelper {
     return (mask, borderCorrectionMask);
   }
 
-  cv.Mat _rgbEdges(cv.Mat prefiltered) {
+  cv.Mat _edges(cv.Mat prefiltered) {
     // Initial guess for Canny thresholds
     double baseThreshold = 55.0;
     double highT = baseThreshold + K * 0.1;
     double lowT = 0.7 * highT;
 
-    // Step 1: Run Canny with initial thresholds on all channels
-    //cv.VecMat channelsVec = cv.split(prefiltered);
+    // Step 1: Run Canny with initial thresholds
     cv.Mat gray = cv.cvtColor(prefiltered, cv.COLOR_BGR2GRAY);
-    //cv.Mat edgesInitial = cv.Mat.zeros(
-    //  prefiltered.rows,
-    //  prefiltered.cols,
-    //  cv.MatType.CV_8UC1,
-    //);
-    //for (cv.Mat channel in channelsVec) {
     cv.Mat edges = cv.canny(gray, lowT, highT);
-    //edgesInitial += cv.add(edgesInitial, channelEdges);
-    //}
-    // Add saturation edges
+    // add saturation based edges
     cv.VecMat hsv = cv.split(cv.cvtColor(prefiltered, cv.COLOR_BGR2HSV));
     cv.Mat sEdges = cv.canny(hsv[1], lowT, highT);
     edges = cv.add(edges, sEdges);
@@ -605,27 +596,19 @@ class OpenCVHelper {
     lowT = 0.7 * highT;
 
     // Step 4: Run Canny again with adjusted thresholds
-    //cv.Mat finalEdges = cv.Mat.zeros(
-    //  prefiltered.rows,
-    //  prefiltered.cols,
-    //  cv.MatType.CV_8UC1,
-    //);
-    //for (cv.Mat channel in channelsVec) {
-    cv.Mat finalEdges = cv.canny(gray, lowT, highT);
-    //finalEdges = cv.add(finalEdges, channelEdges);
-    //}
-    // Add saturation edges
+    edges = cv.canny(gray, lowT, highT);
+    // add saturation based edges
     hsv = cv.split(cv.cvtColor(prefiltered, cv.COLOR_BGR2HSV));
     sEdges = cv.canny(hsv[1], lowT, highT);
-    finalEdges = cv.add(finalEdges, sEdges);
+    edges = cv.add(edges, sEdges);
 
-    int edgePixels2 = cv.countNonZero(finalEdges);
-    double edgeDensity2 = edgePixels2 / totalPixels;
-    dev.log(
-      "density: $edgeDensity -> $edgeDensity2, (target: $targetDensity, scale: $scale)",
-    );
+    //int edgePixels2 = cv.countNonZero(edges);
+    //double edgeDensity2 = edgePixels2 / totalPixels;
+    //dev.log(
+    //  "density: $edgeDensity -> $edgeDensity2, (target: $targetDensity, scale: $scale)",
+    //);
 
-    return finalEdges;
+    return edges;
   }
 
   cv.Mat _houghEdges1(cv.Mat edges, int maxLinesCount) {
