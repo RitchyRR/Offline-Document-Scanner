@@ -159,25 +159,36 @@ class OpenCVHelper {
   ) {
     List<List<int>> corners;
     double ratioValue;
-    if (cornerPointsIn != null) borderCutIn = null;
-
-    // 1. Isolate remove Text and Images to get Shape
-    cv.Mat prefiltered = _preFilter(matIn);
-    //return (shape, shape, math.sqrt2, []);
-    // 2. create a binary image, white representing the shape of the document
-    cv.Mat mask;
-    cv.Mat borderCorrectionMask;
-    (mask, borderCorrectionMask) = _documentMask(prefiltered);
-    //return (mask, math.sqrt2, []);
-
+    cv.Mat? borderCorrectionMask;
     if (cornerPointsIn == null) {
-      // 3. Corner detection
+      if (cornerPointsIn != null) borderCutIn = null;
+
+      // 1. Isolate remove Text and Images to get Shape
+      cv.Mat prefiltered = _preFilter(matIn);
+      //return (shape, shape, math.sqrt2, []);
+
+      // 2. Edges
+      cv.Mat edges = _edges(prefiltered);
+
+      // 3a. Contours
+      // 2b.1 create a binary image, white representing the shape of the document
+      cv.Mat mask;
+      cv.Mat? closedEdges;
+      (mask, closedEdges, borderCorrectionMask) = _documentMask(edges);
+      //return (mask, math.sqrt2, []);
+
+      // 2b.2 Corner detection
+      //cv.VecPoint? quickCorners = _quickCornerDetection(closedEdges!);
+      //if (quickCorners != null) {
+      //  corners = quickCorners.toList().map((e) => [e.y, e.x]).toList();
+      //} else {
       corners = _detectCorners(mask);
+      //}
     } else {
       corners = cornerPointsIn;
     }
+    // 3. Perspective transformation
     if (ratioValueIn == null) {
-      // 4. Perspective transformation
       ratioValue = _calculateTransformation(borderCorrectionMask, corners);
     } else {
       ratioValue = ratioValueIn;
@@ -455,6 +466,91 @@ class OpenCVHelper {
   //  return imCircle;
   //}
 
+  cv.VecPoint? _quickCornerDetection(cv.Mat edges) {
+    //cv.Mat edgesClosed = _closingCircleApprox(edges, K ~/ 2 * 2 + 1);
+
+    // Find contours
+    final cv.VecVecPoint contours;
+    //final cv.VecVec4i hierarchy;
+
+    (contours, _) = cv.findContours(
+      edges,
+      cv.RETR_EXTERNAL,
+      cv.CHAIN_APPROX_SIMPLE,
+    );
+
+    double largestArea = 0;
+    cv.VecPoint? corners;
+
+    for (final cv.VecPoint contour in contours) {
+      // perimeter (arc length) of the contour
+      // -> allowed deviation from original path
+      final double peri = cv.arcLength(contour, true);
+      final cv.VecPoint approx = cv.approxPolyDP(contour, 0.05 * peri, true);
+
+      // Doucument = 4-point convex contours
+      if (approx.length == 4) {
+        final area = cv.contourArea(approx);
+        // Check angles
+        if (_areAnglesValid(approx)) {
+          if (area > largestArea) {
+            largestArea = area;
+            corners = _orderCorners(approx);
+          }
+        }
+      }
+    }
+    return corners;
+  }
+
+  // Check if all interior angles are between 75 and 105 degrees
+  bool _areAnglesValid(cv.VecPoint points) {
+    for (int i = 0; i < 4; i++) {
+      final cv.Point a = points[(i + 3) % 4];
+      final cv.Point b = points[i];
+      final cv.Point c = points[(i + 1) % 4];
+
+      final angle = _angleBetween(a, b, c);
+      if (angle < 75 || angle > 105) return false;
+    }
+    return true;
+  }
+
+  // Calculate angle ABC (in degrees) between three points
+  double _angleBetween(cv.Point a, cv.Point b, cv.Point c) {
+    final abX = a.x - b.x;
+    final abY = a.y - b.y;
+    final cbX = c.x - b.x;
+    final cbY = c.y - b.y;
+
+    final dot = abX * cbX + abY * cbY;
+    final magAB = math.sqrt(abX * abX + abY * abY);
+    final magCB = math.sqrt(cbX * cbX + cbY * cbY);
+    final cosTheta = dot / (magAB * magCB);
+    return math.acos(cosTheta.clamp(-1.0, 1.0)) * (180 / math.pi);
+  }
+
+  // Reorders corners: top-left, bottom-left, top-right, bottom-right
+  cv.VecPoint _orderCorners(cv.VecPoint points) {
+    final sorted = List<cv.Point>.from(points);
+
+    // Sort by x to separate left/right
+    sorted.sort((a, b) => a.x.compareTo(b.x));
+    final left = [sorted[0], sorted[1]];
+    final right = [sorted[2], sorted[3]];
+
+    // Sort each pair by y
+    left.sort((a, b) => a.y.compareTo(b.y)); // TL, BL
+    right.sort((a, b) => a.y.compareTo(b.y)); // TR, BR
+
+    return cv.VecPoint.fromList([
+      left[0], // top-left
+      left[1], // bottom-left
+      right[0], // top-right
+      right[1], // bottom-right
+    ]);
+  }
+
   bool _testNoSpillover(final cv.Mat testShape) {
     if (testShape.at<int>(0, 0) == 0 &&
         testShape.at<int>(0, cols ~/ 2) == 0 &&
@@ -472,18 +568,13 @@ class OpenCVHelper {
   bool usingHough = false;
 
   /// Step 2: Edge Detection & Filling -> Shape of document
-  (cv.Mat, cv.Mat) _documentMask(cv.Mat prefiltered) {
-    if (prefiltered.isEmpty) {
-      throw StateError("Error, Edge Detection & Filling: split channels");
-    }
-
+  (cv.Mat, cv.Mat?, cv.Mat) _documentMask(cv.Mat edges) {
     int edgesMaskSize = 0;
     int houghMaskSize = 0;
-    // 1. try just filling Edges
-    cv.Mat edges = _edges(prefiltered);
-    //return (edges, edges);
+
+    // 3. Mask <- filling Edges
     cv.Mat edgesMask = _tightRiskyShape(edges);
-    // 2. use Hough Edges
+    // 4. Maskj <- filling Hough Edges
     cv.Mat houghEdges1 = _houghEdges1(edges, 18);
     cv.Mat houghEdges2 = _houghEdges2(edges, extendedBy: 0.25);
     //return houghEdges2;
@@ -531,6 +622,7 @@ class OpenCVHelper {
     }
 
     cv.Mat? mask;
+    cv.Mat? closedEdges; //TODO closedEdges
     cv.Mat? borderCorrectionMask;
 
     // Use larger mask (for corner detection)
@@ -563,7 +655,7 @@ class OpenCVHelper {
       borderCutIn = null;
     }
     borderCorrectionMask ??= mask;
-    return (mask, borderCorrectionMask);
+    return (mask, closedEdges, borderCorrectionMask);
   }
 
   cv.Mat _edges(cv.Mat prefiltered) {
@@ -967,7 +1059,7 @@ class OpenCVHelper {
 
   // Step 4.1: Calculate Border Corrections
   double _calculateTransformation(
-    cv.Mat borderCorrectionMask,
+    cv.Mat? borderCorrectionMask,
     List<List<int>> corners,
   ) {
     // Estimate aspect ratio
@@ -982,11 +1074,12 @@ class OpenCVHelper {
   }
 
   void _calculateBorderCutIn(
-    cv.Mat borderCorrectionMask,
+    cv.Mat? borderCorrectionMask,
     List<List<int>> corners,
   ) {
+    if (borderCorrectionMask == null && borderCutIn != null) borderCutIn = null;
     if (borderCutIn == null) return;
-    cv.Mat warpedBCMask = _transformImage(borderCorrectionMask, corners);
+    cv.Mat warpedBCMask = _transformImage(borderCorrectionMask!, corners);
     final int maxCutIn = usingHough
         ? (K * 0.2).toInt().clamp(1, -1 >>> 1)
         : (K * 0.4).toInt().clamp(1, -1 >>> 1);
