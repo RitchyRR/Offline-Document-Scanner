@@ -6699,7 +6699,9 @@ class _WarpState extends State<Warp> {
     final subList = _cornersHistory.sublist(_cornersHistoryIndex, maxSize);
     _cornersHistory.clear();
     _cornersHistory.addAll(subList);
-    _cornersHistory.insert(0, List.of(_screenSpaceCorners));
+    if (!listEquals(_screenSpaceCorners, _cornersHistory.first)) {
+      _cornersHistory.insert(0, List.of(_screenSpaceCorners));
+    }
     _cornersHistoryIndex = 0;
   }
 
