@@ -623,9 +623,12 @@ class FilesHelper {
     } else {
       await _deletePages(docIndex, pageIndexes);
     }
-    if (IsolatesManager().getIsolatesCount() == 0) {
-      g.filesHelper.repairDirectoryStructure();
-    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (IsolatesManager().getIsolatesCount() == 0) {
+        g.filesHelper.repairDirectoryStructure();
+      }
+    });
   }
 
   Future<void> _deleteDocument(
