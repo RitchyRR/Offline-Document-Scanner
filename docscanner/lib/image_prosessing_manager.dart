@@ -155,7 +155,7 @@ class ImageProcessingManager {
       cornerPoints: cornerPointsIn,
     );
     Uint8List warpedBytes = warpedRet.$1;
-    double? ratioValue = warpedRet.$2;
+    double ratioValue = warpedRet.$2;
     List<List<int>>? cornerPoints = warpedRet.$3;
 
     await isolateExitPoint(kill, ioFutures: ioFutures);

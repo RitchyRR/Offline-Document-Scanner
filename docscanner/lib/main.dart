@@ -4353,11 +4353,12 @@ class PagePreviewState extends State<PagePreview> {
           supressWarnings: supressWarnings,
         ) ??
         _selectedThumbnail;
-    _guiRatioValue = _ratioValue = await MetadataHelper.readPageRatioValue(
+    _ratioValue = await MetadataHelper.readPageRatioValue(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: supressWarnings,
     );
+    _guiRatioValue = (_ratioValue ?? _guiRatioValue);
     _importedPdfMode = await MetadataHelper.readPageImportedPdf(
       widget.docIndex,
       widget.pageIndex,
