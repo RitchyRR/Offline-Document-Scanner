@@ -4521,7 +4521,9 @@ class PagePreviewState extends State<PagePreview> {
         (_thumbnailBarSizeSelected + _thumbnailBarBoderThumbnail * 2);
     // Flags
     bool noReprocessingChanges =
-        ((_guiRatioValue == null || (_ratioValue == _guiRatioValue)) &&
+        ((_guiRatioValue == null ||
+            _ratioValue == null ||
+            (_ratioValue == _guiRatioValue)) &&
         (_orientationIndex == null ||
             (_orientationIndex == _guiOrientationIndex)) &&
         _totalRotation == 0);
