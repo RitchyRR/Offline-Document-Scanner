@@ -805,13 +805,11 @@ class OpenCVHelper {
   }
 
   cv.Mat _houghShape1(cv.Mat edges) {
-    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
     cv.Mat shape1 = edges.clone();
     cv.floodFill(
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
-      mask: mask, // useless
     );
     shape1 = cv.subtract(shape1, edges);
     int kSize = 2 * K;
@@ -824,13 +822,11 @@ class OpenCVHelper {
   cv.Mat _houghShape2(cv.Mat edges) {
     cv.Mat kernel1 = cv.Mat.ones(3, 3, cv.MatType.CV_8UC1);
     cv.Mat dilEdges = cv.dilate(edges, kernel1, borderType: cv.BORDER_CONSTANT);
-    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
     cv.Mat shape1 = dilEdges.clone();
     cv.floodFill(
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
-      mask: mask, // useless
     );
     shape1 = cv.subtract(shape1, dilEdges);
     cv.Mat kernel2 = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
@@ -841,13 +837,11 @@ class OpenCVHelper {
   cv.Mat _tightRiskyShape(cv.Mat edges) {
     cv.Mat kernel1 = cv.Mat.ones(3, 3, cv.MatType.CV_8UC1);
     cv.Mat dilEdges = cv.dilate(edges, kernel1, borderType: cv.BORDER_CONSTANT);
-    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
     cv.Mat shape1 = dilEdges.clone();
     cv.floodFill(
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
-      mask: mask, // useless
     );
     shape1 = cv.subtract(shape1, dilEdges);
     cv.Mat kernel2 = cv.Mat.ones(5, 5, cv.MatType.CV_8UC1);
@@ -860,7 +854,6 @@ class OpenCVHelper {
     int kSizeE = K ~/ 3 * 2 + 1;
     cv.Mat kernelDilate = cv.Mat.ones(kSizeD, kSizeD, cv.MatType.CV_8UC1);
     cv.Mat kernelErode = cv.Mat.ones(kSizeE, kSizeE, cv.MatType.CV_8UC1);
-    cv.Mat mask = cv.Mat.zeros(rows + 2, cols + 2, cv.MatType.CV_8UC1);
     cv.Mat dilEdges = cv.dilate(
       edges,
       kernelDilate,
@@ -878,7 +871,6 @@ class OpenCVHelper {
       shape1, // input + output
       cv.Point(cols ~/ 2, rows ~/ 2),
       cv.Scalar.all(255),
-      mask: mask, // useless
     );
     shape1 = cv.subtract(shape1, edgesClosed);
     cv.Mat kernel2 = cv.Mat.ones(

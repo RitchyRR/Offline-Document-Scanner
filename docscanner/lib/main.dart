@@ -3462,7 +3462,7 @@ class _PagesState extends State<Pages> with RouteAware {
                 if (thumbnailIndex != currentThumbnailIndex) return;
               }
               selectedIndex = thumbnailIndex;
-              setStateDialog(() {});
+              if (mounted) setStateDialog(() {});
             }
 
             preselect();
