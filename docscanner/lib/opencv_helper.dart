@@ -173,8 +173,7 @@ class OpenCVHelper {
       // 3a. Contours
       // 2b.1 create a binary image, white representing the shape of the document
       cv.Mat mask;
-      cv.Mat? closedEdges;
-      (mask, closedEdges, borderCorrectionMask) = _documentMask(edges);
+      (mask, borderCorrectionMask) = _documentMask(edges);
       //return (mask, math.sqrt2, []);
 
       // 2b.2 Corner detection
@@ -466,91 +465,6 @@ class OpenCVHelper {
   //  return imCircle;
   //}
 
-  cv.VecPoint? _quickCornerDetection(cv.Mat edges) {
-    //cv.Mat edgesClosed = _closingCircleApprox(edges, K ~/ 2 * 2 + 1);
-
-    // Find contours
-    final cv.VecVecPoint contours;
-    //final cv.VecVec4i hierarchy;
-
-    (contours, _) = cv.findContours(
-      edges,
-      cv.RETR_EXTERNAL,
-      cv.CHAIN_APPROX_SIMPLE,
-    );
-
-    double largestArea = 0;
-    cv.VecPoint? corners;
-
-    for (final cv.VecPoint contour in contours) {
-      // perimeter (arc length) of the contour
-      // -> allowed deviation from original path
-      final double peri = cv.arcLength(contour, true);
-      final cv.VecPoint approx = cv.approxPolyDP(contour, 0.05 * peri, true);
-
-      // Doucument = 4-point convex contours
-      if (approx.length == 4) {
-        final area = cv.contourArea(approx);
-        // Check angles
-        if (_areAnglesValid(approx)) {
-          if (area > largestArea) {
-            largestArea = area;
-            corners = _orderCorners(approx);
-          }
-        }
-      }
-    }
-    return corners;
-  }
-
-  // Check if all interior angles are between 75 and 105 degrees
-  bool _areAnglesValid(cv.VecPoint points) {
-    for (int i = 0; i < 4; i++) {
-      final cv.Point a = points[(i + 3) % 4];
-      final cv.Point b = points[i];
-      final cv.Point c = points[(i + 1) % 4];
-
-      final angle = _angleBetween(a, b, c);
-      if (angle < 75 || angle > 105) return false;
-    }
-    return true;
-  }
-
-  // Calculate angle ABC (in degrees) between three points
-  double _angleBetween(cv.Point a, cv.Point b, cv.Point c) {
-    final abX = a.x - b.x;
-    final abY = a.y - b.y;
-    final cbX = c.x - b.x;
-    final cbY = c.y - b.y;
-
-    final dot = abX * cbX + abY * cbY;
-    final magAB = math.sqrt(abX * abX + abY * abY);
-    final magCB = math.sqrt(cbX * cbX + cbY * cbY);
-    final cosTheta = dot / (magAB * magCB);
-    return math.acos(cosTheta.clamp(-1.0, 1.0)) * (180 / math.pi);
-  }
-
-  // Reorders corners: top-left, bottom-left, top-right, bottom-right
-  cv.VecPoint _orderCorners(cv.VecPoint points) {
-    final sorted = List<cv.Point>.from(points);
-
-    // Sort by x to separate left/right
-    sorted.sort((a, b) => a.x.compareTo(b.x));
-    final left = [sorted[0], sorted[1]];
-    final right = [sorted[2], sorted[3]];
-
-    // Sort each pair by y
-    left.sort((a, b) => a.y.compareTo(b.y)); // TL, BL
-    right.sort((a, b) => a.y.compareTo(b.y)); // TR, BR
-
-    return cv.VecPoint.fromList([
-      left[0], // top-left
-      left[1], // bottom-left
-      right[0], // top-right
-      right[1], // bottom-right
-    ]);
-  }
-
   bool _testNoSpillover(final cv.Mat testShape) {
     if (testShape.at<int>(0, 0) == 0 &&
         testShape.at<int>(0, cols ~/ 2) == 0 &&
@@ -568,7 +482,7 @@ class OpenCVHelper {
   bool usingHough = false;
 
   /// Step 2: Edge Detection & Filling -> Shape of document
-  (cv.Mat, cv.Mat?, cv.Mat) _documentMask(cv.Mat edges) {
+  (cv.Mat, cv.Mat) _documentMask(cv.Mat edges) {
     int edgesMaskSize = 0;
     int houghMaskSize = 0;
 
@@ -622,7 +536,6 @@ class OpenCVHelper {
     }
 
     cv.Mat? mask;
-    cv.Mat? closedEdges; //TODO closedEdges
     cv.Mat? borderCorrectionMask;
 
     // Use larger mask (for corner detection)
@@ -655,7 +568,7 @@ class OpenCVHelper {
       borderCutIn = null;
     }
     borderCorrectionMask ??= mask;
-    return (mask, closedEdges, borderCorrectionMask);
+    return (mask, borderCorrectionMask);
   }
 
   cv.Mat _edges(cv.Mat prefiltered) {
@@ -1779,4 +1692,144 @@ class OpenCVHelper {
 
     return result;
   }
+
+  //(cv.VecPoint?, double) _cornerDetection(cv.Mat closedEdges, cv.Mat edges) {
+  //  // Find contours
+  //  final cv.VecVecPoint contours;
+  //  //final cv.VecVec4i hierarchy;
+  //
+  //  (contours, _) = cv.findContours(
+  //    closedEdges,
+  //    cv.RETR_EXTERNAL,
+  //    cv.CHAIN_APPROX_SIMPLE,
+  //  );
+  //
+  //  double bestScore = 0;
+  //  cv.VecPoint? corners;
+  //
+  //  for (final cv.VecPoint contour in contours) {
+  //    // perimeter (arc length) of the contour
+  //    // -> allowed deviation from original path
+  //    final double peri = cv.arcLength(contour, true);
+  //    final cv.VecPoint approx = cv.approxPolyDP(contour, 0.05 * peri, true);
+  //
+  //    // Doucument = 4-point convex contours
+  //    if (approx.length == 4) {
+  //      final shapeScore = _scoreContourValidity(approx);
+  //      final edgeScore = _edgeSupportScore(approx, edges);
+  //      final totalScore = (edgeScore * 0.6) + (shapeScore * 0.4);
+  //      if (totalScore > bestScore) {
+  //        bestScore = totalScore;
+  //        corners = _orderCorners(approx);
+  //      }
+  //    }
+  //  }
+  //  return (corners, bestScore);
+  //}
+  //
+  //double _scoreContourValidity(cv.VecPoint contour) {
+  //  // Convert to list of Offsets for easier math
+  //  final corners = contour
+  //      .map((pt) => Offset(pt.x.toDouble(), pt.y.toDouble()))
+  //      .toList();
+  //
+  //  // Close the loop
+  //  final points = [...corners, corners[0]];
+  //
+  //  // --- 1. Area Score ---
+  //  final area = cv.contourArea(contour).abs();
+  //  final totalPixels = cols * rows;
+  //  final targetArea = totalPixels * 0.5;
+  //  final areaScore =
+  //      1.0 - ((area - targetArea).abs() / targetArea).clamp(0.0, 1.0);
+  //
+  //  // --- 2. Angle Score ---
+  //  double angleScore = 0.0;
+  //  for (int i = 0; i < 4; i++) {
+  //    final a = points[i];
+  //    final b = points[i + 1];
+  //    final c = points[(i + 2) % 4];
+  //
+  //    final ab = (b - a);
+  //    final bc = (c - b);
+  //    final angle = _angleBetween(ab, bc); // in degrees
+  //
+  //    final deviation = (angle - 90).abs();
+  //    angleScore +=
+  //        1.0 - (deviation / 45.0).clamp(0.0, 1.0); // penalize >45° off
+  //  }
+  //  angleScore /= 4.0;
+  //
+  //  // --- 3. Parallelism Score ---
+  //  final sides = List.generate(4, (i) => points[i + 1] - points[i]);
+  //  dotProduct(Offset a, Offset b) =>
+  //      (a.dx * b.dx + a.dy * b.dy) /
+  //      (a.distance * b.distance + 1e-6); // cosine of angle between
+  //
+  //  final parallel1 = dotProduct(sides[0], sides[2]).abs(); // top vs bottom
+  //  final parallel2 = dotProduct(sides[1], sides[3]).abs(); // left vs right
+  //  final parallelismScore = (parallel1 + parallel2) / 2.0;
+  //
+  //  // --- Final score (weighted average) ---
+  //  return ((areaScore * 0.4) + (angleScore * 0.3) + (parallelismScore * 0.3))
+  //      .clamp(0.0, 1.0);
+  //}
+  //
+  //double _angleBetween(Offset v1, Offset v2) {
+  //  final dot = v1.dx * v2.dx + v1.dy * v2.dy;
+  //  final mag1 = v1.distance;
+  //  final mag2 = v2.distance;
+  //  final cosTheta = (dot / (mag1 * mag2 + 1e-6)).clamp(-1.0, 1.0);
+  //  return math.acos(cosTheta) * (180 / math.pi);
+  //}
+  //
+  //double _edgeSupportScore(cv.VecPoint contour, cv.Mat edgeImage) {
+  //  // 1. Create an empty mask
+  //  final mask = cv.Mat.zeros(
+  //    edgeImage.rows,
+  //    edgeImage.cols,
+  //    cv.MatType.CV_8UC1,
+  //  );
+  //
+  //  // 2. Draw the contour outline onto the mask
+  //  final contours = cv.VecVecPoint.fromVecPoint(contour);
+  //  cv.drawContours(
+  //    mask,
+  //    contours,
+  //    -1,
+  //    cv.Scalar.all(255),
+  //    thickness: K ~/ 4.clamp(1, 100),
+  //  );
+  //
+  //  // 3. Use bitwise AND to isolate edges under the contour boundary
+  //  final overlap = cv.multiply(edgeImage, mask);
+  //
+  //  // 4. Count non-zero pixels (how much edge lies under the contour outline)
+  //  final count = cv.countNonZero(overlap);
+  //
+  //  // 5. Normalize: by perimeter (you could use approxPolyDP length, too)
+  //  final perimeter = cv.arcLength(contour, true);
+  //
+  //  return (count / (perimeter + 1e-6)).clamp(
+  //    0.0,
+  //    1.0,
+  //  ); // score between 0 and 1
+  //}
+  //
+  //cv.VecPoint _orderCorners(cv.VecPoint points) {
+  //  final sorted = points.sorted((a, b) => a.x.compareTo(b.x));
+  //  final left = [sorted[0], sorted[1]];
+  //  final right = [sorted[2], sorted[3]];
+  //
+  //  // Sort each pair by y
+  //  left.sort((a, b) => a.y.compareTo(b.y)); // TL, BL
+  //  right.sort((a, b) => a.y.compareTo(b.y)); // TR, BR
+  //
+  //  return cv.VecPoint.fromList([
+  //    left[0], // top-left
+  //    left[1], // bottom-left
+  //    right[0], // top-right
+  //    right[1], // bottom-right
+  //  ]);
+  //}
 }
