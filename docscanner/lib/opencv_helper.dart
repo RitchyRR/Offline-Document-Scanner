@@ -575,7 +575,7 @@ class OpenCVHelper {
     // 3. Mask <- filling Edges
     cv.Mat edgesMask = _tightRiskyShape(edges);
     // 4. Maskj <- filling Hough Edges
-    cv.Mat houghEdges1 = _houghEdges1(edges, 18);
+    cv.Mat houghEdges1 = _houghEdges1(edges, maxLinesCount: 18);
     cv.Mat houghEdges2 = _houghEdges2(edges, extendedBy: 0.25);
     //return houghEdges2;
     cv.Mat houghEdges;
@@ -703,7 +703,7 @@ class OpenCVHelper {
     return edges;
   }
 
-  cv.Mat _houghEdges1(cv.Mat edges, int maxLinesCount) {
+  cv.Mat _houghEdges1(cv.Mat edges, {required int maxLinesCount}) {
     final double rhoRes = K * 0.125; // line width in which pixels count
     final double thetaRes = (math.pi / 180);
     final int threshold = (K * 20).toInt(); // min pixel count per line
@@ -750,7 +750,7 @@ class OpenCVHelper {
     return houghEdges;
   }
 
-  cv.Mat _houghEdges2(cv.Mat edges, {double extendedBy = 0.5}) {
+  cv.Mat _houghEdges2(cv.Mat edges, {required double extendedBy}) {
     final double rhoRes = K * 0.125; // line width in which pixels count
     final double thetaRes = (math.pi / 180);
     final int threshold = (K * 21.5).toInt(); // min pixel count per line
