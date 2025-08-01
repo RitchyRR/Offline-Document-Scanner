@@ -3465,7 +3465,8 @@ class _PagesState extends State<Pages> with RouteAware {
               if (mounted) setStateDialog(() {});
             }
 
-            preselect();
+            if (selectedIndex == null) preselect();
+
             return AlertDialog(
               title: Row(
                 mainAxisSize: MainAxisSize.min,
