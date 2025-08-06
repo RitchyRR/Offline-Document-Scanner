@@ -2,7 +2,7 @@
 set -e
 
 # Make sure this points to your actual NDK location
-export ANDROID_NDK_HOME=${ANDROID_NDK_HOME:-"$HOME/Android/Sdk/ndk/25.2.9519653"}
+export ANDROID_NDK_HOME=${ANDROID_NDK_HOME:-"$HOME/Android/Sdk/ndk/29.0.13113456"}
 
 # Check if the NDK exists
 if [ ! -d "$ANDROID_NDK_HOME" ]; then
@@ -27,3 +27,5 @@ make -j$(nproc)
 # Move .so library to correct directory
 mkdir -p ../../../android/app/src/main/jniLibs/arm64-v8a
 cp libopencv_wrapper.so ../../../android/app/src/main/jniLibs/arm64-v8a/
+
+echo "Build files have been copied to:  ../../../android/app/src/main/jniLibs/arm64-v8a/"
