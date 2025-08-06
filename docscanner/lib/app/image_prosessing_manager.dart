@@ -2,7 +2,7 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'package:docscanner/files_helper.dart';
+import 'package:docscanner/app/files_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:async';
@@ -10,12 +10,12 @@ import 'dart:async';
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'dart:isolate' show ReceivePort, SendPort, Isolate;
-import 'package:docscanner/isolates_manager.dart';
+import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
-import 'package:docscanner/opencv_helper.dart';
-import 'package:docscanner/main.dart' show globalNotifier;
-import 'package:docscanner/metadata_helper.dart';
-import 'package:docscanner/app_globals.dart';
+import 'package:docscanner/app/opencv_helper.dart';
+import 'package:docscanner/app/main.dart' show globalNotifier;
+import 'package:docscanner/app/metadata_helper.dart';
+import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdf_render/pdf_render.dart' as pdfr;

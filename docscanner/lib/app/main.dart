@@ -7,7 +7,7 @@ import 'image_prosessing_manager.dart';
 import 'feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
-import 'package:docscanner/isolates_manager.dart'
+import 'package:docscanner/app/isolates_manager.dart'
     show IsolatePriority, IsolatesManager;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';

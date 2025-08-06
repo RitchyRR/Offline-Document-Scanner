@@ -1,6 +1,6 @@
 import 'dart:developer' as dev;
 import 'dart:typed_data';
-import 'package:docscanner/app_globals.dart';
+import 'package:docscanner/app/app_globals.dart';
 import 'package:opencv_core/opencv.dart' as cv;
 import 'dart:math' as math;
 

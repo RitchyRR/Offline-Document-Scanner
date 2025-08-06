@@ -4,7 +4,7 @@ import 'dart:developer' as dev show log;
 import 'dart:isolate';
 import 'dart:io';
 
-import 'package:docscanner/app_globals.dart' show ErrorLogger;
+import 'package:docscanner/app/app_globals.dart' show ErrorLogger;
 
 class TaskKiller {
   bool exited = false;

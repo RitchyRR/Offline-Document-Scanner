@@ -2,14 +2,14 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:docscanner/main.dart'
+import 'package:docscanner/app/main.dart'
     show globalNotifier, imageProcessingManager;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:synchronized/synchronized.dart';
 // my packages:
-import 'package:docscanner/app_globals.dart';
-import 'package:docscanner/image_prosessing_manager.dart';
+import 'package:docscanner/app/app_globals.dart';
+import 'package:docscanner/app/image_prosessing_manager.dart';
 // encryption:
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart';
