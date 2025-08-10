@@ -1,48 +1,73 @@
-import 'dart:ffi' as dffi;
-import 'dart:typed_data';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart' as ffi;
+import 'dart:ffi' as ffi;
+import 'package:ffi/ffi.dart' show malloc;
 
-final dffi.DynamicLibrary nativeLib = Platform.isAndroid
-    ? dffi.DynamicLibrary.open("libopencv_wrapper.so")
-    : throw UnsupportedError("Only Android is supported");
+final ffi.DynamicLibrary nativeLib = Platform.isAndroid
+    ? ffi.DynamicLibrary.open('libopencv_wrapper.so')
+    : throw UnsupportedError('Only Android supported');
+
+// ----------------- Typedefs -----------------
 
 typedef _WarpImageNative =
-    dffi.Pointer<dffi.Uint8> Function(
-      dffi.Pointer<dffi.Uint8>,
-      dffi.Int32,
-      dffi.Pointer<dffi.Int32>,
+    ffi.Pointer<ffi.Uint8> Function(
+      ffi.Pointer<ffi.Uint8>, // input pointer
+      ffi.Int32, // input length
+      ffi.Pointer<ffi.Int32>, // output length
     );
-typedef WarpImageDart =
-    dffi.Pointer<dffi.Uint8> Function(
-      dffi.Pointer<dffi.Uint8>,
+typedef _WarpImageDart =
+    ffi.Pointer<ffi.Uint8> Function(
+      ffi.Pointer<ffi.Uint8>,
       int,
-      dffi.Pointer<dffi.Int32>,
+      ffi.Pointer<ffi.Int32>,
     );
 
-final WarpImageDart warpImageNative = nativeLib
-    .lookup<dffi.NativeFunction<_WarpImageNative>>('warpImage')
-    .asFunction();
+typedef _FreeNative = ffi.Void Function(ffi.Pointer<ffi.Void>);
+typedef _FreeDart = void Function(ffi.Pointer<ffi.Void>);
 
+// ----------------- Lookup functions -----------------
+
+final _WarpImageDart _warpImageNative = nativeLib
+    .lookup<ffi.NativeFunction<_WarpImageNative>>('warpImage')
+    .asFunction<_WarpImageDart>();
+
+/// Free memory that was allocated in the library
+final _FreeDart _freeNative = nativeLib
+    .lookup<ffi.NativeFunction<_FreeNative>>('free')
+    .asFunction<_FreeDart>();
+
+// ----------------- Public functions -----------------
+
+/// Calls native warpImage and returns a Dart-owned [Uint8List].
+/// The native allocation is freed after the copy.
 Future<Uint8List> warpImage(Uint8List inputBytes) async {
-  final inputPtr = ffi.malloc.allocate<dffi.Uint8>(inputBytes.length);
-  final outLenPtr = ffi.malloc.allocate<dffi.Int32>(1);
+  final int inputLength = inputBytes.length;
 
-  // Copy input into allocated memory
-  inputPtr.asTypedList(inputBytes.length).setAll(0, inputBytes);
+  // Allocate native input buffer & copy Dart bytes into it
+  final ffi.Pointer<ffi.Uint8> inputPtr = malloc.allocate<ffi.Uint8>(
+    inputLength,
+  );
+  inputPtr.asTypedList(inputLength).setAll(0, inputBytes);
 
-  // Call native function
-  final resultPtr = warpImageNative(inputPtr, inputBytes.length, outLenPtr);
-  final outLen = outLenPtr.value;
+  // Allocate native output length int
+  final ffi.Pointer<ffi.Int32> outLenPtr = malloc.allocate<ffi.Int32>(1);
 
-  // Convert result back to Dart
-  final result = resultPtr.asTypedList(outLen);
+  // Call the native function
+  final ffi.Pointer<ffi.Uint8> resultPtr = _warpImageNative(
+    inputPtr,
+    inputLength,
+    outLenPtr,
+  );
+  final int outLen = outLenPtr.value;
 
-  // Clean up
-  ffi.malloc.free(inputPtr);
-  ffi.malloc.free(outLenPtr);
-  // ⚠️ You must free resultPtr in native code eventually
+  // Copy native output buffer into a Dart-owned Uint8List
+  final Uint8List result = Uint8List.fromList(resultPtr.asTypedList(outLen));
 
-  return Uint8List.fromList(result);
+  // Free native buffers
+  _freeNative(resultPtr.cast<ffi.Void>());
+  malloc.free(inputPtr);
+  malloc.free(outLenPtr);
+
+  return result;
 }

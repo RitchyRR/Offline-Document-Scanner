@@ -15,7 +15,6 @@ uint8_t* warpImage(uint8_t* inputBytes, int length, int* outLength) {
     cv::Mat image = cv::imdecode(inputVec, cv::IMREAD_UNCHANGED);
 
     // Apply OpenCV logic here (for now: return as-is)
-
     std::vector<uint8_t> outputVec;
     cv::imencode(".png", image, outputVec);
 
@@ -25,6 +24,10 @@ uint8_t* warpImage(uint8_t* inputBytes, int length, int* outLength) {
 
     *outLength = outputVec.size();
     return result;
+}
+
+void free_buffer(void* ptr) {
+    if (ptr) free(ptr);
 }
 
 }

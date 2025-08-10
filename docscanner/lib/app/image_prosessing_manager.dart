@@ -19,6 +19,8 @@ import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
+// ffi:
+import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 
 const List<String> versionNamesInternal = [
   "photo",
@@ -149,14 +151,16 @@ class ImageProcessingManager {
 
     // Warped
     await isolateExitPoint(kill, ioFutures: ioFutures);
-    var warpedRet = await cvHelper.warpImage(
+    //var warpedRet =
+    Uint8List warpedBytes = await cvb.warpImage(
       photoBytes,
-      ratioValueIn: ratioValueIn,
-      cornerPoints: cornerPointsIn,
+      //ratioValueIn: ratioValueIn,
+      //cornerPoints: cornerPointsIn,
     );
-    Uint8List warpedBytes = warpedRet.$1;
-    double ratioValue = warpedRet.$2;
-    List<List<int>>? cornerPoints = warpedRet.$3;
+    //Uint8List warpedBytes = warpedRet.$1;
+    //double ratioValue = warpedRet.$2;
+    //List<List<int>>? cornerPoints = warpedRet.$3;
+    List<List<int>>? cornerPoints;
 
     await isolateExitPoint(kill, ioFutures: ioFutures);
     ioFutures.add(
@@ -170,29 +174,29 @@ class ImageProcessingManager {
     );
 
     // initialThumbnailIndex
-    final int initialThumbnailIndex;
+    final int initialThumbnailIndex = 1;
     await isolateExitPoint(kill, ioFutures: ioFutures);
-    int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      gIn: g,
-      supressWarnings: true,
-    );
-    if (readThumbnailIndex == null) {
-      initialThumbnailIndex = g.defaultIndex;
-      await isolateExitPoint(kill, ioFutures: ioFutures);
-      ioFutures.add(
-        MetadataHelper.writePageThumbnailIndex(
-          docIndex,
-          pageIndex,
-          initialThumbnailIndex,
-          gIn: g,
-          supressWarnings: true,
-        ),
-      );
-    } else {
-      initialThumbnailIndex = readThumbnailIndex;
-    }
+    //int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+    //  docIndex,
+    //  pageIndex,
+    //  gIn: g,
+    //  supressWarnings: true,
+    //);
+    //if (readThumbnailIndex == null) {
+    //  initialThumbnailIndex = g.defaultIndex;
+    //  await isolateExitPoint(kill, ioFutures: ioFutures);
+    //  ioFutures.add(
+    //    MetadataHelper.writePageThumbnailIndex(
+    //      docIndex,
+    //      pageIndex,
+    //      initialThumbnailIndex,
+    //      gIn: g,
+    //      supressWarnings: true,
+    //    ),
+    //  );
+    //} else {
+    //  initialThumbnailIndex = readThumbnailIndex;
+    //}
 
     // First process (default) Thumbnail version
     Future<void> processThumbnailVersion() async {
@@ -246,7 +250,7 @@ class ImageProcessingManager {
       }
     }
 
-    filterFutures.add(processThumbnailVersion());
+    //filterFutures.add(processThumbnailVersion());
 
     // Update thumbnails:
     await isolateExitPoint(kill, ioFutures: ioFutures);
@@ -257,7 +261,7 @@ class ImageProcessingManager {
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      ratioValue,
+      math.sqrt2, //ratioValue,
       cornerPoints,
       gIn: g,
     );
@@ -286,79 +290,79 @@ class ImageProcessingManager {
       }
     });
 
-    // Kontrast
-    await isolateExitPoint(kill, ioFutures: ioFutures);
-    if (initialThumbnailIndex != 2) {
-      Future<void> processContrastFilter() async {
-        Uint8List contrastBytes = await cvHelper.processImageContrast();
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        ioFutures.add(
-          g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            2,
-            contrastBytes,
-            ".png",
-          ),
-        );
-      }
-
-      filterFutures.add(processContrastFilter());
-    }
-
-    // Dokument
-    await isolateExitPoint(kill, ioFutures: ioFutures);
-    if (initialThumbnailIndex != 3) {
-      Future<void> processDocumentFilter() async {
-        Uint8List processed1Bytes = await cvHelper.processImageDocument();
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        ioFutures.add(
-          g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            3,
-            processed1Bytes,
-            ".png",
-          ),
-        );
-      }
-
-      filterFutures.add(processDocumentFilter());
-    }
-
-    if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-      Future<void> processPROFilters() async {
-        // PRO
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        Uint8List processed2Bytes = await cvHelper.processImagePro();
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        ioFutures.add(
-          g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            4,
-            processed2Bytes,
-            ".png",
-          ),
-        );
-
-        // PRO 2
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        Uint8List processed3Bytes = await cvHelper.processImagePro2();
-        await isolateExitPoint(kill, ioFutures: ioFutures);
-        ioFutures.add(
-          g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            5,
-            processed3Bytes,
-            ".png",
-          ),
-        );
-      }
-
-      filterFutures.add(processPROFilters());
-    }
+    //// Kontrast
+    //await isolateExitPoint(kill, ioFutures: ioFutures);
+    //if (initialThumbnailIndex != 2) {
+    //  Future<void> processContrastFilter() async {
+    //    Uint8List contrastBytes = await cvHelper.processImageContrast();
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    ioFutures.add(
+    //      g.filesHelper.savePageVersion(
+    //        docIndex,
+    //        pageIndex,
+    //        2,
+    //        contrastBytes,
+    //        ".png",
+    //      ),
+    //    );
+    //  }
+    //
+    //  filterFutures.add(processContrastFilter());
+    //}
+    //
+    //// Dokument
+    //await isolateExitPoint(kill, ioFutures: ioFutures);
+    //if (initialThumbnailIndex != 3) {
+    //  Future<void> processDocumentFilter() async {
+    //    Uint8List processed1Bytes = await cvHelper.processImageDocument();
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    ioFutures.add(
+    //      g.filesHelper.savePageVersion(
+    //        docIndex,
+    //        pageIndex,
+    //        3,
+    //        processed1Bytes,
+    //        ".png",
+    //      ),
+    //    );
+    //  }
+    //
+    //  filterFutures.add(processDocumentFilter());
+    //}
+    //
+    //if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
+    //  Future<void> processPROFilters() async {
+    //    // PRO
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    Uint8List processed2Bytes = await cvHelper.processImagePro();
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    ioFutures.add(
+    //      g.filesHelper.savePageVersion(
+    //        docIndex,
+    //        pageIndex,
+    //        4,
+    //        processed2Bytes,
+    //        ".png",
+    //      ),
+    //    );
+    //
+    //    // PRO 2
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    Uint8List processed3Bytes = await cvHelper.processImagePro2();
+    //    await isolateExitPoint(kill, ioFutures: ioFutures);
+    //    ioFutures.add(
+    //      g.filesHelper.savePageVersion(
+    //        docIndex,
+    //        pageIndex,
+    //        5,
+    //        processed3Bytes,
+    //        ".png",
+    //      ),
+    //    );
+    //  }
+    //
+    //  filterFutures.add(processPROFilters());
+    //}
 
     // Set New Thumbnail
     await isolateExitPoint(kill, ioFutures: ioFutures);
