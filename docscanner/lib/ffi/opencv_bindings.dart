@@ -12,14 +12,16 @@ final ffi.DynamicLibrary nativeLib = Platform.isAndroid
 
 typedef _WarpImageNative =
     ffi.Pointer<ffi.Uint8> Function(
-      ffi.Pointer<ffi.Uint8>, // input pointer
-      ffi.Int32, // input length
-      ffi.Pointer<ffi.Int32>, // output length
+      ffi.Pointer<ffi.Uint8>, // inBytes
+      ffi.Int32, // inLength
+      ffi.Pointer<ffi.Pointer<ffi.Uint8>>, // outBytes (pointer to pointer)
+      ffi.Pointer<ffi.Int32>, // outLength
     );
 typedef _WarpImageDart =
     ffi.Pointer<ffi.Uint8> Function(
       ffi.Pointer<ffi.Uint8>,
       int,
+      ffi.Pointer<ffi.Pointer<ffi.Uint8>>,
       ffi.Pointer<ffi.Int32>,
     );
 
@@ -39,8 +41,6 @@ final _FreeDart _freeNative = nativeLib
 
 // ----------------- Public functions -----------------
 
-/// Calls native warpImage and returns a Dart-owned [Uint8List].
-/// The native allocation is freed after the copy.
 Future<Uint8List> warpImage(Uint8List inputBytes) async {
   final int inputLength = inputBytes.length;
 
@@ -50,22 +50,20 @@ Future<Uint8List> warpImage(Uint8List inputBytes) async {
   );
   inputPtr.asTypedList(inputLength).setAll(0, inputBytes);
 
-  // Allocate native output length int
-  final ffi.Pointer<ffi.Int32> outLenPtr = malloc.allocate<ffi.Int32>(1);
+  // Allocate output
+  final outBytesPtrPtr = malloc.allocate<ffi.Pointer<ffi.Uint8>>(1);
+  final outLenPtr = malloc.allocate<ffi.Int32>(1);
 
-  // Call the native function
-  final ffi.Pointer<ffi.Uint8> resultPtr = _warpImageNative(
-    inputPtr,
-    inputLength,
-    outLenPtr,
+  _warpImageNative(inputPtr, inputLength, outBytesPtrPtr, outLenPtr);
+
+  // Copy into Dart-owned list
+  final result = Uint8List.fromList(
+    outBytesPtrPtr.value.asTypedList(outLenPtr.value),
   );
-  final int outLen = outLenPtr.value;
 
-  // Copy native output buffer into a Dart-owned Uint8List
-  final Uint8List result = Uint8List.fromList(resultPtr.asTypedList(outLen));
-
-  // Free native buffers
-  _freeNative(resultPtr.cast<ffi.Void>());
+  // Free memory
+  _freeNative(outBytesPtrPtr.value.cast<ffi.Void>());
+  malloc.free(outBytesPtrPtr);
   malloc.free(inputPtr);
   malloc.free(outLenPtr);
 

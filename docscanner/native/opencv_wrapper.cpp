@@ -5,25 +5,22 @@
 
 extern "C" {
 
-// Convert incoming raw image buffer (e.g., RGBA) to cv::Mat
-// Then process and return image buffer (as-is for now)
-
-uint8_t* warpImage(uint8_t* inputBytes, int length, int* outLength) {
-    std::vector<uint8_t> inputVec(inputBytes, inputBytes + length);
-
-    // Decode image (assumes image is in PNG/JPG format)
+void warpImage(
+    const uint8_t* inBytes, int inLength,
+    uint8_t** outBytes, int* outLength
+) {
+    // Image bytes to cv::Mat
+    std::vector<uint8_t> inputVec(inBytes, inBytes + inLength);
     cv::Mat image = cv::imdecode(inputVec, cv::IMREAD_UNCHANGED);
 
-    // Apply OpenCV logic here (for now: return as-is)
+    // Process image (currently just return as-is)
     std::vector<uint8_t> outputVec;
     cv::imencode(".png", image, outputVec);
 
-    // Allocate buffer for Dart (don't free it here!)
-    uint8_t* result = (uint8_t*)malloc(outputVec.size());
-    memcpy(result, outputVec.data(), outputVec.size());
-
-    *outLength = outputVec.size();
-    return result;
+    // Allocate output buffer for Dart
+    *outLength = static_cast<int>(outputVec.size());
+    *outBytes = (uint8_t*)malloc(*outLength);
+    memcpy(*outBytes, outputVec.data(), *outLength);
 }
 
 void free_buffer(void* ptr) {
