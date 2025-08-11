@@ -5,6 +5,10 @@
 
 extern "C" {
 
+void freeBuffer(void* ptr) {
+    if (ptr) free(ptr);
+}
+
 void warpImage(
     const uint8_t* inBytes, int inLength,
     uint8_t** outBytes, int* outLength
@@ -21,10 +25,6 @@ void warpImage(
     *outLength = static_cast<int>(outputVec.size());
     *outBytes = (uint8_t*)malloc(*outLength);
     memcpy(*outBytes, outputVec.data(), *outLength);
-}
-
-void free_buffer(void* ptr) {
-    if (ptr) free(ptr);
 }
 
 }

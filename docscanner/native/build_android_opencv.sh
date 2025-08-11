@@ -25,7 +25,5 @@ cmake .. \
 make -j$(nproc)
 
 # Move .so library to correct directory
-mkdir -p ../../../android/app/src/main/jniLibs/arm64-v8a
-cp libopencv_wrapper.so ../../../android/app/src/main/jniLibs/arm64-v8a/
-
-echo "Build files have been copied to:  ../../../android/app/src/main/jniLibs/arm64-v8a/"
+mkdir -p ../../android/app/src/main/jniLibs/arm64-v8a
+cp -v libopencv_wrapper.so ../../android/app/src/main/jniLibs/arm64-v8a/libopencv_wrapper.so
