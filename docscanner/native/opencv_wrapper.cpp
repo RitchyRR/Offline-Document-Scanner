@@ -5,26 +5,39 @@
 
 extern "C" {
 
-void freeBuffer(void* ptr) {
-    if (ptr) free(ptr);
+void freeBuffer(void* inPtr) {
+    if (inPtr) free(inPtr);
 }
 
-void warpImage(
-    const uint8_t* inBytes, int inLength,
-    uint8_t** outBytes, int* outLength
-) {
-    // Image bytes to cv::Mat
-    std::vector<uint8_t> inputVec(inBytes, inBytes + inLength);
-    cv::Mat image = cv::imdecode(inputVec, cv::IMREAD_UNCHANGED);
+// Reads an inImage from disk into a cv::Mat
+// Returns 1 if successful, 0 if failed
+int readImageFromFile(const char* inFilePath, cv::Mat& outImage) {
+    outImage = cv::imread(inFilePath, cv::IMREAD_UNCHANGED);
+    return !outImage.empty();
+}
 
-    // Process image (currently just return as-is)
-    std::vector<uint8_t> outputVec;
-    cv::imencode(".png", image, outputVec);
+// Writes a cv::Mat inImage to disk at given path
+// Returns 1 if successful, 0 if failed
+int writeImageToFile(const char* inFilePath, const cv::Mat& inImage) {
+    return cv::imwrite(inFilePath, inImage);
+}
 
-    // Allocate output buffer for Dart
-    *outLength = static_cast<int>(outputVec.size());
-    *outBytes = (uint8_t*)malloc(*outLength);
-    memcpy(*outBytes, outputVec.data(), *outLength);
+// Warp inImage: read from path, process, write to output path
+// Returns 1 if successful, 0 if failed
+int warpImage(const char* inPhotoPath, const char* inWarpedPath) {
+    cv::Mat image;
+    if (!readImageFromFile(inPhotoPath, image)) {
+        return 0; // Could not read input
+    }
+    
+    // TODO: Apply your processing here
+    // For now, just pass through
+    
+    if (!writeImageToFile(inWarpedPath, image)) {
+        return 0; // Could not write output
+    }
+    
+    return 1;
 }
 
 }

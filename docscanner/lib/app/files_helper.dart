@@ -341,6 +341,38 @@ class FilesHelper {
     return versionPath;
   }
 
+  Future<String> createVersionPath(
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+  ) async {
+    await _initializeDocumentsPath();
+    String pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    String versionName = versionNamesInternal[versionIndex];
+    // Delete existing Image
+    if (Directory(pagePath).existsSync()) {
+      for (var fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        if (fse.path.contains("$versionName.")) {
+          fse.deleteSync();
+        }
+      }
+    } else {
+      throw StateError(
+        "Error, savePageVersion: pagePath $pagePath does not exist",
+      );
+    }
+    String versionPath =
+        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
+
+    return versionPath;
+  }
+
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
     int docsCount = await g.filesHelper.getDocumentsCount();

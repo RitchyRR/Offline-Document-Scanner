@@ -13,7 +13,7 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/app/opencv_helper.dart';
-import 'package:docscanner/app/main.dart' show globalNotifier;
+import 'package:docscanner/app/main.dart' show globalNotifier, versionNames;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -40,7 +40,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      Uint8List photoBytes,
+      String photoPath,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
       int rotationIn,
@@ -56,7 +56,7 @@ class ImageProcessingManager {
 
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    Uint8List photoBytes = data.$5;
+    String photoPath = data.$5;
 
     double? ratioValueIn = data.$6;
     List<List<int>>? cornerPointsIn = data.$7;
@@ -79,7 +79,7 @@ class ImageProcessingManager {
       sendPort,
       docIndex,
       pageIndex,
-      photoBytes,
+      photoPath,
       ratioValueIn,
       cornerPointsIn,
       rotationIn,
@@ -111,7 +111,7 @@ class ImageProcessingManager {
     SendPort sendPort,
     int docIndex,
     int pageIndex,
-    Uint8List photoBytes,
+    String photoPath,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
     int rotationIn,
@@ -152,10 +152,11 @@ class ImageProcessingManager {
     // Warped
     await isolateExitPoint(kill, ioFutures: ioFutures);
     //var warpedRet =
-    Uint8List warpedBytes = await cvb.warpImage(
-      photoBytes,
-      //ratioValueIn: ratioValueIn,
-      //cornerPoints: cornerPointsIn,
+    filterFutures.add(
+      cvb.warpImage(
+        photoPath,
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, 1),
+      ),
     );
     //Uint8List warpedBytes = warpedRet.$1;
     //double ratioValue = warpedRet.$2;
@@ -163,15 +164,15 @@ class ImageProcessingManager {
     List<List<int>>? cornerPoints;
 
     await isolateExitPoint(kill, ioFutures: ioFutures);
-    ioFutures.add(
-      g.filesHelper.savePageVersion(
-        docIndex,
-        pageIndex,
-        1,
-        warpedBytes,
-        ".png",
-      ),
-    );
+    //ioFutures.add(
+    //  g.filesHelper.savePageVersion(
+    //    docIndex,
+    //    pageIndex,
+    //    1,
+    //    warpedBytes,
+    //    ".png",
+    //  ),
+    //);
 
     // initialThumbnailIndex
     final int initialThumbnailIndex = 1;
@@ -431,7 +432,7 @@ class ImageProcessingManager {
         token,
         docIndex,
         pageIndex,
-        photoBytes,
+        photoPath,
         ratioValueIn,
         cornerPointsIn,
         rotationIn,
