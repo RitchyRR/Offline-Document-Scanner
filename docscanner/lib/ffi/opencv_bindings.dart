@@ -1,4 +1,3 @@
-import 'dart:developer' as dev show log;
 import 'dart:io';
 
 import 'dart:ffi' as ffi;
