@@ -21,14 +21,14 @@ public:
         return cv::imwrite(path, image);
     }
     
-    bool warpImage(const std::string& outPath) {
+    bool warpImage(const std::string& warpedPath) {
         if (photo.empty()) return false;
         warped = photo.clone();
         
         // TODO: Apply your processing to `warped` here
         // Currently: pass-through (already copied from photo)
         
-        return saveImage(outPath, warped);
+        return saveImage(warpedPath, warped);
     }
 };
 
@@ -42,14 +42,14 @@ void freeProcessor(ImageProcessor* processor) {
 }
 
 // ------------------ Image Operations ------------------
-int processorLoadPhoto(ImageProcessor* processor, const char* inPath) {
+int processorLoadPhoto(ImageProcessor* processor, const char* photoPath) {
     if (!processor) return 0;
-    return processor->loadPhoto(inPath) ? 1 : 0;
+    return processor->loadPhoto(photoPath) ? 1 : 0;
 }
 
-int processorWarpImage(ImageProcessor* processor, const char* outPath) {
+int processorWarpImage(ImageProcessor* processor, const char* warpedPath) {
     if (!processor) return 0;
-    return processor->warpImage(outPath) ? 1 : 0;
+    return processor->warpImage(warpedPath) ? 1 : 0;
 }
 
 }
