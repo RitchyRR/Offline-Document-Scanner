@@ -13,7 +13,7 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/app/opencv_helper.dart';
-import 'package:docscanner/app/main.dart' show globalNotifier, versionNames;
+import 'package:docscanner/app/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -581,7 +581,6 @@ class ImageProcessingManager {
         File(versionPaths[0]).readAsBytesSync(),
         ratioValueIn: ratioValue,
         cornerPoints: cornerPoints,
-        onlyCalculateBorder: versionPaths[1].isNotEmpty,
       );
       warpedBytes = warpedRet.$1;
       isolateExitPoint(kill);

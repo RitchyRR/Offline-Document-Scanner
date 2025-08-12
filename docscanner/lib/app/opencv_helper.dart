@@ -21,7 +21,6 @@ class OpenCVHelper {
     Uint8List imageBytesIn, {
     double? ratioValueIn,
     List<List<int>>? cornerPoints,
-    bool onlyCalculateBorder = false,
   }) async {
     cv.Mat imageMat = _loadImage(imageBytesIn);
 
