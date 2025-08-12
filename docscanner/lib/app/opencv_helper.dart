@@ -150,7 +150,7 @@ class OpenCVHelper {
     return resultImageBytes;
   }
 
-  /// Warp Image: Edge detection, stretch to A4
+  /// Warp Image: Edge detection, stretch to aspect ratio
   (cv.Mat?, double, List<List<int>>) _warpImage(
     cv.Mat matIn,
     final double? ratioValueIn,
