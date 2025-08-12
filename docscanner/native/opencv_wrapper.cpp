@@ -1,43 +1,55 @@
 #include <opencv2/opencv.hpp>
-#include <vector>
+#include <string>
 #include <stdint.h>
 #include <stdlib.h>
 
 extern "C" {
 
-void freeBuffer(void* inPtr) {
-    if (inPtr) free(inPtr);
-}
-
-// Reads an inImage from disk into a cv::Mat
-// Returns 1 if successful, 0 if failed
-int readImageFromFile(const char* inFilePath, cv::Mat& outImage) {
-    outImage = cv::imread(inFilePath, cv::IMREAD_UNCHANGED);
-    return !outImage.empty();
-}
-
-// Writes a cv::Mat inImage to disk at given path
-// Returns 1 if successful, 0 if failed
-int writeImageToFile(const char* inFilePath, const cv::Mat& inImage) {
-    return cv::imwrite(inFilePath, inImage);
-}
-
-// Warp inImage: read from path, process, write to output path
-// Returns 1 if successful, 0 if failed
-int warpImage(const char* inPhotoPath, const char* inWarpedPath) {
-    cv::Mat image;
-    if (!readImageFromFile(inPhotoPath, image)) {
-        return 0; // Could not read input
+// ------------------ Instance Class ------------------
+class ImageProcessor {
+public:
+    cv::Mat photo;
+    cv::Mat warped;
+    
+    bool loadPhoto(const std::string& path) {
+        photo = cv::imread(path, cv::IMREAD_UNCHANGED);
+        if (photo.empty()) return false;
+        return true;
     }
     
-    // TODO: Apply your processing here
-    // For now, just pass through
-    
-    if (!writeImageToFile(inWarpedPath, image)) {
-        return 0; // Could not write output
+    bool saveImage(const std::string& path, const cv::Mat& image) const {
+        return cv::imwrite(path, image);
     }
     
-    return 1;
+    bool warpImage(const std::string& outPath) {
+        if (photo.empty()) return false;
+        warped = photo.clone();
+        
+        // TODO: Apply your processing to `warped` here
+        // Currently: pass-through (already copied from photo)
+        
+        return saveImage(outPath, warped);
+    }
+};
+
+// ------------------ Instance Lifecycle ------------------
+ImageProcessor* createProcessor() {
+    return new ImageProcessor();
+}
+
+void freeProcessor(ImageProcessor* processor) {
+    delete processor;
+}
+
+// ------------------ Image Operations ------------------
+int processorLoadPhoto(ImageProcessor* processor, const char* inPath) {
+    if (!processor) return 0;
+    return processor->loadPhoto(inPath) ? 1 : 0;
+}
+
+int processorWarpImage(ImageProcessor* processor, const char* outPath) {
+    if (!processor) return 0;
+    return processor->warpImage(outPath) ? 1 : 0;
 }
 
 }

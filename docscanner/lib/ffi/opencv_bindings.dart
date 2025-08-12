@@ -8,54 +8,82 @@ final ffi.DynamicLibrary nativeLib = Platform.isAndroid
     ? ffi.DynamicLibrary.open('libopencv_wrapper.so')
     : throw UnsupportedError('Only Android supported');
 
-final bool warpImageFound = nativeLib.providesSymbol('warpImage');
-final bool freeBufferFound = nativeLib.providesSymbol('freeBuffer');
+final class ImageProcessorHandle extends ffi.Opaque {}
 
 // ----------------- Typedefs -----------------
 
-typedef _WarpImageNative =
-    ffi.Int32 Function(
-      ffi.Pointer<ffi.Int8>, // inPhotoPath
-      ffi.Pointer<ffi.Int8>, // inWarpedPath
-    );
-typedef _WarpImageDart =
-    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>);
+typedef _CreateProcessorNative = ffi.Pointer<ImageProcessorHandle> Function();
+typedef _CreateProcessorDart = ffi.Pointer<ImageProcessorHandle> Function();
 
-typedef _FreeBufferNative = ffi.Void Function(ffi.Pointer<ffi.Void>);
-typedef _FreeBufferDart = void Function(ffi.Pointer<ffi.Void>);
+typedef _FreeProcessorNative =
+    ffi.Void Function(ffi.Pointer<ImageProcessorHandle>);
+typedef _FreeProcessorDart = void Function(ffi.Pointer<ImageProcessorHandle>);
+
+typedef _ProcessorLoadPhotoNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>,
+    );
+typedef _ProcessorLoadPhotoDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
+typedef _ProcessorWarpImageNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>,
+    );
+typedef _ProcessorWarpImageDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 // ----------------- Lookup functions -----------------
 
-final _WarpImageDart _warpImageNative = nativeLib
-    .lookup<ffi.NativeFunction<_WarpImageNative>>('warpImage')
-    .asFunction<_WarpImageDart>();
+final _createProcessor = nativeLib
+    .lookup<ffi.NativeFunction<_CreateProcessorNative>>('createProcessor')
+    .asFunction<_CreateProcessorDart>();
 
-/// Free memory that was allocated in the library
-final _FreeBufferDart _freeNative = nativeLib
-    .lookup<ffi.NativeFunction<_FreeBufferNative>>('freeBuffer')
-    .asFunction<_FreeBufferDart>();
+final _freeProcessor = nativeLib
+    .lookup<ffi.NativeFunction<_FreeProcessorNative>>('freeProcessor')
+    .asFunction<_FreeProcessorDart>();
+
+final _processorLoadPhoto = nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
+    .asFunction<_ProcessorLoadPhotoDart>();
+
+final _processorWarpImage = nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorWarpImageNative>>('processorWarpImage')
+    .asFunction<_ProcessorWarpImageDart>();
 
 // ----------------- Public functions -----------------
 
-Future<void> warpImage(String photoPath, String warpedPath) async {
-  if (!warpImageFound) dev.log("Lib has no 'warpImage' function");
-  if (!freeBufferFound) dev.log("Lib has no 'freeBuffer' function");
+class ImageProcessor {
+  late final ffi.Pointer<ImageProcessorHandle> _handle;
 
-  // Convert Dart strings to native UTF-8 pointers
-  final ffi.Pointer<ffi.Int8> photoPathPtr = photoPath
-      .toNativeUtf8()
-      .cast<ffi.Int8>();
-  final ffi.Pointer<ffi.Int8> warpedPathPtr = warpedPath
-      .toNativeUtf8()
-      .cast<ffi.Int8>();
+  ImageProcessor() {
+    _handle = _createProcessor();
+    if (_handle.address == 0) {
+      throw Exception('Native error: Failed to create ImageProcessor');
+    }
+  }
 
-  final int result = _warpImageNative(photoPathPtr, warpedPathPtr);
+  void dispose() {
+    _freeProcessor(_handle);
+  }
 
-  // Free allocated memory for strings
-  malloc.free(photoPathPtr);
-  malloc.free(warpedPathPtr);
+  void loadPhoto(String path) {
+    final pathPtr = path.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorLoadPhoto(_handle, pathPtr);
+    malloc.free(pathPtr);
+    if (result == 0) throw Exception('Native error, loadPhoto: $path');
+  }
 
-  if (result == 0) {
-    throw Exception('warpImage failed for $photoPath → $warpedPath');
+  void warpImage(String outPath) {
+    final pathPtr = outPath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorWarpImage(_handle, pathPtr);
+    malloc.free(pathPtr);
+    if (result == 0) {
+      throw Exception(
+        'Native error, warpImage: Processing / Saving failed to $outPath',
+      );
+    }
   }
 }

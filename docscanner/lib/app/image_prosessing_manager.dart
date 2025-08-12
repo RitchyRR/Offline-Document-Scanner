@@ -151,13 +151,12 @@ class ImageProcessingManager {
 
     // Warped
     await isolateExitPoint(kill, ioFutures: ioFutures);
-    //var warpedRet =
-    filterFutures.add(
-      cvb.warpImage(
-        photoPath,
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, 1),
-      ),
+    final imageProcessor = cvb.ImageProcessor();
+    imageProcessor.loadPhoto(photoPath);
+    imageProcessor.warpImage(
+      await g.filesHelper.createVersionPath(docIndex, pageIndex, 1),
     );
+    imageProcessor.dispose();
     //Uint8List warpedBytes = warpedRet.$1;
     //double ratioValue = warpedRet.$2;
     //List<List<int>>? cornerPoints = warpedRet.$3;
