@@ -164,7 +164,6 @@ class OpenCVHelper {
 
       // 1. Isolate remove Text and Images to get Shape
       cv.Mat prefiltered = _preFilter(matIn);
-      //return (shape, shape, math.sqrt2, []);
 
       // 2. Edges
       cv.Mat edges = _edges(prefiltered);
@@ -173,15 +172,9 @@ class OpenCVHelper {
       // 2b.1 create a binary image, white representing the shape of the document
       cv.Mat mask;
       (mask, borderCorrectionMask) = _documentMask(edges);
-      //return (mask, math.sqrt2, []);
 
       // 2b.2 Corner detection
-      //cv.VecPoint? quickCorners = _quickCornerDetection(closedEdges!);
-      //if (quickCorners != null) {
-      //  corners = quickCorners.toList().map((e) => [e.y, e.x]).toList();
-      //} else {
       corners = _detectCorners(mask);
-      //}
     } else {
       corners = cornerPointsIn;
     }

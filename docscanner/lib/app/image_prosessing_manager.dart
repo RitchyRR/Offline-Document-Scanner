@@ -153,14 +153,15 @@ class ImageProcessingManager {
     await isolateExitPoint(kill, ioFutures: ioFutures);
     final imageProcessor = cvb.ImageProcessor();
     imageProcessor.loadPhoto(photoPath);
-    imageProcessor.warpImage(
+
+    double ratioValue;
+    List<List<int>>? cornerPoints;
+    (ratioValue, cornerPoints) = imageProcessor.warpImage(
       await g.filesHelper.createVersionPath(docIndex, pageIndex, 1),
+      ratioValueIn,
+      cornerPointsIn,
     );
     imageProcessor.dispose();
-    //Uint8List warpedBytes = warpedRet.$1;
-    //double ratioValue = warpedRet.$2;
-    //List<List<int>>? cornerPoints = warpedRet.$3;
-    List<List<int>>? cornerPoints;
 
     await isolateExitPoint(kill, ioFutures: ioFutures);
     //ioFutures.add(
