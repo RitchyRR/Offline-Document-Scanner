@@ -153,6 +153,7 @@ class ImageProcessingManager {
     await isolateExitPoint(kill, ioFutures: ioFutures);
     final imageProcessor = cvb.ImageProcessor();
     imageProcessor.loadPhoto(photoPath);
+    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
 
     double ratioValue;
     List<List<int>>? cornerPoints;
