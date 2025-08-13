@@ -797,13 +797,17 @@ public:
         if (photo.empty()) return false;
         
         cv::Mat* borderCorrectionMask = nullptr;
-        std::vector<int>* borderCutIn;
-        bool* usingHough = (bool*) false;
+        std::vector<int> borderCutInVal;
+        std::vector<int>* borderCutIn = &borderCutInVal;
 
+        bool usingHoughVal = false;
+        bool* usingHough = &usingHoughVal;
         int Kval = (photo.rows + photo.cols) / 100;
         int* K = &Kval;
-        int* height;
-        int* width;
+        int heightVal = 0;
+        int* height = &heightVal;
+        int widthVal = 0;
+        int* width = &widthVal;
         
         
         
