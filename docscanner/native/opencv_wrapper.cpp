@@ -373,12 +373,11 @@ private:
     }
     
     // Best document mask + Mask for border correction
-    std::tuple<cv::Mat, cv::Mat> _documentMask(const cv::Mat& edges, int K) {
+    std::tuple<cv::Mat, cv::Mat> _documentMask(const cv::Mat& edges, int K, bool* usingHough) {
         CV_Assert(edges.type() == CV_8UC1);
         
         int edgesMaskSize = 0;
         int houghMaskSize = 0;
-        bool usingHough = false;
         
         // 3. Mask <- filling Edges
         cv::Mat edgesMask = _tightRiskyShape(edges);
@@ -447,7 +446,7 @@ private:
             mask = edgesMask.clone();
         } else if (houghMaskSize != 0) {
             mask = houghMask.clone();
-            usingHough = true;
+            *usingHough = true;
         }
 
         // Fallback: Combine edges and Hough edges
@@ -734,11 +733,11 @@ private:
     }
     
     void _applyBorderCutInToCorners(std::vector<std::vector<int>>& corners, std::vector<int> borderCutIn) {
-    if (!borderCutIn.empty()) {
-        corners[0][0] += borderCutIn[0]; corners[2][0] += borderCutIn[1]; // top
-        corners[1][0] -= borderCutIn[2]; corners[3][0] -= borderCutIn[3]; // bottom
-        corners[0][1] += borderCutIn[4]; corners[1][1] += borderCutIn[5]; // left
-        corners[2][1] -= borderCutIn[6]; corners[3][1] -= borderCutIn[7]; // right
+        if (!borderCutIn.empty()) {
+            corners[0][0] += borderCutIn[0]; corners[2][0] += borderCutIn[1]; // top
+            corners[1][0] -= borderCutIn[2]; corners[3][0] -= borderCutIn[3]; // bottom
+            corners[0][1] += borderCutIn[4]; corners[1][1] += borderCutIn[5]; // left
+            corners[2][1] -= borderCutIn[6]; corners[3][1] -= borderCutIn[7]; // right
         }
     }
     
@@ -791,10 +790,16 @@ public:
         std::vector<std::vector<int>>* inOutCorners
     ) {
         if (photo.empty()) return false;
+        
         cv::Mat* borderCorrectionMask = nullptr;
-        int* K = (int *) ((photo.rows + photo.cols) / 100);
+        std::vector<int>* borderCutIn;
+        bool* usingHough = (bool*) false;
+        
+        int* K = (int*) ((photo.rows + photo.cols) / 100);
         int* height;
         int* width;
+        
+        
         
         // Step 1: Detect or reuse corners
         cv::Mat prefiltered;
@@ -807,7 +812,7 @@ public:
             
             // 1c. Get document mask & border correction mask
             cv::Mat mask;
-            std::tie(mask, *borderCorrectionMask) = _documentMask(edges, *K);
+            std::tie(mask, *borderCorrectionMask) = _documentMask(edges, *K, usingHough);
             
             // 1d. Detect corners
             *inOutCorners = _detectCorners(mask, *K);
@@ -818,18 +823,23 @@ public:
             *inOutRatioValue = _calculateTransformation(
                 borderCorrectionMask, 
                 *inOutCorners, 
+                *usingHough,
                 borderCutIn, 
                 K, height, width
             );
         } else {
             _setHeightFromCorners(*inOutCorners, *inOutRatioValue, 
                 K, height, width);
-            _calculateBorderCutIn(borderCorrectionMask, *inOutCorners, usingHough, 
+            _calculateBorderCutIn(
+                borderCorrectionMask, 
+                *inOutCorners, 
+                *usingHough, 
+                borderCutIn,
                 *K, *height, *width);
         }
         
         // Step 3: Apply border cut in
-        _applyBorderCutInToCorners(*inOutCorners, borderCutIn);
+        _applyBorderCutInToCorners(*inOutCorners, *borderCutIn);
         
         // Step 4: Perspective transform
         warped = _transformImage(photo, *inOutCorners, *height, *width);
