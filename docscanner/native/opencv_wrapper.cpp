@@ -627,9 +627,7 @@ private:
     void _setHeightFromCorners(
         const std::vector<std::vector<int>>& inCorners, 
         double inRatio,
-        int* K,
-        int* height,
-        int* width
+        int* K, int* height, int* width
     ) {
         *height = std::max(abs(inCorners[1][0] - inCorners[0][0]), abs(inCorners[3][0] - inCorners[2][0]));
         *width = std::max(abs(inCorners[2][1] - inCorners[0][1]), abs(inCorners[3][1] - inCorners[1][1]));
@@ -668,9 +666,7 @@ private:
         std::vector<std::vector<int>>& corners, 
         bool usingHough,
         std::vector<int>* borderCutIn,
-        int K,
-        int height,
-        int width
+        int K, int height, int width
     ) {
         if (!borderCorrectionMask && !(*borderCutIn).empty()) (*borderCutIn).clear();
         if ((*borderCutIn).empty()) return;
@@ -749,8 +745,7 @@ private:
     cv::Mat _transformImage(
         const cv::Mat& imageMat, 
         const std::vector<std::vector<int>>& corners,
-        int width, 
-        int height
+        int height, int width
     ) {
         // Source points (note: Dart swapped [row,col] vs [y,x])
         std::vector<cv::Point2f> srcPoints = {
