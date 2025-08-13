@@ -800,7 +800,8 @@ public:
         std::vector<int>* borderCutIn;
         bool* usingHough = (bool*) false;
 
-        int* K = new int((photo.rows + photo.cols) / 100);
+        int Kval = (photo.rows + photo.cols) / 100;
+        int* K = &Kval;
         int* height;
         int* width;
         
