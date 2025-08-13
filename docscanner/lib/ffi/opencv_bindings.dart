@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'dart:ffi' as ffi;
+import 'package:docscanner/app/app_globals.dart' show AspectRatioInfo;
 import 'package:ffi/ffi.dart' show malloc, StringUtf8Pointer;
 
 final ffi.DynamicLibrary nativeLib = Platform.isAndroid
@@ -25,6 +26,14 @@ typedef _ProcessorLoadPhotoNative =
     );
 typedef _ProcessorLoadPhotoDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
+typedef _SetAvailableAspectRatiosNative =
+    ffi.Void Function(
+      ffi.Pointer<ffi.Double>, // pointer to the array
+      ffi.Int, // length
+    );
+typedef _SetAvailableAspectRatiosDart =
+    void Function(ffi.Pointer<ffi.Double>, int);
 
 typedef _ProcessorWarpImageNative =
     ffi.Int32 Function(
@@ -56,6 +65,12 @@ final _processorLoadPhoto = nativeLib
     .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
     .asFunction<_ProcessorLoadPhotoDart>();
 
+final _setAvailableAspectRatios = nativeLib
+    .lookup<ffi.NativeFunction<_SetAvailableAspectRatiosNative>>(
+      'setAvailableAspectRatios',
+    )
+    .asFunction<_SetAvailableAspectRatiosDart>();
+
 final _processorWarpImage = nativeLib
     .lookup<ffi.NativeFunction<_ProcessorWarpImageNative>>('processorWarpImage')
     .asFunction<_ProcessorWarpImageDart>();
@@ -81,6 +96,18 @@ class ImageProcessor {
     final result = _processorLoadPhoto(_handle, pathPtr);
     malloc.free(pathPtr);
     if (result == 0) throw Exception('Native error, loadPhoto: $path');
+  }
+
+  void setAvailableAspectRatios(List<AspectRatioInfo> gAvailableAspectRatios) {
+    final length = gAvailableAspectRatios.length;
+    final ptr = malloc<ffi.Double>(length);
+    for (var i = 0; i < length; i++) {
+      ptr[i] = gAvailableAspectRatios[i].value;
+    }
+
+    _setAvailableAspectRatios(ptr, length);
+
+    malloc.free(ptr);
   }
 
   (

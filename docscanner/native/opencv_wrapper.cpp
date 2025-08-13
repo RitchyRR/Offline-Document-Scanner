@@ -10,6 +10,7 @@ class ImageProcessor {
 private:
     cv::Mat photo;
     cv::Mat warped;
+    std::vector<double> availableAspectRatios;
 
 
     // Pre filter before edge detection
@@ -612,11 +613,11 @@ private:
         }
         
         double smallestDifference = std::numeric_limits<double>::infinity();
-        for (const auto& ar : availableAspectRatios) {
-            double diff = std::abs(ar.value - portraitValue);
+        for (const double ar : availableAspectRatios) {
+            double diff = std::abs(ar - portraitValue);
             if (diff < smallestDifference) {
                 smallestDifference = diff;
-                matchingValue = ar.value;
+                matchingValue = ar;
             }
         }
         
@@ -784,6 +785,10 @@ public:
         return true;
     }
     
+    void setAvailableAspectRatios(const double* values, int length){
+        availableAspectRatios.assign(values, values + length);
+    }
+
     bool warpImage(
         const std::string& inWarpedPath,
         double* inOutRatioValue,
@@ -794,7 +799,7 @@ public:
         cv::Mat* borderCorrectionMask = nullptr;
         std::vector<int>* borderCutIn;
         bool* usingHough = (bool*) false;
-        
+
         int* K = (int*) ((photo.rows + photo.cols) / 100);
         int* height;
         int* width;
