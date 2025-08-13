@@ -785,10 +785,10 @@ public:
         return true;
     }
     
-    void setAvailableAspectRatios(const double* values, int length){
-        availableAspectRatios.assign(values, values + length);
+    void setAvailableAspectRatios(std::vector<double> inAvailableAspectRatios){
+        availableAspectRatios = inAvailableAspectRatios;
     }
-
+    
     bool warpImage(
         const std::string& inWarpedPath,
         double* inOutRatioValue,
@@ -872,6 +872,15 @@ void freeProcessor(ImageProcessor* inOutProcessor) {
 int processorLoadPhoto(ImageProcessor* inOutProcessor, const char* inPhotoPath) {
     if (!inOutProcessor) return 0;
     return inOutProcessor->loadPhoto(inPhotoPath) ? 1 : 0;
+}
+
+void processorSetAvailableAspectRatios(
+    ImageProcessor* inOutProcessor, 
+    const double* values, int32_t length
+) {
+    std::vector<double> availableAspectRatios;
+    availableAspectRatios.assign(values, values + length);
+    inOutProcessor->setAvailableAspectRatios(availableAspectRatios);
 }
 
 int processorWarpImage(

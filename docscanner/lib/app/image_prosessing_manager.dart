@@ -263,7 +263,7 @@ class ImageProcessingManager {
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      math.sqrt2, //ratioValue,
+      ratioValue,
       cornerPoints,
       gIn: g,
     );

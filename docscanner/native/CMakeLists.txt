@@ -3,6 +3,9 @@ project(opencv_wrapper)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_CXX_VISIBILITY_PRESET default)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
+
 # Set the OpenCV SDK path
 set(OpenCV_DIR "/home/rr/Android/OpenCV-android-sdk/sdk/native/jni")
 
@@ -12,7 +15,8 @@ find_package(OpenCV REQUIRED core imgproc imgcodecs)
 # Include directories manually to fix missing headers
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_library(opencv_wrapper SHARED opencv_wrapper.cpp)
+file(GLOB SRC_FILES *.cpp)
+add_library(opencv_wrapper SHARED ${SRC_FILES})
 
 # Link with OpenCV
 target_link_libraries(opencv_wrapper ${OpenCV_LIBS})

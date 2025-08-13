@@ -27,13 +27,18 @@ typedef _ProcessorLoadPhotoNative =
 typedef _ProcessorLoadPhotoDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
-typedef _SetAvailableAspectRatiosNative =
+typedef _ProcessorSetAvailableAspectRatiosNative =
     ffi.Void Function(
+      ffi.Pointer<ImageProcessorHandle>,
       ffi.Pointer<ffi.Double>, // pointer to the array
-      ffi.Int, // length
+      ffi.Int32, // length of the array
     );
-typedef _SetAvailableAspectRatiosDart =
-    void Function(ffi.Pointer<ffi.Double>, int);
+typedef _ProcessorSetAvailableAspectRatiosDart =
+    void Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Double>,
+      int,
+    );
 
 typedef _ProcessorWarpImageNative =
     ffi.Int32 Function(
@@ -65,11 +70,11 @@ final _processorLoadPhoto = nativeLib
     .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
     .asFunction<_ProcessorLoadPhotoDart>();
 
-final _setAvailableAspectRatios = nativeLib
-    .lookup<ffi.NativeFunction<_SetAvailableAspectRatiosNative>>(
-      'setAvailableAspectRatios',
+final _processorSetAvailableAspectRatios = nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorSetAvailableAspectRatiosNative>>(
+      'processorSetAvailableAspectRatios',
     )
-    .asFunction<_SetAvailableAspectRatiosDart>();
+    .asFunction<_ProcessorSetAvailableAspectRatiosDart>();
 
 final _processorWarpImage = nativeLib
     .lookup<ffi.NativeFunction<_ProcessorWarpImageNative>>('processorWarpImage')
@@ -105,7 +110,7 @@ class ImageProcessor {
       ptr[i] = gAvailableAspectRatios[i].value;
     }
 
-    _setAvailableAspectRatios(ptr, length);
+    _processorSetAvailableAspectRatios(_handle, ptr, length);
 
     malloc.free(ptr);
   }
