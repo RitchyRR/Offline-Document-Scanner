@@ -159,6 +159,7 @@ class OpenCVHelper {
     List<List<int>> corners;
     double ratioValue;
     cv.Mat? borderCorrectionMask;
+    bool usingHough = false;
     if (cornerPointsIn == null) {
       if (cornerPointsIn != null) borderCutIn = null;
 
@@ -171,7 +172,7 @@ class OpenCVHelper {
       // 3a. Contours
       // 2b.1 create a binary image, white representing the shape of the document
       cv.Mat mask;
-      (mask, borderCorrectionMask) = _documentMask(edges);
+      (mask, borderCorrectionMask, usingHough) = _documentMask(edges);
 
       // 2b.2 Corner detection
       corners = _detectCorners(mask);
@@ -180,11 +181,15 @@ class OpenCVHelper {
     }
     // 3. Perspective transformation
     if (ratioValueIn == null) {
-      ratioValue = _calculateTransformation(borderCorrectionMask, corners);
+      ratioValue = _calculateTransformation(
+        borderCorrectionMask,
+        corners,
+        usingHough,
+      );
     } else {
       ratioValue = ratioValueIn;
       _setHeightFromCorners(corners, ratioValue);
-      _calculateBorderCutIn(borderCorrectionMask, corners);
+      _calculateBorderCutIn(borderCorrectionMask, corners, usingHough);
     }
 
     _applyBorderCutInToCorners(corners);
@@ -471,19 +476,17 @@ class OpenCVHelper {
     return false;
   }
 
-  bool usingHough = false;
-
   /// Step 2: Edge Detection & Filling -> Shape of document
-  (cv.Mat, cv.Mat) _documentMask(cv.Mat edges) {
+  (cv.Mat, cv.Mat, bool) _documentMask(cv.Mat edges) {
     int edgesMaskSize = 0;
     int houghMaskSize = 0;
+    bool usingHough = false;
 
     // 3. Mask <- filling Edges
     cv.Mat edgesMask = _tightRiskyShape(edges);
-    // 4. Maskj <- filling Hough Edges
+    // 4. Mask <- filling Hough Edges
     cv.Mat houghEdges1 = _houghEdges1(edges, maxLinesCount: 18);
     cv.Mat houghEdges2 = _houghEdges2(edges, extendedBy: 0.25);
-    //return houghEdges2;
     cv.Mat houghEdges;
     cv.Mat houghShape1 = _houghShape1(houghEdges1);
     bool hough1NoSpillover = false;
@@ -493,8 +496,6 @@ class OpenCVHelper {
     houghEdges = hough1NoSpillover
         ? cv.multiply(houghEdges1, houghEdges2)
         : houghEdges2;
-    //return houghEdges;
-    //cv.Mat houghShape1 = _houghShape(houghEdges1);
     cv.Mat houghMask = _houghShape2(houghEdges);
     // read maskSizes if contained
     if (_testNoSpillover(edgesMask)) {
@@ -536,7 +537,6 @@ class OpenCVHelper {
     } else if (houghMaskSize != 0) {
       mask = houghMask;
       usingHough = true;
-      //borderCutIn = null;
     }
     // Fallback: 3. Combine Edges and Hough Edges
     if (mask == null) {
@@ -560,7 +560,7 @@ class OpenCVHelper {
       borderCutIn = null;
     }
     borderCorrectionMask ??= mask;
-    return (mask, borderCorrectionMask);
+    return (mask, borderCorrectionMask, usingHough);
   }
 
   cv.Mat _edges(cv.Mat prefiltered) {
@@ -826,12 +826,6 @@ class OpenCVHelper {
       borderType: cv.BORDER_REPLICATE,
     );
 
-    //// quadrants
-    //cv.Mat q1 = shape.rowRange(0, rows ~/ 2).colRange(0, cols ~/ 2);
-    //cv.Mat q2 = shape.rowRange(rows ~/ 2, rows).colRange(0, cols ~/ 2);
-    //cv.Mat q3 = shape.rowRange(0, rows ~/ 2).colRange(cols ~/ 2, cols);
-    //cv.Mat q4 = shape.rowRange(rows ~/ 2, rows).colRange(cols ~/ 2, cols);
-
     // select outer points -> outerPoints (offset for quadrants)
     var outerPoints = List<cv.Point>.generate(4, (_) => cv.Point(0, 0));
     var xy1 = _toPoints(detectedCorners1, yOffset: 0, xOffset: 0);
@@ -926,7 +920,7 @@ class OpenCVHelper {
     List<List<int>> outerPointsList = [];
     for (var point in outerPoints) {
       outerPointsList.add([point.y, point.x]);
-    } // [point.y - pad, point.x - pad]
+    }
     //dev.log("outerPoints: $outerPoints");
     return outerPointsList;
   }
@@ -958,14 +952,14 @@ class OpenCVHelper {
   double _calculateTransformation(
     cv.Mat? borderCorrectionMask,
     List<List<int>> corners,
+    bool usingHough,
   ) {
     // Estimate aspect ratio
     double calculatedRatio = _calculateAspectRatio(corners);
     final matchedRatio = matchAspectRatioAndOrientation(calculatedRatio);
 
     _setHeightFromCorners(corners, matchedRatio);
-
-    _calculateBorderCutIn(borderCorrectionMask, corners);
+    _calculateBorderCutIn(borderCorrectionMask, corners, usingHough);
 
     return matchedRatio;
   }
@@ -973,6 +967,7 @@ class OpenCVHelper {
   void _calculateBorderCutIn(
     cv.Mat? borderCorrectionMask,
     List<List<int>> corners,
+    bool usingHough,
   ) {
     if (borderCorrectionMask == null && borderCutIn != null) borderCutIn = null;
     if (borderCutIn == null) return;
