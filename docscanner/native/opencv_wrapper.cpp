@@ -2,7 +2,10 @@
 #include <string>
 #include <stdint.h>
 #include <stdlib.h>
-#include <android/log.h>
+
+#include "native_log.h"
+
+
 
 extern "C" {
 
@@ -748,6 +751,19 @@ private:
         const std::vector<std::vector<int>>& corners,
         int height, int width
     ) {
+        LOG_ENTRY();
+        LOG_VAR(height);
+        LOG_VAR(width);
+        LOG_VAR(corners);
+        for (size_t i = 0; i < corners.size(); ++i) {
+        LOGD("Corner[%zu] = (%d, %d)", i, corners[i][0], corners[i][1]);
+        }
+        if (corners.size() != 4) {
+            LOGE("Corner count != 4");
+            LOG_EXIT();
+            return cv::Mat();
+        }
+
         // Source points (note: Dart swapped [row,col] vs [y,x])
         std::vector<cv::Point2f> srcPoints = {
             cv::Point2f(static_cast<float>(corners[0][1]), static_cast<float>(corners[0][0])),
@@ -769,8 +785,15 @@ private:
         
         // Warp image
         cv::Mat warped;
-        cv::warpPerspective(imageMat, warped, transformationMatrix, cv::Size(width, height));
+        try {
+            cv::warpPerspective(imageMat, warped, transformationMatrix, cv::Size(width, height));
+        } catch (const cv::Exception& e) {
+            LOGE("OpenCV exception: %s", e.what());
+            LOG_EXIT();
+            return cv::Mat();
+        }
         
+        LOG_EXIT();
         return warped;
     }
     
@@ -781,12 +804,14 @@ private:
 public:
     
     bool loadPhoto(const std::string& inPath) {
+        LOG_ENTRY();
         photo = cv::imread(inPath, cv::IMREAD_UNCHANGED);
         if (photo.empty()) return false;
         return true;
     }
     
     void setAvailableAspectRatios(std::vector<double> inAvailableAspectRatios){
+        LOG_ENTRY();
         availableAspectRatios = inAvailableAspectRatios;
     }
     
@@ -795,6 +820,11 @@ public:
         double* inOutRatioValue,
         std::vector<std::vector<int>>* inOutCorners
     ) {
+        LOG_ENTRY();
+        LOG_VAR(inWarpedPath);
+        LOG_VAR(inOutRatioValue);
+        LOG_VAR(inOutCorners);
+        
         if (photo.empty()) return false;
         
         cv::Mat* borderCorrectionMask = nullptr;
