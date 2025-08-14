@@ -224,8 +224,8 @@ CMAKE_STRIP:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/preb
 //Path to a program.
 CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 
-//No help, variable specified on the command line.
-CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=/home/rr/Android/Sdk/ndk/29.0.13113456/build/cmake/android.toolchain.cmake
+//The CMake toolchain file
+CMAKE_TOOLCHAIN_FILE:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/build/cmake/android.toolchain.cmake
 
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
