@@ -670,19 +670,15 @@ private:
         double heightLeft = std::hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]);
         double heightRight = std::hypot(corners[3][0] - corners[2][0], corners[3][1] - corners[2][1]);
         
-        LOGI("1");
         double avgWidth = (widthTop + widthBottom) / 2.0;
         double avgHeight = (heightLeft + heightRight) / 2.0;
         
-        LOGI("2");
         double widthDistortion = widthTop / widthBottom;
         double heightDistortion = heightLeft / heightRight;
         
-        LOGI("3");
         if (widthDistortion < 1.0) widthDistortion = 1.0 / widthDistortion;
         if (heightDistortion < 1.0) heightDistortion = 1.0 / heightDistortion;
         
-        LOGI("4");
         double correctedHeight = avgHeight * std::sqrt(widthDistortion);
         double correctedWidth = avgWidth * std::sqrt(heightDistortion);
         
@@ -994,7 +990,7 @@ public:
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
-        if (!_saveImage(inWarpedPath, prefiltered)) {
+        if (!_saveImage(inWarpedPath, warped)) {
             LOG_EXIT();
             return false;
         }

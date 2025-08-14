@@ -128,9 +128,7 @@ class ImageProcessor {
     final pathPtr = outPath.toNativeUtf8().cast<ffi.Int8>();
 
     // Ratio value pointer
-    final ratioPtr = ratioValueIn != null
-        ? (malloc.allocate<ffi.Double>(1)..value = ratioValueIn)
-        : (malloc.allocate<ffi.Double>(1)..value = 0.0);
+    final ratioPtr = malloc.allocate<ffi.Double>(1)..value = ratioValueIn ?? 0;
 
     // Corner points pointer
     ffi.Pointer<ffi.Int32> cornersPtr = ffi.nullptr;
