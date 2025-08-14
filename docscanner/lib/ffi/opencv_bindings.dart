@@ -46,6 +46,7 @@ typedef _ProcessorWarpImageNative =
       ffi.Pointer<ffi.Int8>, // inWarpedPath
       ffi.Pointer<ffi.Double>, // inOutRatioValue (nullable)
       ffi.Pointer<ffi.Int32>, // inOutCorners (nullable)
+      ffi.Bool,
     );
 
 typedef _ProcessorWarpImageDart =
@@ -54,6 +55,7 @@ typedef _ProcessorWarpImageDart =
       ffi.Pointer<ffi.Int8>,
       ffi.Pointer<ffi.Double>,
       ffi.Pointer<ffi.Int32>,
+      bool,
     );
 
 // ----------------- Lookup functions -----------------
@@ -120,37 +122,42 @@ class ImageProcessor {
     List<List<int>>, // corners
   )
   warpImage(
-    String outPath,
+    String warpedPath,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
   ) {
     const cornerCount = 4;
-    final pathPtr = outPath.toNativeUtf8().cast<ffi.Int8>();
+    final warpedPathPtr = warpedPath.toNativeUtf8().cast<ffi.Int8>();
 
     // Ratio value pointer
     final ratioPtr = malloc.allocate<ffi.Double>(1)..value = ratioValueIn ?? 0;
 
     // Corner points pointer
-    ffi.Pointer<ffi.Int32> cornersPtr = ffi.nullptr;
-
+    ffi.Pointer<ffi.Int32> cornersPtr = malloc.allocate<ffi.Int32>(
+      cornerCount * 2,
+    );
     if (cornerPointsIn != null) {
-      final count = cornerPointsIn.length;
-      cornersPtr = malloc.allocate<ffi.Int32>(count * 2);
-      for (int i = 0; i < count; i++) {
+      for (int i = 0; i < cornerCount; i++) {
         cornersPtr[i * 2] = cornerPointsIn[i][0];
         cornersPtr[i * 2 + 1] = cornerPointsIn[i][1];
       }
     }
 
-    final result = _processorWarpImage(_handle, pathPtr, ratioPtr, cornersPtr);
+    final result = _processorWarpImage(
+      _handle,
+      warpedPathPtr,
+      ratioPtr,
+      cornersPtr,
+      cornerPointsIn != null,
+    );
 
-    malloc.free(pathPtr);
+    malloc.free(warpedPathPtr);
 
     if (result == 0) {
       if (ratioPtr != ffi.nullptr) malloc.free(ratioPtr);
       if (cornersPtr != ffi.nullptr) malloc.free(cornersPtr);
       throw Exception(
-        'Native error, warpImage: Processing / Saving failed to $outPath',
+        'Native error, warpImage: Processing / Saving failed to $warpedPath',
       );
     }
 
@@ -158,11 +165,9 @@ class ImageProcessor {
     final ratioOut = ratioPtr == ffi.nullptr ? 0.0 : ratioPtr.value;
 
     List<List<int>> cornersOut = [];
-    if (cornersPtr != ffi.nullptr) {
-      final flat = cornersPtr.asTypedList(cornerCount * 2);
-      for (int i = 0; i < cornerCount; i++) {
-        cornersOut.add([flat[i * 2], flat[i * 2 + 1]]);
-      }
+    final flat = cornersPtr.asTypedList(cornerCount * 2);
+    for (int i = 0; i < cornerCount; i++) {
+      cornersOut.add([flat[i * 2], flat[i * 2 + 1]]);
     }
 
     if (ratioPtr != ffi.nullptr) malloc.free(ratioPtr);

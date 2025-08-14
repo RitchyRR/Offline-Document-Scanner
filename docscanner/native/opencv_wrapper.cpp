@@ -1039,42 +1039,52 @@ int processorWarpImage(
     ImageProcessor* inOutProcessor,
     const char* inWarpedPath,
     double* inOutRatioValue,
-    int* inOutCorners
+    int* inOutCorners,
+    bool passingInCorners
 ) {
     LOG_ENTRY();
-    const int cornersCount = 4;
-    if (!inOutProcessor) {
-        LOG_EXIT();
-        return 0;
-    }
+    LOG_VAR(inWarpedPath);
+    LOG_VAR(inOutRatioValue);
+    LOG_VAR(inOutCorners);
+    LOG_VAR(passingInCorners);
 
+    const int cornersCount = 4;
+    if (!inOutProcessor || !inWarpedPath || !inOutRatioValue || !inOutCorners) { 
+        LOG_EXIT(); 
+        return 0; 
+    }
+    
     std::vector<std::vector<int>> cornersVec;
     
-    // If Dart provided corners
-    if (inOutCorners) {
+    if (passingInCorners) {
         cornersVec.resize(cornersCount, std::vector<int>(2));
         for (int i = 0; i < cornersCount; i++) {
             cornersVec[i][0] = inOutCorners[i * 2];
             cornersVec[i][1] = inOutCorners[i * 2 + 1];
         }
     }
-
-    bool result = inOutProcessor->warpImage(
+    
+    bool success = inOutProcessor->warpImage(
         inWarpedPath,
         inOutRatioValue,
         &cornersVec
     );
+    if (!success) { LOG_EXIT(); return 0; }
     
     // If C++ calculated corners, return them
-    if (result && inOutCorners) {
-        for (int i = 0; i < cornersCount; i++) {
-            inOutCorners[i * 2]     = cornersVec[i][0];
-            inOutCorners[i * 2 + 1] = cornersVec[i][1];
-        }
+    for (int i = 0; i < cornersCount; i++) {
+        inOutCorners[i * 2]     = cornersVec[i][0];
+        inOutCorners[i * 2 + 1] = cornersVec[i][1];
     }
-
+    
+    LOG_VAR(inOutRatioValue);
+    LOG_VAR(cornersVec);
+    for (size_t i = 0; i < cornersVec.size(); ++i) {
+        LOGD("cornersVec[%zu] = (%d, %d)", i, cornersVec[i][0], cornersVec[i][1]);
+    }
+    LOG_VAR(inOutCorners);
     LOG_EXIT();
-    return result ? 1 : 0;
+    return 1;
 }
 
 }
