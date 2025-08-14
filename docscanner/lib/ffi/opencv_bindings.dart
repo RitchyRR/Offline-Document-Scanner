@@ -156,7 +156,7 @@ class ImageProcessor {
 
     if (result == 0) {
       if (ratioPtr != ffi.nullptr) malloc.free(ratioPtr);
-      if (cornersPtr != ffi.nullptr) malloc.free(cornersPtr);
+      if (cornersPtr != ffi.nullptr) calloc.free(cornersPtr);
       throw Exception(
         'Native error, warpImage: Processing / Saving failed to $warpedPath',
       );
@@ -172,7 +172,7 @@ class ImageProcessor {
     }
 
     if (ratioPtr != ffi.nullptr) malloc.free(ratioPtr);
-    if (cornersPtr != ffi.nullptr) malloc.free(cornersPtr);
+    if (cornersPtr != ffi.nullptr) calloc.free(cornersPtr);
 
     return (ratioOut, cornersOut);
   }
