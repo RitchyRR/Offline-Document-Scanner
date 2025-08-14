@@ -224,8 +224,8 @@ CMAKE_STRIP:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/preb
 //Path to a program.
 CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 
-//The CMake toolchain file
-CMAKE_TOOLCHAIN_FILE:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/build/cmake/android.toolchain.cmake
+//No help, variable specified on the command line.
+CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=/home/rr/Android/Sdk/ndk/29.0.13113456/build/cmake/android.toolchain.cmake
 
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
@@ -243,7 +243,7 @@ opencv_wrapper_BINARY_DIR:STATIC=/home/rr/Git/Offline-Document-Scanner/docscanne
 opencv_wrapper_IS_TOP_LEVEL:STATIC=ON
 
 //Dependencies for the target
-opencv_wrapper_LIB_DEPENDS:STATIC=general;opencv_core;general;opencv_imgproc;general;opencv_imgcodecs;
+opencv_wrapper_LIB_DEPENDS:STATIC=general;opencv_core;general;opencv_imgproc;general;opencv_imgcodecs;general;log;general;android;
 
 //Value Computed by CMake
 opencv_wrapper_SOURCE_DIR:STATIC=/home/rr/Git/Offline-Document-Scanner/docscanner/native

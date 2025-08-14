@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'dart:ffi' as ffi;
 import 'package:docscanner/app/app_globals.dart' show AspectRatioInfo;
-import 'package:ffi/ffi.dart' show malloc, StringUtf8Pointer;
+import 'package:ffi/ffi.dart' show calloc, malloc, StringUtf8Pointer;
 
 final ffi.DynamicLibrary nativeLib = Platform.isAndroid
     ? ffi.DynamicLibrary.open('libopencv_wrapper.so')
@@ -44,11 +44,10 @@ typedef _ProcessorWarpImageNative =
     ffi.Int32 Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inWarpedPath
-      ffi.Pointer<ffi.Double>, // inOutRatioValue (nullable)
-      ffi.Pointer<ffi.Int32>, // inOutCorners (nullable)
-      ffi.Bool,
+      ffi.Pointer<ffi.Double>, // inOutRatioValue
+      ffi.Pointer<ffi.Int32>, // inOutCorners
+      ffi.Bool, // passingInCorners
     );
-
 typedef _ProcessorWarpImageDart =
     int Function(
       ffi.Pointer<ImageProcessorHandle>,
@@ -129,17 +128,19 @@ class ImageProcessor {
     const cornerCount = 4;
     final warpedPathPtr = warpedPath.toNativeUtf8().cast<ffi.Int8>();
 
-    // Ratio value pointer
+    // Aspect ratio pointer
     final ratioPtr = malloc.allocate<ffi.Double>(1)..value = ratioValueIn ?? 0;
 
-    // Corner points pointer
-    ffi.Pointer<ffi.Int32> cornersPtr = malloc.allocate<ffi.Int32>(
-      cornerCount * 2,
-    );
+    // Corners pointer
+    final cornersPtr = calloc<ffi.Int32>(cornerCount * 2);
     if (cornerPointsIn != null) {
       for (int i = 0; i < cornerCount; i++) {
         cornersPtr[i * 2] = cornerPointsIn[i][0];
         cornersPtr[i * 2 + 1] = cornerPointsIn[i][1];
+      }
+    } else {
+      for (int i = 0; i < cornerCount * 2; i++) {
+        cornersPtr[i] = 0;
       }
     }
 

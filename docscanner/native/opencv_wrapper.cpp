@@ -639,9 +639,9 @@ private:
         }
         
         LOG_VAR(outerPointsList);
-        for (size_t i = 0; i < outerPointsList.size(); ++i) {
-            LOGD("outerPointsList[%zu] = (%d, %d)", i, outerPointsList[i][0], outerPointsList[i][1]);
-        }
+        //for (size_t i = 0; i < outerPointsList.size(); ++i) {
+        //    LOGD("outerPointsList[%zu] = (%d, %d)", i, outerPointsList[i][0], outerPointsList[i][1]);
+        //}
         LOG_EXIT();
         return outerPointsList;
     }
@@ -852,9 +852,9 @@ private:
         LOG_VAR(height);
         LOG_VAR(width);
         LOG_VAR(corners);
-        for (size_t i = 0; i < corners.size(); ++i) {
-            LOGD("Corner[%zu] = (%d, %d)", i, corners[i][0], corners[i][1]);
-        }
+        //for (size_t i = 0; i < corners.size(); ++i) {
+        //    LOGD("Corner[%zu] = (%d, %d)", i, corners[i][0], corners[i][1]);
+        //}
         if (corners.size() != 4) {
             LOGE("Corner count != 4");
             LOG_EXIT();
@@ -1009,8 +1009,8 @@ ImageProcessor* createProcessor() {
 
 void freeProcessor(ImageProcessor* inOutProcessor) {
     LOG_ENTRY();
-    delete inOutProcessor;
     LOG_EXIT();
+    delete inOutProcessor;
 }
 
 // ------------------ Image Operations ------------------
@@ -1039,7 +1039,7 @@ int processorWarpImage(
     ImageProcessor* inOutProcessor,
     const char* inWarpedPath,
     double* inOutRatioValue,
-    int* inOutCorners,
+    int32_t* inOutCorners,
     bool passingInCorners
 ) {
     LOG_ENTRY();
@@ -1047,15 +1047,14 @@ int processorWarpImage(
     LOG_VAR(inOutRatioValue);
     LOG_VAR(inOutCorners);
     LOG_VAR(passingInCorners);
-
-    const int cornersCount = 4;
+    
     if (!inOutProcessor || !inWarpedPath || !inOutRatioValue || !inOutCorners) { 
         LOG_EXIT(); 
         return 0; 
     }
     
+    const int cornersCount = 4;
     std::vector<std::vector<int>> cornersVec;
-    
     if (passingInCorners) {
         cornersVec.resize(cornersCount, std::vector<int>(2));
         for (int i = 0; i < cornersCount; i++) {
@@ -1070,19 +1069,22 @@ int processorWarpImage(
         &cornersVec
     );
     if (!success) { LOG_EXIT(); return 0; }
+
+    LOG_VAR(inOutRatioValue);
+    LOG_VAR(cornersVec);
+    for (size_t i = 0; i < cornersVec.size(); i++) {
+        LOGD("cornersVec[%zu] = (%d, %d)", i, cornersVec[i][0], cornersVec[i][1]);
+    }
     
-    // If C++ calculated corners, return them
     for (int i = 0; i < cornersCount; i++) {
         inOutCorners[i * 2]     = cornersVec[i][0];
         inOutCorners[i * 2 + 1] = cornersVec[i][1];
     }
-    
-    LOG_VAR(inOutRatioValue);
-    LOG_VAR(cornersVec);
-    for (size_t i = 0; i < cornersVec.size(); ++i) {
-        LOGD("cornersVec[%zu] = (%d, %d)", i, cornersVec[i][0], cornersVec[i][1]);
-    }
+
     LOG_VAR(inOutCorners);
+    for (size_t i = 0; i < cornersCount*2; i++) {
+        LOGD("inOutCorners[%zu] = %d", i, inOutCorners[i]);
+    }
     LOG_EXIT();
     return 1;
 }
