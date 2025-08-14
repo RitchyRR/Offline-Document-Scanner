@@ -73,15 +73,15 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: CMakeFiles/opencv_wrapper.di
 CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp
 CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: CMakeFiles/opencv_wrapper.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/rr/Git/Offline-Document-Scanner/docscanner/native/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o"
-	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android21 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o -MF CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o.d -o CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o -c /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp
+	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o -MF CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o.d -o CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o -c /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp
 
 CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.i"
-	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android21 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp > CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.i
+	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp > CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.i
 
 CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.s"
-	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android21 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp -o CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.s
+	/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android24 --sysroot=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/rr/Git/Offline-Document-Scanner/docscanner/native/opencv_wrapper.cpp -o CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.s
 
 # Object files for target opencv_wrapper
 opencv_wrapper_OBJECTS = \

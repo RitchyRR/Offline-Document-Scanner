@@ -18,7 +18,7 @@
 ANDROID_ABI:UNINITIALIZED=arm64-v8a
 
 //No help, variable specified on the command line.
-ANDROID_PLATFORM:UNINITIALIZED=android-21
+ANDROID_PLATFORM:UNINITIALIZED=android-24
 
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-addr2line
@@ -37,7 +37,7 @@ CMAKE_ASM_FLAGS_RELEASE:STRING=
 
 //Choose the type of build, options are: None Debug Release RelWithDebInfo
 // MinSizeRel ...
-CMAKE_BUILD_TYPE:STRING=
+CMAKE_BUILD_TYPE:STRING=Debug
 
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
@@ -52,7 +52,7 @@ CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.131134
 CMAKE_CXX_COMPILER_RANLIB:FILEPATH=/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
 
 //Flags used by the compiler during all build types.
-CMAKE_CXX_FLAGS:STRING=
+CMAKE_CXX_FLAGS:STRING=-g -O0 -std=c++17 -stdlib=libc++
 
 //Flags used by the compiler during debug builds.
 CMAKE_CXX_FLAGS_DEBUG:STRING=

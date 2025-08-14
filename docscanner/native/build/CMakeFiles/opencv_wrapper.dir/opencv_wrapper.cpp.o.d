@@ -274,7 +274,6 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/20/include/__stdarg___va_copy.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/20/include/__stdarg_va_copy.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/seek_constants.h \
-  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/struct_file.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/stdio.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/xlocale.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/bits/fortify/stdlib.h \
@@ -821,4 +820,7 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: \
   /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/stitching/detail/blenders.hpp \
   /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/video.hpp \
   /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/video/tracking.hpp \
-  /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/video/background_segm.hpp
+  /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/video/background_segm.hpp \
+  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/android/log.h \
+  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/stdbool.h \
+  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/20/include/stdbool.h

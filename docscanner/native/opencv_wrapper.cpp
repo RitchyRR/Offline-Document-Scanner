@@ -2,6 +2,7 @@
 #include <string>
 #include <stdint.h>
 #include <stdlib.h>
+#include <android/log.h>
 
 extern "C" {
 
@@ -95,7 +96,7 @@ private:
         matOut.convertTo(matOut, matIn.type());
         
         // Optional gamma correction
-        if (!std::isnan(gamma)) {
+        if (!isnan(gamma)) {
             matOut = _applyGammaCorrection(matOut, gamma);
         }
         

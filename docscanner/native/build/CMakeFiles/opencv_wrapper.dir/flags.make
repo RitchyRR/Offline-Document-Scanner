@@ -6,5 +6,5 @@ CXX_DEFINES = -Dopencv_wrapper_EXPORTS
 
 CXX_INCLUDES = -isystem /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include
 
-CXX_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -std=gnu++17 -fPIC -fvisibility=default
+CXX_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -g -O0 -std=c++17 -stdlib=libc++ -fno-limit-debug-info  -std=gnu++17 -fPIC -fvisibility=default
 
