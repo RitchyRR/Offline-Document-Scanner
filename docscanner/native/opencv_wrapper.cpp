@@ -539,9 +539,9 @@ private:
         int xOffset = 0, int yOffset = 0
     ) {
         LOG_ENTRY();
-        LOG_VAR(detectedCorners);
-        LOG_VAR(xOffset);
-        LOG_VAR(yOffset);
+        //LOG_VAR(detectedCorners);
+        //LOG_VAR(xOffset);
+        //LOG_VAR(yOffset);
         
         std::vector<cv::Point> edgePoints;
         cv::Mat nonZero;
@@ -552,7 +552,7 @@ private:
             edgePoints.emplace_back(p.x + xOffset, p.y + yOffset);
         }
         
-        LOG_VAR(edgePoints);
+        //LOG_VAR(edgePoints);
         LOG_EXIT();
         return edgePoints;
     }
@@ -588,36 +588,41 @@ private:
 
         std::vector<cv::Point> outerPoints(4, cv::Point(0, 0));
         std::vector<int> fallbacks;
-
-        auto xy1 = _toPoints(detectedCorners1, 0, 0);
-        auto xy2 = _toPoints(detectedCorners2, 0, rows / 2);
-        auto xy3 = _toPoints(detectedCorners3, cols / 2, 0);
-        auto xy4 = _toPoints(detectedCorners4, cols / 2, rows / 2);
-
-        try {
+        
+        std::vector<cv::Point> xy1 = _toPoints(detectedCorners1, 0, 0);
+        std::vector<cv::Point> xy2 = _toPoints(detectedCorners2, 0, rows / 2);
+        std::vector<cv::Point> xy3 = _toPoints(detectedCorners3, cols / 2, 0);
+        std::vector<cv::Point> xy4 = _toPoints(detectedCorners4, cols / 2, rows / 2);
+        
+        LOGD("xy1 %zu",xy1.size());
+        LOGD("xy2 %zu",xy2.size());
+        LOGD("xy3 %zu",xy3.size());
+        LOGD("xy4 %zu",xy4.size());
+        
+        if (!xy1.empty()) {
             outerPoints[0] = *std::max_element(xy1.begin(), xy1.end(),
                                             [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
         return (-a.y - a.x) < (-b.y - b.x); });
-        } catch(...) { fallbacks.push_back(0); outerPoints[0] = cv::Point(cols / 2 - 1, rows / 2 - 1); }
-
-        try {
+        } else { fallbacks.push_back(0); outerPoints[0] = cv::Point(cols / 2 - 1, rows / 2 - 1); }
+        
+        if (!xy2.empty()) {
             outerPoints[1] = *std::max_element(xy2.begin(), xy2.end(),
                                             [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
         return (a.y - a.x) < (b.y - b.x); });
-        } catch(...) { fallbacks.push_back(1); outerPoints[1] = cv::Point(cols / 2 - 1, rows / 2 + 1); }
+        } else { fallbacks.push_back(1); outerPoints[1] = cv::Point(cols / 2 - 1, rows / 2 + 1); }
 
-        try {
+        if (!xy3.empty()) {
             outerPoints[2] = *std::max_element(xy3.begin(), xy3.end(),
                                             [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
         return (-a.y + a.x) < (-b.y + b.x); });
-        } catch(...) { fallbacks.push_back(2); outerPoints[2] = cv::Point(cols / 2 + 1, rows / 2 - 1); }
+        } else { fallbacks.push_back(2); outerPoints[2] = cv::Point(cols / 2 + 1, rows / 2 - 1); }
         
-        try {
+        if (!xy4.empty()) {
             outerPoints[3] = *std::max_element(xy4.begin(), xy4.end(),
                                             [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
         return (a.y + a.x) < (b.y + b.x); });
-        } catch(...) { fallbacks.push_back(3); outerPoints[3] = cv::Point(cols / 2 + 1, rows / 2 + 1); }
-
+        } else { fallbacks.push_back(3); outerPoints[3] = cv::Point(cols / 2 + 1, rows / 2 + 1); }
+        
         if (fallbacks.size() == 4) {
             outerPoints = { {0,0}, {0,rows-1}, {cols-1,0}, {cols-1, rows-1} };
         } else if (!fallbacks.empty()) {
@@ -638,7 +643,7 @@ private:
             outerPointsList.push_back({pt.y, pt.x});
         }
         
-        LOG_VAR(outerPointsList);
+        //LOG_VAR(outerPointsList);
         //for (size_t i = 0; i < outerPointsList.size(); ++i) {
         //    LOGD("outerPointsList[%zu] = (%d, %d)", i, outerPointsList[i][0], outerPointsList[i][1]);
         //}
