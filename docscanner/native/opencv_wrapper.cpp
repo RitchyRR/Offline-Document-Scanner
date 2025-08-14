@@ -19,6 +19,7 @@ private:
 
     // Pre filter before edge detection
     cv::Mat _preFilter(const cv::Mat& imIn, int K) {
+        LOG_ENTRY();
         cv::Mat preFiltered = imIn.clone();
         
         // Histogram stretching
@@ -39,11 +40,13 @@ private:
         // Remove text
         preFiltered = _closingCircleApprox(preFiltered, K);
         
+        LOG_EXIT();
         return preFiltered;
     }
 
     // Gamma correction helper
     cv::Mat _applyGammaCorrection(const cv::Mat& src, double gamma) {
+        LOG_ENTRY();
         CV_Assert(gamma > 0);
         cv::Mat lut(1, 256, CV_8UC1);
         for (int i = 0; i < 256; i++) {
@@ -51,12 +54,14 @@ private:
         }
         cv::Mat dst;
         cv::LUT(src, lut, dst);
+        LOG_EXIT();
         return dst;
     }
 
     // Histogram stretching with percentiles
     cv::Mat _stretchMat(const cv::Mat& matIn, double lowPercentile = 0.005,
                     double highPercentile = 0.995, double gamma = std::numeric_limits<double>::quiet_NaN()) {
+        LOG_ENTRY();
         cv::Mat ref;
         int height = matIn.rows;
         int width = matIn.cols;
@@ -103,11 +108,13 @@ private:
             matOut = _applyGammaCorrection(matOut, gamma);
         }
         
+        LOG_EXIT();
         return matOut;
     }
 
     // Closing circle approximation
     cv::Mat _closingCircleApprox(const cv::Mat& imIn, int filterDiameter) {
+        LOG_ENTRY();
         // Kernel sizes
         int kCross = std::max(3, filterDiameter);
         if (kCross % 2 == 0) kCross += 1;
@@ -152,11 +159,14 @@ private:
         cv::min(imCross, imRect, imCircle);
         cv::min(imCircle, imFatCross, imCircle);
         
+        LOG_EXIT();
         return imCircle;
     }
     
     // Detect edges
     cv::Mat _edgeDetection(const cv::Mat& prefiltered, double K) {
+        LOG_ENTRY();
+        
         double baseThreshold = 55.0;
         double highT = baseThreshold + K * 0.1;
         double lowT = 0.7 * highT;
@@ -194,17 +204,21 @@ private:
         cv::Canny(hsvChannels[1], sEdges, lowT, highT);
         cv::add(edges, sEdges, edges);
         
+        LOG_EXIT();
         return edges;
     }
     
     // Test if white pixels spilled over to the outer edges of the image
     bool _testNoSpillover(const cv::Mat& testShape) {
+        LOG_ENTRY();
+        
         CV_Assert(testShape.type() == CV_8UC1 || testShape.type() == CV_8U);
         int rows = testShape.rows;
         int cols = testShape.cols;
         
         auto pixelAt = [&](int r, int c) {
-            return testShape.at<uchar>(r, c);
+            LOG_EXIT();
+        return testShape.at<uchar>(r, c);
         };
         
         if (pixelAt(0, 0) == 0 &&
@@ -215,13 +229,17 @@ private:
             pixelAt(rows - 1, cols - 1) == 0 &&
             pixelAt(rows / 2, 0) == 0 &&
             pixelAt(rows / 2, cols - 1) == 0) {
-            return true;
+            LOG_EXIT();
+        return true;
         }
+        LOG_EXIT();
         return false;
     }
     
     // Standard Hough with infinitely long edges
     cv::Mat _houghEdges1(const cv::Mat& edges, int K, int maxLinesCount) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
         
         const double rhoRes   = std::max(1.0, K * 0.125);   // pixel resolution
@@ -254,11 +272,14 @@ private:
 
             cv::line(houghEdges, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(255), K, cv::LINE_AA);
         }
+        LOG_EXIT();
         return houghEdges;
     }
 
     // Probabilistic Hough, with limited edges lengths, extended by the parameter
     cv::Mat _houghEdges2(const cv::Mat& edges, int K, double extendedBy) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
 
         const double rhoRes      = std::max(1.0, K * 0.125);
@@ -284,11 +305,14 @@ private:
 
             cv::line(houghEdges, cv::Point(ex1, ey1), cv::Point(ex2, ey2), cv::Scalar(255), 1, cv::LINE_AA);
         }
+        LOG_EXIT();
         return houghEdges;
     }
 
     // Mask from hough edges
     cv::Mat _houghShape1(const cv::Mat& edges, int K) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
         
         cv::Mat shape1 = edges.clone();
@@ -305,11 +329,14 @@ private:
         cv::Mat kernel = cv::Mat::ones(kSize, kSize, CV_8UC1);
 
         cv::dilate(shape1, shape1, kernel, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT);
+        LOG_EXIT();
         return shape1;
     }
     
     // Mask from probabilistic hough edges
     cv::Mat _houghShape2(const cv::Mat& edges) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
 
         cv::Mat kernel1 = cv::Mat::ones(3, 3, CV_8UC1);
@@ -324,11 +351,14 @@ private:
 
         cv::Mat kernel2 = cv::Mat::ones(5, 5, CV_8UC1);
         cv::dilate(shape1, shape1, kernel2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT);
+        LOG_EXIT();
         return shape1;
     }
 
     // Mask from edges
     cv::Mat _tightRiskyShape(const cv::Mat& edges) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
         
         cv::Mat kernel1 = cv::Mat::ones(3, 3, CV_8UC1);
@@ -343,11 +373,14 @@ private:
 
         cv::Mat kernel2 = cv::Mat::ones(5, 5, CV_8UC1);
         cv::dilate(shape1, shape1, kernel2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT);
+        LOG_EXIT();
         return shape1;
     }
 
     // Mask from closed edges
     cv::Mat _mediumShape(const cv::Mat& edges, int K) {
+        LOG_ENTRY();
+        
         CV_Assert(edges.type() == CV_8UC1);
 
         int kSizeD = (K / 2) * 2 + 1;
@@ -374,11 +407,23 @@ private:
         cv::Mat kernel2 = cv::Mat::ones(k2, k2, CV_8UC1);
         
         cv::dilate(shape1, shape1, kernel2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT);
+        LOG_EXIT();
         return shape1;
     }
     
     // Best document mask + Mask for border correction
-    std::tuple<cv::Mat, cv::Mat> _documentMask(const cv::Mat& edges, int K, bool* usingHough) {
+    void _documentMask(
+        const cv::Mat& edges, 
+        int K,
+        bool* usingHough,
+        cv::Mat* outMask,
+        cv::Mat* outBorderCorrectionMask
+    ) {
+        LOG_ENTRY();
+        LOG_VAR(edges);
+        LOG_VAR(K);
+        LOG_VAR(usingHough);
+        
         CV_Assert(edges.type() == CV_8UC1);
         
         int edgesMaskSize = 0;
@@ -482,10 +527,22 @@ private:
             borderCorrectionMask = mask.clone();
         }
         
-        return { mask, borderCorrectionMask };
+        LOG_VAR(mask);
+        LOG_VAR(borderCorrectionMask);
+        *outMask = mask;
+        *outBorderCorrectionMask = borderCorrectionMask;
+        LOG_EXIT();
     }
     
-    std::vector<cv::Point> _toPoints(const cv::Mat& detectedCorners, int xOffset = 0, int yOffset = 0) {
+    std::vector<cv::Point> _toPoints(
+        const cv::Mat& detectedCorners, 
+        int xOffset = 0, int yOffset = 0
+    ) {
+        LOG_ENTRY();
+        LOG_VAR(detectedCorners);
+        LOG_VAR(xOffset);
+        LOG_VAR(yOffset);
+        
         std::vector<cv::Point> edgePoints;
         cv::Mat nonZero;
         cv::findNonZero(detectedCorners, nonZero);
@@ -495,10 +552,14 @@ private:
             edgePoints.emplace_back(p.x + xOffset, p.y + yOffset);
         }
         
+        LOG_VAR(edgePoints);
+        LOG_EXIT();
         return edgePoints;
     }
     
     std::vector<std::vector<int>> _detectCorners(const cv::Mat& shape, int K) {
+        LOG_ENTRY();
+        
         int hitmissSize = static_cast<int>(std::round(K * 1.5)) * 2 + 1;
         int hitmissTolerance = std::max(1, K / 10);
         int rows = shape.rows;
@@ -535,22 +596,26 @@ private:
 
         try {
             outerPoints[0] = *std::max_element(xy1.begin(), xy1.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ return (-a.y - a.x) < (-b.y - b.x); });
+                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
+        return (-a.y - a.x) < (-b.y - b.x); });
         } catch(...) { fallbacks.push_back(0); outerPoints[0] = cv::Point(cols / 2 - 1, rows / 2 - 1); }
 
         try {
             outerPoints[1] = *std::max_element(xy2.begin(), xy2.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ return (a.y - a.x) < (b.y - b.x); });
+                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
+        return (a.y - a.x) < (b.y - b.x); });
         } catch(...) { fallbacks.push_back(1); outerPoints[1] = cv::Point(cols / 2 - 1, rows / 2 + 1); }
 
         try {
             outerPoints[2] = *std::max_element(xy3.begin(), xy3.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ return (-a.y + a.x) < (-b.y + b.x); });
+                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
+        return (-a.y + a.x) < (-b.y + b.x); });
         } catch(...) { fallbacks.push_back(2); outerPoints[2] = cv::Point(cols / 2 + 1, rows / 2 - 1); }
         
         try {
             outerPoints[3] = *std::max_element(xy4.begin(), xy4.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ return (a.y + a.x) < (b.y + b.x); });
+                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
+        return (a.y + a.x) < (b.y + b.x); });
         } catch(...) { fallbacks.push_back(3); outerPoints[3] = cv::Point(cols / 2 + 1, rows / 2 + 1); }
 
         if (fallbacks.size() == 4) {
@@ -573,40 +638,61 @@ private:
             outerPointsList.push_back({pt.y, pt.x});
         }
         
+        LOG_VAR(outerPointsList);
+        for (size_t i = 0; i < outerPointsList.size(); ++i) {
+            LOGD("outerPointsList[%zu] = (%d, %d)", i, outerPointsList[i][0], outerPointsList[i][1]);
+        }
+        LOG_EXIT();
         return outerPointsList;
     }
     
     double _percentileValueInt(const std::vector<int>& values, double percentile) {
+        LOG_ENTRY();
+        
         int length = values.size();
-        if (length == 0) return 0.0;
+        if (length == 0) {
+            LOG_EXIT();
+            return 0.0;
+        }
         std::vector<int> sorted = values;
         std::sort(sorted.begin(), sorted.end());
         int idx = std::clamp(static_cast<int>(percentile * length), 0, length - 1);
+        
+        LOG_EXIT();
         return sorted[idx];
     }
 
     double _calculateAspectRatio(const std::vector<std::vector<int>>& corners) {
+        LOG_ENTRY();
+        
         double widthTop = std::hypot(corners[2][0] - corners[0][0], corners[2][1] - corners[0][1]);
         double widthBottom = std::hypot(corners[3][0] - corners[1][0], corners[3][1] - corners[1][1]);
         double heightLeft = std::hypot(corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]);
         double heightRight = std::hypot(corners[3][0] - corners[2][0], corners[3][1] - corners[2][1]);
         
+        LOGI("1");
         double avgWidth = (widthTop + widthBottom) / 2.0;
         double avgHeight = (heightLeft + heightRight) / 2.0;
         
+        LOGI("2");
         double widthDistortion = widthTop / widthBottom;
         double heightDistortion = heightLeft / heightRight;
         
+        LOGI("3");
         if (widthDistortion < 1.0) widthDistortion = 1.0 / widthDistortion;
         if (heightDistortion < 1.0) heightDistortion = 1.0 / heightDistortion;
         
+        LOGI("4");
         double correctedHeight = avgHeight * std::sqrt(widthDistortion);
         double correctedWidth = avgWidth * std::sqrt(heightDistortion);
         
+        LOG_EXIT();
         return correctedHeight / correctedWidth;
     }
     
     double _matchAspectRatioAndOrientation(double calculatedRatioIn) {
+        LOG_ENTRY();
+        
         double matchingValue = std::sqrt(2.0);
         bool portrait = true;
         double portraitValue = calculatedRatioIn;
@@ -625,6 +711,7 @@ private:
             }
         }
         
+        LOG_EXIT();
         return portrait ? matchingValue : 1.0 / matchingValue;
     }
 
@@ -633,6 +720,8 @@ private:
         double inRatio,
         int* K, int* height, int* width
     ) {
+        LOG_ENTRY();
+        
         *height = std::max(abs(inCorners[1][0] - inCorners[0][0]), abs(inCorners[3][0] - inCorners[2][0]));
         *width = std::max(abs(inCorners[2][1] - inCorners[0][1]), abs(inCorners[3][1] - inCorners[1][1]));
         
@@ -645,12 +734,15 @@ private:
         *height = std::clamp(*height, 10, std::numeric_limits<int>::max());
         *width = std::clamp(*width, 10, std::numeric_limits<int>::max());
         *K = std::clamp((*height + *width) / 50, 3, std::numeric_limits<int>::max());
+        LOG_EXIT();
     }
     
     void _calculateBorderCutInPerSide(
         int borderIndex, std::vector<int> depths, 
         std::vector<int>* borderCutIn
     ) {
+        LOG_ENTRY();
+        
         int start = depths.size() / 40;
         int end = depths.size() * 39 / 40;
         depths = std::vector<int>(depths.begin() + start, depths.begin() + end);
@@ -663,6 +755,7 @@ private:
                 std::vector<int>(depths.begin() + depths.size() / 2, depths.end()), 0.75
             );
         }
+        LOG_EXIT();
     }
     
     void _calculateBorderCutIn(
@@ -672,6 +765,8 @@ private:
         std::vector<int>* borderCutIn,
         int K, int height, int width
     ) {
+        LOG_ENTRY();
+        
         if (!borderCorrectionMask && !(*borderCutIn).empty()) (*borderCutIn).clear();
         if ((*borderCutIn).empty()) return;
         
@@ -719,6 +814,7 @@ private:
             }
         }
         _calculateBorderCutInPerSide(3, depths, borderCutIn);
+        LOG_EXIT();
     }
 
     double _calculateTransformation(
@@ -728,16 +824,21 @@ private:
         std::vector<int>* borderCutIn,
         int* K, int* height, int* width
     ) {
+        LOG_ENTRY();
+        
         double calculatedRatio = _calculateAspectRatio(corners);
         double matchedRatio = _matchAspectRatioAndOrientation(calculatedRatio);
         
         _setHeightFromCorners(corners, matchedRatio, K, height, width);
         _calculateBorderCutIn(borderCorrectionMask, corners, usingHough, borderCutIn, *K, *height, *width);
         
+        LOG_EXIT();
         return matchedRatio;
     }
     
     void _applyBorderCutInToCorners(std::vector<std::vector<int>>& corners, std::vector<int> borderCutIn) {
+        LOG_ENTRY();
+        
         if (!borderCutIn.empty()) {
             corners[0][0] += borderCutIn[0]; corners[2][0] += borderCutIn[1]; // top
             corners[1][0] -= borderCutIn[2]; corners[3][0] -= borderCutIn[3]; // bottom
@@ -756,7 +857,7 @@ private:
         LOG_VAR(width);
         LOG_VAR(corners);
         for (size_t i = 0; i < corners.size(); ++i) {
-        LOGD("Corner[%zu] = (%d, %d)", i, corners[i][0], corners[i][1]);
+            LOGD("Corner[%zu] = (%d, %d)", i, corners[i][0], corners[i][1]);
         }
         if (corners.size() != 4) {
             LOGE("Corner count != 4");
@@ -798,6 +899,8 @@ private:
     }
     
     bool _saveImage(const std::string& inPath, const cv::Mat& inImage) const {
+        LOG_ENTRY();
+        LOG_EXIT();
         return cv::imwrite(inPath, inImage);
     }
 
@@ -806,13 +909,18 @@ public:
     bool loadPhoto(const std::string& inPath) {
         LOG_ENTRY();
         photo = cv::imread(inPath, cv::IMREAD_UNCHANGED);
-        if (photo.empty()) return false;
+        if (photo.empty()) {
+            LOG_EXIT();
+            return false;
+        }
+        LOG_EXIT();
         return true;
     }
     
     void setAvailableAspectRatios(std::vector<double> inAvailableAspectRatios){
         LOG_ENTRY();
         availableAspectRatios = inAvailableAspectRatios;
+        LOG_EXIT();
     }
     
     bool warpImage(
@@ -825,88 +933,98 @@ public:
         LOG_VAR(inOutRatioValue);
         LOG_VAR(inOutCorners);
         
-        if (photo.empty()) return false;
+        if (!inOutRatioValue || !inOutCorners || photo.empty()) {
+            LOGE("inOutCorners OR inOutRatioValue is nullptr OR photo empty!");
+            LOG_EXIT();
+            return false;
+        }
         
-        cv::Mat* borderCorrectionMask = nullptr;
-        std::vector<int> borderCutInVal;
-        std::vector<int>* borderCutIn = &borderCutInVal;
+        cv::Mat borderCorrectionMask;
+        std::vector<int> borderCutIn;
 
-        bool usingHoughVal = false;
-        bool* usingHough = &usingHoughVal;
-        int Kval = (photo.rows + photo.cols) / 100;
-        int* K = &Kval;
-        int heightVal = 0;
-        int* height = &heightVal;
-        int widthVal = 0;
-        int* width = &widthVal;
+        bool usingHough = false;
+        int K = (photo.rows + photo.cols) / 100;
+        int height = 0;
+        int width = 0;
         
         
         
         // Step 1: Detect or reuse corners
         cv::Mat prefiltered;
-        if (inOutCorners == nullptr) {
+        if (inOutCorners->empty()) {
             // 1a. Pre-filter to isolate shape
-            prefiltered = _preFilter(photo, *K);
+            prefiltered = _preFilter(photo, K);
             
             // 1b. Detect edges
-            cv::Mat edges = _edgeDetection(prefiltered, *K);
+            cv::Mat edges = _edgeDetection(prefiltered, K);
             
             // 1c. Get document mask & border correction mask
             cv::Mat mask;
-            std::tie(mask, *borderCorrectionMask) = _documentMask(edges, *K, usingHough);
-            
+            _documentMask(edges, K, &usingHough, &mask, &borderCorrectionMask);
+            LOGI("after _documentMask");
             // 1d. Detect corners
-            *inOutCorners = _detectCorners(mask, *K);
+            *inOutCorners = _detectCorners(mask, K);
         }
         
         // Step 2: Calculate or reuse ratio
-        if (inOutRatioValue == nullptr) {
+        if (*inOutRatioValue == 0) {
             *inOutRatioValue = _calculateTransformation(
-                borderCorrectionMask, 
+                &borderCorrectionMask, 
                 *inOutCorners, 
-                *usingHough,
-                borderCutIn, 
-                K, height, width
+                usingHough,
+                &borderCutIn, 
+                &K, &height, &width
             );
         } else {
             _setHeightFromCorners(*inOutCorners, *inOutRatioValue, 
-                K, height, width);
+                &K, &height, &width);
             _calculateBorderCutIn(
-                borderCorrectionMask, 
+                &borderCorrectionMask, 
                 *inOutCorners, 
-                *usingHough, 
-                borderCutIn,
-                *K, *height, *width);
+                usingHough, 
+                &borderCutIn,
+                K, height, width);
         }
         
         // Step 3: Apply border cut in
-        _applyBorderCutInToCorners(*inOutCorners, *borderCutIn);
+        _applyBorderCutInToCorners(*inOutCorners, borderCutIn);
         
         // Step 4: Perspective transform
-        warped = _transformImage(photo, *inOutCorners, *height, *width);
-        *K = ((warped.rows + warped.cols) / 50);
+        warped = _transformImage(photo, *inOutCorners, height, width);
+        K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
         if (!_saveImage(inWarpedPath, prefiltered)) {
+            LOG_EXIT();
             return false;
         }
         
+        LOG_EXIT();
         return true;
     }
 };
 
 // ------------------ Instance Lifecycle ------------------
 ImageProcessor* createProcessor() {
+    LOG_ENTRY();
+    LOG_EXIT();
     return new ImageProcessor();
 }
 
 void freeProcessor(ImageProcessor* inOutProcessor) {
+    LOG_ENTRY();
     delete inOutProcessor;
+    LOG_EXIT();
 }
 
 // ------------------ Image Operations ------------------
 int processorLoadPhoto(ImageProcessor* inOutProcessor, const char* inPhotoPath) {
-    if (!inOutProcessor) return 0;
+    LOG_ENTRY();
+    if (!inOutProcessor) {
+        LOG_EXIT();
+        return 0;
+    }
+    LOG_EXIT();
     return inOutProcessor->loadPhoto(inPhotoPath) ? 1 : 0;
 }
 
@@ -914,23 +1032,28 @@ void processorSetAvailableAspectRatios(
     ImageProcessor* inOutProcessor, 
     const double* values, int32_t length
 ) {
+    LOG_ENTRY();
     std::vector<double> availableAspectRatios;
     availableAspectRatios.assign(values, values + length);
     inOutProcessor->setAvailableAspectRatios(availableAspectRatios);
+    LOG_EXIT();
 }
 
 int processorWarpImage(
     ImageProcessor* inOutProcessor,
     const char* inWarpedPath,
-    double* inOutRatioValue, // Nullable double
-    int* inOutCorners // Nullable flat array of ints
+    double* inOutRatioValue,
+    int* inOutCorners
 ) {
+    LOG_ENTRY();
     const int cornersCount = 4;
-    if (!inOutProcessor) return 0;
+    if (!inOutProcessor) {
+        LOG_EXIT();
+        return 0;
+    }
 
     std::vector<std::vector<int>> cornersVec;
-    std::vector<std::vector<int>>* cornersPtr = nullptr;
-
+    
     // If Dart provided corners
     if (inOutCorners) {
         cornersVec.resize(cornersCount, std::vector<int>(2));
@@ -938,23 +1061,23 @@ int processorWarpImage(
             cornersVec[i][0] = inOutCorners[i * 2];
             cornersVec[i][1] = inOutCorners[i * 2 + 1];
         }
-        cornersPtr = &cornersVec;
     }
 
     bool result = inOutProcessor->warpImage(
         inWarpedPath,
         inOutRatioValue,
-        cornersPtr
+        &cornersVec
     );
-
+    
     // If C++ calculated corners, return them
-    if (result && cornersPtr && inOutCorners) {
+    if (result && inOutCorners) {
         for (int i = 0; i < cornersCount; i++) {
-            inOutCorners[i * 2]     = (*cornersPtr)[i][0];
-            inOutCorners[i * 2 + 1] = (*cornersPtr)[i][1];
+            inOutCorners[i * 2]     = cornersVec[i][0];
+            inOutCorners[i * 2 + 1] = cornersVec[i][1];
         }
     }
 
+    LOG_EXIT();
     return result ? 1 : 0;
 }
 

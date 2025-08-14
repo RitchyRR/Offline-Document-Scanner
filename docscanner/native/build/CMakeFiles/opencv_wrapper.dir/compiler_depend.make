@@ -358,6 +358,7 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/compiler.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/language.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/platform.h \
+  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__cxxabi_config.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__debug_utils/randomize_range.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__debug_utils/sanitizers.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__debug_utils/strict_weak_ordering_check.h \
@@ -745,6 +746,7 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/ctype.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cwchar \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cwctype \
+  /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cxxabi.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/deque \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/errno.h \
   /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/exception \
@@ -947,6 +949,8 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/errno.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/deque:
+
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cxxabi.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/cwctype:
 
@@ -1628,10 +1632,6 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android/asm/bitsperlong.h:
 
-/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__std_mbstate_t.h:
-
-/home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/imgcodecs.hpp:
-
 /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/core/mat.hpp:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__algorithm/stable_sort.h:
@@ -2214,6 +2214,12 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__configuration/availability.h:
 
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__std_mbstate_t.h:
+
+/home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/imgcodecs.hpp:
+
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__cxxabi_config.h:
+
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__algorithm/remove_copy_if.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__bit_reference:
@@ -2241,6 +2247,14 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
 /home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/flann/allocator.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__format/format_parse_context.h:
+
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__ranges/subrange.h:
+
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/20/include/__stddef_max_align_t.h:
+
+/home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/flann.hpp:
+
+/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__format/format_string.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__format/formatter.h:
 
@@ -2503,11 +2517,3 @@ CMakeFiles/opencv_wrapper.dir/opencv_wrapper.cpp.o: /home/rr/Git/Offline-Documen
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__ranges/enable_view.h:
 
 /home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__ranges/movable_box.h:
-
-/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/20/include/__stddef_max_align_t.h:
-
-/home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include/opencv2/flann.hpp:
-
-/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__format/format_string.h:
-
-/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/__ranges/subrange.h:

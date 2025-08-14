@@ -130,7 +130,7 @@ class ImageProcessor {
     // Ratio value pointer
     final ratioPtr = ratioValueIn != null
         ? (malloc.allocate<ffi.Double>(1)..value = ratioValueIn)
-        : ffi.nullptr;
+        : (malloc.allocate<ffi.Double>(1)..value = 0.0);
 
     // Corner points pointer
     ffi.Pointer<ffi.Int32> cornersPtr = ffi.nullptr;
