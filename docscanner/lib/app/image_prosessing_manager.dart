@@ -315,40 +315,6 @@ class ImageProcessingManager {
       );
     }
 
-    //if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
-    //  Future<void> processPROFilters() async {
-    //    // PRO
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    Uint8List processed2Bytes = await cvHelper.processImagePro();
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    ioFutures.add(
-    //      g.filesHelper.savePageVersion(
-    //        docIndex,
-    //        pageIndex,
-    //        4,
-    //        processed2Bytes,
-    //        ".png",
-    //      ),
-    //    );
-    //
-    //    // PRO 2
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    Uint8List processed3Bytes = await cvHelper.processImagePro2();
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    ioFutures.add(
-    //      g.filesHelper.savePageVersion(
-    //        docIndex,
-    //        pageIndex,
-    //        5,
-    //        processed3Bytes,
-    //        ".png",
-    //      ),
-    //    );
-    //  }
-    //
-    //  filterFutures.add(processPROFilters());
-    //}
-
     // Set New Thumbnail
     await isolateExitPoint(kill, ioFutures: ioFutures);
     await Future.wait(ioFutures);
