@@ -13,7 +13,7 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/app/opencv_helper.dart';
-import 'package:docscanner/app/main.dart' show globalNotifier, versionNames;
+import 'package:docscanner/app/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -200,7 +200,7 @@ class ImageProcessingManager {
               await g.filesHelper.createVersionPath(
                 docIndex,
                 pageIndex,
-                versionNamesInternal.indexOf("contrast"),
+                initialThumbnailIndex,
               ),
             );
             break;
@@ -211,7 +211,7 @@ class ImageProcessingManager {
               await g.filesHelper.createVersionPath(
                 docIndex,
                 pageIndex,
-                versionNamesInternal.indexOf("processed1"),
+                initialThumbnailIndex,
               ),
             );
             break;
@@ -219,6 +219,15 @@ class ImageProcessingManager {
           case 5:
             // PRO
             await isolateExitPoint(kill, ioFutures: ioFutures);
+            int filterIndex = versionNamesInternal.indexOf("processed2");
+            imageProcessor.proFilter(
+              await g.filesHelper.createVersionPath(
+                docIndex,
+                pageIndex,
+                filterIndex,
+              ),
+            );
+
             //Uint8List processed2Bytes = await cvHelper.processImagePro();
             // PRO 2
             await isolateExitPoint(kill, ioFutures: ioFutures);
@@ -292,25 +301,27 @@ class ImageProcessingManager {
     });
 
     // Contrast
-    if (initialThumbnailIndex != 2) {
+    int filterIndex = versionNamesInternal.indexOf("contrast");
+    if (initialThumbnailIndex != filterIndex) {
       await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.contrastFilter(
-        await g.filesHelper.createVersionPath(
-          docIndex,
-          pageIndex,
-          versionNamesInternal.indexOf("contrast"),
-        ),
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
     }
     // Document
-    if (initialThumbnailIndex != 3) {
+    filterIndex = versionNamesInternal.indexOf("processed1");
+    if (initialThumbnailIndex != filterIndex) {
       await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.documentFilter(
-        await g.filesHelper.createVersionPath(
-          docIndex,
-          pageIndex,
-          versionNamesInternal.indexOf("processed1"),
-        ),
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
+      );
+    }
+    // PRO
+    filterIndex = versionNamesInternal.indexOf("processed2");
+    if (initialThumbnailIndex != filterIndex) {
+      await isolateExitPoint(kill, ioFutures: ioFutures);
+      imageProcessor.proFilter(
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
     }
 

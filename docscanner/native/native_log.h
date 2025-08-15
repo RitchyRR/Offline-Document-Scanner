@@ -12,6 +12,7 @@
 
 // Levels
 #define LOGI(fmt, ...) NLOG_BASE(ANDROID_LOG_INFO, fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...) NLOG_BASE(ANDROID_LOG_WARN, fmt, ##__VA_ARGS__)
 #define LOGE(fmt, ...) NLOG_BASE(ANDROID_LOG_ERROR, fmt, ##__VA_ARGS__)
 #define LOGD(fmt, ...) NLOG_BASE(ANDROID_LOG_DEBUG, fmt, ##__VA_ARGS__)
 

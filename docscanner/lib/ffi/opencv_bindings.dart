@@ -73,6 +73,14 @@ typedef _ProcessorDocumentFilterNative =
 typedef _ProcessorDocumentFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
+typedef _ProcessorProFilterNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ffi.Int8>, // inProPath
+    );
+typedef _ProcessorProFilterDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -108,6 +116,11 @@ final _ProcessorDocumentFilterDart _processorDocumentFilter = _nativeLib
       _ProcessorDocumentFilterNative,
       _ProcessorDocumentFilterDart
     >('processorDocumentFilter');
+
+final _ProcessorProFilterDart _processorProFilter = _nativeLib
+    .lookupFunction<_ProcessorProFilterNative, _ProcessorProFilterDart>(
+      'processorProFilter',
+    );
 
 // ----------------- Public functions -----------------
 
@@ -228,6 +241,18 @@ class ImageProcessor {
       throw Exception(
         'Native error, documentFilter: Processing / Saving failed',
       );
+    }
+  }
+
+  void proFilter(String proPath) {
+    final proPathPtr = proPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final result = _processorProFilter(_handle, proPathPtr);
+
+    malloc.free(proPathPtr);
+
+    if (result == 0) {
+      throw Exception('Native error, proFilter: Processing / Saving failed');
     }
   }
 }

@@ -817,7 +817,7 @@ private:
         _calculateBorderCutInPerSide(3, depths, borderCutIn);
         LOG_EXIT();
     }
-
+    
     double _calculateTransformation(
         cv::Mat* borderCorrectionMask, 
         std::vector<std::vector<int>>& corners, 
@@ -904,24 +904,311 @@ private:
         LOG_EXIT();
         return cv::imwrite(inPath, inImage);
     }
-
+    
     cv::Mat _documentFilterBg(const cv::Mat& src, int K) {
-    // 1. Remove glow (opening)
-    int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
-    cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
+        // 1. Remove glow (opening)
+        int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
+        cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
+        
+        cv::Mat bg;
+        cv::morphologyEx(src, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+        
+        // 2. Blur
+        cv::blur(bg, bg, cv::Size((K * 2) + 1, (K * 2) + 1));
+        
+        // 3. Remove dark structures (closing)
+        int k2 = K * 2;
+        bg = _closingCircleApprox(bg, k2);
+        
+        return bg;
+    }
 
-    cv::Mat bg;
-    cv::morphologyEx(src, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+    cv::Mat _proFilterBGsubtracted(const cv::Mat& warped, int K) {
+        cv::Mat bg = _proFilterBG(warped, K);
+        
+        // Convert to F32 [0,1]
+        cv::Mat warpedF32, bgF32;
+        warped.convertTo(warpedF32, CV_32FC3, 1.0 / 255.0);
+        bg.convertTo(bgF32, CV_32FC3, 1.0 / 255.0);
+        
+        // Subtract background
+        cv::Mat subtracted;
+        cv::addWeighted(warpedF32, 1.0, bgF32, -1.0, 0.5, subtracted);
+        
+        // Normalize [0,1]
+        subtracted = _stretchMatF32(subtracted);
+        
+        // Back to 8-bit
+        subtracted.convertTo(subtracted, CV_8UC3, 255.0);
 
-    // 2. Blur
-    cv::blur(bg, bg, cv::Size((K * 2) + 1, (K * 2) + 1));
+        // Clip 0.5%
+        subtracted = _stretchMat(subtracted, 0.005, 0.995);
+        
+        // HSV adjustments
+        cv::Mat hsv;
+        cv::cvtColor(subtracted, hsv, cv::COLOR_BGR2HSV);
+        std::vector<cv::Mat> hsvChannels;
+        cv::split(hsv, hsvChannels);
 
-    // 3. Remove dark structures (closing)
-    int k2 = K * 2;
-    bg = _closingCircleApprox(bg, k2);
+        int medianBrightness = _medianBrightness(hsvChannels[2]);
+        int highVal = 255;
+        int lowVal = 0;
 
-    return bg;
-}
+        if (medianBrightness > 155) {
+            highVal = medianBrightness - static_cast<int>((256 - medianBrightness) * 1.5);
+        } else if (medianBrightness < 100) {
+            lowVal = medianBrightness - medianBrightness / 2;
+        }
+
+        hsvChannels[2] = _stretchMatValues(hsvChannels[2], lowVal, highVal, std::nullopt);
+        hsvChannels[1] = _stretchMatValues(hsvChannels[1], 20, 255, std::nullopt);
+
+        cv::merge(hsvChannels, hsv);
+        cv::cvtColor(hsv, subtracted, cv::COLOR_HSV2BGR);
+
+        // Median blur on saturation
+        try {
+            int k1 = 3;
+            cv::cvtColor(subtracted, hsv, cv::COLOR_BGR2HSV);
+            cv::split(hsv, hsvChannels);
+            
+            cv::Mat satBlur;
+            cv::medianBlur(hsvChannels[1], satBlur, k1);
+            cv::min(satBlur, hsvChannels[1], hsvChannels[1]);
+            
+            cv::merge(hsvChannels, hsv);
+            cv::cvtColor(hsv, subtracted, cv::COLOR_HSV2BGR);
+        }
+        catch (...) {
+            LOGW("Warning in _proFilterBGsubtracted: medianBlur on saturation failed");
+        }
+        
+        return subtracted;
+    }
+    
+    cv::Mat _proFilterBG(const cv::Mat& warped, int K) {
+        cv::Mat bg = warped.clone();
+        
+        // 1. Remove glow (Opening)
+        int k1 = std::clamp((K / 30) + 1, 3, std::numeric_limits<int>::max());
+        cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(k1, k1));
+        cv::morphologyEx(bg, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 2, cv::BORDER_REPLICATE);
+        
+        // 2. Median blur
+        int kernelSize = (K * 2) + 1;
+        kernelSize = std::clamp(kernelSize, 3, std::numeric_limits<int>::max());
+        
+        bool medianBlurSucceeded = false;
+        while (!medianBlurSucceeded) {
+            try {
+                cv::medianBlur(bg, bg, kernelSize);
+                medianBlurSucceeded = true;
+            }
+            catch (...) {
+                if (kernelSize == 3) break;
+                kernelSize = std::clamp(((static_cast<int>(kernelSize * 0.9) / 2) * 2 + 1), 3, std::numeric_limits<int>::max());
+            }
+        }
+        
+        // 3. Remove dark structures (Closing)
+        bg = _closingCircleApprox(bg, K * 2);
+
+        // 4. HSV: V channel max(bg, warpedV)
+        cv::Mat bgHSV, warpedHSV;
+        cv::cvtColor(bg, bgHSV, cv::COLOR_BGR2HSV);
+        cv::cvtColor(warped, warpedHSV, cv::COLOR_BGR2HSV);
+        
+        std::vector<cv::Mat> bgChannels, warpedChannels;
+        cv::split(bgHSV, bgChannels);
+        cv::split(warpedHSV, warpedChannels);
+        
+        bg = _closingCircleApprox(bg, K / 9);
+        bgChannels[2] = cv::max(bgChannels[2], warpedChannels[2]);
+
+        cv::merge(bgChannels, bgHSV);
+        cv::cvtColor(bgHSV, bg, cv::COLOR_HSV2BGR);
+        
+        return bg;
+    }
+
+    cv::Mat _stretchMatF32(const cv::Mat& matF32) {
+        cv::Mat out;
+        cv::normalize(matF32, out, 0.0, 1.0, cv::NORM_MINMAX);
+        return out;
+    }
+
+    int _medianBrightness(const cv::Mat& mat) {
+        cv::Mat ref = mat;
+        if (ref.rows > 1000 || ref.cols > 1000) {
+            cv::resize(ref, ref, cv::Size(ref.cols / 4, ref.rows / 4));
+        }
+        if (ref.channels() == 3) {
+            cv::cvtColor(ref, ref, cv::COLOR_BGR2GRAY);
+        }
+        
+        std::vector<uchar> pixels;
+        pixels.assign(ref.data, ref.data + ref.total());
+        std::nth_element(pixels.begin(), pixels.begin() + pixels.size() / 2, pixels.end());
+        return pixels[pixels.size() / 2];
+    }
+
+    cv::Mat _stretchMatValues(const cv::Mat& mat, int lowValue, int highValue, std::optional<double> gamma) {
+        cv::Mat out;
+        cv::normalize(mat, out, -(double)lowValue, (255.0 - (double)highValue) + 255.0, cv::NORM_MINMAX);
+        if (gamma.has_value()) {
+            out = _applyGammaCorrection(out, gamma.value());
+        }
+        return out;
+    }
+
+    cv::Mat _correctBorder(const cv::Mat& imIn, int K) {
+        const int whiteThreshold = 254;
+        cv::Mat borderCorrect = imIn.clone();
+        
+        const int maxBorderSize = std::clamp(static_cast<int>(K * 0.3), 1, std::numeric_limits<int>::max());
+        
+        // Convert to grayscale for threshold checks
+        cv::Mat reference;
+        cv::cvtColor(borderCorrect, reference, cv::COLOR_BGR2GRAY);
+        
+        int height = borderCorrect.rows;
+        int width = borderCorrect.cols;
+        
+        // Top border
+        for (int j = 0; j < width; j++) {
+            int whiteAt = 0;
+            for (; whiteAt <= maxBorderSize; whiteAt++) {
+                if (reference.at<uchar>(whiteAt, j) >= whiteThreshold) {
+                    break;
+                }
+            }
+            if (whiteAt > maxBorderSize) continue;
+
+            for (int i = whiteAt; i >= 0; i--) {
+                borderCorrect.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+            }
+        }
+
+        cv::cvtColor(borderCorrect, reference, cv::COLOR_BGR2GRAY);
+        // Bottom border
+        for (int j = 0; j < width; j++) {
+            int whiteAt = height - 1;
+            for (; whiteAt >= height - maxBorderSize - 1; whiteAt--) {
+                if (reference.at<uchar>(whiteAt, j) >= whiteThreshold) {
+                    break;
+                }
+            }
+            if (whiteAt < height - maxBorderSize - 1) continue;
+
+            for (int i = whiteAt; i < height; i++) {
+                borderCorrect.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+            }
+        }
+
+        cv::cvtColor(borderCorrect, reference, cv::COLOR_BGR2GRAY);
+        // Left border
+        for (int i = 0; i < height; i++) {
+            int whiteAt = 0;
+            for (; whiteAt <= maxBorderSize; whiteAt++) {
+                if (reference.at<uchar>(i, whiteAt) >= whiteThreshold) {
+                    break;
+                }
+            }
+            if (whiteAt > maxBorderSize) continue;
+            
+            for (int j = whiteAt; j >= 0; j--) {
+                borderCorrect.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+            }
+        }
+
+        cv::cvtColor(borderCorrect, reference, cv::COLOR_BGR2GRAY);
+        // Right border
+        for (int i = 0; i < height; i++) {
+            int whiteAt = width - 1;
+            for (; whiteAt >= width - maxBorderSize - 1; whiteAt--) {
+                if (reference.at<uchar>(i, whiteAt) >= whiteThreshold) {
+                    break;
+                }
+            }
+            if (whiteAt < width - maxBorderSize - 1) continue;
+            
+            for (int j = whiteAt; j < width; j++) {
+                borderCorrect.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+            }
+        }
+        
+        return borderCorrect;
+    }
+
+    cv::Mat _sharpenImage(const cv::Mat& warped, double sharpeningStrength, int K) {
+        // Build 5x5 kernel
+        float kernelData[25] = {
+            0.00, -0.05, -0.05, -0.05,  0.00,
+            -0.05, -0.20, -0.20, -0.20, -0.05,
+            -0.05, -0.20,  0.00, -0.20, -0.05,
+            -0.05, -0.20, -0.20, -0.20, -0.05,
+            0.00, -0.05, -0.05, -0.05,  0.00
+        };
+        cv::Mat sharpenKernel(5, 5, CV_32FC1, kernelData);
+        
+        sharpenKernel *= static_cast<float>(sharpeningStrength);
+        
+        // Adjust center so sum(kernel) = 1
+        double sumKernel = cv::sum(sharpenKernel)[0];
+        float sharpenKernelCenter = static_cast<float>(-sumKernel + 1.0);
+        sharpenKernel.at<float>(2, 2) = sharpenKernelCenter;
+
+        // Apply filter
+        cv::Mat sharpened;
+        cv::filter2D(warped, sharpened, -1, sharpenKernel, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
+        
+        // Apply sharpening only to text/fine lines
+        sharpened = _applyFilterToText(warped, sharpened, K);
+        
+        return sharpened;
+    }
+
+    cv::Mat _applyFilterToText(
+        const cv::Mat& imIn,
+        const cv::Mat& filteredIn, 
+        int K,
+        bool aroundText = true,
+        bool applyToText = true,
+        double thresh = 15.0,
+        double textFineness = 22.0
+    ) {
+        int k = ((static_cast<int>(K / textFineness) / 2) * 2 + 1);
+        k = std::clamp(k, 3, std::numeric_limits<int>::max());
+        
+        // Remove fine lines / text (closing operation)
+        cv::Mat noText = _closingCircleApprox(imIn, k);
+        
+        // Difference between original and "no text" version
+        cv::Mat diff;
+        cv::absdiff(imIn, noText, diff);
+        
+        if (aroundText) {
+            cv::Mat kernel2 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+            cv::morphologyEx(diff, diff, cv::MORPH_DILATE, kernel2, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+        }
+        
+        // Create binary masks from difference
+        cv::Mat textMask, maskInv;
+        cv::threshold(diff, textMask, thresh, 1.0, cv::THRESH_BINARY);
+        cv::threshold(diff, maskInv, thresh, 1.0, cv::THRESH_BINARY_INV);
+        
+        cv::Mat result;
+        if (applyToText) {
+            // Keep filtered where text is, original elsewhere
+            cv::add(filteredIn.mul(textMask), imIn.mul(maskInv), result);
+        } else {
+            // Keep filtered where NOT text, original on text
+            cv::add(filteredIn.mul(maskInv), imIn.mul(textMask), result);
+        }
+        
+        return result;
+    }
+
 
 public:
     
@@ -1091,6 +1378,40 @@ public:
         }
     }
 
+    bool proFilter(const std::string& outPath) {
+    try {
+        if (warped.empty()) {
+            LOGE("No warped image loaded before proFilter");
+            return false;
+        }
+        int K = (warped.rows + warped.cols) / 50;
+
+        // 5. Background subtraction
+        cv::Mat processed2 = _proFilterBGsubtracted(warped, K);
+
+        // 6. Border correction
+        processed2 = _correctBorder(processed2, K);
+
+        // 7. Sharpen
+        processed2 = _sharpenImage(processed2, 0.5, K);
+
+        if (!cv::imwrite(outPath, processed2)) {
+            LOGE("Failed to write ProFilter image to %s", outPath.c_str());
+            return false;
+        }
+
+        return true;
+    }
+    catch (const std::exception& e) {
+        LOGE("Exception in proFilter: %s", e.what());
+        return false;
+    }
+    catch (...) {
+        LOGE("Unknown error in proFilter");
+        return false;
+    }
+}
+
 };
 
 // ------------------ Instance Lifecycle ------------------
@@ -1188,13 +1509,14 @@ int processorContrastFilter(
 ) {
     LOG_ENTRY();
     LOG_VAR(inContrastPath);
-
+    
     if (!inOutProcessor || !inContrastPath) {
         LOG_EXIT();
         return 0;
     }
 
     bool success = inOutProcessor->contrastFilter(inContrastPath);
+
     LOG_EXIT();
     return success ? 1 : 0;
 }
@@ -1212,6 +1534,25 @@ int processorDocumentFilter(
     }
 
     bool success = inOutProcessor->documentFilter(inBGSubtractedPath);
+
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int processorProFilter(
+    ImageProcessor* inOutProcessor,
+    const char* inProFilterPath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inProFilterPath);
+
+    if (!inOutProcessor || !inProFilterPath) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    bool success = inOutProcessor->proFilter(inProFilterPath);
+
     LOG_EXIT();
     return success ? 1 : 0;
 }
