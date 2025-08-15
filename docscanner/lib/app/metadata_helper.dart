@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:docscanner/app/main.dart'
+import 'package:docscanner/main.dart'
     show globalNotifier, imageProcessingManager;
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;

@@ -1,10 +1,10 @@
 // my packages:
 import 'package:flutter/foundation.dart' show listEquals;
 
-import 'app_globals.dart';
-import 'metadata_helper.dart';
-import 'image_prosessing_manager.dart';
-import 'feedback_helper.dart';
+import 'app/app_globals.dart';
+import 'app/metadata_helper.dart';
+import 'app/image_prosessing_manager.dart';
+import 'app/feedback_helper.dart';
 // design:
 import 'package:collection/collection.dart';
 import 'package:docscanner/app/isolates_manager.dart'

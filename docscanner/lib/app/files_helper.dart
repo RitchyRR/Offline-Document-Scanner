@@ -30,7 +30,7 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'isolates_manager.dart';
 // my packages:
 import 'image_prosessing_manager.dart';
-import 'main.dart'
+import '../main.dart'
     show globalNotifier, imageProcessingManager, isTmpExternal, versionNames;
 import 'metadata_helper.dart';
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
