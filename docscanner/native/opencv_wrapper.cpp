@@ -991,7 +991,7 @@ public:
         _applyBorderCutInToCorners(*inOutCorners, borderCutIn);
         
         // Step 4: Perspective transform
-        warped = _transformImage(photo, *inOutCorners, height, width);
+        this->warped = _transformImage(photo, *inOutCorners, height, width);
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
@@ -1003,6 +1003,37 @@ public:
         LOG_EXIT();
         return true;
     }
+
+    bool contrastImage(const std::string& inContrastPath) {
+        try {
+            if (warped.empty()) {
+                LOGE("'warped' image is empty");
+                return false;
+            }
+            
+            // Apply contrast
+            cv::Mat stretched = _stretchMat(
+                warped,
+                0.002,
+                0.998
+            );
+            
+            // Save image
+            if (!cv::imwrite(inContrastPath, stretched)) {
+                LOGE("Failed to write contrast image to %s", inContrastPath.c_str());
+                return false;
+            }
+            
+            return true;
+        } catch (const std::exception& e) {
+            LOGE("Exception in contrastImage: %s", e.what());
+            return false;
+        } catch (...) {
+            LOGE("Unknown error in contrastImage");
+            return false;
+        }
+    }
+
 };
 
 // ------------------ Instance Lifecycle ------------------
@@ -1092,6 +1123,23 @@ int processorWarpImage(
     }
     LOG_EXIT();
     return 1;
+}
+
+int processorContrastImage(
+    ImageProcessor* inOutProcessor,
+    const char* inContrastPath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inContrastPath);
+
+    if (!inOutProcessor || !inContrastPath) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    bool success = inOutProcessor->contrastImage(inContrastPath);
+    LOG_EXIT();
+    return success ? 1 : 0;
 }
 
 }

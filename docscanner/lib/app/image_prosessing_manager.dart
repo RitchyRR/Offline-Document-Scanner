@@ -64,12 +64,15 @@ class ImageProcessingManager {
     bool isInitial = data.$9;
     AppGlobals g = data.$10;
 
-    OpenCVHelper cvHelper = OpenCVHelper(g);
-
     List<Future<void>> ioFutures = [];
     List<Future<void>> filterFutures = [];
 
     final int initialThumbnailIndex;
+
+    //OpenCVHelper cvHelper = OpenCVHelper(g);
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+    imageProcessor.loadPhoto(photoPath);
+    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
 
     (
       initialThumbnailIndex,
@@ -85,7 +88,7 @@ class ImageProcessingManager {
       rotationIn,
       isInitial,
       g,
-      cvHelper,
+      imageProcessor,
       ioFutures,
       filterFutures,
     );
@@ -96,13 +99,14 @@ class ImageProcessingManager {
       pageIndex,
       initialThumbnailIndex,
       g,
-      cvHelper,
+      imageProcessor,
       ioFutures,
       filterFutures,
     );
 
     await Future.wait(filterFutures);
     await Future.wait(ioFutures);
+    imageProcessor.dispose();
     Isolate.exit(sendPort, "done");
   }
 
@@ -117,7 +121,7 @@ class ImageProcessingManager {
     int rotationIn,
     bool isInitial,
     AppGlobals g,
-    OpenCVHelper cvHelper,
+    final cvb.ImageProcessor imageProcessor,
     List<Future<void>> ioFutures,
     List<Future<void>> filterFutures,
   ) async {
@@ -150,11 +154,6 @@ class ImageProcessingManager {
     }
 
     // Warped
-    await isolateExitPoint(kill, ioFutures: ioFutures);
-    final imageProcessor = cvb.ImageProcessor();
-    imageProcessor.loadPhoto(photoPath);
-    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
-
     double ratioValue;
     List<List<int>>? cornerPoints;
     (ratioValue, cornerPoints) = imageProcessor.warpImage(
@@ -162,18 +161,6 @@ class ImageProcessingManager {
       ratioValueIn,
       cornerPointsIn,
     );
-    imageProcessor.dispose();
-
-    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //ioFutures.add(
-    //  g.filesHelper.savePageVersion(
-    //    docIndex,
-    //    pageIndex,
-    //    1,
-    //    warpedBytes,
-    //    ".png",
-    //  ),
-    //);
 
     // initialThumbnailIndex
     final int initialThumbnailIndex = 1;
@@ -204,51 +191,54 @@ class ImageProcessingManager {
     Future<void> processThumbnailVersion() async {
       if (initialThumbnailIndex > 1) {
         await isolateExitPoint(kill, ioFutures: ioFutures);
-        final Uint8List? thumbnailVersionBytes;
+        //final Uint8List? thumbnailVersionBytes;
         switch (initialThumbnailIndex) {
           case 2:
             // Contrast
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            thumbnailVersionBytes = await cvHelper.processImageContrast();
+            // Contrast
+            imageProcessor.contrastImage(
+              await g.filesHelper.createVersionPath(docIndex, pageIndex, 2),
+            );
             break;
           case 3:
             // Document
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            thumbnailVersionBytes = await cvHelper.processImageDocument();
+            //thumbnailVersionBytes = await cvHelper.processImageDocument();
             break;
           case 4:
           case 5:
             // PRO
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            Uint8List processed2Bytes = await cvHelper.processImagePro();
+            //Uint8List processed2Bytes = await cvHelper.processImagePro();
             // PRO 2
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            thumbnailVersionBytes = await cvHelper.processImagePro2();
-            ioFutures.add(
-              g.filesHelper.savePageVersion(
-                docIndex,
-                pageIndex,
-                4,
-                processed2Bytes,
-                ".png",
-              ),
-            );
+            //thumbnailVersionBytes = await cvHelper.processImagePro2();
+            //ioFutures.add(
+            //  g.filesHelper.savePageVersion(
+            //    docIndex,
+            //    pageIndex,
+            //    4,
+            //    processed2Bytes,
+            //    ".png",
+            //  ),
+            //);
             break;
           default:
-            thumbnailVersionBytes = null;
+          //thumbnailVersionBytes = null;
         }
         await isolateExitPoint(kill, ioFutures: ioFutures);
-        if (thumbnailVersionBytes != null) {
-          ioFutures.add(
-            g.filesHelper.savePageVersion(
-              docIndex,
-              pageIndex,
-              initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
-              thumbnailVersionBytes,
-              ".png",
-            ),
-          );
-        }
+        //if (thumbnailVersionBytes != null) {
+        //  ioFutures.add(
+        //    g.filesHelper.savePageVersion(
+        //      docIndex,
+        //      pageIndex,
+        //      initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
+        //      thumbnailVersionBytes,
+        //      ".png",
+        //    ),
+        //  );
+        //}
       }
     }
 
@@ -278,7 +268,7 @@ class ImageProcessingManager {
     int pageIndex,
     int initialThumbnailIndex,
     AppGlobals g,
-    OpenCVHelper cvHelper,
+    final cvb.ImageProcessor imageProcessor,
     List<Future<void>> ioFutures,
     List<Future<void>> filterFutures,
   ) async {
@@ -292,27 +282,13 @@ class ImageProcessingManager {
       }
     });
 
-    //// Kontrast
-    //await isolateExitPoint(kill, ioFutures: ioFutures);
-    //if (initialThumbnailIndex != 2) {
-    //  Future<void> processContrastFilter() async {
-    //    Uint8List contrastBytes = await cvHelper.processImageContrast();
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    ioFutures.add(
-    //      g.filesHelper.savePageVersion(
-    //        docIndex,
-    //        pageIndex,
-    //        2,
-    //        contrastBytes,
-    //        ".png",
-    //      ),
-    //    );
-    //  }
-    //
-    //  filterFutures.add(processContrastFilter());
-    //}
-    //
-    //// Dokument
+    // Contrast
+    if (initialThumbnailIndex != 2) {
+      imageProcessor.contrastImage(
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, 2),
+      );
+    }
+    //// Document
     //await isolateExitPoint(kill, ioFutures: ioFutures);
     //if (initialThumbnailIndex != 3) {
     //  Future<void> processDocumentFilter() async {

@@ -4,7 +4,7 @@ import 'dart:ffi' as ffi;
 import 'package:docscanner/app/app_globals.dart' show AspectRatioInfo;
 import 'package:ffi/ffi.dart' show calloc, malloc, StringUtf8Pointer;
 
-final ffi.DynamicLibrary nativeLib = Platform.isAndroid
+final ffi.DynamicLibrary _nativeLib = Platform.isAndroid
     ? ffi.DynamicLibrary.open('libopencv_wrapper.so')
     : throw UnsupportedError('Only Android supported');
 
@@ -57,29 +57,42 @@ typedef _ProcessorWarpImageDart =
       bool,
     );
 
+typedef _ProcessorContrastImageNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ffi.Int8>, // inContrastPath
+    );
+typedef _ProcessorContrastImageDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
 // ----------------- Lookup functions -----------------
 
-final _createProcessor = nativeLib
+final _createProcessor = _nativeLib
     .lookup<ffi.NativeFunction<_CreateProcessorNative>>('createProcessor')
     .asFunction<_CreateProcessorDart>();
 
-final _freeProcessor = nativeLib
+final _freeProcessor = _nativeLib
     .lookup<ffi.NativeFunction<_FreeProcessorNative>>('freeProcessor')
     .asFunction<_FreeProcessorDart>();
 
-final _processorLoadPhoto = nativeLib
+final _processorLoadPhoto = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
     .asFunction<_ProcessorLoadPhotoDart>();
 
-final _processorSetAvailableAspectRatios = nativeLib
+final _processorSetAvailableAspectRatios = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorSetAvailableAspectRatiosNative>>(
       'processorSetAvailableAspectRatios',
     )
     .asFunction<_ProcessorSetAvailableAspectRatiosDart>();
 
-final _processorWarpImage = nativeLib
+final _processorWarpImage = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorWarpImageNative>>('processorWarpImage')
     .asFunction<_ProcessorWarpImageDart>();
+
+final _ProcessorContrastImageDart _processorContrastImage = _nativeLib
+    .lookupFunction<_ProcessorContrastImageNative, _ProcessorContrastImageDart>(
+      'processorContrastImage',
+    );
 
 // ----------------- Public functions -----------------
 
@@ -157,9 +170,7 @@ class ImageProcessor {
     if (result == 0) {
       if (ratioPtr != ffi.nullptr) malloc.free(ratioPtr);
       if (cornersPtr != ffi.nullptr) calloc.free(cornersPtr);
-      throw Exception(
-        'Native error, warpImage: Processing / Saving failed to $warpedPath',
-      );
+      throw Exception('Native error, warpImage: Processing / Saving failed');
     }
 
     // Read outputs
@@ -175,5 +186,19 @@ class ImageProcessor {
     if (cornersPtr != ffi.nullptr) calloc.free(cornersPtr);
 
     return (ratioOut, cornersOut);
+  }
+
+  void contrastImage(String contrastPath) {
+    final contrastPathPtr = contrastPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final result = _processorContrastImage(_handle, contrastPathPtr);
+
+    malloc.free(contrastPathPtr);
+
+    if (result == 0) {
+      throw Exception(
+        'Native error, contrastImage: Processing / Saving failed',
+      );
+    }
   }
 }
