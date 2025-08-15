@@ -57,20 +57,20 @@ typedef _ProcessorWarpImageDart =
       bool,
     );
 
-typedef _ProcessorContrastImageNative =
+typedef _ProcessorContrastFilterNative =
     ffi.Int32 Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inContrastPath
     );
-typedef _ProcessorContrastImageDart =
+typedef _ProcessorContrastFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
-typedef _ProcessorDocumentImageNative =
+typedef _ProcessorDocumentFilterNative =
     ffi.Int32 Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inDocumentPath
     );
-typedef _ProcessorDocumentImageDart =
+typedef _ProcessorDocumentFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 // ----------------- Lookup functions -----------------
@@ -97,15 +97,17 @@ final _processorWarpImage = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorWarpImageNative>>('processorWarpImage')
     .asFunction<_ProcessorWarpImageDart>();
 
-final _ProcessorContrastImageDart _processorContrastImage = _nativeLib
-    .lookupFunction<_ProcessorContrastImageNative, _ProcessorContrastImageDart>(
-      'processorContrastImage',
-    );
+final _ProcessorContrastFilterDart _processorContrastFilter = _nativeLib
+    .lookupFunction<
+      _ProcessorContrastFilterNative,
+      _ProcessorContrastFilterDart
+    >('processorContrastFilter');
 
-final _ProcessorDocumentImageDart _processorDocumentImage = _nativeLib
-    .lookupFunction<_ProcessorDocumentImageNative, _ProcessorDocumentImageDart>(
-      'processorDocumentImage',
-    );
+final _ProcessorDocumentFilterDart _processorDocumentFilter = _nativeLib
+    .lookupFunction<
+      _ProcessorDocumentFilterNative,
+      _ProcessorDocumentFilterDart
+    >('processorDocumentFilter');
 
 // ----------------- Public functions -----------------
 
@@ -201,30 +203,30 @@ class ImageProcessor {
     return (ratioOut, cornersOut);
   }
 
-  void contrastImage(String contrastPath) {
+  void contrastFilter(String contrastPath) {
     final contrastPathPtr = contrastPath.toNativeUtf8().cast<ffi.Int8>();
 
-    final result = _processorContrastImage(_handle, contrastPathPtr);
+    final result = _processorContrastFilter(_handle, contrastPathPtr);
 
     malloc.free(contrastPathPtr);
 
     if (result == 0) {
       throw Exception(
-        'Native error, contrastImage: Processing / Saving failed',
+        'Native error, contrastFilter: Processing / Saving failed',
       );
     }
   }
 
-  void documentImage(String documentPath) {
+  void documentFilter(String documentPath) {
     final documentPathPtr = documentPath.toNativeUtf8().cast<ffi.Int8>();
 
-    final result = _processorDocumentImage(_handle, documentPathPtr);
+    final result = _processorDocumentFilter(_handle, documentPathPtr);
 
     malloc.free(documentPathPtr);
 
     if (result == 0) {
       throw Exception(
-        'Native error, documentImage: Processing / Saving failed',
+        'Native error, documentFilter: Processing / Saving failed',
       );
     }
   }

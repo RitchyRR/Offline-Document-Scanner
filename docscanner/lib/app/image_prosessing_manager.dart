@@ -196,7 +196,7 @@ class ImageProcessingManager {
           case 2:
             // Contrast
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            imageProcessor.contrastImage(
+            imageProcessor.contrastFilter(
               await g.filesHelper.createVersionPath(
                 docIndex,
                 pageIndex,
@@ -207,7 +207,7 @@ class ImageProcessingManager {
           case 3:
             // Document
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            imageProcessor.documentImage(
+            imageProcessor.documentFilter(
               await g.filesHelper.createVersionPath(
                 docIndex,
                 pageIndex,
@@ -294,7 +294,7 @@ class ImageProcessingManager {
     // Contrast
     if (initialThumbnailIndex != 2) {
       await isolateExitPoint(kill, ioFutures: ioFutures);
-      imageProcessor.contrastImage(
+      imageProcessor.contrastFilter(
         await g.filesHelper.createVersionPath(
           docIndex,
           pageIndex,
@@ -305,7 +305,7 @@ class ImageProcessingManager {
     // Document
     if (initialThumbnailIndex != 3) {
       await isolateExitPoint(kill, ioFutures: ioFutures);
-      imageProcessor.documentImage(
+      imageProcessor.documentFilter(
         await g.filesHelper.createVersionPath(
           docIndex,
           pageIndex,

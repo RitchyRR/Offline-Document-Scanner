@@ -905,7 +905,7 @@ private:
         return cv::imwrite(inPath, inImage);
     }
 
-    cv::Mat _documentBg(const cv::Mat& src, int K) {
+    cv::Mat _documentFilterBg(const cv::Mat& src, int K) {
     // 1. Remove glow (opening)
     int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
     cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
@@ -1022,7 +1022,7 @@ public:
         return true;
     }
 
-    bool contrastImage(const std::string& inContrastPath) {
+    bool contrastFilter(const std::string& inContrastPath) {
         try {
             if (warped.empty()) {
                 LOGE("'warped' image is empty");
@@ -1044,15 +1044,15 @@ public:
             
             return true;
         } catch (const std::exception& e) {
-            LOGE("Exception in contrastImage: %s", e.what());
+            LOGE("Exception in contrastFilter: %s", e.what());
             return false;
         } catch (...) {
-            LOGE("Unknown error in contrastImage");
+            LOGE("Unknown error in contrastFilter");
             return false;
         }
     }
 
-    bool documentImage(const std::string& outPath) {
+    bool documentFilter(const std::string& outPath) {
         try {
             // "warped" is assumed to be a member variable set earlier
             if (warped.empty()) {
@@ -1061,7 +1061,7 @@ public:
             }
             int K = (warped.rows + warped.cols) / 50;
 
-            cv::Mat bg = _documentBg(warped, K);
+            cv::Mat bg = _documentFilterBg(warped, K);
 
             // Subtract background
             cv::Mat subtracted;
@@ -1182,7 +1182,7 @@ int processorWarpImage(
     return 1;
 }
 
-int processorContrastImage(
+int processorContrastFilter(
     ImageProcessor* inOutProcessor,
     const char* inContrastPath
 ) {
@@ -1194,12 +1194,12 @@ int processorContrastImage(
         return 0;
     }
 
-    bool success = inOutProcessor->contrastImage(inContrastPath);
+    bool success = inOutProcessor->contrastFilter(inContrastPath);
     LOG_EXIT();
     return success ? 1 : 0;
 }
 
-int processorDocumentImage(
+int processorDocumentFilter(
     ImageProcessor* inOutProcessor,
     const char* inBGSubtractedPath
 ) {
@@ -1211,7 +1211,7 @@ int processorDocumentImage(
         return 0;
     }
 
-    bool success = inOutProcessor->documentImage(inBGSubtractedPath);
+    bool success = inOutProcessor->documentFilter(inBGSubtractedPath);
     LOG_EXIT();
     return success ? 1 : 0;
 }
