@@ -905,7 +905,7 @@ private:
         return cv::imwrite(inPath, inImage);
     }
 
-    cv::Mat warpedBgSimple(const cv::Mat& src, int K) {
+    cv::Mat _documentBg(const cv::Mat& src, int K) {
     // 1. Remove glow (opening)
     int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
     cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
@@ -1061,7 +1061,7 @@ public:
             }
             int K = (warped.rows + warped.cols) / 50;
 
-            cv::Mat bg = warpedBgSimple(warped, K);
+            cv::Mat bg = _documentBg(warped, K);
 
             // Subtract background
             cv::Mat subtracted;
