@@ -81,6 +81,14 @@ typedef _ProcessorProFilterNative =
 typedef _ProcessorProFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
+typedef _ProcessorProColorFilterNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ffi.Int8>, // inProColorPath
+    );
+typedef _ProcessorProColorFilterDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -121,6 +129,12 @@ final _ProcessorProFilterDart _processorProFilter = _nativeLib
     .lookupFunction<_ProcessorProFilterNative, _ProcessorProFilterDart>(
       'processorProFilter',
     );
+
+final _ProcessorProColorFilterDart _processorProColorFilter = _nativeLib
+    .lookupFunction<
+      _ProcessorProColorFilterNative,
+      _ProcessorProColorFilterDart
+    >('processorProColorFilter');
 
 // ----------------- Public functions -----------------
 
@@ -250,6 +264,18 @@ class ImageProcessor {
     final result = _processorProFilter(_handle, proPathPtr);
 
     malloc.free(proPathPtr);
+
+    if (result == 0) {
+      throw Exception('Native error, proFilter: Processing / Saving failed');
+    }
+  }
+
+  void proColorFilter(String proColorPath) {
+    final proColorPathPtr = proColorPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final result = _processorProColorFilter(_handle, proColorPathPtr);
+
+    malloc.free(proColorPathPtr);
 
     if (result == 0) {
       throw Exception('Native error, proFilter: Processing / Saving failed');

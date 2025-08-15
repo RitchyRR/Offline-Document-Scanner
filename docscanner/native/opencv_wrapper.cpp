@@ -14,6 +14,7 @@ class ImageProcessor {
 private:
     cv::Mat photo;
     cv::Mat warped;
+    cv::Mat pro;
     std::vector<double> availableAspectRatios;
 
 
@@ -1339,7 +1340,7 @@ public:
         }
     }
 
-    bool documentFilter(const std::string& outPath) {
+    bool documentFilter(const std::string& inProColorFilterPath) {
         try {
             // "warped" is assumed to be a member variable set earlier
             if (warped.empty()) {
@@ -1361,8 +1362,8 @@ public:
                 0.995  // highPercentile
             );
 
-            if (!cv::imwrite(outPath, subtracted)) {
-                LOGE("Failed to write BG-subtracted image to %s", outPath.c_str());
+            if (!cv::imwrite(inProColorFilterPath, subtracted)) {
+                LOGE("Failed to write BG-subtracted image to %s", inProColorFilterPath.c_str());
                 return false;
             }
 
@@ -1378,39 +1379,115 @@ public:
         }
     }
 
-    bool proFilter(const std::string& outPath) {
-    try {
-        if (warped.empty()) {
-            LOGE("No warped image loaded before proFilter");
+    bool proFilter(const std::string& inProColorFilterPath) {
+        try {
+            if (warped.empty()) {
+                LOGE("No warped image loaded before proFilter");
+                return false;
+            }
+            int K = (warped.rows + warped.cols) / 50;
+            
+            // 5. Background subtraction
+            cv::Mat processed2 = _proFilterBGsubtracted(warped, K);
+            
+            // 6. Border correction
+            processed2 = _correctBorder(processed2, K);
+            
+            // 7. Sharpen
+            processed2 = _sharpenImage(processed2, 0.5, K);
+            
+            if (!cv::imwrite(inProColorFilterPath, processed2)) {
+                LOGE("Failed to write ProFilter image to %s", inProColorFilterPath.c_str());
+                return false;
+            }
+            
+            this->pro = processed2;
+            
+            return true;
+        }
+        catch (const std::exception& e) {
+            LOGE("Exception in proFilter: %s", e.what());
             return false;
         }
-        int K = (warped.rows + warped.cols) / 50;
-
-        // 5. Background subtraction
-        cv::Mat processed2 = _proFilterBGsubtracted(warped, K);
-
-        // 6. Border correction
-        processed2 = _correctBorder(processed2, K);
-
-        // 7. Sharpen
-        processed2 = _sharpenImage(processed2, 0.5, K);
-
-        if (!cv::imwrite(outPath, processed2)) {
-            LOGE("Failed to write ProFilter image to %s", outPath.c_str());
+        catch (...) {
+            LOGE("Unknown error in proFilter");
             return false;
         }
+    }
 
-        return true;
+    bool proColorFilter(const char* inProColorFilterPath) {
+        try {
+            // Make sure we have both warped and pro available
+            if (warped.empty() || pro.empty()) {
+                LOGE("proColorFilter: warped or pro image is empty");
+                return false;
+            }
+            
+            // Apply filterImage3 logic
+            cv::Mat colorMatched = _matchColor(warped, pro);
+            
+            // Save result
+            if (!cv::imwrite(inProColorFilterPath, colorMatched)) {
+                LOGE("proColorFilter: failed to write image");
+                return false;
+            }
+            
+            return true;
+        } catch (const cv::Exception& e) {
+            LOGE("proColorFilter exception: %s", e.what());
+            return false;
+        }
     }
-    catch (const std::exception& e) {
-        LOGE("Exception in proFilter: %s", e.what());
-        return false;
+
+    cv::Mat _matchColor(const cv::Mat& mat, const cv::Mat& sample) {
+        cv::Vec3b orig = _medianRGB(mat);
+        cv::Vec3b proc = _medianRGB(sample);
+        
+        double eps = std::numeric_limits<double>::min();
+        double rRatio = std::min(static_cast<double>(orig[2]) / std::max(static_cast<double>(proc[2]), eps), static_cast<double>(FLT_MAX));
+        double gRatio = std::min(static_cast<double>(orig[1]) / std::max(static_cast<double>(proc[1]), eps), static_cast<double>(FLT_MAX));
+        double bRatio = std::min(static_cast<double>(orig[0]) / std::max(static_cast<double>(proc[0]), eps), static_cast<double>(FLT_MAX));
+        
+        // Split sample channels
+        std::vector<cv::Mat> sampleChannels;
+        cv::split(sample, sampleChannels);
+        
+        // Convert to double precision, scale, then back
+        cv::Mat r, g, b;
+        sampleChannels[2].convertTo(r, CV_64F, 1.0 / 255.0);
+        sampleChannels[1].convertTo(g, CV_64F, 1.0 / 255.0);
+        sampleChannels[0].convertTo(b, CV_64F, 1.0 / 255.0);
+        
+        r *= rRatio;
+        g *= gRatio;
+        b *= bRatio;
+
+        // Merge channels and convert back to 8-bit
+        std::vector<cv::Mat> merged = { b, g, r };
+        cv::Mat result;
+        cv::merge(merged, result);
+        result.convertTo(result, CV_8UC3, 255.0);
+        
+        return result;
     }
-    catch (...) {
-        LOGE("Unknown error in proFilter");
-        return false;
+    
+    cv::Vec3b _medianRGB(const cv::Mat& mat) {
+        std::vector<cv::Mat> channels;
+        cv::split(mat, channels);
+        
+        // Flatten channel to vector
+        std::vector<uchar> r, g, b;
+        r.assign(channels[2].datastart, channels[2].dataend);
+        g.assign(channels[1].datastart, channels[1].dataend);
+        b.assign(channels[0].datastart, channels[0].dataend);
+        
+        std::sort(r.begin(), r.end());
+        std::sort(g.begin(), g.end());
+        std::sort(b.begin(), b.end());
+        
+        size_t mid = r.size() / 2;
+        return cv::Vec3b(b[mid], g[mid], r[mid]);
     }
-}
 
 };
 
@@ -1545,16 +1622,35 @@ int processorProFilter(
 ) {
     LOG_ENTRY();
     LOG_VAR(inProFilterPath);
-
+    
     if (!inOutProcessor || !inProFilterPath) {
         LOG_EXIT();
         return 0;
     }
-
+    
     bool success = inOutProcessor->proFilter(inProFilterPath);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int processorProColorFilter(
+    ImageProcessor* inOutProcessor,
+    const char* inProColorFilterPath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inProColorFilterPath);
+
+    if (!inOutProcessor || !inProColorFilterPath) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    bool success = inOutProcessor->proColorFilter(inProColorFilterPath);
 
     LOG_EXIT();
     return success ? 1 : 0;
 }
+
 
 }

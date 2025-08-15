@@ -163,35 +163,34 @@ class ImageProcessingManager {
     );
 
     // initialThumbnailIndex
-    final int initialThumbnailIndex = 1;
+    final int initialThumbnailIndex;
     await isolateExitPoint(kill, ioFutures: ioFutures);
-    //int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
-    //  docIndex,
-    //  pageIndex,
-    //  gIn: g,
-    //  supressWarnings: true,
-    //);
-    //if (readThumbnailIndex == null) {
-    //  initialThumbnailIndex = g.defaultIndex;
-    //  await isolateExitPoint(kill, ioFutures: ioFutures);
-    //  ioFutures.add(
-    //    MetadataHelper.writePageThumbnailIndex(
-    //      docIndex,
-    //      pageIndex,
-    //      initialThumbnailIndex,
-    //      gIn: g,
-    //      supressWarnings: true,
-    //    ),
-    //  );
-    //} else {
-    //  initialThumbnailIndex = readThumbnailIndex;
-    //}
+    int? readThumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
+      docIndex,
+      pageIndex,
+      gIn: g,
+      supressWarnings: true,
+    );
+    if (readThumbnailIndex == null) {
+      initialThumbnailIndex = g.defaultIndex;
+      await isolateExitPoint(kill, ioFutures: ioFutures);
+      ioFutures.add(
+        MetadataHelper.writePageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          initialThumbnailIndex,
+          gIn: g,
+          supressWarnings: true,
+        ),
+      );
+    } else {
+      initialThumbnailIndex = readThumbnailIndex;
+    }
 
     // First process (default) Thumbnail version
     Future<void> processThumbnailVersion() async {
       if (initialThumbnailIndex > 1) {
         await isolateExitPoint(kill, ioFutures: ioFutures);
-        //final Uint8List? thumbnailVersionBytes;
         switch (initialThumbnailIndex) {
           case 2:
             // Contrast
@@ -227,40 +226,24 @@ class ImageProcessingManager {
                 filterIndex,
               ),
             );
-
-            //Uint8List processed2Bytes = await cvHelper.processImagePro();
             // PRO 2
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            //thumbnailVersionBytes = await cvHelper.processImagePro2();
-            //ioFutures.add(
-            //  g.filesHelper.savePageVersion(
-            //    docIndex,
-            //    pageIndex,
-            //    4,
-            //    processed2Bytes,
-            //    ".png",
-            //  ),
-            //);
+            filterIndex = versionNamesInternal.indexOf("processed3");
+            imageProcessor.proColorFilter(
+              await g.filesHelper.createVersionPath(
+                docIndex,
+                pageIndex,
+                filterIndex,
+              ),
+            );
             break;
           default:
-          //thumbnailVersionBytes = null;
         }
         await isolateExitPoint(kill, ioFutures: ioFutures);
-        //if (thumbnailVersionBytes != null) {
-        //  ioFutures.add(
-        //    g.filesHelper.savePageVersion(
-        //      docIndex,
-        //      pageIndex,
-        //      initialThumbnailIndex == 4 ? 5 : initialThumbnailIndex,
-        //      thumbnailVersionBytes,
-        //      ".png",
-        //    ),
-        //  );
-        //}
       }
     }
 
-    //filterFutures.add(processThumbnailVersion());
+    processThumbnailVersion();
 
     // Update thumbnails:
     await isolateExitPoint(kill, ioFutures: ioFutures);
@@ -301,26 +284,33 @@ class ImageProcessingManager {
     });
 
     // Contrast
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     int filterIndex = versionNamesInternal.indexOf("contrast");
     if (initialThumbnailIndex != filterIndex) {
-      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.contrastFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
     }
     // Document
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     filterIndex = versionNamesInternal.indexOf("processed1");
     if (initialThumbnailIndex != filterIndex) {
-      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.documentFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
     }
     // PRO
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     filterIndex = versionNamesInternal.indexOf("processed2");
-    if (initialThumbnailIndex != filterIndex) {
-      await isolateExitPoint(kill, ioFutures: ioFutures);
+    if (initialThumbnailIndex != filterIndex &&
+        initialThumbnailIndex != versionNamesInternal.indexOf("processed3")) {
       imageProcessor.proFilter(
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
+      );
+      // PRO 2
+      await isolateExitPoint(kill, ioFutures: ioFutures);
+      filterIndex = versionNamesInternal.indexOf("processed3");
+      imageProcessor.proColorFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
     }
