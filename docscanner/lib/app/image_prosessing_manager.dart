@@ -13,7 +13,7 @@ import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
 import 'package:docscanner/app/opencv_helper.dart';
-import 'package:docscanner/app/main.dart' show globalNotifier;
+import 'package:docscanner/app/main.dart' show globalNotifier, versionNames;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -196,15 +196,24 @@ class ImageProcessingManager {
           case 2:
             // Contrast
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            // Contrast
             imageProcessor.contrastImage(
-              await g.filesHelper.createVersionPath(docIndex, pageIndex, 2),
+              await g.filesHelper.createVersionPath(
+                docIndex,
+                pageIndex,
+                versionNamesInternal.indexOf("contrast"),
+              ),
             );
             break;
           case 3:
             // Document
             await isolateExitPoint(kill, ioFutures: ioFutures);
-            //thumbnailVersionBytes = await cvHelper.processImageDocument();
+            imageProcessor.documentImage(
+              await g.filesHelper.createVersionPath(
+                docIndex,
+                pageIndex,
+                versionNamesInternal.indexOf("processed1"),
+              ),
+            );
             break;
           case 4:
           case 5:
@@ -284,30 +293,27 @@ class ImageProcessingManager {
 
     // Contrast
     if (initialThumbnailIndex != 2) {
+      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.contrastImage(
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, 2),
+        await g.filesHelper.createVersionPath(
+          docIndex,
+          pageIndex,
+          versionNamesInternal.indexOf("contrast"),
+        ),
       );
     }
-    //// Document
-    //await isolateExitPoint(kill, ioFutures: ioFutures);
-    //if (initialThumbnailIndex != 3) {
-    //  Future<void> processDocumentFilter() async {
-    //    Uint8List processed1Bytes = await cvHelper.processImageDocument();
-    //    await isolateExitPoint(kill, ioFutures: ioFutures);
-    //    ioFutures.add(
-    //      g.filesHelper.savePageVersion(
-    //        docIndex,
-    //        pageIndex,
-    //        3,
-    //        processed1Bytes,
-    //        ".png",
-    //      ),
-    //    );
-    //  }
-    //
-    //  filterFutures.add(processDocumentFilter());
-    //}
-    //
+    // Document
+    if (initialThumbnailIndex != 3) {
+      await isolateExitPoint(kill, ioFutures: ioFutures);
+      imageProcessor.documentImage(
+        await g.filesHelper.createVersionPath(
+          docIndex,
+          pageIndex,
+          versionNamesInternal.indexOf("processed1"),
+        ),
+      );
+    }
+
     //if (initialThumbnailIndex != 4 && initialThumbnailIndex != 5) {
     //  Future<void> processPROFilters() async {
     //    // PRO

@@ -905,6 +905,24 @@ private:
         return cv::imwrite(inPath, inImage);
     }
 
+    cv::Mat warpedBgSimple(const cv::Mat& src, int K) {
+    // 1. Remove glow (opening)
+    int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
+    cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
+
+    cv::Mat bg;
+    cv::morphologyEx(src, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+
+    // 2. Blur
+    cv::blur(bg, bg, cv::Size((K * 2) + 1, (K * 2) + 1));
+
+    // 3. Remove dark structures (closing)
+    int k2 = K * 2;
+    bg = _closingCircleApprox(bg, k2);
+
+    return bg;
+}
+
 public:
     
     bool loadPhoto(const std::string& inPath) {
@@ -1034,6 +1052,45 @@ public:
         }
     }
 
+    bool documentImage(const std::string& outPath) {
+        try {
+            // "warped" is assumed to be a member variable set earlier
+            if (warped.empty()) {
+                LOGE("No warped image loaded before isolateAndSubtractBGSimple");
+                return false;
+            }
+            int K = (warped.rows + warped.cols) / 50;
+
+            cv::Mat bg = warpedBgSimple(warped, K);
+
+            // Subtract background
+            cv::Mat subtracted;
+            cv::addWeighted(warped, 1.0, bg, -1.0, 255.0, subtracted);
+
+            // Stretch result
+            subtracted = _stretchMat(
+                subtracted,
+                0.005, // lowPercentile
+                0.995  // highPercentile
+            );
+
+            if (!cv::imwrite(outPath, subtracted)) {
+                LOGE("Failed to write BG-subtracted image to %s", outPath.c_str());
+                return false;
+            }
+
+            return true;
+        }
+        catch (const std::exception& e) {
+            LOGE("Exception in isolateAndSubtractBGSimple: %s", e.what());
+            return false;
+        }
+        catch (...) {
+            LOGE("Unknown error in isolateAndSubtractBGSimple");
+            return false;
+        }
+    }
+
 };
 
 // ------------------ Instance Lifecycle ------------------
@@ -1138,6 +1195,23 @@ int processorContrastImage(
     }
 
     bool success = inOutProcessor->contrastImage(inContrastPath);
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int processorDocumentImage(
+    ImageProcessor* inOutProcessor,
+    const char* inBGSubtractedPath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inBGSubtractedPath);
+
+    if (!inOutProcessor || !inBGSubtractedPath) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    bool success = inOutProcessor->documentImage(inBGSubtractedPath);
     LOG_EXIT();
     return success ? 1 : 0;
 }

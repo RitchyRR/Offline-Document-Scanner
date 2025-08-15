@@ -65,6 +65,14 @@ typedef _ProcessorContrastImageNative =
 typedef _ProcessorContrastImageDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
+typedef _ProcessorDocumentImageNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ffi.Int8>, // inDocumentPath
+    );
+typedef _ProcessorDocumentImageDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -92,6 +100,11 @@ final _processorWarpImage = _nativeLib
 final _ProcessorContrastImageDart _processorContrastImage = _nativeLib
     .lookupFunction<_ProcessorContrastImageNative, _ProcessorContrastImageDart>(
       'processorContrastImage',
+    );
+
+final _ProcessorDocumentImageDart _processorDocumentImage = _nativeLib
+    .lookupFunction<_ProcessorDocumentImageNative, _ProcessorDocumentImageDart>(
+      'processorDocumentImage',
     );
 
 // ----------------- Public functions -----------------
@@ -198,6 +211,20 @@ class ImageProcessor {
     if (result == 0) {
       throw Exception(
         'Native error, contrastImage: Processing / Saving failed',
+      );
+    }
+  }
+
+  void documentImage(String documentPath) {
+    final documentPathPtr = documentPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final result = _processorDocumentImage(_handle, documentPathPtr);
+
+    malloc.free(documentPathPtr);
+
+    if (result == 0) {
+      throw Exception(
+        'Native error, documentImage: Processing / Saving failed',
       );
     }
   }
