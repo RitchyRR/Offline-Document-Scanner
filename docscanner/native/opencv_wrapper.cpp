@@ -218,8 +218,7 @@ private:
         int cols = testShape.cols;
         
         auto pixelAt = [&](int r, int c) {
-            LOG_EXIT();
-        return testShape.at<uchar>(r, c);
+            return testShape.at<uchar>(r, c);
         };
         
         if (pixelAt(0, 0) == 0 &&
@@ -231,8 +230,9 @@ private:
             pixelAt(rows / 2, 0) == 0 &&
             pixelAt(rows / 2, cols - 1) == 0) {
             LOG_EXIT();
-        return true;
+            return true;
         }
+        
         LOG_EXIT();
         return false;
     }
