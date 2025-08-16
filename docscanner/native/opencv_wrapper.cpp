@@ -699,31 +699,6 @@ private:
         LOG_EXIT();
         return correctedHeight / correctedWidth;
     }
-    
-    double _matchAspectRatioAndOrientation(double calculatedRatioIn) {
-        LOG_ENTRY();
-        
-        double matchingValue = std::sqrt(2.0);
-        bool portrait = true;
-        double portraitValue = calculatedRatioIn;
-        
-        if (calculatedRatioIn < 1.0) {
-            portraitValue = 1.0 / calculatedRatioIn;
-            portrait = false;
-        }
-        
-        double smallestDifference = std::numeric_limits<double>::infinity();
-        for (const double ar : availableAspectRatios) {
-            double diff = std::abs(ar - portraitValue);
-            if (diff < smallestDifference) {
-                smallestDifference = diff;
-                matchingValue = ar;
-            }
-        }
-        
-        LOG_EXIT();
-        return portrait ? matchingValue : 1.0 / matchingValue;
-    }
 
     void _setHeightFromCorners(
         const std::vector<std::vector<int>>& inCorners, 
@@ -837,7 +812,7 @@ private:
         LOG_ENTRY();
         
         double calculatedRatio = _calculateAspectRatio(corners);
-        double matchedRatio = _matchAspectRatioAndOrientation(calculatedRatio);
+        double matchedRatio = matchAspectRatioAndOrientation(calculatedRatio);
         
         _setHeightFromCorners(corners, matchedRatio, K, height, width);
         _calculateBorderCutIn(borderCorrectionMask, corners, usingHough, borderCutIn, *K, *height, *width);
@@ -1269,6 +1244,28 @@ public:
         return true;
     }
 
+    bool loadWarped(const std::string& inPath) {
+        LOG_ENTRY();
+        warped = cv::imread(inPath);
+        if (warped.empty()) {
+            LOG_EXIT();
+            return false;
+        }
+        LOG_EXIT();
+        return true;
+    }
+
+    bool loadPro(const std::string& inPath) {
+        LOG_ENTRY();
+        pro = cv::imread(inPath);
+        if (pro.empty()) {
+            LOG_EXIT();
+            return false;
+        }
+        LOG_EXIT();
+        return true;
+    }
+
     bool savePhoto(const std::string& inPath) {
         LOG_ENTRY();
         bool success = cv::imwrite(inPath, photo);
@@ -1280,6 +1277,31 @@ public:
         LOG_ENTRY();
         availableAspectRatios = inAvailableAspectRatios;
         LOG_EXIT();
+    }
+
+    double matchAspectRatioAndOrientation(double inCalculatedRatio) {
+        LOG_ENTRY();
+        
+        double matchingValue = std::sqrt(2.0);
+        bool portrait = true;
+        double portraitValue = inCalculatedRatio;
+        
+        if (inCalculatedRatio < 1.0) {
+            portraitValue = 1.0 / inCalculatedRatio;
+            portrait = false;
+        }
+        
+        double smallestDifference = std::numeric_limits<double>::infinity();
+        for (const double ar : availableAspectRatios) {
+            double diff = std::abs(ar - portraitValue);
+            if (diff < smallestDifference) {
+                smallestDifference = diff;
+                matchingValue = ar;
+            }
+        }
+        
+        LOG_EXIT();
+        return portrait ? matchingValue : 1.0 / matchingValue;
     }
     
     bool warpImage(
@@ -1756,6 +1778,74 @@ int scaleImageToWidth(
     *outNewHeight = newHeight;
     LOG_EXIT();
     return 1;
+}
+
+int processorMatchAspectRatioAndOrientation(
+    ImageProcessor* inOutProcessor,
+    double inCalculatedRatio,
+    double* outMatchingRatio
+) {
+    LOG_ENTRY();
+    if (!inOutProcessor || !outMatchingRatio) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    *outMatchingRatio = inOutProcessor->matchAspectRatioAndOrientation(inCalculatedRatio);
+    
+    LOG_EXIT();
+    return 1;
+}
+
+int processorLoadPhoto (
+    ImageProcessor* inOutProcessor,
+    const char* inSourcePath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inSourcePath);
+    if (!inOutProcessor || !inSourcePath) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    bool success = inOutProcessor->loadPhoto(inSourcePath);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int processorLoadWarped (
+    ImageProcessor* inOutProcessor,
+    const char* inSourcePath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inSourcePath);
+    if (!inOutProcessor || !inSourcePath) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    bool success = inOutProcessor->loadWarped(inSourcePath);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int processorLoadPro (
+    ImageProcessor* inOutProcessor,
+    const char* inSourcePath
+) {
+    LOG_ENTRY();
+    LOG_VAR(inSourcePath);
+    if (!inOutProcessor || !inSourcePath) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    bool success = inOutProcessor->loadPro(inSourcePath);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;
 }
 
 }

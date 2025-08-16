@@ -12,7 +12,6 @@ import 'package:flutter/services.dart'
 import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
-import 'package:docscanner/app/opencv_helper.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
@@ -76,6 +75,7 @@ class ImageProcessingManager {
           ? ""
           : await g.filesHelper.createVersionPath(docIndex, pageIndex, 0),
     );
+    if (isPhotoAlreadyInPage) imageProcessor.loadPhoto(photoPath);
     imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
 
     (
@@ -461,21 +461,19 @@ class ImageProcessingManager {
 
     AppGlobals g = data.$5;
 
-    OpenCVHelper cvHelper = OpenCVHelper(g);
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
 
     List<String>? oldVersionFileNames =
         await MetadataHelper.readOldPageFileNames(docIndex, pageIndex, gIn: g);
 
+    String photoPath = await g.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      0,
+      supressWarnings: true,
+    );
     // Photo
-    if (!File(
-      await g.filesHelper.getVersionPath(
-        docIndex,
-        pageIndex,
-        0,
-        supressWarnings: true,
-      ),
-    ).existsSync()) {
-      //dev.log("repairPageIsolate: Doc $docIndex, Page $pageIndex: No photo");
+    if (!File(photoPath).existsSync()) {
       if (File(
         await g.filesHelper.getPagePath(
           docIndex,
@@ -509,35 +507,27 @@ class ImageProcessingManager {
     if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
       throw StateError("Error, _repairPageIsolate: No photo");
     }
+    imageProcessor.loadPhoto(versionPaths[0]);
 
     // Warped
-    Uint8List? warpedBytes;
     if (versionPaths[1].isEmpty ||
         (oldVersionFileNames != null &&
             versionPaths[1].contains(oldVersionFileNames[1])) ||
         (ratioValue == null || cornerPoints == null)) {
       isolateExitPoint(kill);
-      var warpedRet = await cvHelper.warpImage(
-        File(versionPaths[0]).readAsBytesSync(),
-        ratioValueIn: ratioValue,
-        cornerPoints: cornerPoints,
-      );
-      warpedBytes = warpedRet.$1;
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
+      versionPaths[1] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        1,
-        warpedBytes,
-        ".png",
+        versionNamesInternal.indexOf("warped"),
       );
-
-      // Metadata
-      ratioValue = warpedRet.$2;
-      cornerPoints = warpedRet.$3;
+      isolateExitPoint(kill);
+      (ratioValue, cornerPoints) = imageProcessor.warpImage(
+        versionPaths[1],
+        ratioValue,
+        cornerPoints,
+      );
     } else {
-      warpedBytes = File(versionPaths[1]).readAsBytesSync();
-      cvHelper.setWarped(warpedBytes);
+      imageProcessor.loadWarped(versionPaths[1]);
     }
 
     // Metadata
@@ -555,15 +545,13 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[2].contains(oldVersionFileNames[2]))) {
       isolateExitPoint(kill);
-      Uint8List contrastBytes = await cvHelper.processImageContrast();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
+      versionPaths[2] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        2,
-        contrastBytes,
-        ".png",
+        versionNamesInternal.indexOf("contrast"),
       );
+      isolateExitPoint(kill);
+      imageProcessor.contrastFilter(versionPaths[2]);
     }
 
     // Document
@@ -571,32 +559,27 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[3].contains(oldVersionFileNames[3]))) {
       isolateExitPoint(kill);
-      Uint8List processed1 = await cvHelper.processImageDocument();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
+      versionPaths[3] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        3,
-        processed1,
-        ".png",
+        versionNamesInternal.indexOf("processed1"),
       );
+      isolateExitPoint(kill);
+      imageProcessor.documentFilter(versionPaths[3]);
     }
 
     // PRO
-    Uint8List? processed2Bytes;
     if (versionPaths[4].isEmpty ||
         (oldVersionFileNames != null &&
             versionPaths[4].contains(oldVersionFileNames[4]))) {
       isolateExitPoint(kill);
-      processed2Bytes = await cvHelper.processImagePro();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
+      versionPaths[4] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        4,
-        processed2Bytes,
-        ".png",
+        versionNamesInternal.indexOf("processed2"),
       );
+      isolateExitPoint(kill);
+      imageProcessor.proFilter(versionPaths[4]);
     }
 
     // PRO 2
@@ -604,18 +587,15 @@ class ImageProcessingManager {
         (oldVersionFileNames != null &&
             versionPaths[5].contains(oldVersionFileNames[5]))) {
       isolateExitPoint(kill);
-      processed2Bytes ??= File(versionPaths[4]).readAsBytesSync();
-      cvHelper.setProecessed2(processed2Bytes);
+      imageProcessor.loadPro(versionPaths[4]);
       isolateExitPoint(kill);
-      Uint8List processed3Bytes = await cvHelper.processImagePro2();
-      isolateExitPoint(kill);
-      await g.filesHelper.savePageVersion(
+      versionPaths[5] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        5,
-        processed3Bytes,
-        ".png",
+        versionNamesInternal.indexOf("processed2"),
       );
+      isolateExitPoint(kill);
+      imageProcessor.proColorFilter(versionPaths[5]);
     }
 
     // Update thumbnails:
@@ -1431,19 +1411,19 @@ class ImageProcessingManager {
     if (imgInfo == null) {
       throw StateError("Error, processPdfPage: can't decode Image.");
     }
-    OpenCVHelper cvHelper = OpenCVHelper(g);
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     isolateExitPoint(kill);
-    final matchingValue = cvHelper.matchAspectRatioAndOrientation(
+    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
+    final matchingAspectRatio = imageProcessor.matchAspectRatioAndOrientation(
       imgInfo.height / imgInfo.width,
     );
-    double ratioValueIn = matchingValue;
 
     // Write Metadata
     isolateExitPoint(kill);
     await MetadataHelper.writePageProcessingMetadata(
       docIndex,
       pageIndex,
-      ratioValueIn,
+      matchingAspectRatio,
       null,
       gIn: g,
     );

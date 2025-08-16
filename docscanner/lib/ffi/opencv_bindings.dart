@@ -22,7 +22,7 @@ typedef _FreeProcessorDart = void Function(ffi.Pointer<ImageProcessorHandle>);
 typedef _ProcessorImportPhotoNative =
     ffi.Int32 Function(
       ffi.Pointer<ImageProcessorHandle>,
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
       ffi.Pointer<ffi.Int8>, // inPhotoPath
     );
 typedef _ProcessorImportPhotoDart =
@@ -63,7 +63,7 @@ typedef _ProcessorWarpImageDart =
     );
 
 typedef _ProcessorContrastFilterNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>,
       ffi.Pointer<ffi.Int8>, // inContrastPath
     );
@@ -71,7 +71,7 @@ typedef _ProcessorContrastFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 typedef _ProcessorDocumentFilterNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inDocumentPath
     );
@@ -79,7 +79,7 @@ typedef _ProcessorDocumentFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 typedef _ProcessorProFilterNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inProPath
     );
@@ -87,7 +87,7 @@ typedef _ProcessorProFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 typedef _ProcessorProColorFilterNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>, // processor
       ffi.Pointer<ffi.Int8>, // inProColorPath
     );
@@ -95,7 +95,7 @@ typedef _ProcessorProColorFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 typedef _RotateImageNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ffi.Int8>, // inSourcePath,
       ffi.Pointer<ffi.Int8>, // inRotatedPath
       ffi.Int, // angle
@@ -104,7 +104,7 @@ typedef _RotateImageDart =
     int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int);
 
 typedef _ScaleImageToWidthNative =
-    ffi.Int32 Function(
+    ffi.Int Function(
       ffi.Pointer<ffi.Int8>, // inSourcePath,
       ffi.Pointer<ffi.Int8>, // inScaledPath
       ffi.Int, // inNewWidth
@@ -118,6 +118,43 @@ typedef _ScaleImageToWidthDart =
       ffi.Pointer<ffi.Int>,
     );
 
+typedef _ProcessorMatchAspectRatioAndOrientationNative =
+    ffi.Int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Double, // inCalculatedRatio
+      ffi.Pointer<ffi.Double>, // outMatchingRatio
+    );
+typedef _ProcessorMatchAspectRatioAndOrientationDart =
+    int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      double,
+      ffi.Pointer<ffi.Double>,
+    );
+
+typedef _ProcessorLoadPhotoNative =
+    ffi.Int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+    );
+typedef _ProcessorLoadPhotoDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
+typedef _ProcessorLoadWarpedNative =
+    ffi.Int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+    );
+typedef _ProcessorLoadWarpedDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
+typedef _ProcessorLoadProNative =
+    ffi.Int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+    );
+typedef _ProcessorLoadProDart =
+    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -128,7 +165,7 @@ final _freeProcessor = _nativeLib
     .lookup<ffi.NativeFunction<_FreeProcessorNative>>('freeProcessor')
     .asFunction<_FreeProcessorDart>();
 
-final _processorLoadPhoto = _nativeLib
+final _processorImportPhoto = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorImportPhotoNative>>(
       'processorImportPhoto',
     )
@@ -175,6 +212,26 @@ final _scaleImageToWidth = _nativeLib
     .lookup<ffi.NativeFunction<_ScaleImageToWidthNative>>('scaleImageToWidth')
     .asFunction<_ScaleImageToWidthDart>();
 
+final _processorMatchAspectRatioAndOrientation = _nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorMatchAspectRatioAndOrientationNative>>(
+      'processorMatchAspectRatioAndOrientation',
+    )
+    .asFunction<_ProcessorMatchAspectRatioAndOrientationDart>();
+
+final _processorLoadPhoto = _nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
+    .asFunction<_ProcessorLoadPhotoDart>();
+
+final _processorLoadWarped = _nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorLoadWarpedNative>>(
+      'processorLoadWarped',
+    )
+    .asFunction<_ProcessorLoadWarpedDart>();
+
+final _processorLoadPro = _nativeLib
+    .lookup<ffi.NativeFunction<_ProcessorLoadProNative>>('processorLoadPro')
+    .asFunction<_ProcessorLoadProDart>();
+
 // ----------------- Public functions -----------------
 
 class ImageProcessor {
@@ -194,11 +251,11 @@ class ImageProcessor {
   void importPhoto(String sourcePath, String photoPath) {
     final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
     final photoPathPtr = photoPath.toNativeUtf8().cast<ffi.Int8>();
-    final result = _processorLoadPhoto(_handle, sourcePathPtr, photoPathPtr);
+    final result = _processorImportPhoto(_handle, sourcePathPtr, photoPathPtr);
     malloc.free(sourcePathPtr);
     malloc.free(photoPathPtr);
     if (result == 0) {
-      throw Exception('Native error, loadPhoto from: $sourcePath');
+      throw Exception('Native error, importPhoto from: $sourcePath');
     }
   }
 
@@ -357,5 +414,50 @@ class ImageProcessor {
       throw Exception('Native error, rotateImage from: $sourcePath');
     }
     return outHeight;
+  }
+
+  double matchAspectRatioAndOrientation(double calculatedAspectRatio) {
+    final matchingAspectRatioPtr = malloc.allocate<ffi.Double>(1);
+    int result = _processorMatchAspectRatioAndOrientation(
+      _handle,
+      calculatedAspectRatio,
+      matchingAspectRatioPtr,
+    );
+
+    double mathcingAspectRatio = matchingAspectRatioPtr.value;
+    malloc.free(matchingAspectRatioPtr);
+    if (result == 0) {
+      throw Exception(
+        'Native error, matchAspectRatioAndOrientation from ratio: $calculatedAspectRatio',
+      );
+    }
+    return mathcingAspectRatio;
+  }
+
+  void loadPhoto(String sourcePath) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorLoadPhoto(_handle, sourcePathPtr);
+    malloc.free(sourcePathPtr);
+    if (result == 0) {
+      throw Exception('Native error, loadPhoto from: $sourcePath');
+    }
+  }
+
+  void loadWarped(String sourcePath) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorLoadWarped(_handle, sourcePathPtr);
+    malloc.free(sourcePathPtr);
+    if (result == 0) {
+      throw Exception('Native error, loadWarped from: $sourcePath');
+    }
+  }
+
+  void loadPro(String sourcePath) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorLoadPro(_handle, sourcePathPtr);
+    malloc.free(sourcePathPtr);
+    if (result == 0) {
+      throw Exception('Native error, loadPro from: $sourcePath');
+    }
   }
 }
