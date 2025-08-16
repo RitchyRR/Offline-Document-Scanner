@@ -4310,11 +4310,12 @@ class PagePreviewState extends State<PagePreview> {
 
             await imageProcessingManager.deleteRotatedPhotos();
             // Preload rotated photo
-            _rotatedPhotoPaths = await imageProcessingManager.rotatePhoto(
-              _photoPath,
-              widget.docIndex,
-              widget.pageIndex,
-            );
+            _rotatedPhotoPaths = await imageProcessingManager
+                .rotatePhotoInTmpDir(
+                  _photoPath,
+                  widget.docIndex,
+                  widget.pageIndex,
+                );
           } else {
             _versionPaths[i] = polledPath;
           }

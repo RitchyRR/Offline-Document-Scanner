@@ -94,6 +94,15 @@ typedef _ProcessorProColorFilterNative =
 typedef _ProcessorProColorFilterDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
+typedef _RotateImageNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inRotatedPath
+      ffi.Int, // angle
+    );
+typedef _RotateImageDart =
+    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int);
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -143,6 +152,10 @@ final _ProcessorProColorFilterDart _processorProColorFilter = _nativeLib
       _ProcessorProColorFilterDart
     >('processorProColorFilter');
 
+final _rotateImage = _nativeLib
+    .lookup<ffi.NativeFunction<_RotateImageNative>>('rotateImage')
+    .asFunction<_RotateImageDart>();
+
 // ----------------- Public functions -----------------
 
 class ImageProcessor {
@@ -166,7 +179,7 @@ class ImageProcessor {
     malloc.free(sourcePathPtr);
     malloc.free(photoPathPtr);
     if (result == 0) {
-      throw Exception('Native error, loadPhoto from: $sourcePathPtr');
+      throw Exception('Native error, loadPhoto from: $sourcePath');
     }
   }
 
@@ -290,6 +303,19 @@ class ImageProcessor {
 
     if (result == 0) {
       throw Exception('Native error, proFilter: Processing / Saving failed');
+    }
+  }
+
+  // Other image processing:
+
+  void rotateImage(String sourcePath, String rotatedPath, int angle) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final rotatedPathPtr = rotatedPath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _rotateImage(sourcePathPtr, rotatedPathPtr, angle);
+    malloc.free(sourcePathPtr);
+    malloc.free(rotatedPathPtr);
+    if (result == 0) {
+      throw Exception('Native error, rotateImage from: $sourcePath');
     }
   }
 }

@@ -908,12 +908,6 @@ private:
         return warped;
     }
     
-    bool _saveImage(const std::string& inPath, const cv::Mat& inImage) const {
-        LOG_ENTRY();
-        LOG_EXIT();
-        return cv::imwrite(inPath, inImage);
-    }
-    
     cv::Mat _documentFilterBg(const cv::Mat& src, int K) {
         // 1. Remove glow (opening)
         int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
@@ -1212,6 +1206,55 @@ private:
         return result;
     }
 
+    cv::Mat _matchColor(const cv::Mat& mat, const cv::Mat& sample) {
+        cv::Vec3b orig = _medianRGB(mat);
+        cv::Vec3b proc = _medianRGB(sample);
+        
+        double eps = std::numeric_limits<double>::min();
+        double rRatio = std::min(static_cast<double>(orig[2]) / std::max(static_cast<double>(proc[2]), eps), static_cast<double>(FLT_MAX));
+        double gRatio = std::min(static_cast<double>(orig[1]) / std::max(static_cast<double>(proc[1]), eps), static_cast<double>(FLT_MAX));
+        double bRatio = std::min(static_cast<double>(orig[0]) / std::max(static_cast<double>(proc[0]), eps), static_cast<double>(FLT_MAX));
+        
+        // Split sample channels
+        std::vector<cv::Mat> sampleChannels;
+        cv::split(sample, sampleChannels);
+        
+        // Convert to double precision, scale, then back
+        cv::Mat r, g, b;
+        sampleChannels[2].convertTo(r, CV_64F, 1.0 / 255.0);
+        sampleChannels[1].convertTo(g, CV_64F, 1.0 / 255.0);
+        sampleChannels[0].convertTo(b, CV_64F, 1.0 / 255.0);
+        
+        r *= rRatio;
+        g *= gRatio;
+        b *= bRatio;
+
+        // Merge channels and convert back to 8-bit
+        std::vector<cv::Mat> merged = { b, g, r };
+        cv::Mat result;
+        cv::merge(merged, result);
+        result.convertTo(result, CV_8UC3, 255.0);
+        
+        return result;
+    }
+    
+    cv::Vec3b _medianRGB(const cv::Mat& mat) {
+        std::vector<cv::Mat> channels;
+        cv::split(mat, channels);
+        
+        // Flatten channel to vector
+        std::vector<uchar> r, g, b;
+        r.assign(channels[2].datastart, channels[2].dataend);
+        g.assign(channels[1].datastart, channels[1].dataend);
+        b.assign(channels[0].datastart, channels[0].dataend);
+        
+        std::sort(r.begin(), r.end());
+        std::sort(g.begin(), g.end());
+        std::sort(b.begin(), b.end());
+        
+        size_t mid = r.size() / 2;
+        return cv::Vec3b(b[mid], g[mid], r[mid]);
+    }
 
 public:
     
@@ -1228,9 +1271,9 @@ public:
 
     bool savePhoto(const std::string& inPath) {
         LOG_ENTRY();
-        _saveImage(inPath, photo);
+        bool success = cv::imwrite(inPath, photo);
         LOG_EXIT();
-        return true;
+        return success;
     }
     
     void setAvailableAspectRatios(std::vector<double> inAvailableAspectRatios){
@@ -1310,7 +1353,7 @@ public:
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
-        if (!_saveImage(inWarpedPath, warped)) {
+        if (!cv::imwrite(inWarpedPath, warped)) {
             LOG_EXIT();
             return false;
         }
@@ -1447,57 +1490,6 @@ public:
             return false;
         }
     }
-
-    cv::Mat _matchColor(const cv::Mat& mat, const cv::Mat& sample) {
-        cv::Vec3b orig = _medianRGB(mat);
-        cv::Vec3b proc = _medianRGB(sample);
-        
-        double eps = std::numeric_limits<double>::min();
-        double rRatio = std::min(static_cast<double>(orig[2]) / std::max(static_cast<double>(proc[2]), eps), static_cast<double>(FLT_MAX));
-        double gRatio = std::min(static_cast<double>(orig[1]) / std::max(static_cast<double>(proc[1]), eps), static_cast<double>(FLT_MAX));
-        double bRatio = std::min(static_cast<double>(orig[0]) / std::max(static_cast<double>(proc[0]), eps), static_cast<double>(FLT_MAX));
-        
-        // Split sample channels
-        std::vector<cv::Mat> sampleChannels;
-        cv::split(sample, sampleChannels);
-        
-        // Convert to double precision, scale, then back
-        cv::Mat r, g, b;
-        sampleChannels[2].convertTo(r, CV_64F, 1.0 / 255.0);
-        sampleChannels[1].convertTo(g, CV_64F, 1.0 / 255.0);
-        sampleChannels[0].convertTo(b, CV_64F, 1.0 / 255.0);
-        
-        r *= rRatio;
-        g *= gRatio;
-        b *= bRatio;
-
-        // Merge channels and convert back to 8-bit
-        std::vector<cv::Mat> merged = { b, g, r };
-        cv::Mat result;
-        cv::merge(merged, result);
-        result.convertTo(result, CV_8UC3, 255.0);
-        
-        return result;
-    }
-    
-    cv::Vec3b _medianRGB(const cv::Mat& mat) {
-        std::vector<cv::Mat> channels;
-        cv::split(mat, channels);
-        
-        // Flatten channel to vector
-        std::vector<uchar> r, g, b;
-        r.assign(channels[2].datastart, channels[2].dataend);
-        g.assign(channels[1].datastart, channels[1].dataend);
-        b.assign(channels[0].datastart, channels[0].dataend);
-        
-        std::sort(r.begin(), r.end());
-        std::sort(g.begin(), g.end());
-        std::sort(b.begin(), b.end());
-        
-        size_t mid = r.size() / 2;
-        return cv::Vec3b(b[mid], g[mid], r[mid]);
-    }
-
 };
 
 // ------------------ Instance Lifecycle ------------------
@@ -1666,10 +1658,53 @@ int processorProColorFilter(
     }
 
     bool success = inOutProcessor->proColorFilter(inProColorFilterPath);
-
+    
     LOG_EXIT();
     return success ? 1 : 0;
 }
 
+// Other image processing:
+
+int rotateImage(
+    const char* sourcePath,
+    const char* rotatedPath,
+    int angle
+) {
+    LOG_ENTRY();
+    LOG_VAR(angle);
+    
+    if (!sourcePath || !rotatedPath) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    // read
+    cv::Mat source = cv::imread(sourcePath);
+    if (source.empty()) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    // rotate
+    cv::Mat rotated;
+    if (angle == 90) {
+        cv::rotate(source, rotated, cv::ROTATE_90_CLOCKWISE);
+    } else if (angle == 270) {
+        cv::rotate(source, rotated, cv::ROTATE_90_COUNTERCLOCKWISE);
+    } else if (angle == 180){
+        cv::rotate(source, rotated, cv::ROTATE_180);
+    } else {
+        rotated = source;
+    }
+    
+    // write
+    if (!cv::imwrite(rotatedPath, rotated)) {
+        LOGE("rotateImage: failed to write image");
+        return 0;
+    }
+    
+    LOG_EXIT();
+    return 1;
+}
 
 }

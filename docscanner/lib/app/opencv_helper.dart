@@ -80,21 +80,21 @@ class OpenCVHelper {
     return _returnImage(processed3);
   }
 
-  Future<Uint8List> rotateImage(Uint8List imageBytesIn, int angle) {
-    cv.Mat mat = _loadImage(imageBytesIn);
-
-    if (angle != 0) {
-      mat = mat.rotate(
-        angle == 90
-            ? cv.ROTATE_90_CLOCKWISE
-            : (angle == 270)
-            ? cv.ROTATE_90_COUNTERCLOCKWISE
-            : cv.ROTATE_180,
-      );
-    }
-
-    return _returnImage(mat);
-  }
+  //Future<Uint8List> rotateImage(Uint8List imageBytesIn, int angle) {
+  //  cv.Mat mat = _loadImage(imageBytesIn);
+  //
+  //  if (angle != 0) {
+  //    mat = mat.rotate(
+  //      angle == 90
+  //          ? cv.ROTATE_90_CLOCKWISE
+  //          : (angle == 270)
+  //          ? cv.ROTATE_90_COUNTERCLOCKWISE
+  //          : cv.ROTATE_180,
+  //    );
+  //  }
+  //
+  //  return _returnImage(mat);
+  //}
 
   Future<(Uint8List, int)> scaleImageToWidth(
     Uint8List imageBytesIn,

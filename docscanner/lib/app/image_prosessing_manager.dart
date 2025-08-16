@@ -900,7 +900,7 @@ class ImageProcessingManager {
     int rotationIn = data.$6;
     AppGlobals g = data.$7;
 
-    OpenCVHelper cvHelper = OpenCVHelper(g);
+    //OpenCVHelper cvHelper = OpenCVHelper(g);
 
     if (!File(versionPaths[0]).existsSync()) {
       throw StateError("photo ${versionPaths[0]} does not exist");
@@ -935,21 +935,15 @@ class ImageProcessingManager {
 
     /// 2. rotate processed -> save
     if (!isImportedPdf) {
+      final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
       // Warped, Contrast, Processed1, Processed2
       for (int i = 1; i < versionPaths.length; i++) {
         Future<void> rotateVersion() async {
           isolateExitPoint(kill);
-          Uint8List bytes = await cvHelper.rotateImage(
-            File(versionPaths[i]).readAsBytesSync(),
+          imageProcessor.rotateImage(
+            versionPaths[i],
+            await g.filesHelper.createVersionPath(docIndex, pageIndex, i),
             rotationIn,
-          );
-          isolateExitPoint(kill);
-          await g.filesHelper.savePageVersion(
-            docIndex,
-            pageIndex,
-            i,
-            bytes,
-            ".png",
           );
         }
 
@@ -1694,13 +1688,12 @@ class ImageProcessingManager {
   }
 
   List<TaskKiller> rotatePhotoKillers = [];
-  Future<List<String>> rotatePhoto(
+  Future<List<String>> rotatePhotoInTmpDir(
     String photoPath,
     int docIndex,
     int pageIndex,
   ) async {
     final List<String> roatedFilePaths = [];
-
     for (int rotation = 90; rotation <= 270; rotation += 90) {
       final tmpDir = await getTemporaryDirectory();
       roatedFilePaths.add("${tmpDir.path}/rotated_$rotation.png");
@@ -1709,8 +1702,8 @@ class ImageProcessingManager {
         final port = ReceivePort();
 
         TaskKiller killer = await IsolatesManager().runTask(
-          _rotatePhotoIsolate,
-          (port.sendPort, photoPath, roatedFilePaths.last, rotation, g),
+          _rotatePhotoInTmpDirIsolate,
+          (port.sendPort, photoPath, roatedFilePaths.last, rotation),
           portIn: port,
           prio: IsolatePriority.quick,
         );
@@ -1731,14 +1724,8 @@ class ImageProcessingManager {
     return roatedFilePaths;
   }
 
-  static Future<void> _rotatePhotoIsolate(
-    (
-      SendPort sendPort,
-      String imagePath,
-      String rotatedFilePath,
-      int angle,
-      AppGlobals gIn,
-    )
+  static Future<void> _rotatePhotoInTmpDirIsolate(
+    (SendPort sendPort, String photoPath, String rotatedFilePath, int angle)
     data,
   ) async {
     SendPort sendPort = data.$1;
@@ -1752,19 +1739,15 @@ class ImageProcessingManager {
       }
     });
 
-    String imagePath = data.$2;
+    String photoPath = data.$2;
     String rotatedFilePath = data.$3;
     int angle = data.$4;
-    AppGlobals gIn = data.$5;
 
     isolateExitPoint(kill);
-    OpenCVHelper cvHelper = OpenCVHelper(gIn);
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     isolateExitPoint(kill);
-    Uint8List imageBytes = await File(imagePath).readAsBytes();
-    isolateExitPoint(kill);
-    Uint8List rotatedBytes = await cvHelper.rotateImage(imageBytes, angle);
-    isolateExitPoint(kill);
-    File(rotatedFilePath).writeAsBytesSync(rotatedBytes);
+    imageProcessor.rotateImage(photoPath, rotatedFilePath, angle);
+
     Isolate.exit(sendPort, "done");
   }
 
