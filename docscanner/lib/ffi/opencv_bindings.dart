@@ -19,13 +19,18 @@ typedef _FreeProcessorNative =
     ffi.Void Function(ffi.Pointer<ImageProcessorHandle>);
 typedef _FreeProcessorDart = void Function(ffi.Pointer<ImageProcessorHandle>);
 
-typedef _ProcessorLoadPhotoNative =
+typedef _ProcessorImportPhotoNative =
     ffi.Int32 Function(
       ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inPhotoPath
+    );
+typedef _ProcessorImportPhotoDart =
+    int Function(
+      ffi.Pointer<ImageProcessorHandle>,
+      ffi.Pointer<ffi.Int8>,
       ffi.Pointer<ffi.Int8>,
     );
-typedef _ProcessorLoadPhotoDart =
-    int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
 
 typedef _ProcessorSetAvailableAspectRatiosNative =
     ffi.Void Function(
@@ -42,7 +47,7 @@ typedef _ProcessorSetAvailableAspectRatiosDart =
 
 typedef _ProcessorWarpImageNative =
     ffi.Int32 Function(
-      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ImageProcessorHandle>,
       ffi.Pointer<ffi.Int8>, // inWarpedPath
       ffi.Pointer<ffi.Double>, // inOutRatioValue
       ffi.Pointer<ffi.Int32>, // inOutCorners
@@ -59,7 +64,7 @@ typedef _ProcessorWarpImageDart =
 
 typedef _ProcessorContrastFilterNative =
     ffi.Int32 Function(
-      ffi.Pointer<ImageProcessorHandle>, // processor
+      ffi.Pointer<ImageProcessorHandle>,
       ffi.Pointer<ffi.Int8>, // inContrastPath
     );
 typedef _ProcessorContrastFilterDart =
@@ -100,8 +105,10 @@ final _freeProcessor = _nativeLib
     .asFunction<_FreeProcessorDart>();
 
 final _processorLoadPhoto = _nativeLib
-    .lookup<ffi.NativeFunction<_ProcessorLoadPhotoNative>>('processorLoadPhoto')
-    .asFunction<_ProcessorLoadPhotoDart>();
+    .lookup<ffi.NativeFunction<_ProcessorImportPhotoNative>>(
+      'processorImportPhoto',
+    )
+    .asFunction<_ProcessorImportPhotoDart>();
 
 final _processorSetAvailableAspectRatios = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorSetAvailableAspectRatiosNative>>(
@@ -152,11 +159,15 @@ class ImageProcessor {
     _freeProcessor(_handle);
   }
 
-  void loadPhoto(String path) {
-    final pathPtr = path.toNativeUtf8().cast<ffi.Int8>();
-    final result = _processorLoadPhoto(_handle, pathPtr);
-    malloc.free(pathPtr);
-    if (result == 0) throw Exception('Native error, loadPhoto: $path');
+  void importPhoto(String sourcePath, String photoPath) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final photoPathPtr = photoPath.toNativeUtf8().cast<ffi.Int8>();
+    final result = _processorLoadPhoto(_handle, sourcePathPtr, photoPathPtr);
+    malloc.free(sourcePathPtr);
+    malloc.free(photoPathPtr);
+    if (result == 0) {
+      throw Exception('Native error, loadPhoto from: $sourcePathPtr');
+    }
   }
 
   void setAvailableAspectRatios(List<AspectRatioInfo> gAvailableAspectRatios) {

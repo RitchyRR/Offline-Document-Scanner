@@ -1225,6 +1225,13 @@ public:
         LOG_EXIT();
         return true;
     }
+
+    bool savePhoto(const std::string& inPath) {
+        LOG_ENTRY();
+        _saveImage(inPath, photo);
+        LOG_EXIT();
+        return true;
+    }
     
     void setAvailableAspectRatios(std::vector<double> inAvailableAspectRatios){
         LOG_ENTRY();
@@ -1507,14 +1514,24 @@ void freeProcessor(ImageProcessor* inOutProcessor) {
 }
 
 // ------------------ Image Operations ------------------
-int processorLoadPhoto(ImageProcessor* inOutProcessor, const char* inPhotoPath) {
+int processorImportPhoto(
+    ImageProcessor* inOutProcessor, 
+    const char* inSourcePath,
+    const char* inPhotoPath
+) {
     LOG_ENTRY();
-    if (!inOutProcessor) {
+    LOG_VAR(inSourcePath);
+    if (!inOutProcessor || !inSourcePath || !inPhotoPath) {
         LOG_EXIT();
         return 0;
     }
+    
+    bool success = inOutProcessor->loadPhoto(inSourcePath);
+    success = success && (!inPhotoPath || inPhotoPath[0] == '\0') ? true 
+        : inOutProcessor->savePhoto(inPhotoPath);
+    
     LOG_EXIT();
-    return inOutProcessor->loadPhoto(inPhotoPath) ? 1 : 0;
+    return success ? 1 : 0;
 }
 
 void processorSetAvailableAspectRatios(
@@ -1593,9 +1610,9 @@ int processorContrastFilter(
         LOG_EXIT();
         return 0;
     }
-
+    
     bool success = inOutProcessor->contrastFilter(inContrastPath);
-
+    
     LOG_EXIT();
     return success ? 1 : 0;
 }

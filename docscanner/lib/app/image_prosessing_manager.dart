@@ -43,7 +43,7 @@ class ImageProcessingManager {
       String photoPath,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
-      //int rotationIn,
+      bool isPhotoAlreadyInPage,
       bool isInitial,
       AppGlobals g,
     )
@@ -60,9 +60,9 @@ class ImageProcessingManager {
 
     double? ratioValueIn = data.$6;
     List<List<int>>? cornerPointsIn = data.$7;
-    //int rotationIn = data.$8;
-    bool isInitial = data.$8;
-    AppGlobals g = data.$9;
+    bool isPhotoAlreadyInPage = data.$8;
+    bool isInitial = data.$9;
+    AppGlobals g = data.$10;
 
     List<Future<void>> ioFutures = [];
     List<Future<void>> filterFutures = [];
@@ -71,7 +71,12 @@ class ImageProcessingManager {
 
     //OpenCVHelper cvHelper = OpenCVHelper(g);
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
-    imageProcessor.loadPhoto(photoPath);
+    imageProcessor.importPhoto(
+      photoPath,
+      isPhotoAlreadyInPage
+          ? ""
+          : await g.filesHelper.createVersionPath(docIndex, pageIndex, 0),
+    );
     imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
 
     (
@@ -356,21 +361,6 @@ class ImageProcessingManager {
       isPhotoAlreadyInPage: isPhotoAlreadyInPage,
     );
 
-    // Photo
-    final imageRaw = g.filesHelper.readImageRaw(photoPath);
-    Uint8List photoBytes = imageRaw.$1;
-    String photoExtension = imageRaw.$2;
-    if (!isPhotoAlreadyInPage) {
-      await g.filesHelper.writeImageRaw(
-        docIndex,
-        pageIndex,
-        0,
-        photoBytes,
-        photoExtension,
-        gIn: g,
-      );
-    }
-
     final completer = Completer<void>();
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
@@ -385,7 +375,7 @@ class ImageProcessingManager {
         photoPath,
         ratioValueIn,
         cornerPointsIn,
-        //rotationIn,
+        isPhotoAlreadyInPage,
         isInitial,
         g,
       ),
