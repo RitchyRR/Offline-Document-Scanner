@@ -43,7 +43,7 @@ class ImageProcessingManager {
       String photoPath,
       double? ratioValueIn,
       List<List<int>>? cornerPointsIn,
-      int rotationIn,
+      //int rotationIn,
       bool isInitial,
       AppGlobals g,
     )
@@ -60,9 +60,9 @@ class ImageProcessingManager {
 
     double? ratioValueIn = data.$6;
     List<List<int>>? cornerPointsIn = data.$7;
-    int rotationIn = data.$8;
-    bool isInitial = data.$9;
-    AppGlobals g = data.$10;
+    //int rotationIn = data.$8;
+    bool isInitial = data.$8;
+    AppGlobals g = data.$9;
 
     List<Future<void>> ioFutures = [];
     List<Future<void>> filterFutures = [];
@@ -85,7 +85,7 @@ class ImageProcessingManager {
       photoPath,
       ratioValueIn,
       cornerPointsIn,
-      rotationIn,
+      //rotationIn,
       isInitial,
       g,
       imageProcessor,
@@ -118,7 +118,7 @@ class ImageProcessingManager {
     String photoPath,
     double? ratioValueIn,
     List<List<int>>? cornerPointsIn,
-    int rotationIn,
+    //int rotationIn,
     bool isInitial,
     AppGlobals g,
     final cvb.ImageProcessor imageProcessor,
@@ -385,7 +385,7 @@ class ImageProcessingManager {
         photoPath,
         ratioValueIn,
         cornerPointsIn,
-        rotationIn,
+        //rotationIn,
         isInitial,
         g,
       ),

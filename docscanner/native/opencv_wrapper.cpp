@@ -60,26 +60,27 @@ private:
     }
 
     // Histogram stretching with percentiles
-    cv::Mat _stretchMat(const cv::Mat& matIn, double lowPercentile = 0.005,
-                    double highPercentile = 0.995, double gamma = std::numeric_limits<double>::quiet_NaN()) {
+    cv::Mat _stretchMat(
+        const cv::Mat& matIn, 
+        double lowPercentile = 0.005,
+        double highPercentile = 0.995, 
+        double gamma = std::numeric_limits<double>::quiet_NaN()
+    ) {
         LOG_ENTRY();
         cv::Mat ref;
         int height = matIn.rows;
         int width = matIn.cols;
         
-        // Resize if large
         if (height > 1000 || width > 1000) {
             cv::resize(matIn, ref, cv::Size(width / 4, height / 4));
         } else {
             ref = matIn.clone();
         }
-        
-        // Convert to grayscale if 3 channels
         if (ref.channels() == 3) {
             cv::cvtColor(ref, ref, cv::COLOR_BGR2GRAY);
         }
         
-        // Flatten pixel values
+        // Pixels -> sorted list
         std::vector<uchar> refList;
         if (ref.isContinuous()) {
             refList.assign(ref.datastart, ref.dataend);
@@ -88,21 +89,22 @@ private:
                 refList.insert(refList.end(), ref.ptr<uchar>(r), ref.ptr<uchar>(r) + ref.cols);
             }
         }
-        
         std::sort(refList.begin(), refList.end());
-
+        
         int lowIndex = static_cast<int>(refList.size() * lowPercentile);
         double lowValue = static_cast<double>(refList[lowIndex]);
         int highIndex = static_cast<int>(refList.size() * highPercentile);
         double highValue = static_cast<double>(refList[highIndex]);
-
-        // Normalize (matching Dart's alpha/beta style)
+        
+        // Stretch to low / high values
         cv::Mat matOut;
-        matIn.convertTo(matOut, CV_32F); // work in float
-        matOut = (matOut - lowValue) * (255.0 / (highValue - lowValue));
-        cv::threshold(matOut, matOut, 255, 255, cv::THRESH_TRUNC);
-        cv::threshold(matOut, matOut, 0, 0, cv::THRESH_TOZERO);
-        matOut.convertTo(matOut, matIn.type());
+        cv::normalize(
+            matIn,
+            matOut,
+            -lowValue,
+            (255 - highValue) + 255,
+            cv::NORM_MINMAX
+        );
         
         // Optional gamma correction
         if (!isnan(gamma)) {
@@ -111,6 +113,12 @@ private:
         
         LOG_EXIT();
         return matOut;
+    }
+
+    cv::Mat _stretchMatF32(const cv::Mat& matF32) {
+        cv::Mat out;
+        cv::normalize(matF32, out, 0.0, 1.0, cv::NORM_MINMAX);
+        return out;
     }
 
     // Closing circle approximation
@@ -1030,12 +1038,6 @@ private:
         cv::cvtColor(bgHSV, bg, cv::COLOR_HSV2BGR);
         
         return bg;
-    }
-
-    cv::Mat _stretchMatF32(const cv::Mat& matF32) {
-        cv::Mat out;
-        cv::normalize(matF32, out, 0.0, 1.0, cv::NORM_MINMAX);
-        return out;
     }
 
     int _medianBrightness(const cv::Mat& mat) {
