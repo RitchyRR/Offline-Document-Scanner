@@ -1217,7 +1217,7 @@ public:
     
     bool loadPhoto(const std::string& inPath) {
         LOG_ENTRY();
-        photo = cv::imread(inPath, cv::IMREAD_UNCHANGED);
+        photo = cv::imread(inPath);
         if (photo.empty()) {
             LOG_EXIT();
             return false;
