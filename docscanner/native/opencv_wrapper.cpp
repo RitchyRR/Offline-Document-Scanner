@@ -1666,20 +1666,20 @@ int processorProColorFilter(
 // Other image processing:
 
 int rotateImage(
-    const char* sourcePath,
-    const char* rotatedPath,
-    int angle
+    const char* inSourcePath,
+    const char* inRotatedPath,
+    int inAngle
 ) {
     LOG_ENTRY();
-    LOG_VAR(angle);
+    LOG_VAR(inAngle);
     
-    if (!sourcePath || !rotatedPath) {
+    if (!inSourcePath || !inRotatedPath) {
         LOG_EXIT();
         return 0;
     }
     
     // read
-    cv::Mat source = cv::imread(sourcePath);
+    cv::Mat source = cv::imread(inSourcePath);
     if (source.empty()) {
         LOG_EXIT();
         return 0;
@@ -1687,22 +1687,73 @@ int rotateImage(
 
     // rotate
     cv::Mat rotated;
-    if (angle == 90) {
+    if (inAngle == 90) {
         cv::rotate(source, rotated, cv::ROTATE_90_CLOCKWISE);
-    } else if (angle == 270) {
+    } else if (inAngle == 270) {
         cv::rotate(source, rotated, cv::ROTATE_90_COUNTERCLOCKWISE);
-    } else if (angle == 180){
+    } else if (inAngle == 180){
         cv::rotate(source, rotated, cv::ROTATE_180);
     } else {
         rotated = source;
     }
     
     // write
-    if (!cv::imwrite(rotatedPath, rotated)) {
+    if (!cv::imwrite(inRotatedPath, rotated)) {
         LOGE("rotateImage: failed to write image");
         return 0;
     }
     
+    LOG_EXIT();
+    return 1;
+}
+
+int scaleImageToWidth(
+    const char* inSourcePath,
+    const char* inScaledPath,
+    int inNewWidth,
+    int* outNewHeight
+) {
+    LOG_ENTRY();
+    LOG_VAR(inNewWidth);
+
+    if (!inSourcePath || !inScaledPath || !outNewHeight) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    // Read image
+    cv::Mat source = cv::imread(inSourcePath);
+    if (source.empty()) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    // Compute new height maintaining aspect ratio
+    int newHeight = static_cast<int>(source.rows * static_cast<double>(inNewWidth) / source.cols);
+
+    cv::Mat scaled;
+    try {
+        cv::resize(
+            source,
+            scaled,
+            cv::Size(inNewWidth, newHeight),
+            0,
+            0,
+            cv::INTER_LINEAR
+        );
+    } catch (const cv::Exception& e) {
+        LOGE("scaleImageToWidth: exception during resize: %s", e.what());
+        //scaled = cv::Mat::zeros(newHeight, inNewWidth, CV_8UC3);
+        return 0;
+    }
+
+    // Write output image
+    if (!cv::imwrite(inScaledPath, scaled)) {
+        LOGE("scaleImageToWidth: failed to write image");
+        return 0;
+    }
+
+    *outNewHeight = newHeight;
     LOG_EXIT();
     return 1;
 }

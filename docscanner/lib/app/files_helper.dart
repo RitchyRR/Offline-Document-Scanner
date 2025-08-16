@@ -253,26 +253,20 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    Uint8List imageBytes,
-    String extension, {
+    String soucePath, {
     AppGlobals? gIn,
   }) async {
     gIn ??= g;
-    // Scale down if too large
-    final Uint8List? scaledBytes =
-        await ImageProcessingManager.scaleImageToMaxSize(
-          imageBytes,
-          extension,
-          gIn: gIn,
-        );
+
     await _initializeDocumentsPath();
-    String pagePath = await getPagePath(
+    String versionPath = await gIn.filesHelper.createVersionPath(
       docIndex,
       pageIndex,
-      supressWarnings: true,
+      versionIndex,
     );
-    String versionName = versionNamesInternal[versionIndex];
     // Delete existing Image
+    String pagePath = await gIn.filesHelper.getPagePath(docIndex, pageIndex);
+    String versionName = versionNamesInternal[versionIndex];
     for (var fse in Directory(
       pagePath,
     ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
@@ -280,13 +274,15 @@ class FilesHelper {
         fse.delete();
       }
     }
-    String versionPath =
-        "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.$extension";
-    // Write
-    await File(versionPath).writeAsBytes(scaledBytes ?? imageBytes);
-    if (!File(versionPath).existsSync()) {
-      throw StateError("Error, writeImageRaw: Failed to save to $versionPath");
-    }
+
+    // Save version (Scale down if too large)
+    await ImageProcessingManager.scaleImageToMaxSize(
+      soucePath,
+      versionPath,
+      gIn: gIn,
+      saveIfUnscaled: true,
+    );
+
     return versionPath;
   }
 

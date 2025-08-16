@@ -16,7 +16,6 @@ import 'package:docscanner/app/opencv_helper.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 // ffi:
@@ -911,17 +910,12 @@ class ImageProcessingManager {
 
     /// 1. save rotated photo
     isolateExitPoint(kill);
-    final rotatedPhotoRaw = g.filesHelper.readImageRaw(versionPaths[0]);
-    Uint8List rotatedPhotoBytes = rotatedPhotoRaw.$1;
-    String rotatedPhotoExtension = rotatedPhotoRaw.$2;
-    isolateExitPoint(kill);
     futures.add(
       g.filesHelper.writeImageRaw(
         docIndex,
         pageIndex,
         0,
-        rotatedPhotoBytes,
-        rotatedPhotoExtension,
+        versionPaths[0],
         gIn: g,
       ),
     );
@@ -1090,39 +1084,12 @@ class ImageProcessingManager {
       );
     }
 
-    String thumbnailPath = "$pagePath/${versionFileName}_thumbnail.png";
-    File thumbnailFile = File(thumbnailPath);
     isolateExitPoint(kill);
-    Uint8List versionBytes = versionFile.readAsBytesSync();
-
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     isolateExitPoint(kill);
-    OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    isolateExitPoint(kill);
-    Uint8List scaledBytes;
     int newWidth = (screenWidth * 0.927083333).toInt();
-    int newHeight;
-    (scaledBytes, newHeight) = await cvHelper.scaleImageToWidth(
-      versionBytes,
-      newWidth,
-    );
-
-    isolateExitPoint(kill);
-    final Uint8List compressedPngBytes =
-        await FlutterImageCompress.compressWithList(
-          scaledBytes,
-          minWidth: newWidth,
-          minHeight: newHeight,
-          format: CompressFormat.png,
-          quality: 1,
-        );
-
-    try {
-      // Save
-      isolateExitPoint(kill);
-      thumbnailFile.writeAsBytesSync(compressedPngBytes);
-    } catch (e) {
-      throw StateError("Error, writeScaledThumbnail, write: :$e");
-    }
+    String thumbnailPath = "$pagePath/${versionFileName}_thumbnail.png";
+    imageProcessor.scaleImageToWidth(versionPath, thumbnailPath, newWidth);
 
     try {
       // Update thumbnails:
@@ -1624,67 +1591,43 @@ class ImageProcessingManager {
       );
     }
 
-    File scaledIamgeFile = File(scaledImagePath);
-    isolateExitPoint(kill);
-    Uint8List versionBytes = versionFile.readAsBytesSync();
-
-    isolateExitPoint(kill);
-    OpenCVHelper cvHelper = OpenCVHelper(g);
     // Scale
     isolateExitPoint(kill);
-    Uint8List scaledBytes;
-    int newWidth = (widthInInches * toDpi).toInt();
-    int newHeight;
-    (scaledBytes, newHeight) = await cvHelper.scaleImageToWidth(
-      versionBytes,
-      newWidth,
-    );
-
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     isolateExitPoint(kill);
-    final Uint8List compressedPngBytes =
-        await FlutterImageCompress.compressWithList(
-          scaledBytes,
-          minWidth: newWidth,
-          minHeight: newHeight,
-          format: CompressFormat.png,
-          quality: 1,
-        );
-
-    try {
-      // Save
-      isolateExitPoint(kill);
-      scaledIamgeFile.writeAsBytesSync(compressedPngBytes);
-    } catch (e) {
-      throw StateError("Error, writeScaledThumbnail, write: :$e");
-    }
+    int newWidth = (widthInInches * toDpi).toInt();
+    imageProcessor.scaleImageToWidth(versionPath, scaledImagePath, newWidth);
 
     Isolate.exit(sendPort, "done");
   }
 
-  static Future<Uint8List?> scaleImageToMaxSize(
-    final Uint8List imgBytes,
-    final String fileExtension, {
+  static Future<void> scaleImageToMaxSize(
+    final String sourcePath,
+    final String scaledPath, {
+    bool saveIfUnscaled = false,
     AppGlobals? gIn,
     final int maxSize =
         4962, // 2481: 300 DPI for A4 -> double for distance from camera
   }) async {
     gIn ??= g;
-    final imgInfo = await AppGlobals.getImageBytesInfo(imgBytes, fileExtension);
-    if (imgInfo == null) return null;
+    final imgInfo = await AppGlobals.getImageInfo(sourcePath);
+    if (imgInfo == null) return;
 
     final int imgWidth = imgInfo.width;
     final int imgHeight = imgInfo.height;
-    if (imgWidth < maxSize && imgHeight < maxSize) return null;
+    if (imgWidth < maxSize && imgHeight < maxSize) {
+      if (saveIfUnscaled) await File(sourcePath).copy(scaledPath);
+      return;
+    }
 
     int newWidth = maxSize;
     if (imgWidth < imgHeight) {
       newWidth = maxSize * imgWidth ~/ imgHeight;
     }
 
-    OpenCVHelper cvHelper = OpenCVHelper(gIn);
-    Uint8List scaledBytes;
-    (scaledBytes, _) = await cvHelper.scaleImageToWidth(imgBytes, newWidth);
-    return scaledBytes;
+    // Scale
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+    imageProcessor.scaleImageToWidth(sourcePath, scaledPath, newWidth);
   }
 
   List<TaskKiller> rotatePhotoKillers = [];

@@ -103,6 +103,21 @@ typedef _RotateImageNative =
 typedef _RotateImageDart =
     int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int);
 
+typedef _ScaleImageToWidthNative =
+    ffi.Int32 Function(
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inScaledPath
+      ffi.Int, // inNewWidth
+      ffi.Pointer<ffi.Int>, // outNewHeight
+    );
+typedef _ScaleImageToWidthDart =
+    int Function(
+      ffi.Pointer<ffi.Int8>,
+      ffi.Pointer<ffi.Int8>,
+      int,
+      ffi.Pointer<ffi.Int>,
+    );
+
 // ----------------- Lookup functions -----------------
 
 final _createProcessor = _nativeLib
@@ -155,6 +170,10 @@ final _ProcessorProColorFilterDart _processorProColorFilter = _nativeLib
 final _rotateImage = _nativeLib
     .lookup<ffi.NativeFunction<_RotateImageNative>>('rotateImage')
     .asFunction<_RotateImageDart>();
+
+final _scaleImageToWidth = _nativeLib
+    .lookup<ffi.NativeFunction<_ScaleImageToWidthNative>>('scaleImageToWidth')
+    .asFunction<_ScaleImageToWidthDart>();
 
 // ----------------- Public functions -----------------
 
@@ -317,5 +336,26 @@ class ImageProcessor {
     if (result == 0) {
       throw Exception('Native error, rotateImage from: $sourcePath');
     }
+  }
+
+  int scaleImageToWidth(String sourcePath, String scaledPath, int width) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final scaledPathPtr = scaledPath.toNativeUtf8().cast<ffi.Int8>();
+    final heightPth = malloc.allocate<ffi.Int>(1);
+
+    final result = _scaleImageToWidth(
+      sourcePathPtr,
+      scaledPathPtr,
+      width,
+      heightPth,
+    );
+    int outHeight = heightPth.value;
+
+    malloc.free(sourcePathPtr);
+    malloc.free(scaledPathPtr);
+    if (result == 0) {
+      throw Exception('Native error, rotateImage from: $sourcePath');
+    }
+    return outHeight;
   }
 }

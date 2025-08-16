@@ -96,27 +96,27 @@ class OpenCVHelper {
   //  return _returnImage(mat);
   //}
 
-  Future<(Uint8List, int)> scaleImageToWidth(
-    Uint8List imageBytesIn,
-    int newWidth,
-  ) async {
-    cv.Mat mat = _loadImage(imageBytesIn);
-
-    int newHeight = (mat.height * newWidth / mat.width).toInt();
-    //dev.log("$width x $height -> $newWidth x $newHeight");
-    cv.Mat scaled;
-    try {
-      scaled = cv.resize(mat, (
-        newWidth,
-        newHeight,
-      ), interpolation: cv.INTER_LINEAR);
-    } catch (e) {
-      scaled = cv.Mat.zeros(newHeight, newWidth, cv.MatType.CV_8UC3);
-      dev.log("Exception: $e");
-    }
-
-    return ((await _returnImage(scaled)), newHeight);
-  }
+  //Future<(Uint8List, int)> scaleImageToWidth(
+  //  Uint8List imageBytesIn,
+  //  int newWidth,
+  //) async {
+  //  cv.Mat mat = _loadImage(imageBytesIn);
+  //
+  //  int newHeight = (mat.height * newWidth / mat.width).toInt();
+  //  //dev.log("$width x $height -> $newWidth x $newHeight");
+  //  cv.Mat scaled;
+  //  try {
+  //    scaled = cv.resize(mat, (
+  //      newWidth,
+  //      newHeight,
+  //    ), interpolation: cv.INTER_LINEAR);
+  //  } catch (e) {
+  //    scaled = cv.Mat.zeros(newHeight, newWidth, cv.MatType.CV_8UC3);
+  //    dev.log("Exception: $e");
+  //  }
+  //
+  //  return ((await _returnImage(scaled)), newHeight);
+  //}
 
   cv.Mat _loadImage(Uint8List imageBytes) {
     // Load image
