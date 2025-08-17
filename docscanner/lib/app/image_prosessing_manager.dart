@@ -69,14 +69,18 @@ class ImageProcessingManager {
 
     //OpenCVHelper cvHelper = OpenCVHelper(g);
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
-    imageProcessor.importPhoto(
-      photoPath,
-      isPhotoAlreadyInPage
-          ? ""
-          : await g.filesHelper.createVersionPath(docIndex, pageIndex, 0),
-    );
-    if (isPhotoAlreadyInPage) imageProcessor.loadPhoto(photoPath);
     imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
+
+    // Photo
+    if (isPhotoAlreadyInPage) {
+      imageProcessor.loadPhoto(photoPath);
+    } else {
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 0);
+      imageProcessor.importPhoto(
+        photoPath,
+        await g.filesHelper.createVersionPath(docIndex, pageIndex, 0),
+      );
+    }
 
     (
       initialThumbnailIndex,
@@ -160,6 +164,9 @@ class ImageProcessingManager {
     // Warped
     double ratioValue;
     List<List<int>>? cornerPoints;
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 1);
+    await isolateExitPoint(kill, ioFutures: ioFutures);
     (ratioValue, cornerPoints) = imageProcessor.warpImage(
       await g.filesHelper.createVersionPath(docIndex, pageIndex, 1),
       ratioValueIn,
@@ -205,6 +212,12 @@ class ImageProcessingManager {
     Future<void> processThumbnailVersion() async {
       if (initialThumbnailIndex > 1) {
         await isolateExitPoint(kill, ioFutures: ioFutures);
+        g.filesHelper.deleteExistingVersion(
+          docIndex,
+          pageIndex,
+          initialThumbnailIndex,
+        );
+        await isolateExitPoint(kill, ioFutures: ioFutures);
         switch (initialThumbnailIndex) {
           case 2:
             // Contrast
@@ -230,6 +243,12 @@ class ImageProcessingManager {
             break;
           case 4:
           case 5:
+            await isolateExitPoint(kill, ioFutures: ioFutures);
+            g.filesHelper.deleteExistingVersion(
+              docIndex,
+              pageIndex,
+              initialThumbnailIndex == 4 ? 5 : 4,
+            );
             // PRO
             await isolateExitPoint(kill, ioFutures: ioFutures);
             int filterIndex = versionNamesInternal.indexOf("processed2");
@@ -291,6 +310,8 @@ class ImageProcessingManager {
     await isolateExitPoint(kill, ioFutures: ioFutures);
     int filterIndex = versionNamesInternal.indexOf("contrast");
     if (initialThumbnailIndex != filterIndex) {
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
+      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.contrastFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
@@ -299,6 +320,8 @@ class ImageProcessingManager {
     await isolateExitPoint(kill, ioFutures: ioFutures);
     filterIndex = versionNamesInternal.indexOf("processed1");
     if (initialThumbnailIndex != filterIndex) {
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
+      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.documentFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
@@ -308,12 +331,16 @@ class ImageProcessingManager {
     filterIndex = versionNamesInternal.indexOf("processed2");
     if (initialThumbnailIndex != filterIndex &&
         initialThumbnailIndex != versionNamesInternal.indexOf("processed3")) {
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
+      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.proFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
       // PRO 2
       await isolateExitPoint(kill, ioFutures: ioFutures);
       filterIndex = versionNamesInternal.indexOf("processed3");
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
+      await isolateExitPoint(kill, ioFutures: ioFutures);
       imageProcessor.proColorFilter(
         await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
       );
@@ -528,6 +555,8 @@ class ImageProcessingManager {
         versionNamesInternal.indexOf("warped"),
       );
       isolateExitPoint(kill);
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 1);
+      isolateExitPoint(kill);
       (ratioValue, cornerPoints) = imageProcessor.warpImage(
         versionPaths[1],
         ratioValue,
@@ -556,6 +585,8 @@ class ImageProcessingManager {
         versionNamesInternal.indexOf("contrast"),
       );
       isolateExitPoint(kill);
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 2);
+      isolateExitPoint(kill);
       imageProcessor.contrastFilter(versionPaths[2]);
     }
 
@@ -567,6 +598,8 @@ class ImageProcessingManager {
         pageIndex,
         versionNamesInternal.indexOf("processed1"),
       );
+      isolateExitPoint(kill);
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 3);
       isolateExitPoint(kill);
       imageProcessor.documentFilter(versionPaths[3]);
     }
@@ -580,6 +613,8 @@ class ImageProcessingManager {
         pageIndex,
         versionNamesInternal.indexOf("processed2"),
       );
+      isolateExitPoint(kill);
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 4);
       isolateExitPoint(kill);
       imageProcessor.proFilter(versionPaths[4]);
       proLoaded = true;
@@ -595,6 +630,8 @@ class ImageProcessingManager {
         pageIndex,
         versionNamesInternal.indexOf("processed3"),
       );
+      isolateExitPoint(kill);
+      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, 5);
       isolateExitPoint(kill);
       imageProcessor.proColorFilter(versionPaths[5]);
     }
@@ -916,6 +953,8 @@ class ImageProcessingManager {
       // Warped, Contrast, Processed1, Processed2
       for (int i = 1; i < versionPaths.length; i++) {
         Future<void> rotateVersion() async {
+          isolateExitPoint(kill);
+          g.filesHelper.deleteExistingVersion(docIndex, pageIndex, i);
           isolateExitPoint(kill);
           imageProcessor.rotateImage(
             versionPaths[i],

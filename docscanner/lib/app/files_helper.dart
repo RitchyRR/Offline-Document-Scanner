@@ -332,6 +332,37 @@ class FilesHelper {
     return versionPath;
   }
 
+  Future<bool> deleteExistingVersion(
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+  ) async {
+    bool deleted = false;
+    await _initializeDocumentsPath();
+    String pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    String versionName = versionNamesInternal[versionIndex];
+    // Delete existing Image
+    if (Directory(pagePath).existsSync()) {
+      for (var fse in Directory(
+        pagePath,
+      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
+        if (fse.path.contains("$versionName.")) {
+          fse.deleteSync();
+          deleted = true;
+        }
+      }
+    } else {
+      throw StateError(
+        "Error, savePageVersion: pagePath $pagePath does not exist",
+      );
+    }
+    return deleted;
+  }
+
   Future<String> createVersionPath(
     int docIndex,
     int pageIndex,
