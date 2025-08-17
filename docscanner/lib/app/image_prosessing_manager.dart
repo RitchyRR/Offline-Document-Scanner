@@ -166,6 +166,16 @@ class ImageProcessingManager {
       cornerPointsIn,
     );
 
+    // Metadata
+    await isolateExitPoint(kill, ioFutures: ioFutures);
+    await MetadataHelper.writePageProcessingMetadata(
+      docIndex,
+      pageIndex,
+      ratioValue,
+      cornerPoints,
+      gIn: g,
+    );
+
     // initialThumbnailIndex
     final int initialThumbnailIndex;
     await isolateExitPoint(kill, ioFutures: ioFutures);
@@ -252,16 +262,6 @@ class ImageProcessingManager {
     // Update thumbnails:
     await isolateExitPoint(kill, ioFutures: ioFutures);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
-
-    // Metadata
-    await isolateExitPoint(kill, ioFutures: ioFutures);
-    await MetadataHelper.writePageProcessingMetadata(
-      docIndex,
-      pageIndex,
-      ratioValue,
-      cornerPoints,
-      gIn: g,
-    );
 
     return (initialThumbnailIndex, ioFutures, filterFutures);
   }
@@ -502,6 +502,15 @@ class ImageProcessingManager {
     final List<String> versionPaths = imagePaths.$1;
     String thumbnailPath = imagePaths.$2;
 
+    bool versionOutdatedOrMissing(int versionIndex) {
+      return versionPaths[versionIndex].isEmpty ||
+          (oldVersionFileNames != null &&
+              oldVersionFileNames[versionIndex].isNotEmpty &&
+              versionPaths[versionIndex].contains(
+                oldVersionFileNames[versionIndex],
+              ));
+    }
+
     isolateExitPoint(kill);
     final photoFile = File(versionPaths[0]);
     if (!photoFile.existsSync() || photoFile.lengthSync() < 9) {
@@ -510,9 +519,7 @@ class ImageProcessingManager {
     imageProcessor.loadPhoto(versionPaths[0]);
 
     // Warped
-    if (versionPaths[1].isEmpty ||
-        (oldVersionFileNames != null &&
-            versionPaths[1].contains(oldVersionFileNames[1])) ||
+    if (versionOutdatedOrMissing(1) ||
         (ratioValue == null || cornerPoints == null)) {
       isolateExitPoint(kill);
       versionPaths[1] = await g.filesHelper.createVersionPath(
@@ -541,9 +548,7 @@ class ImageProcessingManager {
     );
 
     // Contrast
-    if (versionPaths[2].isEmpty ||
-        (oldVersionFileNames != null &&
-            versionPaths[2].contains(oldVersionFileNames[2]))) {
+    if (versionOutdatedOrMissing(2)) {
       isolateExitPoint(kill);
       versionPaths[2] = await g.filesHelper.createVersionPath(
         docIndex,
@@ -555,9 +560,7 @@ class ImageProcessingManager {
     }
 
     // Document
-    if (versionPaths[3].isEmpty ||
-        (oldVersionFileNames != null &&
-            versionPaths[3].contains(oldVersionFileNames[3]))) {
+    if (versionOutdatedOrMissing(3)) {
       isolateExitPoint(kill);
       versionPaths[3] = await g.filesHelper.createVersionPath(
         docIndex,
@@ -569,9 +572,8 @@ class ImageProcessingManager {
     }
 
     // PRO
-    if (versionPaths[4].isEmpty ||
-        (oldVersionFileNames != null &&
-            versionPaths[4].contains(oldVersionFileNames[4]))) {
+    bool proLoaded = false;
+    if (versionOutdatedOrMissing(4)) {
       isolateExitPoint(kill);
       versionPaths[4] = await g.filesHelper.createVersionPath(
         docIndex,
@@ -580,19 +582,18 @@ class ImageProcessingManager {
       );
       isolateExitPoint(kill);
       imageProcessor.proFilter(versionPaths[4]);
+      proLoaded = true;
     }
 
     // PRO 2
-    if (versionPaths[5].isEmpty ||
-        (oldVersionFileNames != null &&
-            versionPaths[5].contains(oldVersionFileNames[5]))) {
+    if (versionOutdatedOrMissing(5)) {
       isolateExitPoint(kill);
-      imageProcessor.loadPro(versionPaths[4]);
+      if (!proLoaded) imageProcessor.loadPro(versionPaths[4]);
       isolateExitPoint(kill);
       versionPaths[5] = await g.filesHelper.createVersionPath(
         docIndex,
         pageIndex,
-        versionNamesInternal.indexOf("processed2"),
+        versionNamesInternal.indexOf("processed3"),
       );
       isolateExitPoint(kill);
       imageProcessor.proColorFilter(versionPaths[5]);
