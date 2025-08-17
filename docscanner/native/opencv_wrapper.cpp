@@ -9,6 +9,8 @@
 
 extern "C" {
 
+bool savePng(const std::string& inPngPath, const cv::Mat& inImage);
+
 // ------------------ Instance Class ------------------
 class ImageProcessor {
 private:
@@ -1375,7 +1377,7 @@ public:
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
-        if (!cv::imwrite(inWarpedPath, warped)) {
+        if (!savePng(inWarpedPath, warped)) {
             LOG_EXIT();
             return false;
         }
@@ -1399,7 +1401,7 @@ public:
             );
             
             // Save image
-            if (!cv::imwrite(inContrastPath, stretched)) {
+            if (!savePng(inContrastPath, stretched)) {
                 LOGE("Failed to write contrast image to %s", inContrastPath.c_str());
                 return false;
             }
@@ -1436,7 +1438,7 @@ public:
                 0.995  // highPercentile
             );
 
-            if (!cv::imwrite(inProColorFilterPath, subtracted)) {
+            if (!savePng(inProColorFilterPath, subtracted)) {
                 LOGE("Failed to write BG-subtracted image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1470,7 +1472,7 @@ public:
             // 7. Sharpen
             processed2 = _sharpenImage(processed2, 0.5, K);
             
-            if (!cv::imwrite(inProColorFilterPath, processed2)) {
+            if (!savePng(inProColorFilterPath, processed2)) {
                 LOGE("Failed to write ProFilter image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1501,7 +1503,7 @@ public:
             cv::Mat colorMatched = _matchColor(warped, pro);
             
             // Save result
-            if (!cv::imwrite(inProColorFilterPath, colorMatched)) {
+            if (!savePng(inProColorFilterPath, colorMatched)) {
                 LOGE("proColorFilter: failed to write image");
                 return false;
             }
@@ -1513,6 +1515,27 @@ public:
         }
     }
 };
+
+bool savePng(const std::string& inPngPath, const cv::Mat& inImage) {
+    LOG_ENTRY();
+    
+    std::vector<int> compression_params;
+    compression_params.push_back(cv::IMWRITE_PNG_COMPRESSION);
+    compression_params.push_back(9);  // Compression levels: 0 - 9
+
+    bool success = false;
+    try
+    {
+        success = cv::imwrite(inPngPath, inImage, compression_params);
+    }
+    catch (const cv::Exception& ex)
+    {
+        LOGE("Exception converting image to PNG format: %s\n", ex.what());
+    }
+    
+    LOG_EXIT();
+    return success;
+}
 
 // ------------------ Instance Lifecycle ------------------
 ImageProcessor* createProcessor() {
@@ -1720,7 +1743,7 @@ int rotateImage(
     }
     
     // write
-    if (!cv::imwrite(inRotatedPath, rotated)) {
+    if (!savePng(inRotatedPath, rotated)) {
         LOGE("rotateImage: failed to write image");
         return 0;
     }
@@ -1770,7 +1793,7 @@ int scaleImageToWidth(
     }
     
     // Write output image
-    if (!cv::imwrite(inScaledPath, scaled)) {
+    if (!savePng(inScaledPath, scaled)) {
         LOGE("scaleImageToWidth: failed to write image");
         return 0;
     }
