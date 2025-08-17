@@ -5,11 +5,28 @@
 
 #include "native_log.h"
 
-
+static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inImage) {
+    LOG_ENTRY();
+    
+    std::vector<int> compression_params;
+    compression_params.push_back(cv::IMWRITE_PNG_COMPRESSION);
+    compression_params.push_back(9);  // Compression levels: 0 - 9
+    
+    bool success = false;
+    try
+    {
+        success = cv::imwrite(inPngPath, inImage, compression_params);
+    }
+    catch (const cv::Exception& ex)
+    {
+        LOGE("Exception converting image to PNG format: %s\n", ex.what());
+    }
+    
+    LOG_EXIT();
+    return success;
+}
 
 extern "C" {
-
-bool savePng(const std::string& inPngPath, const cv::Mat& inImage);
 
 // ------------------ Instance Class ------------------
 class ImageProcessor {
@@ -1377,7 +1394,7 @@ public:
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
-        if (!savePng(inWarpedPath, warped)) {
+        if (!_writeCompressedPng(inWarpedPath, warped)) {
             LOG_EXIT();
             return false;
         }
@@ -1401,7 +1418,7 @@ public:
             );
             
             // Save image
-            if (!savePng(inContrastPath, stretched)) {
+            if (!_writeCompressedPng(inContrastPath, stretched)) {
                 LOGE("Failed to write contrast image to %s", inContrastPath.c_str());
                 return false;
             }
@@ -1438,7 +1455,7 @@ public:
                 0.995  // highPercentile
             );
 
-            if (!savePng(inProColorFilterPath, subtracted)) {
+            if (!_writeCompressedPng(inProColorFilterPath, subtracted)) {
                 LOGE("Failed to write BG-subtracted image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1472,7 +1489,7 @@ public:
             // 7. Sharpen
             processed2 = _sharpenImage(processed2, 0.5, K);
             
-            if (!savePng(inProColorFilterPath, processed2)) {
+            if (!_writeCompressedPng(inProColorFilterPath, processed2)) {
                 LOGE("Failed to write ProFilter image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1503,7 +1520,7 @@ public:
             cv::Mat colorMatched = _matchColor(warped, pro);
             
             // Save result
-            if (!savePng(inProColorFilterPath, colorMatched)) {
+            if (!_writeCompressedPng(inProColorFilterPath, colorMatched)) {
                 LOGE("proColorFilter: failed to write image");
                 return false;
             }
@@ -1515,27 +1532,6 @@ public:
         }
     }
 };
-
-bool savePng(const std::string& inPngPath, const cv::Mat& inImage) {
-    LOG_ENTRY();
-    
-    std::vector<int> compression_params;
-    compression_params.push_back(cv::IMWRITE_PNG_COMPRESSION);
-    compression_params.push_back(9);  // Compression levels: 0 - 9
-
-    bool success = false;
-    try
-    {
-        success = cv::imwrite(inPngPath, inImage, compression_params);
-    }
-    catch (const cv::Exception& ex)
-    {
-        LOGE("Exception converting image to PNG format: %s\n", ex.what());
-    }
-    
-    LOG_EXIT();
-    return success;
-}
 
 // ------------------ Instance Lifecycle ------------------
 ImageProcessor* createProcessor() {
@@ -1743,7 +1739,7 @@ int rotateImage(
     }
     
     // write
-    if (!savePng(inRotatedPath, rotated)) {
+    if (!_writeCompressedPng(inRotatedPath, rotated)) {
         LOGE("rotateImage: failed to write image");
         return 0;
     }
@@ -1793,7 +1789,7 @@ int scaleImageToWidth(
     }
     
     // Write output image
-    if (!savePng(inScaledPath, scaled)) {
+    if (!_writeCompressedPng(inScaledPath, scaled)) {
         LOGE("scaleImageToWidth: failed to write image");
         return 0;
     }
@@ -1905,6 +1901,25 @@ int processorLoadPro (
     }
     
     bool success = inOutProcessor->loadPro(inSourcePath);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;
+}
+
+int writeCompressedPng(
+    const char* inSourcePath,
+    const char* inPngPath
+) {
+    LOG_ENTRY();
+    
+    // read
+    cv::Mat source = cv::imread(inSourcePath);
+    if (source.empty()) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    bool success = _writeCompressedPng(inPngPath, source);
     
     LOG_EXIT();
     return success ? 1 : 0;

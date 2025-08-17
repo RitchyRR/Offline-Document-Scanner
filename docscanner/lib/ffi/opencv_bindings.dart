@@ -96,7 +96,7 @@ typedef _ProcessorProColorFilterDart =
 
 typedef _RotateImageNative =
     ffi.Int Function(
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
       ffi.Pointer<ffi.Int8>, // inRotatedPath
       ffi.Int, // angle
     );
@@ -105,7 +105,7 @@ typedef _RotateImageDart =
 
 typedef _ScaleImageToWidthNative =
     ffi.Int Function(
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
       ffi.Pointer<ffi.Int8>, // inScaledPath
       ffi.Int, // inNewWidth
       ffi.Pointer<ffi.Int>, // outNewHeight
@@ -120,7 +120,7 @@ typedef _ScaleImageToWidthDart =
 
 typedef _ScaleImageToMaxSizeNative =
     ffi.Int Function(
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
       ffi.Pointer<ffi.Int8>, // inScaledPath
       ffi.Int, // inMaxSize
     );
@@ -143,7 +143,7 @@ typedef _ProcessorMatchAspectRatioAndOrientationDart =
 typedef _ProcessorLoadPhotoNative =
     ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>,
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
     );
 typedef _ProcessorLoadPhotoDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
@@ -151,7 +151,7 @@ typedef _ProcessorLoadPhotoDart =
 typedef _ProcessorLoadWarpedNative =
     ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>,
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
     );
 typedef _ProcessorLoadWarpedDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
@@ -159,10 +159,18 @@ typedef _ProcessorLoadWarpedDart =
 typedef _ProcessorLoadProNative =
     ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>,
-      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inSourcePath
     );
 typedef _ProcessorLoadProDart =
     int Function(ffi.Pointer<ImageProcessorHandle>, ffi.Pointer<ffi.Int8>);
+
+typedef _WriteCompressedPngNative =
+    ffi.Int Function(
+      ffi.Pointer<ffi.Int8>, // inSourcePath
+      ffi.Pointer<ffi.Int8>, // inPngPath
+    );
+typedef _WriteCompressedPngDart =
+    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>);
 
 // ----------------- Lookup functions -----------------
 
@@ -246,6 +254,10 @@ final _processorLoadWarped = _nativeLib
 final _processorLoadPro = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorLoadProNative>>('processorLoadPro')
     .asFunction<_ProcessorLoadProDart>();
+
+final _writeCompressedPng = _nativeLib
+    .lookup<ffi.NativeFunction<_WriteCompressedPngNative>>('writeCompressedPng')
+    .asFunction<_WriteCompressedPngDart>();
 
 // ----------------- Public functions -----------------
 
@@ -508,6 +520,22 @@ class ImageProcessor {
     malloc.free(sourcePathPtr);
     if (result == 0) {
       throw Exception('Native error, loadPro from: $sourcePath');
+    }
+  }
+
+  void writeCompressedPng(String sourcePath, String destinationPath) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final destinationPathPtr = destinationPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final result = _writeCompressedPng(sourcePathPtr, destinationPathPtr);
+
+    malloc.free(sourcePathPtr);
+    malloc.free(destinationPathPtr);
+
+    if (result == 0) {
+      throw Exception(
+        'Native error, writeCompressedPng: from $sourcePath, to $destinationPath',
+      );
     }
   }
 }
