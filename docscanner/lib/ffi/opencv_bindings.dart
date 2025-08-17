@@ -223,7 +223,7 @@ final _scaleImageToWidth = _nativeLib
 
 final _scaleImageToMaxHeight = _nativeLib
     .lookup<ffi.NativeFunction<_ScaleImageToMaxSizeNative>>(
-      'scaleImageToMaxHeight',
+      'scaleImageToMaxSize',
     )
     .asFunction<_ScaleImageToMaxSizeDart>();
 
@@ -440,7 +440,7 @@ class ImageProcessor {
     return outHeight;
   }
 
-  /// returns true if image was scaled and saved to scaledPath
+  /// - returns true if image was scaled and saved to scaledPath
   /// - will not scale if image is already smaller than maxSize in width and height
   bool scaleImageToMaxSize(
     String sourcePath,
