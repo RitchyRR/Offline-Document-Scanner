@@ -243,13 +243,6 @@ class FilesHelper {
     return pagePath;
   }
 
-  (Uint8List, String) readImageRaw(String imagePath) {
-    final file = File(imagePath);
-    final Uint8List futureBytes = file.readAsBytesSync();
-    String extension = imagePath.split(".").last;
-    return (futureBytes, extension);
-  }
-
   Future<String> writeImageRaw(
     int docIndex,
     int pageIndex,
