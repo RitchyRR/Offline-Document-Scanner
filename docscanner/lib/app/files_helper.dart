@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:developer' as dev;
 import 'dart:ui' as ui show PlatformDispatcher;
 
+import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:easy_localization/easy_localization.dart' show tr, NumberFormat;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -253,7 +254,7 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    String soucePath, {
+    String sourcePath, {
     AppGlobals? gIn,
   }) async {
     gIn ??= g;
@@ -276,12 +277,13 @@ class FilesHelper {
     }
 
     // Save version (Scale down if too large)
-    await ImageProcessingManager.scaleImageToMaxSize(
-      soucePath,
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+    bool scaledAndSaved = imageProcessor.scaleImageToMaxSize(
+      sourcePath,
       versionPath,
-      gIn: gIn,
-      saveIfUnscaled: true,
     );
+    if (!scaledAndSaved) await File(sourcePath).copy(versionPath);
+    imageProcessor.dispose();
 
     return versionPath;
   }

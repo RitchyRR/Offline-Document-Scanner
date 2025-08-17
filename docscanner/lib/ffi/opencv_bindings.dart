@@ -118,6 +118,15 @@ typedef _ScaleImageToWidthDart =
       ffi.Pointer<ffi.Int>,
     );
 
+typedef _ScaleImageToMaxSizeNative =
+    ffi.Int Function(
+      ffi.Pointer<ffi.Int8>, // inSourcePath,
+      ffi.Pointer<ffi.Int8>, // inScaledPath
+      ffi.Int, // inMaxSize
+    );
+typedef _ScaleImageToMaxSizeDart =
+    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int);
+
 typedef _ProcessorMatchAspectRatioAndOrientationNative =
     ffi.Int Function(
       ffi.Pointer<ImageProcessorHandle>,
@@ -211,6 +220,12 @@ final _rotateImage = _nativeLib
 final _scaleImageToWidth = _nativeLib
     .lookup<ffi.NativeFunction<_ScaleImageToWidthNative>>('scaleImageToWidth')
     .asFunction<_ScaleImageToWidthDart>();
+
+final _scaleImageToMaxHeight = _nativeLib
+    .lookup<ffi.NativeFunction<_ScaleImageToMaxSizeNative>>(
+      'scaleImageToMaxHeight',
+    )
+    .asFunction<_ScaleImageToMaxSizeDart>();
 
 final _processorMatchAspectRatioAndOrientation = _nativeLib
     .lookup<ffi.NativeFunction<_ProcessorMatchAspectRatioAndOrientationNative>>(
@@ -420,9 +435,35 @@ class ImageProcessor {
     malloc.free(sourcePathPtr);
     malloc.free(scaledPathPtr);
     if (result == 0) {
-      throw Exception('Native error, rotateImage from: $sourcePath');
+      throw Exception('Native error, _scaleImageToWidth from: $sourcePath');
     }
     return outHeight;
+  }
+
+  /// returns true if image was scaled and saved to scaledPath
+  /// - will not scale if image is already smaller than maxSize in width and height
+  bool scaleImageToMaxSize(
+    String sourcePath,
+    String scaledPath, {
+    int maxSize = 4962,
+    //    2481: 300 DPI for A4
+    // -> 4962: double for distance from camera
+  }) {
+    final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
+    final scaledPathPtr = scaledPath.toNativeUtf8().cast<ffi.Int8>();
+
+    final scaledAndSaved = _scaleImageToMaxHeight(
+      sourcePathPtr,
+      scaledPathPtr,
+      maxSize,
+    );
+
+    malloc.free(sourcePathPtr);
+    malloc.free(scaledPathPtr);
+
+    // true: image was scaled and saved to scaledPath
+    // false: source was already small enough / error
+    return scaledAndSaved == 1;
   }
 
   double matchAspectRatioAndOrientation(double calculatedAspectRatio) {

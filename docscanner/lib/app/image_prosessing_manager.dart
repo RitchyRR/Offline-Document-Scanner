@@ -1588,36 +1588,6 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  static Future<void> scaleImageToMaxSize(
-    final String sourcePath,
-    final String scaledPath, {
-    bool saveIfUnscaled = false,
-    AppGlobals? gIn,
-    final int maxSize =
-        4962, // 2481: 300 DPI for A4 -> double for distance from camera
-  }) async {
-    gIn ??= g;
-    final imgInfo = await AppGlobals.getImageInfo(sourcePath);
-    if (imgInfo == null) return;
-
-    final int imgWidth = imgInfo.width;
-    final int imgHeight = imgInfo.height;
-    if (imgWidth < maxSize && imgHeight < maxSize) {
-      if (saveIfUnscaled) await File(sourcePath).copy(scaledPath);
-      return;
-    }
-
-    int newWidth = maxSize;
-    if (imgWidth < imgHeight) {
-      newWidth = maxSize * imgWidth ~/ imgHeight;
-    }
-
-    // Scale
-    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
-    imageProcessor.scaleImageToWidth(sourcePath, scaledPath, newWidth);
-    imageProcessor.dispose();
-  }
-
   List<TaskKiller> rotatePhotoKillers = [];
   Future<List<String>> rotatePhotoInTmpDir(
     String photoPath,

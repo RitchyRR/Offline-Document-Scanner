@@ -1,4 +1,5 @@
 // my packages:
+import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:flutter/foundation.dart' show listEquals;
 
 import 'app/app_globals.dart';
@@ -8654,11 +8655,9 @@ class _CameraScreenState extends State<CameraScreen> {
       });
       final XFile xFile = await _controller!.takePicture();
       // Scale down if too large
-      await ImageProcessingManager.scaleImageToMaxSize(
-        xFile.path,
-        xFile.path,
-        gIn: g,
-      );
+      final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+      imageProcessor.scaleImageToMaxSize(xFile.path, xFile.path);
+      imageProcessor.dispose();
       _capturedImages.add(xFile);
       setState(() {
         _cameraFlash = false;

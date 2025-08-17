@@ -1737,22 +1737,22 @@ int scaleImageToWidth(
 ) {
     LOG_ENTRY();
     LOG_VAR(inNewWidth);
-
+    
     if (!inSourcePath || !inScaledPath || !outNewHeight) {
         LOG_EXIT();
         return 0;
     }
-
+    
     // Read image
     cv::Mat source = cv::imread(inSourcePath);
     if (source.empty()) {
         LOG_EXIT();
         return 0;
     }
-
+    
     // Compute new height maintaining aspect ratio
     int newHeight = static_cast<int>(source.rows * static_cast<double>(inNewWidth) / source.cols);
-
+    
     cv::Mat scaled;
     try {
         cv::resize(
@@ -1768,16 +1768,55 @@ int scaleImageToWidth(
         //scaled = cv::Mat::zeros(newHeight, inNewWidth, CV_8UC3);
         return 0;
     }
-
+    
     // Write output image
     if (!cv::imwrite(inScaledPath, scaled)) {
         LOGE("scaleImageToWidth: failed to write image");
         return 0;
     }
-
+    
     *outNewHeight = newHeight;
     LOG_EXIT();
     return 1;
+}
+
+int scaleImageToMaxSize(
+    const char* inSourcePath,
+    const char* inScaledPath,
+    int inMaxSize
+) {
+    LOG_ENTRY();
+    LOG_VAR(inMaxSize);
+    
+    if (!inSourcePath || !inScaledPath) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    // Read image
+    cv::Mat source = cv::imread(inSourcePath);
+    if (source.empty()) {
+        LOG_EXIT();
+        return 0;
+    }
+    
+    int srcWidth = source.cols;
+    int srcHeight = source.rows;
+    // return if scaling not needed
+    if (srcWidth < inMaxSize && srcHeight < inMaxSize) {
+      return 0;
+    }
+    // Compute new width
+    int newWidth = inMaxSize;
+    if (srcWidth < srcHeight) {
+      newWidth = inMaxSize * srcWidth / srcHeight;
+    }
+    
+    int newHeight;
+    int success = scaleImageToWidth(inSourcePath, inScaledPath, newWidth, &newHeight);
+    
+    LOG_EXIT();
+    return success;
 }
 
 int processorMatchAspectRatioAndOrientation(
