@@ -234,17 +234,26 @@ final _processorLoadPro = _nativeLib
 
 // ----------------- Public functions -----------------
 
+final Finalizer<ffi.Pointer<ffi.Void>> _finalizer =
+    Finalizer<ffi.Pointer<ffi.Void>>((ptr) {
+      _freeProcessor(ptr.cast<ImageProcessorHandle>());
+    });
+
 class ImageProcessor {
   late final ffi.Pointer<ImageProcessorHandle> _handle;
-
   ImageProcessor() {
     _handle = _createProcessor();
     if (_handle.address == 0) {
       throw Exception('Native error: Failed to create ImageProcessor');
     }
+    _finalizer.attach(this, _handle.cast(), detach: this);
   }
 
+  bool _disposed = false;
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _finalizer.detach(this);
     _freeProcessor(_handle);
   }
 

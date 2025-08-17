@@ -598,6 +598,8 @@ class ImageProcessingManager {
       imageProcessor.proColorFilter(versionPaths[5]);
     }
 
+    imageProcessor.dispose();
+
     // Update thumbnails:
     isolateExitPoint(kill);
     sendPort.send(NotifierEvent.loadPagesThumbnails);
@@ -923,6 +925,7 @@ class ImageProcessingManager {
 
         futures.add(rotateVersion());
       }
+      imageProcessor.dispose();
     }
 
     // Update Thumbnail
@@ -1070,6 +1073,7 @@ class ImageProcessingManager {
     int newWidth = (screenWidth * 0.927083333).toInt();
     String thumbnailPath = "$pagePath/${versionFileName}_thumbnail.png";
     imageProcessor.scaleImageToWidth(versionPath, thumbnailPath, newWidth);
+    imageProcessor.dispose();
 
     try {
       // Update thumbnails:
@@ -1417,6 +1421,7 @@ class ImageProcessingManager {
     final matchingAspectRatio = imageProcessor.matchAspectRatioAndOrientation(
       imgInfo.height / imgInfo.width,
     );
+    imageProcessor.dispose();
 
     // Write Metadata
     isolateExitPoint(kill);
@@ -1577,6 +1582,7 @@ class ImageProcessingManager {
     isolateExitPoint(kill);
     int newWidth = (widthInInches * toDpi).toInt();
     imageProcessor.scaleImageToWidth(versionPath, scaledImagePath, newWidth);
+    imageProcessor.dispose();
 
     Isolate.exit(sendPort, "done");
   }
@@ -1608,6 +1614,7 @@ class ImageProcessingManager {
     // Scale
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     imageProcessor.scaleImageToWidth(sourcePath, scaledPath, newWidth);
+    imageProcessor.dispose();
   }
 
   List<TaskKiller> rotatePhotoKillers = [];
@@ -1670,6 +1677,7 @@ class ImageProcessingManager {
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     isolateExitPoint(kill);
     imageProcessor.rotateImage(photoPath, rotatedFilePath, angle);
+    imageProcessor.dispose();
 
     Isolate.exit(sendPort, "done");
   }
