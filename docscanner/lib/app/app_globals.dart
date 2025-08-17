@@ -144,7 +144,7 @@ class ErrorLogger {
       final logFile = File('${dir.path}/error_log.txt');
       final now = DateTime.now().toIso8601String();
       final message = '[$now] ERROR: $error\nSTACKTRACE:\n$stack\n\n';
-      dev.log(message);
+      //dev.log(message);
       await logFile.writeAsString(message, mode: FileMode.append);
     } catch (e) {
       Fluttertoast.showToast(msg: "Could not log error: $e");
