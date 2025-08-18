@@ -1,4 +1,4 @@
-import 'dart:developer' as dev show log;
+//import 'dart:developer' as dev show log;
 import 'dart:io' show File, FileMode;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
@@ -26,8 +26,7 @@ class AppGlobals {
   bool proUnlocked = false;
   final FilesHelper filesHelper = FilesHelper();
   final MetadataHelper metadataHelper = MetadataHelper();
-  //final ImageProcessingManager imageProcessingManager =
-  //    ImageProcessingManager();
+  //final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
   void setDefaultIndex(int? newDefaultIndex) {
     if (!proUnlocked && proFilterIndexes.contains(newDefaultIndex)) {
       newDefaultIndex = 3;
