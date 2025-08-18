@@ -7,24 +7,42 @@ namespace fs = std::filesystem;
 
 static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inImage) {
     LOG_ENTRY();
-    
-    std::vector<int> compression_params = { 
-        cv::IMWRITE_PNG_COMPRESSION, 
-        9 // Compression levels: 0 - 9
-    };
-    
-    bool success = false;
-    try
-    {
-        success = cv::imwrite(inPngPath, inImage, compression_params);
+    try {
+        fs::path finalPath(inPngPath);
+        fs::path dir = finalPath.parent_path();
+        if (dir.empty()) {
+            LOG_EXIT();
+            return 0;
+        }
+        
+        // Temporaray file name
+        auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+        std::string tmpName = ".tmp_" + std::to_string(ms) + ".png";
+        fs::path tmpPath = dir / tmpName;
+        
+        // Write PNG to temporaray file name
+        std::vector<int> compression_params = { 
+            cv::IMWRITE_PNG_COMPRESSION, 
+            9 // Compression levels: 0 - 9
+        };
+        bool success = cv::imwrite(tmpPath, inImage, compression_params);
+        if (!success) {
+            LOG_EXIT();
+            return 0;
+        }
+        
+        // Rename to final name (to prevent polling from loading unfinished images)
+        fs::rename(tmpPath, finalPath);
+        
+        LOG_EXIT();
+        return 1;
+
+    } catch (const std::exception& e) {
+        LOGE("writeCompressedPng failed: %s", e.what());
+        LOG_EXIT();
+        return 0;
     }
-    catch (const cv::Exception& ex)
-    {
-        LOGE("Exception converting image to PNG format: %s\n", ex.what());
-    }
-    
-    LOG_EXIT();
-    return success;
 }
 
 extern "C" {
@@ -1920,38 +1938,10 @@ int writeCompressedPng(
         return 0;
     }
     
-    try {
-        fs::path finalPath(inPngPath);
-        fs::path dir = finalPath.parent_path();
-        if (dir.empty()) {
-            LOG_EXIT();
-            return 0;
-        }
-        
-        // Temporaray file name
-        auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
-        std::string tmpName = ".tmp_" + std::to_string(ms) + ".png";
-        fs::path tmpPath = dir / tmpName;
-
-        // Write PNG to temporaray file name
-        bool success = _writeCompressedPng(tmpPath.string(), source);
-        if (!success) {
-            LOG_EXIT();
-            return 0;
-        }
-        
-        // Rename to final name (to prevent polling from loading unfinished images)
-        fs::rename(tmpPath, finalPath);
-
-        LOG_EXIT();
-        return 1;
-
-    } catch (const std::exception& e) {
-        LOGE("writeCompressedPng failed: %s", e.what());
-        LOG_EXIT();
-        return 0;
-    }
+    bool success = _writeCompressedPng(inPngPath, source);
+    
+    LOG_EXIT();
+    return success ? 1 : 0;  
 }
 
 }

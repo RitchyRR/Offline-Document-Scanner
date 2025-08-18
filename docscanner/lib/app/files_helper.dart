@@ -606,6 +606,11 @@ class FilesHelper {
                     (element) => imageFse.path.contains(element),
                   )) {
                 countVersionsAndThumbnail++;
+              } else if (!imageFse.path.endsWith("metadata.json")) {
+                dev.log(
+                  "Info, _repairDirectoryStructure: Deleting unrecognized file: $imageFse.path",
+                );
+                File(imageFse.path).deleteSync();
               }
               if (oldVersionFileNames != null) {
                 for (var oldName in oldVersionFileNames) {
