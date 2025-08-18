@@ -4275,42 +4275,6 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  //Future<void> waitForDecodableImage(String imagePath) async {
-  //  final completer = Completer<void>();
-  //  Future<void> tryDecode() async {
-  //    try {
-  //      final bytes = await File(imagePath).readAsBytes();
-  //      ui.decodeImageFromList(bytes, (ui.Image _) {
-  //        if (!completer.isCompleted) completer.complete();
-  //        return;
-  //      });
-  //    } catch (_) {
-  //      dev.log("Error, waitForDecodableImage: Image broken: $imagePath");
-  //      //await Future.delayed(Duration(seconds: 4));
-  //      //if (!completer.isCompleted) {
-  //      //  completer.complete();
-  //      //  dev.log(
-  //      //    "Error, waitForDecodableImage: Deleting broken image: $imagePath",
-  //      //  );
-  //      //  File(imagePath).deleteSync();
-  //      //  g.filesHelper.repairDirectoryStructure();
-  //      //}
-  //    }
-  //    await Future.delayed(const Duration(milliseconds: 200));
-  //    if (!mounted) {
-  //      completer.complete();
-  //      return;
-  //    }
-  //    if (!completer.isCompleted) {
-  //      //dev.log("Reloading broken image...");
-  //      await tryDecode();
-  //    }
-  //  }
-  //
-  //  tryDecode();
-  //  return completer.future;
-  //}
-
   int _processingIndex = 0;
   void _pollImages() {
     // Poll Images
@@ -4341,7 +4305,6 @@ class PagePreviewState extends State<PagePreview> {
         },
         onComplete: () async {
           if (thisProcessingIndex != _processingIndex || !mounted) return;
-          //await waitForDecodableImage(polledPath);
           if (!mounted) return;
           if (i == 0) {
             _versionPaths[i] = _photoPath = polledPath;

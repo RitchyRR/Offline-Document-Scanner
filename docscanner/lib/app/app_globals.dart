@@ -106,11 +106,6 @@ class AppGlobals {
     final decoder = findDecoderForNamedImage(".$extension");
     return decoder!.startDecode(bytes);
   }
-
-  //static Future<img.Image> decodeImage(String imagePath) async {
-  //  final bytes = await readFile(imagePath);
-  //  return img.decodeNamedImage(imagePath, bytes!)!;
-  //}
 }
 
 final g = AppGlobals();
