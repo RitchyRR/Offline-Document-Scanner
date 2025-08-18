@@ -541,12 +541,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
     bool supressWarnings = onInit;
     // Thumbnails
-    var thumbs = await g.filesHelper.getDocThumbnails();
+    _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+    _displayDocsCount = _docsCount - _deletedDocs.length;
+    final thumbs = await g.filesHelper.getDocThumbnails();
     _docThumbnails = thumbs.$1;
     _docsCount = thumbs.$2;
     // Page Counts
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
+      if (_deletedDocs.contains(docIndex)) continue;
       _docPageCounts.add(await g.filesHelper.getPagesCount(docIndex));
       // reset ad supported doc/page unlocks
       if (onInit) g.metadataHelper.writeDocUnlocked(docIndex, false);
@@ -566,6 +569,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     List<double> newRatios = List.generate(_docsCount, (_) => math.sqrt1_2);
 
     for (int docIndex = 0; docIndex < _docsCount; docIndex++) {
+      if (_deletedDocs.contains(docIndex)) continue;
       // Metadata
       _docDates[docIndex] =
           (await g.metadataHelper.readDocDate(docIndex)) ?? "";
@@ -583,8 +587,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
       if (ratioValue != null) newRatios[docIndex] = 1.0 / ratioValue;
     }
     _thumbnailRatios = newRatios;
-    _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-    _displayDocsCount = _docsCount - _deletedDocs.length;
     _loadingDocs = await _loadLoadingDocs(
       _docThumbnails,
       supressWarnings: supressWarnings,

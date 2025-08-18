@@ -397,9 +397,11 @@ class FilesHelper {
 
   Future<(List<String>, int)> getDocThumbnails() async {
     await _initializeDocumentsPath();
+    final List<int> deletedDocs = _markedDeletedDocs.toList();
     int docsCount = await g.filesHelper.getDocumentsCount();
     List<String> thumbnailPaths = List.generate(docsCount, (_) => "");
     for (var docIndex = 0; docIndex < docsCount; docIndex++) {
+      if (deletedDocs.contains(docIndex)) continue;
       final page0Path = await getPagePath(docIndex, 0);
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
@@ -500,7 +502,10 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
+  Future<void>? repairDirectoryStructureFuture;
   repairDirectoryStructure() async {
+    final completer = Completer<void>();
+    repairDirectoryStructureFuture = completer.future;
     StackTrace? stackTrace = StackTrace.current;
     await _initializeDocumentsPath();
     // repeat repairing until there are no more changes
@@ -532,6 +537,7 @@ class FilesHelper {
         "Warning, repairDirectoryStructure: Could not repair after $i tries.",
       );
     }
+    completer.complete();
   }
 
   Future<bool> _repairDirectoryStructure() async {
@@ -683,11 +689,11 @@ class FilesHelper {
       await _deletePages(docIndex, pageIndexes);
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (IsolatesManager().getIsolatesCount() == 0) {
-        g.filesHelper.repairDirectoryStructure();
-      }
-    });
+    //WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //  if (IsolatesManager().getIsolatesCount() == 0) {
+    //    g.filesHelper.repairDirectoryStructure();
+    //  }
+    //});
   }
 
   Future<void> _deleteDocument(
@@ -695,6 +701,7 @@ class FilesHelper {
     bool supressInfo = false,
     bool isBroken = false,
   }) async {
+    await repairDirectoryStructureFuture;
     String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -753,6 +760,7 @@ class FilesHelper {
   }
 
   Future<void> _deletePages(int docIndex, List<int> deletePageIndexes) async {
+    await repairDirectoryStructureFuture;
     final oldPagesCount = await getPagesCount(docIndex);
     if (deletePageIndexes.isEmpty) return;
     deletePageIndexes.sort();
