@@ -12,7 +12,7 @@ static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inI
         fs::path dir = finalPath.parent_path();
         if (dir.empty()) {
             LOG_EXIT();
-            return 0;
+            return false;
         }
         
         // Temporaray file name
@@ -29,19 +29,64 @@ static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inI
         bool success = cv::imwrite(tmpPath, inImage, compression_params);
         if (!success) {
             LOG_EXIT();
-            return 0;
+            return false;
         }
         
         // Rename to final name (to prevent polling from loading unfinished images)
         fs::rename(tmpPath, finalPath);
         
         LOG_EXIT();
-        return 1;
-
+        return true;
+    
     } catch (const std::exception& e) {
-        LOGE("writeCompressedPng failed: %s", e.what());
+        LOGE("_writeCompressedPng failed: %s", e.what());
         LOG_EXIT();
-        return 0;
+        return false;
+    }
+}
+
+static bool _writeUncompressedPng(const std::string& inPngPath, const cv::Mat& inImage) {
+    LOG_ENTRY();
+    try {
+        fs::path finalPath(inPngPath);
+        fs::path dir = finalPath.parent_path();
+        fs::path name = finalPath.filename();
+        if (dir.empty()) {
+            LOG_EXIT();
+            return false;
+        }
+        
+        // Uncompressed path
+        fs::path uncompressedPath = dir / (name.string() + "_uncompressed.png");
+        LOG_VAR(uncompressedPath);
+        
+        // Temporaray file name
+        auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+        std::string tmpName = ".tmp_" + std::to_string(ms) + ".png";
+        fs::path tmpPath = dir / tmpName;
+        
+        // Write PNG to temporaray file name
+        std::vector<int> compression_params = { 
+            cv::IMWRITE_PNG_COMPRESSION, 
+            3 // Compression levels: 0 - 9
+        };
+        bool success = cv::imwrite(tmpPath, inImage, compression_params);
+        if (!success) {
+            LOG_EXIT();
+            return false;
+        }
+        
+        // Rename to final name (to prevent polling from loading unfinished images)
+        fs::rename(tmpPath, uncompressedPath);
+        
+        LOG_EXIT();
+        return true;
+    
+    } catch (const std::exception& e) {
+        LOGE("_writeUncompressedPng failed: %s", e.what());
+        LOG_EXIT();
+        return false;
     }
 }
 
@@ -1413,7 +1458,7 @@ public:
         K = ((warped.rows + warped.cols) / 50);
         
         // Step 5: Save warped image
-        if (!_writeCompressedPng(inWarpedPath, warped)) {
+        if (!_writeUncompressedPng(inWarpedPath, warped)) {
             LOG_EXIT();
             return false;
         }
@@ -1437,7 +1482,7 @@ public:
             );
             
             // Save image
-            if (!_writeCompressedPng(inContrastPath, stretched)) {
+            if (!_writeUncompressedPng(inContrastPath, stretched)) {
                 LOGE("Failed to write contrast image to %s", inContrastPath.c_str());
                 return false;
             }
@@ -1474,7 +1519,7 @@ public:
                 0.995  // highPercentile
             );
 
-            if (!_writeCompressedPng(inProColorFilterPath, subtracted)) {
+            if (!_writeUncompressedPng(inProColorFilterPath, subtracted)) {
                 LOGE("Failed to write BG-subtracted image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1508,7 +1553,7 @@ public:
             // 7. Sharpen
             processed2 = _sharpenImage(processed2, 0.5, K);
             
-            if (!_writeCompressedPng(inProColorFilterPath, processed2)) {
+            if (!_writeUncompressedPng(inProColorFilterPath, processed2)) {
                 LOGE("Failed to write ProFilter image to %s", inProColorFilterPath.c_str());
                 return false;
             }
@@ -1539,7 +1584,7 @@ public:
             cv::Mat colorMatched = _matchColor(warped, pro);
             
             // Save result
-            if (!_writeCompressedPng(inProColorFilterPath, colorMatched)) {
+            if (!_writeUncompressedPng(inProColorFilterPath, colorMatched)) {
                 LOGE("proColorFilter: failed to write image");
                 return false;
             }
@@ -1758,7 +1803,7 @@ int rotateImage(
     }
     
     // write
-    if (!_writeCompressedPng(inRotatedPath, rotated)) {
+    if (!_writeUncompressedPng(inRotatedPath, rotated)) {
         LOGE("rotateImage: failed to write image");
         return 0;
     }
