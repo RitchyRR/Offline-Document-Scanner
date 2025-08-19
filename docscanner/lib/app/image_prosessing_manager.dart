@@ -1325,7 +1325,7 @@ class ImageProcessingManager {
     // -> Uint8List
     final ui.Image uiImage = await renderedPage.createImageDetached();
     final ByteData? byteData = await uiImage.toByteData(
-      format: ui.ImageByteFormat.png, // first to png, then to png
+      format: ui.ImageByteFormat.png,
     );
     if (byteData == null) {
       throw Exception("Failed to get byte data from image");
