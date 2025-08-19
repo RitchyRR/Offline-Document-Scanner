@@ -161,14 +161,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.6"
-  dartcv4:
-    dependency: transitive
-    description:
-      name: dartcv4
-      sha256: bafdc00c76b376a52924db27bc4c6f6c33600e1ec2f51f71d878343e592cdc78
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.6"
   dbus:
     dependency: transitive
     description:
@@ -669,14 +661,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  opencv_core:
-    dependency: "direct main"
-    description:
-      name: opencv_core
-      sha256: "61d3c93a55b46104a1ada7e5b191e6121dad1f634c3e46e33eaf55684f39beef"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.3"
   package_info_plus:
     dependency: "direct main"
     description:

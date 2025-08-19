@@ -27,7 +27,6 @@ dependencies:
   image:
   receive_sharing_intent:
   # image processing:
-  opencv_core: # image processing
   flutter_image_compress:
   # camera:
   camera:
@@ -74,23 +73,3 @@ flutter:
   assets:
     - assets/lang/
     - assets/arrow.png
-
-hooks:
-  user_defines:
-    dartcv4:
-      exclude_modules:
-        - calib3d
-        - contrib
-        - dnn
-        - features2d
-        - flann
-        - highgui
-        - imgcodecs
-        - objdetect
-        - photo
-        - stitching
-        - video
-        - videoio
-      include_modules:
-        - core
-        - imgproc
