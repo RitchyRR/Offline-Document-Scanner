@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'dart:ffi' as ffi;
-import 'package:docscanner/app/app_globals.dart' show AspectRatioInfo;
+import 'package:docscanner/app/app_globals.dart'
+    show AspectRatioInfo, AppGlobals;
 import 'package:ffi/ffi.dart' show calloc, malloc, StringUtf8Pointer;
 
 final ffi.DynamicLibrary _nativeLib = Platform.isAndroid
@@ -457,9 +458,7 @@ class ImageProcessor {
   bool scaleImageToMaxSize(
     String sourcePath,
     String scaledPath, {
-    int maxSize = 4962,
-    //    2481: 300 DPI for A4
-    // -> 4962: double for distance from camera
+    int maxSize = AppGlobals.maxPhotoSize,
   }) {
     final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
     final scaledPathPtr = scaledPath.toNativeUtf8().cast<ffi.Int8>();

@@ -34,6 +34,10 @@ class AppGlobals {
     defaultIndex = newDefaultIndex ?? (proUnlocked ? 4 : 3);
   }
 
+  //    2481: 300 DPI for A4
+  // -> 4962: double for distance from camera
+  static const int maxPhotoSize = 4962;
+
   List<AspectRatioInfo> commonAspectRatios = [];
   List<AspectRatioInfo> availableAspectRatios = [];
   void translateAspectRatios(BuildContext contextIn) {

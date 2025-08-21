@@ -50,7 +50,7 @@ static bool _writeUncompressedPng(const std::string& inPngPath, const cv::Mat& i
     try {
         fs::path finalPath(inPngPath);
         fs::path dir = finalPath.parent_path();
-        fs::path name = finalPath.filename();
+        fs::path name = finalPath.stem();
         if (dir.empty()) {
             LOG_EXIT();
             return false;

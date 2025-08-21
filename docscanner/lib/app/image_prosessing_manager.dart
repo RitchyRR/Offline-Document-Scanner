@@ -1,11 +1,13 @@
-// function:
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:docscanner/app/files_helper.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'
+    show FlutterImageCompress, CompressFormat;
 import 'dart:io';
 import 'dart:async';
+import 'package:path/path.dart' as p;
 // isolates:
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -266,7 +268,11 @@ class ImageProcessingManager {
       }
     }
 
-    processThumbnailVersion();
+    await processThumbnailVersion();
+
+    futures.add(
+      _compressVersion(docIndex, pageIndex, initialThumbnailIndex, gIn: g),
+    );
 
     // Update thumbnails:
     await isolateExitPoint(kill, futures: futures);
@@ -399,6 +405,8 @@ class ImageProcessingManager {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
         if (!error.toString().contains("No photo")) {
           repairPage(docIndex, pageIndex);
+        } else {
+          g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
         }
       },
     );
@@ -421,6 +429,8 @@ class ImageProcessingManager {
       }
     });
     await completer.future;
+
+    await _compressPage(docIndex, pageIndex);
   }
 
   Future<void> saveOldVersionFileNames(
@@ -872,6 +882,8 @@ class ImageProcessingManager {
       }
     });
     await repairCompleter.future;
+
+    await _compressPage(docIndex, pageIndex);
   }
 
   static Future<void> _rotatePageIsolate(
@@ -1306,7 +1318,7 @@ class ImageProcessingManager {
     const targetDpi = 300;
     const defaultAssumedDpi = 72;
     final dpiScale = targetDpi / defaultAssumedDpi;
-    const maxSize = 4962; // 600 PDI for A4
+    const maxSize = AppGlobals.maxPhotoSize;
     final pageSize = page.width > page.height ? page.width : page.height;
     final limitingScale = (maxSize / pageSize * dpiScale).clamp(
       double.minPositive,
@@ -1692,5 +1704,163 @@ class ImageProcessingManager {
       taskKillers.removeWhere((element) => element.$2 == killer);
     }
     rotatePhotoKillers.clear();
+  }
+
+  static Future<bool> _compressAndReplacePng({
+    required String uncompressedPath,
+    required String compressedPath,
+    int minCompressQuality = 0,
+  }) async {
+    try {
+      final uncompressedFile = File(uncompressedPath);
+      if (!await uncompressedFile.exists()) {
+        return false;
+      }
+
+      // Temporary filename in same directory
+      // Avoids polling from reading the image while still writing
+      final dir = Directory(p.dirname(compressedPath));
+      final tmpName =
+          'tmp_${DateTime.now().millisecondsSinceEpoch}${p.extension(compressedPath)}';
+      final tmpPath = p.join(dir.path, tmpName);
+      dev.log("tmpPath: $tmpPath");
+      final tmpFile = File(tmpPath);
+
+      final resultBytes = await FlutterImageCompress.compressWithFile(
+        uncompressedPath,
+        quality: minCompressQuality,
+        format: CompressFormat.png,
+        minWidth: AppGlobals.maxPhotoSize,
+        minHeight: AppGlobals.maxPhotoSize,
+      );
+
+      if (resultBytes == null) {
+        throw Exception(
+          "Error, _compressAndReplacePng: compressWithFile failed",
+        );
+      }
+
+      await tmpFile.writeAsBytes(resultBytes);
+      await tmpFile.rename(compressedPath);
+      await uncompressedFile.delete();
+
+      return true;
+    } catch (e) {
+      dev.log('Error, compressAndReplacePng: $e');
+      return false;
+    }
+  }
+
+  static Future<void> _compressVersion(
+    int docIndex,
+    int pageIndex,
+    int versionIndex, {
+    AppGlobals? gIn,
+  }) async {
+    gIn ??= g;
+    final String uncompressedPath = await gIn.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      versionIndex,
+    );
+    if (uncompressedPath.isEmpty) {
+      throw Exception("Error: compressVersion does not exist");
+    }
+    if (!uncompressedPath.contains("_uncompressed")) return;
+    final String compressedPath = uncompressedPath.replaceFirst(
+      "_uncompressed",
+      "",
+    );
+    await _compressAndReplacePng(
+      uncompressedPath: uncompressedPath,
+      compressedPath: compressedPath,
+    );
+  }
+
+  static Future<void> _compressPageIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      AppGlobals g,
+    )
+    data,
+  ) async {
+    SendPort? sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    AppGlobals g = data.$5;
+
+    // Control Port for exiting gracefully
+    bool kill = false;
+    final controlPort = ReceivePort();
+    sendPort.send(controlPort.sendPort);
+    controlPort.listen((msg) {
+      if (msg == "kill") {
+        kill = true;
+      }
+    });
+
+    String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
+    List<Future<void>> futures = [];
+    try {
+      List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
+        ..sort((a, b) => a.path.compareTo(b.path)));
+      for (var fse in versionsFSE) {
+        if (fse.path.contains("_uncompressed")) {
+          final String compressedPath = fse.path.replaceFirst(
+            "_uncompressed",
+            "",
+          );
+          await isolateExitPoint(kill, futures: futures);
+          futures.add(
+            _compressAndReplacePng(
+              uncompressedPath: fse.path,
+              compressedPath: compressedPath,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      dev.log("Warning, compressPage failed: $e");
+    }
+    await Future.wait(futures);
+  }
+
+  Future<void> _compressPage(int docIndex, int pageIndex) async {
+    final completer = Completer<void>();
+    final port = ReceivePort();
+    final token = RootIsolateToken.instance!;
+    TaskKiller killer = await IsolatesManager().runTask(
+      _compressPageIsolate,
+      (port.sendPort, token, docIndex, pageIndex, g),
+      portIn: port,
+      prio: IsolatePriority.late,
+      onErrorFunction: (error, stack) async {
+        dev.log("_compressPage, onErrorFunction: $error $stack");
+      },
+    );
+    taskKillers.add(((docIndex, pageIndex), killer));
+
+    port.listen((message) async {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+        if (message == NotifierEvent.loadPagesThumbnails) {
+          if (pageIndex == 0) {
+            await Future.delayed(Duration(milliseconds: 100));
+            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+          }
+        }
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
+      } else if (message == "done") {
+        taskKillers.removeWhere((element) => element.$2 == killer);
+        completer.complete();
+      }
+    });
+    await completer.future;
   }
 }

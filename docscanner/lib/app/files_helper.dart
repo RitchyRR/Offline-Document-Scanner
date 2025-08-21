@@ -34,7 +34,7 @@ import 'image_prosessing_manager.dart';
 import '../main.dart'
     show globalNotifier, imageProcessingManager, isTmpExternal, versionNames;
 import 'metadata_helper.dart';
-import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
+import 'app_globals.dart' show AppGlobals, NotifierEvent, g, maxPhotoSize;
 
 class FilesHelper {
   late String docsPath = "";
@@ -312,15 +312,15 @@ class FilesHelper {
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
     // Compress
-    final imgInfo = await AppGlobals.getImageBytesInfo(
-      imageBytes,
-      imageExtension,
-    );
+    //final imgInfo = await AppGlobals.getImageBytesInfo(
+    //  imageBytes,
+    //  imageExtension,
+    //);
     final Uint8List compressedPngBytes =
         await FlutterImageCompress.compressWithList(
           imageBytes,
-          minWidth: imgInfo!.width,
-          minHeight: imgInfo.height,
+          minWidth: AppGlobals.maxPhotoSize,
+          minHeight: AppGlobals.maxPhotoSize,
           format: CompressFormat.png,
           quality: 1,
         );
@@ -502,13 +502,9 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  Future<void>? repairDirectoryStructureFuture;
   repairDirectoryStructure() async {
-    final completer = Completer<void>();
-    repairDirectoryStructureFuture = completer.future;
     StackTrace? stackTrace = StackTrace.current;
     await _initializeDocumentsPath();
-    // repeat repairing until there are no more changes
     var i = 0;
     bool deletedMarked = false;
     bool changeHappened = true;
@@ -537,7 +533,6 @@ class FilesHelper {
         "Warning, repairDirectoryStructure: Could not repair after $i tries.",
       );
     }
-    completer.complete();
   }
 
   Future<bool> _repairDirectoryStructure() async {
@@ -701,7 +696,6 @@ class FilesHelper {
     bool supressInfo = false,
     bool isBroken = false,
   }) async {
-    await repairDirectoryStructureFuture;
     String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -760,7 +754,6 @@ class FilesHelper {
   }
 
   Future<void> _deletePages(int docIndex, List<int> deletePageIndexes) async {
-    await repairDirectoryStructureFuture;
     final oldPagesCount = await getPagesCount(docIndex);
     if (deletePageIndexes.isEmpty) return;
     deletePageIndexes.sort();
@@ -1176,8 +1169,8 @@ class FilesHelper {
 
     List<String> imagePaths = [];
     final ImagePicker picker = ImagePicker();
-    final double maxWidth = 4962;
-    final double maxHeight = 4962;
+    final double maxWidth = AppGlobals.maxPhotoSize.toDouble();
+    final double maxHeight = AppGlobals.maxPhotoSize.toDouble();
 
     final List<XFile> pickedFileList = await picker.pickMultiImage(
       maxWidth: maxWidth,
