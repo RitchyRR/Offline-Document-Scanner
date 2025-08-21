@@ -34,7 +34,7 @@ import 'image_prosessing_manager.dart';
 import '../main.dart'
     show globalNotifier, imageProcessingManager, isTmpExternal, versionNames;
 import 'metadata_helper.dart';
-import 'app_globals.dart' show AppGlobals, NotifierEvent, g, maxPhotoSize;
+import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
 class FilesHelper {
   late String docsPath = "";
