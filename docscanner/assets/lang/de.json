@@ -229,6 +229,7 @@
   "loading": {
     "processingImage": "Bild wird verarbeitet...",
     "processingImages": "Bilder werden verarbeitet...",
+    "compressingImages": "Dateigrößen werden komprimiert...",
     "processingPdf": "PDF wird verarbeitet...",
     "waitingImage": "Warte bis das Bild verarbeitet ist...",
     "waitingImages": "Warte bis alle Bilder verarbeitet sind...",

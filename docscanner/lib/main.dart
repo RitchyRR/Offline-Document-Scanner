@@ -7609,14 +7609,17 @@ Future<bool> _pagesPopup(
     versionIndex: versionIndex,
   )).$1;
   int? selectedDpi;
-  // IsLoading
+  // Loading...
   List<bool> loadingImages = await loadLoadingImages(
     docIndex,
     pageIndexes,
     thumbnailPaths,
     supressWarnings: true,
   );
-  bool allPagesLoaded = loadingImages.every((element) => !element);
+  bool allImagesLoaded = loadingImages.every((element) => !element);
+  // Compressing...
+  List<bool> uncompressedImages = await loadUncompressedImages(thumbnailPaths);
+  bool allImagesCompressed = uncompressedImages.every((element) => !element);
   // Aspect Ratios
   List<double> imageRatios = await loadImageRatios(
     docIndex,
@@ -7646,7 +7649,13 @@ Future<bool> _pagesPopup(
                     thumbnailPaths,
                     supressWarnings: true,
                   );
-                  allPagesLoaded = loadingImages.every((element) => !element);
+                  allImagesLoaded = loadingImages.every((element) => !element);
+                  uncompressedImages = await loadUncompressedImages(
+                    thumbnailPaths,
+                  );
+                  allImagesCompressed = uncompressedImages.every(
+                    (element) => !element,
+                  );
                   if (context.mounted) setStateDialog(() {});
                 }
 
@@ -7856,7 +7865,7 @@ Future<bool> _pagesPopup(
                     imageRatios: imageRatios,
                   ),
                   SizedBox(height: 12.0),
-                  !allPagesLoaded
+                  !allImagesLoaded || !allImagesCompressed
                       ? Padding(
                           padding: const EdgeInsets.fromLTRB(0, 0, 0, 36),
                           child: Row(
@@ -7870,7 +7879,11 @@ Future<bool> _pagesPopup(
                               SizedBox(width: 8.0),
                               SizedBox(
                                 width: 190,
-                                child: Text(tr("loading.processingImages")),
+                                child: Text(
+                                  allImagesLoaded
+                                      ? tr("loading.compressingImages")
+                                      : tr("loading.processingImages"),
+                                ),
                               ),
                             ],
                           ),
@@ -7891,7 +7904,7 @@ Future<bool> _pagesPopup(
                         setStateDialog(() {});
                       },
                       dpiLocked: dpiLocked,
-                      allPagesLoaded: allPagesLoaded,
+                      allPagesLoaded: allImagesLoaded,
                     ),
                   if (type != PopUpType.delete &&
                       !isSinglePage &&
@@ -7899,7 +7912,7 @@ Future<bool> _pagesPopup(
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: PagesWidthDropdown(
-                        allPagesLoaded: allPagesLoaded,
+                        allPagesLoaded: allImagesLoaded,
                         onChanged: (useSameWidth) {
                           sameWidth = useSameWidth;
                           setStateDialog(() {});
@@ -7933,7 +7946,7 @@ Future<bool> _pagesPopup(
                                     ),
                                     // Image Export
                                     child: ElevatedButton.icon(
-                                      onPressed: allPagesLoaded && !lockAll
+                                      onPressed: allImagesLoaded && !lockAll
                                           ? () async {
                                               confirmAction = true;
                                               Navigator.pop(context);
@@ -8018,7 +8031,7 @@ Future<bool> _pagesPopup(
                                           // PDF Export
                                           child: ElevatedButton.icon(
                                             onPressed:
-                                                allPagesLoaded && !lockPdf
+                                                allImagesLoaded && !lockPdf
                                                 ? () async {
                                                     confirmAction = true;
                                                     Navigator.pop(context);
@@ -8283,6 +8296,20 @@ Future<List<bool>> loadLoadingImages(
     thumbnailsLoading.add(thumbnailLoading);
   }
   return thumbnailsLoading;
+}
+
+Future<List<bool>> loadUncompressedImages(List<String> thumbnailPaths) async {
+  final thumbnailsCount = thumbnailPaths.length;
+  List<bool> thumbnailsUncompressed = [];
+  for (int i = 0; i < thumbnailsCount; i++) {
+    bool thumbnailUncompressed = false;
+    if (thumbnailPaths[i].isEmpty ||
+        thumbnailPaths[i].contains("_uncompressed")) {
+      thumbnailUncompressed = true;
+    }
+    thumbnailsUncompressed.add(thumbnailUncompressed);
+  }
+  return thumbnailsUncompressed;
 }
 
 class PagesWidthDropdown extends StatefulWidget {

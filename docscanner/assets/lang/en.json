@@ -230,6 +230,7 @@
   "loading": {
     "processingImage": "Processing Image...",
     "processingImages": "Processing Images...",
+    "compressingImages": "Compressing filesizes...",
     "processingPdf": "Processing PDF...",
     "waitingImage": "Waiting for Image to process...",
     "waitingImages": "Waiting for Images to process...",
