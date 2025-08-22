@@ -45,8 +45,13 @@ static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inI
     }
 }
 
-static bool _writeUncompressedPng(const std::string& inPngPath, const cv::Mat& inImage) {
+static bool _writeUncompressedPng(
+    const std::string& inPngPath, 
+    const cv::Mat& inImage, 
+    bool withSuffix = true) {
     LOG_ENTRY();
+    LOG_VAR(inPngPath);
+    LOG_VAR(inImage);
     try {
         fs::path finalPath(inPngPath);
         fs::path dir = finalPath.parent_path();
@@ -57,7 +62,13 @@ static bool _writeUncompressedPng(const std::string& inPngPath, const cv::Mat& i
         }
         
         // Uncompressed path
-        fs::path uncompressedPath = dir / (name.string() + "_uncompressed.png");
+        fs::path uncompressedPath;
+        if (withSuffix) {
+            uncompressedPath= dir / (name.string() + "_uncompressed.png");
+        }
+        else {
+            uncompressedPath = inPngPath;
+        }
         LOG_VAR(uncompressedPath);
         
         // Temporaray file name
@@ -1789,7 +1800,7 @@ int rotateImage(
         LOG_EXIT();
         return 0;
     }
-
+    
     // rotate
     cv::Mat rotated;
     if (inAngle == 90) {
@@ -1803,9 +1814,13 @@ int rotateImage(
     }
     
     // write
-    if (!_writeUncompressedPng(inRotatedPath, rotated)) {
+    if (!_writeUncompressedPng(inRotatedPath, rotated, false)) {
         LOGE("rotateImage: failed to write image");
         return 0;
+    }
+    
+    if (!fs::exists(inRotatedPath)) {
+        LOGE("rotateImage: File not found after write: %s", inRotatedPath);
     }
     
     LOG_EXIT();

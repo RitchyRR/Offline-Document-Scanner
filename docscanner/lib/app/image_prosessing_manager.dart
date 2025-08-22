@@ -17,7 +17,8 @@ import 'package:docscanner/app/isolates_manager.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
-import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'package:path_provider/path_provider.dart'
+    show getApplicationSupportDirectory, getTemporaryDirectory;
 import 'package:pdf_render/pdf_render.dart' as pdfr;
 // ffi:
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;

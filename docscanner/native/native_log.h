@@ -5,10 +5,12 @@
 #include <type_traits>
 #include <cxxabi.h> // for demangling
 
+// Returns just the filename portion of __FILE__
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 // Base log macro
 #define NLOG_BASE(level, fmt, ...) \
-    __android_log_print(level, "NativeLib", "[%s:%d] %s | " fmt, \
-        __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+    __android_log_print(level, "Native", "[%s:%d] %s | " fmt, \
+        __FILENAME__, __LINE__, __func__, ##__VA_ARGS__)
 
 // Levels
 #define LOGI(fmt, ...) NLOG_BASE(ANDROID_LOG_INFO, fmt, ##__VA_ARGS__)
@@ -18,10 +20,10 @@
 
 // Log function entry automatically
 #define LOG_ENTRY() \
-    LOGD("ENTER thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
+    LOGD("ENTER");// thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
 
 #define LOG_EXIT() \
-    LOGD("EXIT thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
+    LOGD("EXIT");// thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
 
 // Helper to demangle type names (for fallback)
 inline std::string demangle(const char* name) {
@@ -69,4 +71,4 @@ void logVarInternal(const char* name, const T& value, const char* file, int line
 }
 
 // The LOG_VAR macro automatically handles pointers safely
-#define LOG_VAR(var) logVarInternal(#var, var, __FILE__, __LINE__, __func__)
+#define LOG_VAR(var) logVarInternal(#var, var, __FILENAME__, __LINE__, __func__)
