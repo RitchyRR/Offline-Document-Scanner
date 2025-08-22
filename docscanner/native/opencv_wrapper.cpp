@@ -80,7 +80,7 @@ static bool _writeUncompressedPng(
         // Write PNG to temporaray file name
         std::vector<int> compression_params = { 
             cv::IMWRITE_PNG_COMPRESSION, 
-            0 // Compression levels: 0 - 9
+            2 // Compression levels: 0 - 9
         };
         bool success = cv::imwrite(tmpPath, inImage, compression_params);
         if (!success) {
