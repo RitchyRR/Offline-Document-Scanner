@@ -1827,6 +1827,7 @@ class ImageProcessingManager {
       dev.log("Warning, compressPage failed: $e");
     }
     await Future.wait(futures);
+    Isolate.exit(sendPort, "done");
   }
 
   Future<void> _compressPage(int docIndex, int pageIndex) async {
@@ -1861,5 +1862,15 @@ class ImageProcessingManager {
       }
     });
     await completer.future;
+  }
+
+  Future<void> compressAll() async {
+    final docsCount = await g.filesHelper.getDocumentsCount();
+    for (var docIndex = 0; docIndex < docsCount; docIndex++) {
+      final pagesCount = await g.filesHelper.getPagesCount(docIndex);
+      for (var pageIndex = 0; pageIndex < pagesCount; pageIndex++) {
+        _compressPage(docIndex, pageIndex);
+      }
+    }
   }
 }

@@ -533,6 +533,7 @@ class FilesHelper {
         "Warning, repairDirectoryStructure: Could not repair after $i tries.",
       );
     }
+    imageProcessingManager.compressAll();
   }
 
   Future<bool> _repairDirectoryStructure() async {
