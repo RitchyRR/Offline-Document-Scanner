@@ -1723,7 +1723,6 @@ class ImageProcessingManager {
       final tmpName =
           'tmp_${DateTime.now().millisecondsSinceEpoch}${p.extension(compressedPath)}';
       final tmpPath = p.join(dir.path, tmpName);
-      dev.log("tmpPath: $tmpPath");
       final tmpFile = File(tmpPath);
 
       final resultBytes = await FlutterImageCompress.compressWithFile(
