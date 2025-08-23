@@ -48,7 +48,7 @@ static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inI
 static bool _writeUncompressedPng(
     const std::string& inPngPath, 
     const cv::Mat& inImage, 
-    bool withSuffix = true) {
+    bool hideSuffix = false) {
     LOG_ENTRY();
     LOG_VAR(inPngPath);
     LOG_VAR(inImage);
@@ -63,13 +63,13 @@ static bool _writeUncompressedPng(
         
         // Uncompressed path
         fs::path uncompressedPath;
-        if (withSuffix) {
-            uncompressedPath= dir / (name.string() + "_uncompressed.png");
-        }
-        else {
+        if (hideSuffix) {
             uncompressedPath = inPngPath;
         }
-        LOG_VAR(uncompressedPath);
+        else {
+            uncompressedPath= dir / (name.string() + "_uncompressed.png");
+        }
+        LOGD("uncompressedPath %s",uncompressedPath.c_str());
         
         // Temporaray file name
         auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
@@ -1784,12 +1784,14 @@ int processorProColorFilter(
 int rotateImage(
     const char* inSourcePath,
     const char* inRotatedPath,
-    int inAngle
+    int inAngle,
+    bool hideUncompressedSuffix
 ) {
     LOG_ENTRY();
     LOG_VAR(inAngle);
-    
-    if (!inSourcePath || !inRotatedPath) {
+    LOGD("inSourcePath %s",inSourcePath);
+ 
+    if (!inSourcePath || !inRotatedPath || !fs::exists(inSourcePath)) {
         LOG_EXIT();
         return 0;
     }
@@ -1814,7 +1816,7 @@ int rotateImage(
     }
     
     // write
-    if (!_writeUncompressedPng(inRotatedPath, rotated, false)) {
+    if (!_writeUncompressedPng(inRotatedPath, rotated, hideUncompressedSuffix)) {
         LOGE("rotateImage: failed to write image");
         return 0;
     }

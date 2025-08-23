@@ -379,20 +379,6 @@ class FilesHelper {
       supressWarnings: true,
     );
     String versionName = versionNamesInternal[versionIndex];
-    // Delete existing Image
-    if (Directory(pagePath).existsSync()) {
-      for (var fse in Directory(
-        pagePath,
-      ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-        if (fse.path.contains("$versionName.")) {
-          fse.deleteSync();
-        }
-      }
-    } else {
-      throw StateError(
-        "Error, savePageVersion: pagePath $pagePath does not exist",
-      );
-    }
     String versionPath =
         "$pagePath/${DateTime.now().millisecondsSinceEpoch}_$versionName.png";
 
@@ -730,6 +716,11 @@ class FilesHelper {
       await higherIndexedDocsFuture;
     }
 
+    // delete
+    if (Directory(docPath).existsSync()) {
+      await Directory(docPath).delete(recursive: true);
+      dev.log("deleteDocument: Deleted document directory: $docPath");
+    }
     // rename all with higher docIndex to close the gap
     final docsCount = await getDocumentsCount();
     for (int i = docIndex; i + 1 < docsCount; i++) {
@@ -739,10 +730,6 @@ class FilesHelper {
       String toPath = await getDocumentPath(i, supressWarnings: true);
       if (fromDirectory.existsSync()) {
         dev.log("Renaming Document ${i + 1} -> Document $i");
-        if (Directory(toPath).existsSync()) {
-          await Directory(toPath).delete(recursive: true);
-          dev.log("deleteDocument: Deleted document directory: $toPath");
-        }
         await fromDirectory.rename(toPath);
         i++;
       }

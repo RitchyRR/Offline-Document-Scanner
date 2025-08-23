@@ -100,9 +100,10 @@ typedef _RotateImageNative =
       ffi.Pointer<ffi.Int8>, // inSourcePath
       ffi.Pointer<ffi.Int8>, // inRotatedPath
       ffi.Int, // angle
+      ffi.Bool, // hideUncompressedSuffix
     );
 typedef _RotateImageDart =
-    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int);
+    int Function(ffi.Pointer<ffi.Int8>, ffi.Pointer<ffi.Int8>, int, bool);
 
 typedef _ScaleImageToWidthNative =
     ffi.Int Function(
@@ -421,10 +422,20 @@ class ImageProcessor {
 
   // Other image processing:
 
-  void rotateImage(String sourcePath, String rotatedPath, int angle) {
+  void rotateImage(
+    String sourcePath,
+    String rotatedPath,
+    int angle, {
+    hideUncompressedSuffix = false,
+  }) {
     final sourcePathPtr = sourcePath.toNativeUtf8().cast<ffi.Int8>();
     final rotatedPathPtr = rotatedPath.toNativeUtf8().cast<ffi.Int8>();
-    final result = _rotateImage(sourcePathPtr, rotatedPathPtr, angle);
+    final result = _rotateImage(
+      sourcePathPtr,
+      rotatedPathPtr,
+      angle,
+      hideUncompressedSuffix,
+    );
     malloc.free(sourcePathPtr);
     malloc.free(rotatedPathPtr);
     if (result == 0) {
