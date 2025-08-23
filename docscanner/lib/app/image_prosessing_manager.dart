@@ -654,8 +654,8 @@ class ImageProcessingManager {
     final limited = taskKillers.where((element) => element.$1 == key).toList();
     for (var taskKiller in limited) {
       taskKiller.$2.kill();
-      taskKillers.remove(taskKiller);
     }
+    await awaitIsolatesOfPage(docIndex, pageIndex);
   }
 
   void changePrioForIsolatesOfPage(
@@ -710,7 +710,40 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> awaitIsolatesOfHigherIndexPage(int docIndex, pageIndex) async {
+  Future<void> awaitIsolatesOfPage(int docIndex, int pageIndex) async {
+    bool mayExit = false;
+    while (taskKillers.isNotEmpty) {
+      int remainingCount = 0;
+      final limited = taskKillers
+          .where(
+            (element) =>
+                element.$1.$1 == docIndex && element.$1.$2 == pageIndex,
+          )
+          .toList();
+      for (var taskKiller in limited) {
+        if (taskKiller.$2.exited) {
+          taskKillers.remove(taskKiller);
+        } else {
+          remainingCount++;
+        }
+      }
+      if (remainingCount == 0) {
+        if (mayExit) {
+          return;
+        } else {
+          mayExit = true;
+        }
+      } else {
+        mayExit = false;
+      }
+      await Future.delayed(Duration(milliseconds: 200));
+    }
+  }
+
+  Future<void> awaitIsolatesOfHigherIndexPage(
+    int docIndex,
+    int pageIndex,
+  ) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
       final limited = taskKillers
@@ -892,7 +925,7 @@ class ImageProcessingManager {
       RootIsolateToken token,
       int docIndex,
       int pageIndex,
-      List<String> versionPaths, //[0] is potentially rotated
+      String rotatedPhotoPath,
       int rotationIn,
       AppGlobals g,
     )
@@ -915,14 +948,12 @@ class ImageProcessingManager {
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
     int docIndex = data.$3;
     int pageIndex = data.$4;
-    List<String> versionPaths = data.$5;
+    String rotatedPhotoPath = data.$5;
     int rotationIn = data.$6;
     AppGlobals g = data.$7;
 
-    //OpenCVHelper cvHelper = OpenCVHelper(g);
-
-    if (!File(versionPaths[0]).existsSync()) {
-      throw StateError("photo ${versionPaths[0]} does not exist");
+    if (!File(rotatedPhotoPath).existsSync()) {
+      throw StateError("photo $rotatedPhotoPath does not exist");
     }
 
     // Delete Thumbnail
@@ -935,7 +966,7 @@ class ImageProcessingManager {
         docIndex,
         pageIndex,
         0,
-        versionPaths[0],
+        rotatedPhotoPath,
         gIn: g,
       ),
     );
@@ -946,6 +977,11 @@ class ImageProcessingManager {
       supressWarnings: true,
       gIn: g,
     );
+
+    List<String> versionPaths = (await g.filesHelper.getImagePathsForPage(
+      docIndex,
+      pageIndex,
+    )).$1;
 
     /// 2. rotate processed -> save
     if (!isImportedPdf) {
@@ -990,7 +1026,7 @@ class ImageProcessingManager {
   Future<void> rotatePage(
     int docIndex,
     int pageIndex,
-    List<String> versionPaths, //[0] is rotated
+    String rotatedPhotoPath,
     final int angle,
   ) async {
     // Save current (to be outdated) filenames to metadata
@@ -1000,9 +1036,11 @@ class ImageProcessingManager {
     final token = RootIsolateToken.instance!;
     final rotatePageCompleter = Completer<void>();
 
+    await killIsolatesOfPage(docIndex, pageIndex);
+
     TaskKiller killer = await IsolatesManager().runTask(
       _rotatePageIsolate,
-      (port.sendPort, token, docIndex, pageIndex, versionPaths, angle, g),
+      (port.sendPort, token, docIndex, pageIndex, rotatedPhotoPath, angle, g),
       portIn: port,
       prio: IsolatePriority.immediate,
     );

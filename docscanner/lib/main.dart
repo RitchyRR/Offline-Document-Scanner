@@ -5276,15 +5276,14 @@ class PagePreviewState extends State<PagePreview> {
       imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
-        _versionPaths,
+        _versionPaths[0], // rotated photo
         _totalRotation,
       );
     } else {
       imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
-        _versionPaths[0], // potentially rotated image
-
+        _versionPaths[0], // potentially rotated photo
         customCorners ? null : _guiRatioValue,
         newCornerPoints,
         _totalRotation,
