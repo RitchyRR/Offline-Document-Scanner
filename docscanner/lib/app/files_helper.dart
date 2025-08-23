@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:developer' as dev;
 import 'dart:ui' as ui show PlatformDispatcher;
 
+import 'package:path/path.dart' as p;
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:easy_localization/easy_localization.dart' show tr, NumberFormat;
 import 'package:file_picker/file_picker.dart';
@@ -275,7 +276,10 @@ class FilesHelper {
       sourcePath,
       versionPath,
     );
-    if (!scaledAndSaved) await File(sourcePath).copy(versionPath);
+    final tmpPath =
+        '$pagePath/tmp_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
+    if (!scaledAndSaved) await File(sourcePath).copy(tmpPath);
+    await File(tmpPath).rename(versionPath);
     imageProcessor.dispose();
 
     return versionPath;

@@ -5258,7 +5258,8 @@ class PagePreviewState extends State<PagePreview> {
       onlyRotation = false;
     }
     // Can't rotate if during processing, because rotatePage needas all images of the page
-    if (onlyRotation && _processingIndex != 0) {
+    // > 1, because _reprocessingSetup() at start of this function does _processingIndex++
+    if (onlyRotation && _processingIndex > 1) {
       onlyRotation = false;
     }
 
