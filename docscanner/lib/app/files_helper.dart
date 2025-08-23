@@ -508,20 +508,18 @@ class FilesHelper {
           changeHappened = await _repairAll();
           // Give Stacktrace if repair happened
           if (changeHappened && stackTrace != null) {
-            dev.log("repairDirectoryStructure, $stackTrace");
+            dev.log("repairAll, $stackTrace");
             stackTrace = null;
           }
         } else {
           break;
         }
       } catch (e) {
-        throw StateError("Error, repairDirectoryStructure: $e");
+        throw StateError("Error, repairAll: $e");
       }
     }
     if (i == 5) {
-      dev.log(
-        "Warning, repairDirectoryStructure: Could not repair after $i tries.",
-      );
+      dev.log("Warning, repairAll: Could not repair after $i tries.");
     }
     imageProcessingManager.compressAll();
   }
@@ -541,7 +539,9 @@ class FilesHelper {
       );
       if (doc.path != expectedDocPath) {
         dev.log("Renaming ${doc.path} -> $expectedDocPath");
-        await Directory(expectedDocPath).delete();
+        if (Directory(expectedDocPath).existsSync()) {
+          await Directory(expectedDocPath).delete(recursive: true);
+        }
         doc.renameSync(expectedDocPath);
         anyChange = true;
       }
@@ -575,7 +575,7 @@ class FilesHelper {
             pageFseL = Directory(expectedPagePath).listSync()
               ..sort((a, b) => a.path.compareTo(b.path));
           } catch (e) {
-            dev.log("Warning, _repairDirectoryStructure: $e");
+            dev.log("Warning, _repairAll: $e");
           }
           bool pageIncomplete = pageFseL.isEmpty;
           int countVersionsAndThumbnail = 0;
@@ -601,7 +601,7 @@ class FilesHelper {
                 countVersionsAndThumbnail++;
               } else if (!imageFse.path.endsWith("metadata.json")) {
                 dev.log(
-                  "Info, _repairDirectoryStructure: Deleting unrecognized file: $imageFse.path",
+                  "Info, _repairAll: Deleting unrecognized file: $imageFse.path",
                 );
                 File(imageFse.path).deleteSync();
               }
@@ -627,7 +627,7 @@ class FilesHelper {
             bool photoExists = true;
             if (countVersionsAndThumbnail <= 0 || isImportedPdf) {
               dev.log("Deleting empty page, Doc $docIndex Page $pageIndex");
-              await _deletePage(docIndex, pageIndex);
+              await _deletePage(docIndex, pageIndex, supressInfo: true);
             } else {
               String photoName = versionNamesInternal[0];
               for (var pageFse in Directory(
@@ -650,7 +650,7 @@ class FilesHelper {
                 });
               } else {
                 dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
-                await _deletePage(docIndex, pageIndex);
+                await _deletePage(docIndex, pageIndex, supressInfo: true);
               }
             }
           }
@@ -658,7 +658,7 @@ class FilesHelper {
       } else {
         anyChange = true;
         // ignore: use_build_context_synchronously
-        _deleteDocument(docIndex, isBroken: true);
+        _deleteDocument(docIndex, supressInfo: true);
       }
     }
     await Future.wait(repairFutures);
@@ -675,19 +675,9 @@ class FilesHelper {
     } else {
       await _deletePages(docIndex, pageIndexes);
     }
-
-    //WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //  if (IsolatesManager().getIsolatesCount() == 0) {
-    //    g.filesHelper.repairDirectoryStructure();
-    //  }
-    //});
   }
 
-  Future<void> _deleteDocument(
-    int docIndex, {
-    bool supressInfo = false,
-    bool isBroken = false,
-  }) async {
+  Future<void> _deleteDocument(int docIndex, {bool supressInfo = false}) async {
     String docPath = await getDocumentPath(docIndex, supressWarnings: true);
     if (!Directory(docPath).existsSync()) {
       dev.log(
@@ -738,11 +728,19 @@ class FilesHelper {
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 
-  Future<void> _deletePage(int docIndex, int pageIndex) async {
-    _deletePages(docIndex, [pageIndex]);
+  Future<void> _deletePage(
+    int docIndex,
+    int pageIndex, {
+    bool supressInfo = false,
+  }) async {
+    _deletePages(docIndex, [pageIndex], supressInfo: supressInfo);
   }
 
-  Future<void> _deletePages(int docIndex, List<int> deletePageIndexes) async {
+  Future<void> _deletePages(
+    int docIndex,
+    List<int> deletePageIndexes, {
+    bool supressInfo = false,
+  }) async {
     final oldPagesCount = await getPagesCount(docIndex);
     if (deletePageIndexes.isEmpty) return;
     deletePageIndexes.sort();
@@ -762,15 +760,17 @@ class FilesHelper {
         imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
       );
     }
-    Fluttertoast.showToast(
-      msg: tr(
-        "toast.pagesDeleted",
-        namedArgs: {
-          "docIndex": "${docIndex + 1}",
-          "pageIndexes": "$displayPageIndexes",
-        },
-      ),
-    );
+    if (!supressInfo) {
+      Fluttertoast.showToast(
+        msg: tr(
+          "toast.pagesDeleted",
+          namedArgs: {
+            "docIndex": "${docIndex + 1}",
+            "pageIndexes": "$displayPageIndexes",
+          },
+        ),
+      );
+    }
     dev.log("_deletePages: Starting deleting Pages: $deletePageIndexes");
 
     // Await Isolates
@@ -833,7 +833,7 @@ class FilesHelper {
     // Check if document is now empty and delete it
     if (newPagesCount == 0) {
       dev.log("Deleting empty Document $docIndex");
-      await _deleteDocument(docIndex, supressInfo: true, isBroken: true);
+      await _deleteDocument(docIndex, supressInfo: true);
       globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     } else {
       globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
