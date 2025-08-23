@@ -45,10 +45,10 @@ void logVarInternal(const char* name, T* ptr, const char* file, int line, const 
         } else {
             oss << "complex_type"; // fallback
         }
-        __android_log_print(ANDROID_LOG_DEBUG, "NativeLib", "[%s:%d] %s | %s = %s (address=%p)",
+        __android_log_print(ANDROID_LOG_DEBUG, "Native", "[%s:%d] %s | %s = %s (address=%p)",
             file, line, func, name, oss.str().c_str(), (void*)ptr);
     } else {
-        __android_log_print(ANDROID_LOG_DEBUG, "NativeLib", "[%s:%d] %s | %s = nullptr",
+        __android_log_print(ANDROID_LOG_DEBUG, "Native", "[%s:%d] %s | %s = nullptr",
             file, line, func, name);
     }
 }
@@ -59,13 +59,13 @@ void logVarInternal(const char* name, const T& value, const char* file, int line
     std::ostringstream oss;
     if constexpr (std::is_arithmetic<T>::value || std::is_same<T, std::string>::value) {
         oss << value;
-        __android_log_print(ANDROID_LOG_DEBUG, "NativeLib", "[%s:%d] %s | %s = %s",
+        __android_log_print(ANDROID_LOG_DEBUG, "Native", "[%s:%d] %s | %s = %s",
             file, line, func, name, oss.str().c_str());
     } else {
         // Fallback: print type name and address
         const void* addr = static_cast<const void*>(&value);
         std::string typeName = demangle(typeid(T).name());
-        __android_log_print(ANDROID_LOG_DEBUG, "NativeLib", "[%s:%d] %s | %s = <%s> (address=%p)",
+        __android_log_print(ANDROID_LOG_DEBUG, "Native", "[%s:%d] %s | %s = <%s> (address=%p)",
             file, line, func, name, typeName.c_str(), addr);
     }
 }
