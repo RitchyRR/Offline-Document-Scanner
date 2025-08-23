@@ -502,7 +502,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  repairDirectoryStructure() async {
+  repairAll() async {
     StackTrace? stackTrace = StackTrace.current;
     await _initializeDocumentsPath();
     var i = 0;
@@ -515,7 +515,7 @@ class FilesHelper {
           deletedMarked = true;
         }
         if (changeHappened == true) {
-          changeHappened = await _repairDirectoryStructure();
+          changeHappened = await _repairAll();
           // Give Stacktrace if repair happened
           if (changeHappened && stackTrace != null) {
             dev.log("repairDirectoryStructure, $stackTrace");
@@ -536,7 +536,7 @@ class FilesHelper {
     imageProcessingManager.compressAll();
   }
 
-  Future<bool> _repairDirectoryStructure() async {
+  Future<bool> _repairAll() async {
     bool anyChange = false;
     List<Future> repairFutures = [];
 
@@ -551,6 +551,7 @@ class FilesHelper {
       );
       if (doc.path != expectedDocPath) {
         dev.log("Renaming ${doc.path} -> $expectedDocPath");
+        await Directory(expectedDocPath).delete();
         doc.renameSync(expectedDocPath);
         anyChange = true;
       }
@@ -721,32 +722,28 @@ class FilesHelper {
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
       await markDeletedFuture;
       await killFuture;
-      await higherIndexedDocsFuture;
       await imageProcessingManager.pdfProcessingFutures[docIndex];
-
-      Directory(docPath).deleteSync(recursive: true);
-      dev.log("deleteDocument: Deleted document directory: $docPath");
-      await _removeMarkedDeletedDoc(docIndex);
+      await higherIndexedDocsFuture;
     }
 
     // rename all with higher docIndex to close the gap
-    Directory fromDirectory = Directory(
-      await getDocumentPath(docIndex + 1, supressWarnings: true),
-    );
-    String toPath = docPath;
-    for (int i = docIndex; i < await getDocumentsCount();) {
+    final docsCount = await getDocumentsCount();
+    for (int i = docIndex; i + 1 < docsCount; i++) {
+      Directory fromDirectory = Directory(
+        await getDocumentPath(i + 1, supressWarnings: true),
+      );
+      String toPath = await getDocumentPath(i, supressWarnings: true);
       if (fromDirectory.existsSync()) {
-        dev.log("Renaming Document ${docIndex + 1} -> Document $docIndex");
+        dev.log("Renaming Document ${i + 1} -> Document $i");
+        if (Directory(toPath).existsSync()) {
+          await Directory(toPath).delete(recursive: true);
+          dev.log("deleteDocument: Deleted document directory: $toPath");
+        }
         await fromDirectory.rename(toPath);
         i++;
       }
-
-      docIndex++;
-      fromDirectory = Directory(
-        await getDocumentPath(docIndex + 1, supressWarnings: true),
-      );
-      toPath = await getDocumentPath(docIndex, supressWarnings: true);
     }
+    await _removeMarkedDeletedDoc(docIndex);
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
   }
 
@@ -790,12 +787,11 @@ class FilesHelper {
         .awaitIsolatesOfHigherIndexPages(docIndex, deletePageIndexes);
     await Future.wait(markDeletedFutures);
     await Future.wait(killFutures);
-    await higherIndexedPagesFuture;
     await imageProcessingManager.pdfProcessingFutures[docIndex];
+    await higherIndexedPagesFuture;
 
     // Delete
     List<String> deletedPagePaths = [];
-    List<Future> removeMarkedDeletetedFutures = [];
     for (var (i, deletePageIndex) in deletePageIndexes.indexed) {
       deletedPagePaths.add(await getPagePath(docIndex, deletePageIndex));
       final deletePageDir = Directory(deletedPagePaths[i]);
@@ -810,13 +806,11 @@ class FilesHelper {
         // Delete
         deletePageDir.deleteSync(recursive: true);
         dev.log("_deletePages: Deleted page directory: ${deletedPagePaths[i]}");
-        removeMarkedDeletetedFutures.add(
-          _removeMarkedDeletedPage(docIndex, deletePageIndex),
-        );
       }
     }
 
     // Rename all with higher pageIndex to close the gap
+    List<Future> removeMarkedDeletetedFutures = [];
     final newPagesCount = await getPagesCount(docIndex);
     List<String> moveTo = [];
     for (
@@ -831,14 +825,20 @@ class FilesHelper {
         dev.log(
           "Renaming Page $pageIndex -> ${moveTo.first} (in Document $docIndex)",
         );
+        if (Directory(moveTo.first).existsSync()) {
+          await Directory(moveTo.first).delete(recursive: true);
+        }
         await pageDir.rename(moveTo.removeAt(0));
         moveTo.add(pageDir.path);
+        removeMarkedDeletetedFutures.add(
+          _removeMarkedDeletedPage(docIndex, pageIndex),
+        );
       } else {
         moveTo.add(pageDir.path);
       }
     }
-
     await Future.wait(removeMarkedDeletetedFutures);
+
     // Check if document is now empty and delete it
     if (newPagesCount == 0) {
       dev.log("Deleting empty Document $docIndex");

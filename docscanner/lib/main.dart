@@ -89,6 +89,7 @@ void main() async {
   };
   ui.PlatformDispatcher.instance.onError = (error, stack) {
     ErrorLogger.logError(error.toString(), stack);
+    dev.log("$error | $stack");
     return true;
   };
 
@@ -188,7 +189,7 @@ class _MyAppState extends State<MyApp> {
     if (error != null) {
       throw StateError("Error, initAsync, FlutterSecureStorage: $error");
     }
-    g.filesHelper.repairDirectoryStructure();
+    g.filesHelper.repairAll();
   }
 
   @override
@@ -365,7 +366,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       if (wasHidden && !isTmpExternal) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (!isTmpExternal && IsolatesManager().getIsolatesCount() == 0) {
-            g.filesHelper.repairDirectoryStructure();
+            g.filesHelper.repairAll();
           }
         });
       }
@@ -542,22 +543,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
     bool supressWarnings = onInit;
     // Thumbnails
     _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
-    _displayDocsCount = _docsCount - _deletedDocs.length;
     final thumbs = await g.filesHelper.getDocThumbnails();
     _docThumbnails = thumbs.$1;
     _docsCount = thumbs.$2;
+    _displayDocsCount = _docsCount - _deletedDocs.length;
     // Page Counts
     _docPageCounts = [];
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       if (_deletedDocs.contains(docIndex)) continue;
-      _docPageCounts.add(await g.filesHelper.getPagesCount(docIndex));
+      final pageCount = await g.filesHelper.getPagesCount(docIndex);
+      _docPageCounts.add(pageCount);
       // reset ad supported doc/page unlocks
       if (onInit) g.metadataHelper.writeDocUnlocked(docIndex, false);
-      for (
-        var pageIndex = 0;
-        pageIndex < _docPageCounts[docIndex];
-        pageIndex++
-      ) {
+      for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
         if (onInit) {
           g.metadataHelper.writePageUnlocked(docIndex, pageIndex, false);
         }
