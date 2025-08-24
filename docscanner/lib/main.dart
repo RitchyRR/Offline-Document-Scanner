@@ -548,11 +548,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _docsCount = thumbs.$2;
     _displayDocsCount = _docsCount - _deletedDocs.length;
     // Page Counts
-    _docPageCounts = [];
+    _docPageCounts = List.generate(_docsCount, (_) => 0);
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       if (_deletedDocs.contains(docIndex)) continue;
       final pageCount = await g.filesHelper.getPagesCount(docIndex);
-      _docPageCounts.add(pageCount);
+      _docPageCounts[docIndex] = pageCount;
       // reset ad supported doc/page unlocks
       if (onInit) g.metadataHelper.writeDocUnlocked(docIndex, false);
       for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
