@@ -628,7 +628,7 @@ class FilesHelper {
             anyChange = true;
             bool photoExists = true;
             if (countVersionsAndThumbnail <= 0 || isImportedPdf) {
-              dev.log("Deleting empty page, Doc $docIndex Page $pageIndex");
+              dev.log("Deleting empty page: Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex, supressInfo: true);
             } else {
               String photoName = versionNamesInternal[0];
@@ -641,7 +641,7 @@ class FilesHelper {
                 }
               }
               if (photoExists) {
-                dev.log("Repairing Doc $docIndex Page $pageIndex");
+                dev.log("Repairing page: Doc $docIndex Page $pageIndex");
                 Future future = imageProcessingManager.repairPage(
                   docIndex,
                   pageIndex,
@@ -651,7 +651,9 @@ class FilesHelper {
                   repairFutures.remove(future);
                 });
               } else {
-                dev.log("Deleting half-empty Doc $docIndex Page $pageIndex");
+                dev.log(
+                  "Deleting page without photo: Doc $docIndex Page $pageIndex",
+                );
                 await _deletePage(docIndex, pageIndex, supressInfo: true);
               }
             }
