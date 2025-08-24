@@ -679,9 +679,9 @@ class ImageProcessingManager {
         .toList();
     for (var taskKiller in limited) {
       killerFutures.add(taskKiller.$2.kill());
-      taskKillers.remove(taskKiller);
     }
     await Future.wait(killerFutures);
+    await awaitIsolatesOfDocument(docIndex);
   }
 
   void changePrioForIsolatesOfDocument(int docIndex, IsolatePriority newPrio) {
@@ -793,7 +793,7 @@ class ImageProcessingManager {
     }
   }
 
-  Future<void> awaitAllIsolatesOfDocument(int docIndex) async {
+  Future<void> awaitIsolatesOfDocument(int docIndex) async {
     while (taskKillers.isNotEmpty) {
       int remainingCount = 0;
       final limited = taskKillers

@@ -3296,7 +3296,7 @@ class _PagesState extends State<Pages> with RouteAware {
     displayPageIndex,
   ) async {
     bool allowChangePageIndex = false;
-    Future<void> future = imageProcessingManager.awaitAllIsolatesOfDocument(
+    Future<void> future = imageProcessingManager.awaitIsolatesOfDocument(
       widget.docIndex,
     );
     int? selectedIndex = await showDialog<int>(
