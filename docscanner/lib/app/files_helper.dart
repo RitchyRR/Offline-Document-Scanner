@@ -548,11 +548,11 @@ class FilesHelper {
         anyChange = true;
       }
 
-      List<FileSystemEntity> pagesFseL =
+      List<FileSystemEntity> docFseL =
           Directory(expectedDocPath).listSync().whereType<Directory>().toList()
             ..sort((a, b) => a.path.compareTo(b.path));
-      if (pagesFseL.isNotEmpty) {
-        for (var (pageIndex, pageFse) in pagesFseL.indexed) {
+      if (docFseL.isNotEmpty) {
+        for (var (pageIndex, pageFse) in docFseL.indexed) {
           bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
             docIndex,
             pageIndex,
@@ -632,10 +632,8 @@ class FilesHelper {
               await _deletePage(docIndex, pageIndex, supressInfo: true);
             } else {
               String photoName = versionNamesInternal[0];
-              for (var pageFse in Directory(
-                expectedPagePath,
-              ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-                if (pageFse.path.contains(photoName)) {
+              for (var imageFse in pageFseL) {
+                if (imageFse.path.contains(photoName)) {
                   photoExists = true;
                   break;
                 }
