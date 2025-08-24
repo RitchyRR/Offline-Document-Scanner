@@ -18,7 +18,7 @@ static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inI
         // Temporaray file name
         auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
-        std::string tmpName = ".tmp_" + std::to_string(ms) + ".png";
+        std::string tmpName = "tmp_" + std::to_string(ms) + ".png";
         fs::path tmpPath = dir / tmpName;
         
         // Write PNG to temporaray file name
@@ -74,7 +74,7 @@ static bool _writeUncompressedPng(
         // Temporaray file name
         auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
-        std::string tmpName = ".tmp_" + std::to_string(ms) + ".png";
+        std::string tmpName = "tmp_" + std::to_string(ms) + ".png";
         fs::path tmpPath = dir / tmpName;
         
         // Write PNG to temporaray file name
@@ -1362,7 +1362,26 @@ public:
 
     bool savePhoto(const std::string& inPath) {
         LOG_ENTRY();
-        bool success = cv::imwrite(inPath, photo);
+
+        fs::path finalPath(inPath);
+        fs::path dir = finalPath.parent_path();
+        fs::path name = finalPath.stem();
+        fs::path extension = finalPath.extension();
+        if (dir.empty()) {
+            LOG_EXIT();
+            return false;
+        }
+        
+        // Temporaray path
+        auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+        std::string tmpName = "tmp_" + std::to_string(ms) + extension.string();
+        fs::path tmpPath = dir / tmpName;
+        // Write to tmp path
+        bool success = cv::imwrite(tmpPath, photo);
+        // Rename to final name (to prevent polling from loading unfinished images)
+        fs::rename(tmpPath, inPath);
+        
         LOG_EXIT();
         return success;
     }
