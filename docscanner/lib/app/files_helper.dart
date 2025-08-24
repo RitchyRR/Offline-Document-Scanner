@@ -270,15 +270,17 @@ class FilesHelper {
       }
     }
 
+    final tmpPath =
+        '$pagePath/tmp_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
+
     // Save version (Scale down if too large)
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     bool scaledAndSaved = imageProcessor.scaleImageToMaxSize(
       sourcePath,
-      versionPath,
+      tmpPath,
     );
-    final tmpPath =
-        '$pagePath/tmp_${DateTime.now().millisecondsSinceEpoch}${p.extension(sourcePath)}';
     if (!scaledAndSaved) await File(sourcePath).copy(tmpPath);
+
     await File(tmpPath).rename(versionPath);
     imageProcessor.dispose();
 
