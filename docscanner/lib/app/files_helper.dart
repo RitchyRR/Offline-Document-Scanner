@@ -706,13 +706,13 @@ class FilesHelper {
       await higherIndexedDocsFuture;
     }
 
+    final docsCount = await getDocumentsCount();
     // delete
     if (Directory(docPath).existsSync()) {
       await Directory(docPath).delete(recursive: true);
       dev.log("deleteDocument: Deleted document directory: $docPath");
     }
     // rename all with higher docIndex to close the gap
-    final docsCount = await getDocumentsCount();
     for (int i = docIndex; i + 1 < docsCount; i++) {
       Directory fromDirectory = Directory(
         await getDocumentPath(i + 1, supressWarnings: true),
