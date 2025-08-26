@@ -457,17 +457,29 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
     // only open PagePreview for first page
     messenger?.hideCurrentSnackBar();
-    _openNewPagePreview(docIndex, firstPageIndex);
+    _openNewPagePreview(docIndex, firstPageIndex, photoPaths.length == 1);
   }
 
-  Future<void> _openNewPagePreview(int docIndex, int pageIndex) async {
+  Future<void> _openNewPagePreview(
+    int docIndex,
+    int pageIndex,
+    bool isSinglePage,
+  ) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushNamed(
-        context,
-        "/pages",
-        arguments: {"docIndex": docIndex, "initialPageIndex": pageIndex},
-      );
+      if (isSinglePage) {
+        Navigator.pushNamed(
+          context,
+          "/preview",
+          arguments: {"docIndex": docIndex, "pageIndex": 0},
+        );
+      } else {
+        Navigator.pushNamed(
+          context,
+          "/pages",
+          arguments: {"docIndex": docIndex, "initialPageIndex": pageIndex},
+        );
+      }
     });
   }
 
@@ -529,7 +541,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       final newIndexes = await _processDocument(imagePaths);
       int docIndex = newIndexes.$1;
       int firstPageIndex = newIndexes.$2;
-      _openNewPagePreview(docIndex, firstPageIndex);
+      _openNewPagePreview(docIndex, firstPageIndex, imagePaths.length == 1);
     }
   }
 
@@ -647,8 +659,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushNamed(
           context,
-          "/pages",
-          arguments: {"docIndex": docIndex, "initialPageIndex": 0},
+          "/preview",
+          arguments: {"docIndex": docIndex, "pageIndex": 0},
         );
       });
     } else {
