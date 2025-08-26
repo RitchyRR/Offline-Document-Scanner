@@ -804,7 +804,7 @@ class FilesHelper {
       final deletePageDir = Directory(deletedPagePaths[i]);
       if (!deletePageDir.existsSync()) {
         dev.log(
-          "Warning, deletePage: Document $docIndex, Page $deletePageIndex nonexistent, moving following Pages up",
+          "Warning, deletePage: Document $docIndex, Page $deletePageIndex doesn't exist",
         );
       } else {
         for (var file in deletePageDir.listSync(recursive: true)) {

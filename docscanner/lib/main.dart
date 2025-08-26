@@ -667,13 +667,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
     int docIndex,
     int displayDocIndex,
   ) async {
+    int correctedDocIndex =
+        docIndex - _deletedDocs.where((e) => e < docIndex).length;
     Future<void> isolatesFuture = imageProcessingManager.awaitAllIsolates();
     {
       bool allowChangeDocIndex = false;
       int? selectedIndex = await showDialog<int>(
         context: context,
         builder: (context) {
-          int currentIndex = docIndex;
+          int currentIndex = correctedDocIndex;
           TextEditingController nameController = TextEditingController(
             text: _docNames[docIndex],
           );
@@ -699,9 +701,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
               ],
             ),
             content: StatefulBuilder(
-              builder: (context, setState) {
+              builder: (context, setStateDialog) {
                 isolatesFuture.whenComplete(() {
-                  if (mounted) setState(() => allowChangeDocIndex = true);
+                  if (mounted) setStateDialog(() => allowChangeDocIndex = true);
                 });
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -734,7 +736,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         value: currentIndex,
                         isExpanded: true,
                         items: List.generate(
-                          _docThumbnails.length,
+                          _displayDocsCount,
                           (i) => DropdownMenuItem(
                             value: i,
                             child: Text(
@@ -758,7 +760,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         onChanged: allowChangeDocIndex
                             ? (int? newValue) {
                                 if (newValue != null) {
-                                  setState(() => currentIndex = newValue);
+                                  setStateDialog(() => currentIndex = newValue);
                                 }
                               }
                             : null,
@@ -797,7 +799,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
       // Handle the result after the popup closes
       if (selectedIndex != null && selectedIndex != docIndex) {
-        await g.filesHelper.moveDocumentIndex(docIndex, selectedIndex);
+        await g.filesHelper.moveDocumentIndex(correctedDocIndex, selectedIndex);
         _loadDocsDisplay();
       }
     }
@@ -3296,15 +3298,18 @@ class _PagesState extends State<Pages> with RouteAware {
     Future<void> future = imageProcessingManager.awaitIsolatesOfDocument(
       widget.docIndex,
     );
+    int correctedPageIndex =
+        pageIndex - _deletedPages.where((e) => e < pageIndex).length;
     int? selectedIndex = await showDialog<int>(
       context: context,
       builder: (context) {
-        int currentIndex = pageIndex;
+        int currentIndex = correctedPageIndex;
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setStateDialog) {
             future.whenComplete(() {
               if (!allowChangePageIndex) {
-                setState(() => allowChangePageIndex = true);
+                setStateDialog(() => allowChangePageIndex = true);
+                setState(() {});
               }
             });
             return AlertDialog(
@@ -3344,7 +3349,7 @@ class _PagesState extends State<Pages> with RouteAware {
                       value: currentIndex,
                       isExpanded: true,
                       items: List.generate(
-                        _pageThumbnails.length,
+                        _displayPagesCount,
                         (i) => DropdownMenuItem(
                           value: i,
                           child: Text(
@@ -3359,7 +3364,7 @@ class _PagesState extends State<Pages> with RouteAware {
                       onChanged: allowChangePageIndex
                           ? (int? newValue) {
                               if (newValue != null) {
-                                setState(() => currentIndex = newValue);
+                                setStateDialog(() => currentIndex = newValue);
                               }
                             }
                           : null,
@@ -3428,7 +3433,7 @@ class _PagesState extends State<Pages> with RouteAware {
     if (selectedIndex != null && selectedIndex != pageIndex) {
       await g.filesHelper.movePageIndex(
         widget.docIndex,
-        pageIndex,
+        correctedPageIndex,
         selectedIndex,
       );
       _loadPagesThumbnails();
