@@ -643,19 +643,23 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _openDocument(int docIndex) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    //if (_docPageCounts[docIndex] == 1) {
-    //  WidgetsBinding.instance.addPostFrameCallback((_) {
-    //    Navigator.pushNamed(
-    //      context,
-    //      "/pages",
-    //      arguments: {"docIndex": docIndex, "initialPageIndex": 0},
-    //    );
-    //  });
-    //} else {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushNamed(context, "/pages", arguments: {"docIndex": docIndex});
-    });
-    //}
+    if (_docPageCounts[docIndex] == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushNamed(
+          context,
+          "/pages",
+          arguments: {"docIndex": docIndex, "initialPageIndex": 0},
+        );
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushNamed(
+          context,
+          "/pages",
+          arguments: {"docIndex": docIndex},
+        );
+      });
+    }
   }
 
   void _openDocEditDialog(
@@ -4557,18 +4561,21 @@ class PagePreviewState extends State<PagePreview> {
     return PopScope(
       canPop: _allowPop && noReprocessingChanges,
       onPopInvokedWithResult: (didPop, _) async {
+        // Exit edit mode
         if (!noReprocessingChanges) {
-          // Exit edit mode
           _guiRatioValue = _ratioValue;
           _guiOrientationIndex = _orientationIndex;
           _totalRotation = 0;
           _versionPaths[0] = _photoPath;
           setState(() {});
-        } else if (!_allowPop) {
-          // Prevent pop when PRO filter is selected
+        }
+        // Prevent pop when PRO filter is selected
+        else if (!_allowPop) {
           HapticFeedback.heavyImpact();
           _popOnProFilterPopup(context);
-        } else {
+        }
+        // Regular pop
+        else {
           // Lower Page Isolates Priority
           imageProcessingManager.changePrioForIsolatesOfPage(
             widget.docIndex,
@@ -4576,16 +4583,17 @@ class PagePreviewState extends State<PagePreview> {
             IsolatePriority.regular,
           );
           // New thumbnail
+          // If done processing
           if (_processingIndex == 0) {
-            // If done processing
             imageProcessingManager.setNewThumbnail(
               widget.docIndex,
               widget.pageIndex,
               _selectedThumbnail,
               tmpPro: _pageUnlocked,
             );
-          } else {
-            // While still processing
+          }
+          // While still processing
+          else {
             await MetadataHelper.writePageThumbnailIndex(
               widget.docIndex,
               widget.pageIndex,
@@ -4594,6 +4602,9 @@ class PagePreviewState extends State<PagePreview> {
               supressWarnings: true,
             );
             globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+          }
+          if (await g.filesHelper.getPagesCount(widget.docIndex) == 1) {
+            navigatorKey.currentState?.popUntil((route) => route.isFirst);
           }
           if (!didPop && context.mounted) Navigator.pop(context);
         }
