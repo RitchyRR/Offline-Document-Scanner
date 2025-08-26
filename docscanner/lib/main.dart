@@ -643,9 +643,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _openDocument(int docIndex) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    //if (_docPageCounts[docIndex] == 1) {
+    //  WidgetsBinding.instance.addPostFrameCallback((_) {
+    //    Navigator.pushNamed(
+    //      context,
+    //      "/pages",
+    //      arguments: {"docIndex": docIndex, "initialPageIndex": 0},
+    //    );
+    //  });
+    //} else {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushNamed(context, "/pages", arguments: {"docIndex": docIndex});
     });
+    //}
   }
 
   void _openDocEditDialog(
