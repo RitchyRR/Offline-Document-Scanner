@@ -457,29 +457,29 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
     // only open PagePreview for first page
     messenger?.hideCurrentSnackBar();
-    _openNewPagePreview(docIndex, firstPageIndex, photoPaths.length == 1);
+    _openNewPagePreview(docIndex, firstPageIndex); //photoPaths.length == 1
   }
 
   Future<void> _openNewPagePreview(
     int docIndex,
     int pageIndex,
-    bool isSinglePage,
+    //bool isSinglePage,
   ) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (isSinglePage) {
-        Navigator.pushNamed(
-          context,
-          "/preview",
-          arguments: {"docIndex": docIndex, "pageIndex": 0},
-        );
-      } else {
-        Navigator.pushNamed(
-          context,
-          "/pages",
-          arguments: {"docIndex": docIndex, "initialPageIndex": pageIndex},
-        );
-      }
+      //if (isSinglePage) {
+      //  Navigator.pushNamed(
+      //    context,
+      //    "/preview",
+      //    arguments: {"docIndex": docIndex, "pageIndex": 0},
+      //  );
+      //} else {
+      Navigator.pushNamed(
+        context,
+        "/pages",
+        arguments: {"docIndex": docIndex, "initialPageIndex": pageIndex},
+      );
+      //}
     });
   }
 
@@ -541,7 +541,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       final newIndexes = await _processDocument(imagePaths);
       int docIndex = newIndexes.$1;
       int firstPageIndex = newIndexes.$2;
-      _openNewPagePreview(docIndex, firstPageIndex, imagePaths.length == 1);
+      _openNewPagePreview(docIndex, firstPageIndex); //photoPaths.length == 1
     }
   }
 
@@ -655,23 +655,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _openDocument(int docIndex) async {
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    if (_docPageCounts[docIndex] == 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushNamed(
-          context,
-          "/preview",
-          arguments: {"docIndex": docIndex, "pageIndex": 0},
-        );
-      });
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushNamed(
-          context,
-          "/pages",
-          arguments: {"docIndex": docIndex},
-        );
-      });
-    }
+    //if (_docPageCounts[docIndex] == 1) {
+    //  WidgetsBinding.instance.addPostFrameCallback((_) {
+    //    Navigator.pushNamed(
+    //      context,
+    //      "/preview",
+    //      arguments: {"docIndex": docIndex, "pageIndex": 0},
+    //    );
+    //  });
+    //} else {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushNamed(context, "/pages", arguments: {"docIndex": docIndex});
+    });
+    //}
   }
 
   void _openDocEditDialog(
@@ -4603,9 +4599,9 @@ class PagePreviewState extends State<PagePreview> {
             );
             globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
           }
-          if (await g.filesHelper.getPagesCount(widget.docIndex) == 1) {
-            navigatorKey.currentState?.popUntil((route) => route.isFirst);
-          }
+          //if (await g.filesHelper.getPagesCount(widget.docIndex) == 1) {
+          //  navigatorKey.currentState?.popUntil((route) => route.isFirst);
+          //}
           if (!didPop && context.mounted) Navigator.pop(context);
         }
       },
