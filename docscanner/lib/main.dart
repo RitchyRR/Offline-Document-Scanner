@@ -2609,10 +2609,10 @@ class _PagesState extends State<Pages> with RouteAware {
 
   _cancelSelectMode() {
     HapticFeedback.lightImpact();
-    _selectedPages = [];
+    _selectedPages.clear();
     _selectMode = false;
     Future.microtask(() {
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 
