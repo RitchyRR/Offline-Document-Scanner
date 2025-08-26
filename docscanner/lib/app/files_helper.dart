@@ -517,7 +517,7 @@ class FilesHelper {
           break;
         }
       } catch (e) {
-        throw StateError("Error, repairAll: $e");
+        dev.log("Error, repairAll: $e");
       }
     }
     if (i == 5) {
@@ -533,48 +533,24 @@ class FilesHelper {
     List<FileSystemEntity> docs =
         Directory(docsPath).listSync().whereType<Directory>().toList()
           ..sort((a, b) => a.path.compareTo(b.path));
+    // Delete empty documents
     for (var (docIndex, doc) in docs.indexed) {
-      // Rename documents to match their index
-      String expectedDocPath = await getDocumentPath(
-        docIndex,
-        supressWarnings: true,
-      );
-      if (doc.path != expectedDocPath) {
-        dev.log("Renaming ${doc.path} -> $expectedDocPath");
-        if (Directory(expectedDocPath).existsSync()) {
-          await Directory(expectedDocPath).delete(recursive: true);
-        }
-        doc.renameSync(expectedDocPath);
-        anyChange = true;
-      }
-
       List<FileSystemEntity> docFseL =
-          Directory(expectedDocPath).listSync().whereType<Directory>().toList()
+          Directory(doc.path).listSync().whereType<Directory>().toList()
             ..sort((a, b) => a.path.compareTo(b.path));
       if (docFseL.isNotEmpty) {
+        // Repair incomplete pages
+        // Delete pages without photo
         for (var (pageIndex, pageFse) in docFseL.indexed) {
           bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
             docIndex,
             pageIndex,
             supressWarnings: true,
           );
-
-          // Reanme pages to match their index
-          String expectedPagePath = await getPagePath(
-            docIndex,
-            pageIndex,
-            supressWarnings: true,
-          );
-          if (pageFse.path != expectedPagePath) {
-            dev.log("Renaming ${pageFse.path} -> $expectedPagePath");
-            pageFse.renameSync(expectedPagePath);
-            anyChange = true;
-          }
-
           // Check if page is empty / incomplete
           List<FileSystemEntity> pageFseL = [];
           try {
-            pageFseL = Directory(expectedPagePath).listSync()
+            pageFseL = Directory(pageFse.path).listSync()
               ..sort((a, b) => a.path.compareTo(b.path));
           } catch (e) {
             dev.log("Warning, _repairAll: $e");
@@ -657,10 +633,43 @@ class FilesHelper {
             }
           }
         }
+        docFseL = Directory(doc.path).listSync().whereType<Directory>().toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+        // Reanme pages to match their index
+        for (var (pageIndex, pageFse) in docFseL.indexed) {
+          String expectedPagePath = await getPagePath(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
+          if (pageFse.path != expectedPagePath) {
+            dev.log(
+              "_repairAll: Renaming ${pageFse.path} -> $expectedPagePath",
+            );
+            pageFse.renameSync(expectedPagePath);
+            anyChange = true;
+          }
+        }
       } else {
         anyChange = true;
-        // ignore: use_build_context_synchronously
-        _deleteDocument(docIndex, supressInfo: true);
+        await _deleteDocument(docIndex, supressInfo: true);
+      }
+    }
+    docs = Directory(docsPath).listSync().whereType<Directory>().toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    // Rename documents to match their index
+    for (var (docIndex, doc) in docs.indexed) {
+      String expectedDocPath = await getDocumentPath(
+        docIndex,
+        supressWarnings: true,
+      );
+      if (doc.path != expectedDocPath) {
+        dev.log("_repairAll: Renaming ${doc.path} -> $expectedDocPath");
+        if (Directory(expectedDocPath).existsSync()) {
+          await Directory(expectedDocPath).delete(recursive: true);
+        }
+        doc.renameSync(expectedDocPath);
+        anyChange = true;
       }
     }
     await Future.wait(repairFutures);
@@ -715,16 +724,21 @@ class FilesHelper {
       dev.log("deleteDocument: Deleted document directory: $docPath");
     }
     // rename all with higher docIndex to close the gap
-    for (int i = docIndex; i + 1 < docsCount; i++) {
-      Directory fromDirectory = Directory(
-        await getDocumentPath(i + 1, supressWarnings: true),
+    int toI = docIndex;
+    int fromI = toI + 1;
+    for (; fromI < docsCount;) {
+      final fromDir = Directory(
+        await getDocumentPath(fromI, supressWarnings: true),
       );
-      String toPath = await getDocumentPath(i, supressWarnings: true);
-      if (fromDirectory.existsSync()) {
-        dev.log("Renaming Document ${i + 1} -> Document $i");
-        await fromDirectory.rename(toPath);
-        i++;
+      if (fromDir.existsSync()) {
+        final toDir = Directory(
+          await getDocumentPath(toI, supressWarnings: true),
+        );
+        dev.log("Renaming Document $fromI -> Document $toI");
+        await fromDir.rename(toDir.path);
+        toI++;
       }
+      fromI++;
     }
     await _removeMarkedDeletedDoc(docIndex);
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
@@ -804,35 +818,32 @@ class FilesHelper {
 
     // Rename all with higher pageIndex to close the gap
     List<Future> removeMarkedDeletetedFutures = [];
-    final newPagesCount = await getPagesCount(docIndex);
-    List<String> moveTo = [];
-    for (
-      var pageIndex = deletePageIndexes.last;
-      pageIndex < oldPagesCount;
-      pageIndex++
-    ) {
-      Directory pageDir = Directory(
-        await getPagePath(docIndex, pageIndex, supressWarnings: true),
+    int toI = deletePageIndexes.last; // pages are in reverse order
+    int fromI = toI + 1;
+    for (; fromI < oldPagesCount;) {
+      final fromDir = Directory(
+        await getPagePath(docIndex, fromI, supressWarnings: true),
       );
-      if (pageDir.existsSync()) {
-        dev.log(
-          "Renaming Page $pageIndex -> ${moveTo.first} (in Document $docIndex)",
+      if (fromDir.existsSync()) {
+        dev.log("Renaming Page $fromI -> $toI (in Document $docIndex)");
+        final toDir = Directory(
+          await getPagePath(docIndex, toI, supressWarnings: true),
         );
-        if (Directory(moveTo.first).existsSync()) {
-          await Directory(moveTo.first).delete(recursive: true);
+        if (toDir.existsSync()) {
+          await toDir.delete(recursive: true);
         }
-        await pageDir.rename(moveTo.removeAt(0));
-        moveTo.add(pageDir.path);
+        await fromDir.rename(toDir.path);
         removeMarkedDeletetedFutures.add(
-          _removeMarkedDeletedPage(docIndex, pageIndex),
+          _removeMarkedDeletedPage(docIndex, toI),
         );
-      } else {
-        moveTo.add(pageDir.path);
+        toI++;
       }
+      fromI++;
     }
     await Future.wait(removeMarkedDeletetedFutures);
 
     // Check if document is now empty and delete it
+    final newPagesCount = await getPagesCount(docIndex);
     if (newPagesCount == 0) {
       dev.log("Deleting empty Document $docIndex");
       await _deleteDocument(docIndex, supressInfo: true);
