@@ -1122,15 +1122,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 controller: _scrollController,
                 itemCount: _displayDocsCount,
                 itemBuilder: (BuildContext context, int docIndex) {
-                  while (_deletedDocs.contains(docIndex)) {
-                    docIndex++;
-                  }
-                  final displayDocIndex =
-                      1 +
-                      docIndex -
-                      _deletedDocs
-                          .where((element) => element < docIndex)
-                          .length;
+                  final displayDocIndex = docIndex + 1;
+                  docIndex += _deletedDocs.where((e) => e <= docIndex).length;
                   String docName = _docNames[docIndex].isNotEmpty
                       ? _docNames[docIndex]
                       : tr(
@@ -2734,15 +2727,10 @@ class _PagesState extends State<Pages> with RouteAware {
                         cacheExtent: 1000,
                         itemCount: _displayPagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
-                          while (_deletedPages.contains(pageIndex)) {
-                            pageIndex++;
-                          }
-                          final displayPageIndex =
-                              1 +
-                              pageIndex -
-                              _deletedPages
-                                  .where((element) => element < pageIndex)
-                                  .length;
+                          final displayPageIndex = pageIndex + 1;
+                          pageIndex += _deletedPages
+                              .where((e) => e <= pageIndex)
+                              .length;
                           final String thumbnailPath =
                               _pageThumbnails[pageIndex];
                           final double thumbnailRatio =
@@ -2929,15 +2917,10 @@ class _PagesState extends State<Pages> with RouteAware {
                         cacheExtent: 1000,
                         itemCount: _displayPagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
-                          while (_deletedPages.contains(pageIndex)) {
-                            pageIndex++;
-                          }
-                          final displayPageIndex =
-                              1 +
-                              pageIndex -
-                              _deletedPages
-                                  .where((element) => element < pageIndex)
-                                  .length;
+                          final displayPageIndex = pageIndex + 1;
+                          pageIndex += _deletedPages
+                              .where((e) => e <= pageIndex)
+                              .length;
                           String thumbnailPath = _pageThumbnails[pageIndex];
                           double thumbnailRatio = _thumbnailRatios[pageIndex];
                           if (thumbnailRatio == 0.0) {
