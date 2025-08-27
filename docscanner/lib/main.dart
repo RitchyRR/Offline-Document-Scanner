@@ -2351,8 +2351,16 @@ class _PagesState extends State<Pages> with RouteAware {
   _initAsync() async {
     // Set Title to Doc Name
     _docName = await g.metadataHelper.readDocName(widget.docIndex);
+    _checkEditHints();
+    _checkSelectAllButtonUsed();
+  }
 
-    // Check if selectAllButtonUsed
+  Future<void> _checkEditHints() async {
+    await _enableEditHintsAfterWeek();
+    _disableEditHintsAfterShownSomeTimes();
+  }
+
+  Future<void> _checkSelectAllButtonUsed() async {
     final prefs = await SharedPreferences.getInstance();
     selectAllButtonUsed = prefs.getBool("selectAllButtonUsed") ?? false;
     // Reset if long ago
@@ -2573,6 +2581,40 @@ class _PagesState extends State<Pages> with RouteAware {
     Future.microtask(() {
       setState(() {});
     });
+  }
+
+  bool _hintEditPage = false;
+
+  Future<void> _disableEditHintsAfterShownSomeTimes() async {
+    if (!_hintEditPage) return;
+    final prefs = await SharedPreferences.getInstance();
+    final editHintsCount = prefs.getInt("editHintsCount") ?? 0;
+    // if shown 4 times already -> disable
+    if (editHintsCount >= 4) {
+      final now = DateTime.now();
+      prefs.setString("disableEdithHintsDate", now.toIso8601String());
+      _hintEditPage = false;
+      setState(() {});
+      prefs.setInt("editHintsCount", 0);
+    }
+    prefs.setInt("editHintsCount", editHintsCount + 1);
+  }
+
+  Future<void> _enableEditHintsAfterWeek() async {
+    if (_hintEditPage) return;
+    final prefs = await SharedPreferences.getInstance();
+    final String? savedDateString = prefs.getString("disableEdithHintsDate");
+    // if disabled less than a week ago -> keep edit hints hidden
+    if (savedDateString != null) {
+      final now = DateTime.now();
+      final savedDate = DateTime.tryParse(savedDateString);
+      if (savedDate != null && now.difference(savedDate).inDays < 7) {
+        return;
+      }
+    }
+    // if never disabled or disabled more than a week ago -> show edit hints
+    _hintEditPage = true;
+    setState(() {});
   }
 
   _setSelectAllButtonUsed(bool set) async {
@@ -2804,6 +2846,9 @@ class _PagesState extends State<Pages> with RouteAware {
                                       ),
                                     if (thumbnailPath.isEmpty || isLoading)
                                       IndicatorProcessingImage(),
+                                    // Edit Page Hint
+                                    if (_hintEditPage)
+                                      FlashHint(text: tr("pages.editHint")),
                                     // InkWell
                                     Positioned.fill(
                                       child: Material(
@@ -2990,6 +3035,9 @@ class _PagesState extends State<Pages> with RouteAware {
                                     ),
                                   if (thumbnailPath.isEmpty || isLoading)
                                     IndicatorProcessingImage(),
+                                  // Edit Page Hint
+                                  if (_hintEditPage)
+                                    FlashHint(text: tr("pages.editHint")),
                                   // InkWell
                                   Positioned.fill(
                                     child: Material(
@@ -3589,6 +3637,80 @@ class _PagesState extends State<Pages> with RouteAware {
       return true;
     }
     return false;
+  }
+}
+
+class FlashHint extends StatefulWidget {
+  final String text;
+
+  const FlashHint({super.key, required this.text});
+
+  @override
+  State<FlashHint> createState() => _FlashHintState();
+}
+
+class _FlashHintState extends State<FlashHint>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1), // fade in/out duration
+    );
+
+    _opacity = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+
+    // Repeat 3 cycles of fade in/out
+    _controller.repeat(reverse: true);
+
+    // Stop after ~6 seconds (3 cycles * 2s per cycle)
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) {
+        _controller.stop();
+        _controller.value = 0; // reset to hidden
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: FadeTransition(
+        opacity: _opacity,
+        child: Material(
+          color: Theme.of(context).colorScheme.primaryContainer.withAlpha(150),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                widget.text,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                softWrap: true,
+                overflow: TextOverflow.visible,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

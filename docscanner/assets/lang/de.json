@@ -26,6 +26,7 @@
   "pages": {
     "title": "Dokument {docIndex}",
     "pageIndex": "Seite {pageIndex}",
+    "editHint": "Zum Bearbeiten antippen",
     "views": {
       "gridView": "Rasteransicht",
       "listView": "Listenansicht"

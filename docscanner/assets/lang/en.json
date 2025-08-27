@@ -26,6 +26,7 @@
   "pages": {
     "title": "Document {docIndex}",
     "pageIndex": "Page {pageIndex}",
+    "editHint": "Tap to edit",
     "views": {
       "gridView": "Grid View",
       "listView": "List View"
