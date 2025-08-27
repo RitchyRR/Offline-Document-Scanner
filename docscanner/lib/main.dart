@@ -3671,8 +3671,8 @@ class _FlashHintState extends State<FlashHint>
     // Repeat 3 cycles of fade in/out
     _controller.repeat(reverse: true);
 
-    // Stop after ~6 seconds (3 cycles * 2s per cycle)
-    Future.delayed(const Duration(seconds: 6), () {
+    // Stop after ~4 seconds (2 cycles * 2s per cycle)
+    Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
         _controller.stop();
         _controller.value = 0; // reset to hidden
