@@ -1880,6 +1880,11 @@ class ImageProcessingManager {
       dev.log("Warning, compressPage failed: $e");
     }
     await Future.wait(futures);
+
+    // Update thumbnails:
+    await isolateExitPoint(kill, futures: futures);
+    sendPort.send(NotifierEvent.loadPagesThumbnails);
+
     Isolate.exit(sendPort, "done");
   }
 
