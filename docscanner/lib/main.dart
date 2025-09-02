@@ -4360,7 +4360,6 @@ class PagePreviewState extends State<PagePreview> {
     _photoViewController.dispose();
     _thumbnailScrollController.dispose();
     _eventSubscription.cancel();
-    imageProcessingManager.deleteRotatedPhotos();
     super.dispose();
   }
 
