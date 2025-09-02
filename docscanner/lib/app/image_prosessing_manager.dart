@@ -1858,6 +1858,7 @@ class ImageProcessingManager {
 
     String pagePath = await g.filesHelper.getPagePath(docIndex, pageIndex);
     List<Future<void>> futures = [];
+    bool anyChange = false;
     try {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
@@ -1874,6 +1875,7 @@ class ImageProcessingManager {
               compressedPath: compressedPath,
             ),
           );
+          anyChange = true;
         }
       }
     } catch (e) {
@@ -1881,9 +1883,11 @@ class ImageProcessingManager {
     }
     await Future.wait(futures);
 
-    // Update thumbnails:
-    await isolateExitPoint(kill, futures: futures);
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    if (anyChange) {
+      // Update thumbnails:
+      await isolateExitPoint(kill, futures: futures);
+      sendPort.send(NotifierEvent.loadPagesThumbnails);
+    }
 
     Isolate.exit(sendPort, "done");
   }
