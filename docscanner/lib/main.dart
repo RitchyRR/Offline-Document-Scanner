@@ -4680,11 +4680,13 @@ class PagePreviewState extends State<PagePreview> {
       onPopInvokedWithResult: (didPop, _) async {
         // Exit edit mode
         if (!noReprocessingChanges) {
-          _guiRatioValue = _ratioValue;
-          _guiOrientationIndex = _orientationIndex;
-          _totalRotation = 0;
-          _versionPaths[0] = _photoPath;
-          setState(() {});
+          if (_processingIndex == 0) {
+            _guiRatioValue = _ratioValue;
+            _guiOrientationIndex = _orientationIndex;
+            _totalRotation = 0;
+            _versionPaths[0] = _photoPath;
+            setState(() {});
+          }
         }
         // Prevent pop when PRO filter is selected
         else if (!_allowPop) {
@@ -4733,9 +4735,11 @@ class PagePreviewState extends State<PagePreview> {
           leading: noReprocessingChanges
               ? null
               : IconButton(
-                  tooltip: tr("camera.viewer.back"),
+                  tooltip: tr("popup.cancel"),
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.maybePop(context),
+                  onPressed: (_processingIndex == 0)
+                      ? () => Navigator.maybePop(context)
+                      : null,
                 ),
           title: Text(
             tr(
