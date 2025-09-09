@@ -4680,7 +4680,7 @@ class PagePreviewState extends State<PagePreview> {
       onPopInvokedWithResult: (didPop, _) async {
         // Exit edit mode
         if (!noReprocessingChanges) {
-          if (_processingIndex == 0) {
+          if (!_metadataBlocked) {
             _guiRatioValue = _ratioValue;
             _guiOrientationIndex = _orientationIndex;
             _totalRotation = 0;
@@ -4737,7 +4737,7 @@ class PagePreviewState extends State<PagePreview> {
               : IconButton(
                   tooltip: tr("popup.cancel"),
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: (_processingIndex == 0)
+                  onPressed: !_metadataBlocked
                       ? () => Navigator.maybePop(context)
                       : null,
                 ),
@@ -5400,7 +5400,7 @@ class PagePreviewState extends State<PagePreview> {
       onlyRotation = false;
     }
     // Can't rotate if during processing, because rotatePage needas all images of the page
-    // > 1, because _reprocessingSetup() at start of this function does _processingIndex++
+    // > 1, because _processingIndex is increased in _reprocessingSetup() at start of this function
     if (onlyRotation && _processingIndex > 1) {
       onlyRotation = false;
     }
