@@ -39,6 +39,13 @@ android {
         targetSdk = 36 //flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        externalNativeBuild {
+            cmake {
+                //, "x86_64"
+                abiFilters += listOf("arm64-v8a") 
+            }
+        }
     }
 
     signingConfigs {
@@ -49,10 +56,16 @@ android {
             storePassword = keystoreProperties["storePassword"] as String?
         }
     }
-
+    
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
         }
     }
 

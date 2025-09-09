@@ -1,3 +1,0 @@
-/home/rr/Git/Offline-Document-Scanner/docscanner/native/build/CMakeFiles/opencv_wrapper.dir
-/home/rr/Git/Offline-Document-Scanner/docscanner/native/build/CMakeFiles/edit_cache.dir
-/home/rr/Git/Offline-Document-Scanner/docscanner/native/build/CMakeFiles/rebuild_cache.dir
