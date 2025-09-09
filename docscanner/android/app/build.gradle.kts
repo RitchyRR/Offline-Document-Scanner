@@ -55,6 +55,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 flutter {
