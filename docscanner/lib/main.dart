@@ -741,7 +741,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         decoration: InputDecoration(
                           labelText: tr("documents.card.popup.move"),
                         ),
-                        value: currentIndex,
+                        initialValue: currentIndex,
                         isExpanded: true,
                         items: List.generate(
                           _displayDocsCount,
@@ -3402,7 +3402,7 @@ class _PagesState extends State<Pages> with RouteAware {
                       decoration: InputDecoration(
                         labelText: tr("pages.popup.move"),
                       ),
-                      value: currentIndex,
+                      initialValue: currentIndex,
                       isExpanded: true,
                       items: List.generate(
                         _displayPagesCount,
@@ -3541,37 +3541,39 @@ class _PagesState extends State<Pages> with RouteAware {
                   Flexible(child: Text(tr("popup.changeThumbnails.title"))),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List<Widget>.generate(
-                  versionNames.length - 1,
-                  (index) => RadioListTile<int>(
-                    title: Row(
-                      children: [
-                        Text(versionNames[index + 1]),
-                        !g.proUnlocked && g.proFilterIndexes.contains(index + 1)
-                            ? Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: Icon(Icons.lock),
-                              )
-                            : SizedBox(),
-                      ],
+              content: RadioGroup<int>(
+                groupValue: selectedIndex,
+                onChanged: (int? value) {
+                  if (value != null) {
+                    if (!g.proUnlocked && g.proFilterIndexes.contains(value)) {
+                      allowed = false;
+                    } else {
+                      allowed = true;
+                    }
+                    setStateDialog(() {
+                      selectedIndex = value;
+                    });
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List<Widget>.generate(
+                    versionNames.length - 1,
+                    (index) => RadioListTile<int>(
+                      title: Row(
+                        children: [
+                          Text(versionNames[index + 1]),
+                          !g.proUnlocked &&
+                                  g.proFilterIndexes.contains(index + 1)
+                              ? const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: Icon(Icons.lock),
+                                )
+                              : const SizedBox(),
+                        ],
+                      ),
+                      value: index + 1,
                     ),
-                    value: index + 1,
-                    groupValue: selectedIndex,
-                    onChanged: (int? value) {
-                      if (value != null) {
-                        if (!g.proUnlocked &&
-                            g.proFilterIndexes.contains(index + 1)) {
-                          allowed = false;
-                        } else {
-                          allowed = true;
-                        }
-                        setStateDialog(() {
-                          selectedIndex = value;
-                        });
-                      }
-                    },
                   ),
                 ),
               ),
@@ -7577,38 +7579,40 @@ Future<bool> _changeDefaultThumbnailVersionPopup(BuildContext context) async {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(tr("popup.defaultThumbnail.text")),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List<Widget>.generate(
-                    versionNames.length - 1,
-                    (index) => RadioListTile<int>(
-                      title: Row(
-                        children: [
-                          Text(versionNames[index + 1]),
-                          !g.proUnlocked &&
-                                  g.proFilterIndexes.contains(index + 1)
-                              ? Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Icon(Icons.lock),
-                                )
-                              : SizedBox(),
-                        ],
+                RadioGroup<int>(
+                  groupValue: selectedIndex,
+                  onChanged: (int? value) {
+                    if (value != null) {
+                      if (!g.proUnlocked &&
+                          g.proFilterIndexes.contains(value)) {
+                        allowed = false;
+                      } else {
+                        allowed = true;
+                      }
+                      setStateDialog(() {
+                        selectedIndex = value;
+                      });
+                    }
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List<Widget>.generate(
+                      versionNames.length - 1,
+                      (index) => RadioListTile<int>(
+                        title: Row(
+                          children: [
+                            Text(versionNames[index + 1]),
+                            !g.proUnlocked &&
+                                    g.proFilterIndexes.contains(index + 1)
+                                ? const Padding(
+                                    padding: EdgeInsets.only(left: 8),
+                                    child: Icon(Icons.lock),
+                                  )
+                                : const SizedBox(),
+                          ],
+                        ),
+                        value: index + 1,
                       ),
-                      value: index + 1,
-                      groupValue: selectedIndex,
-                      onChanged: (int? value) {
-                        if (value != null) {
-                          if (!g.proUnlocked &&
-                              g.proFilterIndexes.contains(index + 1)) {
-                            allowed = false;
-                          } else {
-                            allowed = true;
-                          }
-                          setStateDialog(() {
-                            selectedIndex = value;
-                          });
-                        }
-                      },
                     ),
                   ),
                 ),
