@@ -18,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.docscanner"
     compileSdk = 36 //flutter.compileSdkVersion
-    //ndkVersion = "29.0.14033849" //flutter.ndkVersion
+    ndkVersion = "29.0.14033849" //flutter.ndkVersion
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -41,6 +41,10 @@ android {
 
         externalNativeBuild {
             cmake {
+                arguments += listOf(
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                    "-DANDROID_TOOLCHAIN=clang"
+                )
                 abiFilters += listOf("arm64-v8a", "armeabi-v7a")
             }
         }
