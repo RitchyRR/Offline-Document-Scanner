@@ -43,6 +43,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
 final AdsHelper adsHelper = AdsHelper();
 final FeedbackHelper feedbackHelper = FeedbackHelper();
@@ -92,6 +93,8 @@ void main() async {
     dev.log("$error | $stack");
     return true;
   };
+
+  pdfrx.pdfrxFlutterInitialize();
 
   runApp(
     EasyLocalization(
@@ -2478,7 +2481,7 @@ class _PagesState extends State<Pages> with RouteAware {
         final oldNames = await MetadataHelper.readOldPageFileNames(
           docIndex,
           pageIndex,
-          supressWarnings: supressWarnings,
+          supressWarnings: true,
         );
         if (oldNames != null) {
           for (var oldName in oldNames) {
@@ -5499,7 +5502,9 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  Future<void> _enableEditingForImportedPdfPagePopup(BuildContext context) async {
+  Future<void> _enableEditingForImportedPdfPagePopup(
+    BuildContext context,
+  ) async {
     bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {

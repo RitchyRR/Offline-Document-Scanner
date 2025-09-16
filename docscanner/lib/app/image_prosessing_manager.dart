@@ -1,6 +1,5 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:docscanner/app/files_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart'
@@ -8,6 +7,9 @@ import 'package:flutter_image_compress/flutter_image_compress.dart'
 import 'dart:io';
 import 'dart:async';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
+import 'package:image/image.dart' as img;
 // isolates:
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -17,8 +19,6 @@ import 'package:docscanner/app/isolates_manager.dart';
 import 'package:docscanner/main.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
-import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
-import 'package:pdf_render/pdf_render.dart' as pdfr;
 // ffi:
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 
@@ -375,11 +375,13 @@ class ImageProcessingManager {
     if (photoPath.isEmpty) return;
 
     // Save current (to be outdated) filenames to metadata
-    await saveOldVersionFileNames(
-      docIndex,
-      pageIndex,
-      isPhotoAlreadyInPage: isPhotoAlreadyInPage,
-    );
+    if (!isInitial) {
+      await saveOldVersionFileNames(
+        docIndex,
+        pageIndex,
+        isPhotoAlreadyInPage: isPhotoAlreadyInPage,
+      );
+    }
 
     final completer = Completer<void>();
     final port = ReceivePort();
@@ -1283,8 +1285,8 @@ class ImageProcessingManager {
 
   Future<(int, int)> importPdf(String pdfPath, {int? addToDocWithIndex}) async {
     // Open and render PDF
-    final doc = await pdfr.PdfDocument.openFile(pdfPath);
-    final pageCount = doc.pageCount;
+    final pdfrx.PdfDocument doc = await pdfrx.PdfDocument.openFile(pdfPath);
+    final int pageCount = doc.pages.length;
     // Create Page directories
     int docIndex;
     int firstPageIndex;
@@ -1335,17 +1337,19 @@ class ImageProcessingManager {
   Future<void> _convertPdfToPages(
     int firstPageIndex,
     int pageCount,
-    pdfr.PdfDocument doc,
+    pdfrx.PdfDocument doc,
     int docIndex,
   ) async {
     await Future.delayed(Duration(milliseconds: 100)); // wait for navigation
     if (await _pdfProcessingExitpoint(docIndex)) return;
+
     List<Future> futures = [];
-    for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-      await saveOldVersionFileNames(docIndex, pageIndex);
+    final List<pdfrx.PdfPage> pdfPages = doc.pages;
+    for (final (pageIndex, pdfPage) in pdfPages.indexed) {
       if (await _pdfProcessingExitpoint(docIndex, pageIndex: pageIndex)) return;
-      futures.add(_convertPdfToPage(doc, docIndex, pageIndex, firstPageIndex));
+      futures.add(_renderPdfPage(pdfPage, docIndex, pageIndex, firstPageIndex));
     }
+
     // Cleanup
     await Future.wait(futures);
     doc.dispose();
@@ -1355,13 +1359,12 @@ class ImageProcessingManager {
     });
   }
 
-  Future<void> _convertPdfToPage(
-    pdfr.PdfDocument doc,
+  Future<void> _renderPdfPage(
+    pdfrx.PdfPage page,
     int docIndex,
     int pageIndex,
     int firstPageIndex,
   ) async {
-    final page = await doc.getPage(pageIndex + 1);
     // render Page at 300 DPI (max 4048 pixel)
     const targetDpi = 300;
     const defaultAssumedDpi = 72;
@@ -1379,18 +1382,12 @@ class ImageProcessingManager {
       return;
     }
     final renderedPage = await page.render(
-      width: (page.width * limitingScale * dpiScale).toInt(),
-      height: (page.height * limitingScale * dpiScale).toInt(),
+      fullWidth: (page.width * limitingScale * dpiScale),
+      fullHeight: (page.height * limitingScale * dpiScale),
     );
-    // -> Uint8List
-    final ui.Image uiImage = await renderedPage.createImageDetached();
-    final ByteData? byteData = await uiImage.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    if (byteData == null) {
-      throw Exception("Failed to get byte data from image");
-    }
-    final pngBytes = byteData.buffer.asUint8List();
+    // Uint8List, PNG
+    final img.Image pageImage = renderedPage!.createImageNF();
+    final Uint8List pngBytes = Uint8List.fromList(img.encodePng(pageImage));
     // Processing
     if (await _pdfProcessingExitpoint(
       docIndex,

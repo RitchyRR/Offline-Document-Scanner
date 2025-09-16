@@ -47,7 +47,7 @@ dependencies:
   url_launcher:
   package_info_plus:
   collection:
-  pdf_render:
+  pdfrx:
   crypto:
   synchronized:
 

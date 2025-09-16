@@ -291,7 +291,7 @@ class FilesHelper {
     int docIndex,
     int pageIndex,
     int versionIndex,
-    Uint8List imageBytes,
+    Uint8List pngBytes,
     String imageExtension,
   ) async {
     await _initializeDocumentsPath();
@@ -324,7 +324,7 @@ class FilesHelper {
     //);
     final Uint8List compressedPngBytes =
         await FlutterImageCompress.compressWithList(
-          imageBytes,
+          pngBytes,
           minWidth: AppGlobals.maxPhotoSize,
           minHeight: AppGlobals.maxPhotoSize,
           format: CompressFormat.png,
@@ -892,6 +892,9 @@ class FilesHelper {
       }
     });
     int firstPageIndex = (await _reserveNewPage(docIndex)).$2;
+    if (importedPdf) {
+      MetadataHelper.writePageImportedPdf(docIndex, firstPageIndex, true);
+    }
     afterFirst.complete();
     return firstPageIndex;
   }
@@ -996,7 +999,11 @@ class FilesHelper {
     await Directory(tmpDocPath).rename(newPath);
   }
 
-  Future<void> movePageIndex(int docIndex, int currentIndex, int newIndex) async {
+  Future<void> movePageIndex(
+    int docIndex,
+    int currentIndex,
+    int newIndex,
+  ) async {
     String currentPath = await getPagePath(docIndex, currentIndex);
     String tmpPagePath;
     (tmpPagePath, _) = await _reserveNewPage(docIndex);
