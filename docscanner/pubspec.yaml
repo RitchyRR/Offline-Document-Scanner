@@ -6,7 +6,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 2.3.1+168 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
 
 # ! After every "flutter pub get"
-# ! run "dart run pdfrx:remove_wasm_modules"
+# ! "dart run pdfrx:remove_wasm_modules"
 # ! before building for release
 
 environment:
