@@ -69,7 +69,7 @@ class IsolatesManager {
     _startPinger();
   }
 
-  _startPinger() async {
+  Future<void> _startPinger() async {
     Timer? pingCheckTimer;
     final pingPort = ReceivePort();
     var lastPing = DateTime.now();
@@ -121,7 +121,7 @@ class IsolatesManager {
     });
   }
 
-  static _isolatePinger<T>(SendPort sendPing) async {
+  static Future<void> _isolatePinger<T>(SendPort sendPing) async {
     Timer.periodic(Duration(seconds: 1), (timer) {
       sendPing.send(true);
     });
@@ -301,7 +301,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         });
   }
 
-  void onBadExit(e) {
+  void onBadExit(dynamic e) {
     if (_cleanedUp) return;
     _cleanup?.call("error");
     Object error = e;
@@ -324,7 +324,7 @@ class _Worker<T> {
   Isolate? isolate;
   _QueuedTask<T>? task;
   bool isBusy = false;
-  reset() {
+  void reset() {
     isolate = null;
     task = null;
   }

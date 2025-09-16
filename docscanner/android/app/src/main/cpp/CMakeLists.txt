@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_VISIBILITY_PRESET default)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
+set(ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON)
 
 # OpenCV, Android
 set(OpenCV_DIR "/home/rr/Android/OpenCV-android-sdk/sdk/native/jni")

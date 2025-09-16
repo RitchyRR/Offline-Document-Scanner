@@ -494,7 +494,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   bool _receivingIntentInitilaized = false;
-  _initReceiveSharingIntent() {
+  void _initReceiveSharingIntent() {
     if (_receivingIntentInitilaized) return;
     _receivingIntentInitilaized = true;
     // App launched by Opening/Sharing image(s)/pdf
@@ -2163,7 +2163,7 @@ Future<bool> proPopup(BuildContext context) async {
   return false;
 }
 
-setPro(final bool proUnlockedIn) async {
+Future<void> setPro(final bool proUnlockedIn) async {
   if (proUnlockedIn && !await feedbackHelper.isAppValid()) {
     setPro(false);
     return;
@@ -2348,7 +2348,7 @@ class _PagesState extends State<Pages> with RouteAware {
 
   bool selectAllButtonUsed = true;
   String? _docName;
-  _initAsync() async {
+  Future<void> _initAsync() async {
     // Set Title to Doc Name
     _docName = await g.metadataHelper.readDocName(widget.docIndex);
     _checkEditHints();
@@ -2566,7 +2566,7 @@ class _PagesState extends State<Pages> with RouteAware {
   bool _selectMode = false;
   List<int> _selectedPages = [];
 
-  _selectPage(int index) {
+  void _selectPage(int index) {
     if (_selectedPages.contains(index)) {
       _selectedPages.remove(index);
     } else {
@@ -2617,7 +2617,7 @@ class _PagesState extends State<Pages> with RouteAware {
     setState(() {});
   }
 
-  _setSelectAllButtonUsed(bool set) async {
+  Future<void> _setSelectAllButtonUsed(bool set) async {
     if (set == selectAllButtonUsed) return;
     selectAllButtonUsed = set;
     final prefs = await SharedPreferences.getInstance();
@@ -2629,14 +2629,14 @@ class _PagesState extends State<Pages> with RouteAware {
   }
 
   bool? _gridView;
-  _loadGridView() async {
+  Future<void> _loadGridView() async {
     if (_gridView != null) return;
     final prefs = await SharedPreferences.getInstance();
     _gridView = prefs.getBool("gridView") ?? false;
     setState(() {});
   }
 
-  _toggleGridView() async {
+  Future<void> _toggleGridView() async {
     if (_gridView == null) return;
     _gridView = !_gridView!;
     _scrollController.reset();
@@ -2645,7 +2645,7 @@ class _PagesState extends State<Pages> with RouteAware {
     prefs.setBool("gridView", _gridView!);
   }
 
-  _selectAll() async {
+  Future<void> _selectAll() async {
     _setSelectAllButtonUsed(true);
 
     final lengthBefore = _selectedPages.length;
@@ -2666,7 +2666,7 @@ class _PagesState extends State<Pages> with RouteAware {
     }
   }
 
-  _cancelSelectMode() {
+  void _cancelSelectMode() {
     HapticFeedback.lightImpact();
     _selectedPages.clear();
     _selectMode = false;
@@ -3909,7 +3909,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   double _maxScroll = 0.0;
-  _setMaxScroll({bool jump = false}) async {
+  Future<void> _setMaxScroll({bool jump = false}) async {
     if (!widget.controller.hasClients ||
         !widget.controller.position.hasContentDimensions) {
       return;
@@ -3944,7 +3944,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   List<double> _ratios = [];
-  _setRatios() {
+  void _setRatios() {
     final List<double> priorRatios = List<double>.from(_ratios);
     if (widget.pageAspectRatios.isEmpty) return;
     _ratios = List<double>.generate(
@@ -5499,7 +5499,7 @@ class PagePreviewState extends State<PagePreview> {
     );
   }
 
-  _enableEditingForImportedPdfPagePopup(BuildContext context) async {
+  Future<void> _enableEditingForImportedPdfPagePopup(BuildContext context) async {
     bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -6855,7 +6855,7 @@ class _WarpState extends State<Warp> {
     _cornersHistoryIndex = 0;
   }
 
-  _saveCorners() {
+  void _saveCorners() {
     for (var (i, scaledPoint) in _screenSpaceCorners.indexed) {
       widget.cornerPoints[i] = [
         (scaledPoint.dy / _screenSpaceScale).toInt(),
@@ -9106,7 +9106,7 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  _openFullscreenViewer(
+  Future<void> _openFullscreenViewer(
     int initialIndex,
     Function(void Function()) setStateGallery,
   ) async {

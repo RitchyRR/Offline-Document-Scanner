@@ -24,7 +24,7 @@ class FeedbackHelper {
   FeedbackHelper() {
     initAsync();
   }
-  initAsync() async {
+  Future<void> initAsync() async {
     await _readFeedbackState();
     _reenableRatingsAfterTwoWeeks();
   }
@@ -49,7 +49,7 @@ class FeedbackHelper {
     }
   }
 
-  _writeFeedbackState() async {
+  Future<void> _writeFeedbackState() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString("FeedbackState", state.name);
   }
@@ -99,7 +99,7 @@ class FeedbackHelper {
     _writeFeedbackState();
   }
 
-  _reenableRatingsAfterTwoWeeks() async {
+  Future<void> _reenableRatingsAfterTwoWeeks() async {
     if (state != FeedbackState.hidden) return;
     final prefs = await SharedPreferences.getInstance();
     int? rating = prefs.getInt("rating");

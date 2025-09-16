@@ -494,7 +494,7 @@ class FilesHelper {
     return (thumbnailPaths, pagesCount);
   }
 
-  repairAll() async {
+  Future<void> repairAll() async {
     StackTrace? stackTrace = StackTrace.current;
     await _initializeDocumentsPath();
     var i = 0;
@@ -957,7 +957,7 @@ class FilesHelper {
     return "";
   }
 
-  moveDocumentIndex(int currentIndex, int newIndex) async {
+  Future<void> moveDocumentIndex(int currentIndex, int newIndex) async {
     String currentPath = await getDocumentPath(currentIndex);
     String tmpDocPath;
     (tmpDocPath, _) = await _reserveNewDocument();
@@ -996,7 +996,7 @@ class FilesHelper {
     await Directory(tmpDocPath).rename(newPath);
   }
 
-  movePageIndex(int docIndex, int currentIndex, int newIndex) async {
+  Future<void> movePageIndex(int docIndex, int currentIndex, int newIndex) async {
     String currentPath = await getPagePath(docIndex, currentIndex);
     String tmpPagePath;
     (tmpPagePath, _) = await _reserveNewPage(docIndex);
