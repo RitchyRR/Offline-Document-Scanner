@@ -5,8 +5,8 @@
       "includePath": [
         "${workspaceFolder}/**",
         "/home/rr/Android/OpenCV-android-sdk/sdk/native/jni/include",
-        "/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include",
-        "/home/rr/Android/Sdk/ndk/29.0.13113456/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1"
+        "/home/rr/Android/Sdk/ndk/29.0.14033849/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include",
+        "/home/rr/Android/Sdk/ndk/29.0.14033849/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1"
       ],
       "defines": [],
       "compilerPath": "/usr/bin/clang",

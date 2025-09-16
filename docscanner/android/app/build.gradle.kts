@@ -18,18 +18,17 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.docscanner"
     compileSdk = 36 //flutter.compileSdkVersion
-    ndkVersion = "29.0.13113456" //flutter.ndkVersion
-
-
+    //ndkVersion = "29.0.14033849" //flutter.ndkVersion
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
+    
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
-
+    
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.rrapps.docscanner"
@@ -42,12 +41,14 @@ android {
 
         externalNativeBuild {
             cmake {
-                //, "x86_64"
-                abiFilters += listOf("arm64-v8a") 
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
             }
         }
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
-
+    
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
