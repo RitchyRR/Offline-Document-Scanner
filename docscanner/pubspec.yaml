@@ -5,6 +5,10 @@ description: "An offline Document Scanner."
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 2.2.18+166 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
 
+# ! After every "flutter pub get"
+# ! run "dart run pdfrx:remove_wasm_modules"
+# ! before building for release
+
 environment:
   sdk: ^3.8.0
 
