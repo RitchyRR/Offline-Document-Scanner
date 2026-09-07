@@ -1,9 +1,10 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -17,42 +18,36 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.example.docscanner"
-    compileSdk = 36 //flutter.compileSdkVersion
+    compileSdk = 37 //flutter.compileSdkVersion
     ndkVersion = "29.0.14033849" //flutter.ndkVersion
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-    
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.rrapps.docscanner"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 30 //flutter.minSdkVersion
-        targetSdk = 36 //flutter.targetSdkVersion
+        targetSdk = 37 //flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
+        
         externalNativeBuild {
             cmake {
                 arguments += listOf(
-                "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
-                "-DANDROID_TOOLCHAIN=clang"
-            )
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                    "-DANDROID_TOOLCHAIN=clang"
+                )
                 abiFilters += listOf("arm64-v8a", "armeabi-v7a")
             }
         }
+
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
-    
+
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
@@ -61,7 +56,7 @@ android {
             storePassword = keystoreProperties["storePassword"] as String?
         }
     }
-    
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
@@ -73,11 +68,17 @@ android {
             path = file("src/main/cpp/CMakeLists.txt")
         }
     }
-
-    packagingOptions {
+    
+    packaging {
         jniLibs {
             useLegacyPackaging = false
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 

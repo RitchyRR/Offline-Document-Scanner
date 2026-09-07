@@ -3,11 +3,7 @@ description: "An offline Document Scanner."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 2.3.1+168 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
-
-# ! After every "flutter pub get"
-# ! "dart run pdfrx:remove_wasm_modules"
-# ! before building for release
+version: 2.3.2+169 # Zahl nach + ist "Versionscode", muss jedes Mal erhöht werden
 
 environment:
   sdk: ^3.8.0
@@ -17,7 +13,7 @@ dependencies:
     sdk: flutter
   ffi:
   # design:
-  dynamic_color:
+  dynamic_color: 1.8.1
   photo_view:
   flutter_staggered_grid_view:
   # image handling:
@@ -37,7 +33,7 @@ dependencies:
   camera_android_camerax:
   camera_platform_interface:
   # google:
-  in_app_purchase:
+  in_app_purchase: ^3.3.0
   google_mobile_ads:
   # localisation:
   easy_localization:

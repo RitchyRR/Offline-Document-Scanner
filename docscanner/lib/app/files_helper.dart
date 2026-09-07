@@ -1495,7 +1495,7 @@ class FilesHelper {
     String? pdfPath;
     if (pdf != null) {
       try {
-        pdfPath = await FilePicker.platform.saveFile(
+        pdfPath = await FilePicker.saveFile(
           fileName: docFileName,
           type: FileType.custom,
           allowedExtensions: ["pdf"],
@@ -1809,7 +1809,7 @@ class FilesHelper {
     isTmpExternal = true;
     FilePickerResult? filePickerResult;
     try {
-      filePickerResult = await FilePicker.platform.pickFiles(
+      filePickerResult = await FilePicker.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
         allowedExtensions: ["pdf"],
@@ -1868,7 +1868,7 @@ class FilesHelper {
     final fileName = "error_log_$now.txt";
 
     isTmpExternal = true;
-    final String? filePath = await FilePicker.platform.saveFile(
+    final String? filePath = await FilePicker.saveFile(
       fileName: fileName,
       dialogTitle: "Select Error-Log Folder",
       bytes: logFile.readAsBytesSync(),
