@@ -22,7 +22,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart'
     show SharedPreferences;
 // images:
-import 'package:flutter_image_compress/flutter_image_compress.dart'
+import 'package:flutter_image_compress_lite/flutter_image_compress_lite.dart'
     show FlutterImageCompress, CompressFormat;
 // pdf:
 import 'package:pdf/pdf.dart' as pdf;
@@ -1492,7 +1492,7 @@ class FilesHelper {
     );
     // Ask user to pick a folder
     isTmpExternal = true;
-    String? pdfPath;
+    Uri? pdfPath;
     if (pdf != null) {
       try {
         pdfPath = await FilePicker.saveFile(
@@ -1528,10 +1528,10 @@ class FilesHelper {
 
     // Saved Toast
     const String basePath = "/document/primary:";
-    final int filenamePos = pdfPath.lastIndexOf("/");
-    final String readablePath = pdfPath.startsWith(basePath)
-        ? pdfPath.substring(basePath.length, filenamePos)
-        : pdfPath;
+    final int filenamePos = pdfPath.path.lastIndexOf("/");
+    final String readablePath = pdfPath.path.startsWith(basePath)
+        ? pdfPath.path.substring(basePath.length, filenamePos)
+        : pdfPath.path;
     dev.log("PDF saved at: $readablePath");
     Fluttertoast.showToast(
       msg: tr("toast.pdfSaved", namedArgs: {"path": readablePath}),
@@ -1807,10 +1807,9 @@ class FilesHelper {
     if (isTmpExternal) return indexPairsList;
     // User picks PDF
     isTmpExternal = true;
-    FilePickerResult? filePickerResult;
+    List<PlatformFile> filePickerResult;
     try {
       filePickerResult = await FilePicker.pickFiles(
-        allowMultiple: true,
         type: FileType.custom,
         allowedExtensions: ["pdf"],
       );
@@ -1820,13 +1819,13 @@ class FilesHelper {
       throw StateError("Error, pickPdfToDocument: $e");
     }
 
-    if (filePickerResult == null) {
+    if (filePickerResult.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
       isTmpExternal = false;
       return indexPairsList;
     }
-    List<File> pickedFiles = filePickerResult.paths
-        .map((path) => File(path!))
+    List<File> pickedFiles = filePickerResult
+        .map((path) => File(path.path!))
         .toList();
     if (pickedFiles.isEmpty) {
       dev.log("User-Error, pickPdfToDocument: cancelled");
@@ -1868,7 +1867,7 @@ class FilesHelper {
     final fileName = "error_log_$now.txt";
 
     isTmpExternal = true;
-    final String? filePath = await FilePicker.saveFile(
+    final Uri? filePath = await FilePicker.saveFile(
       fileName: fileName,
       dialogTitle: "Select Error-Log Folder",
       bytes: logFile.readAsBytesSync(),

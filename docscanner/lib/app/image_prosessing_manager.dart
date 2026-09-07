@@ -2,7 +2,7 @@ import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:docscanner/app/files_helper.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart'
+import 'package:flutter_image_compress_lite/flutter_image_compress_lite.dart'
     show FlutterImageCompress, CompressFormat;
 import 'dart:io';
 import 'dart:async';
@@ -1783,7 +1783,7 @@ class ImageProcessingManager {
         minHeight: AppGlobals.maxPhotoSize,
       );
 
-      if (resultBytes == null) {
+      if (resultBytes.isEmpty) {
         throw Exception(
           "Error, _compressAndReplacePng: compressWithFile failed",
         );

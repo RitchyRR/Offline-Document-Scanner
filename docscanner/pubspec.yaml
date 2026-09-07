@@ -13,13 +13,13 @@ dependencies:
     sdk: flutter
   ffi:
   # design:
-  dynamic_color: 1.8.1
+  dynamic_color:
   photo_view:
   flutter_staggered_grid_view:
   # image handling:
   path_provider:
   path:
-  image_picker: ^1.1.2
+  image_picker:
   gal: # save to gallery
   share_plus: # share files
   pdf:
@@ -27,13 +27,13 @@ dependencies:
   image:
   receive_sharing_intent:
   # image processing:
-  flutter_image_compress:
+  flutter_image_compress_lite:
   # camera:
   camera:
   camera_android_camerax:
   camera_platform_interface:
   # google:
-  in_app_purchase: ^3.3.0
+  in_app_purchase:
   google_mobile_ads:
   # localisation:
   easy_localization:
@@ -41,7 +41,7 @@ dependencies:
   provider: # NotifierProvider
   fluttertoast:
   encrypt:
-  flutter_secure_storage: ^9.0.0
+  flutter_secure_storage:
   shared_preferences:
   permission_handler:
   url_launcher:

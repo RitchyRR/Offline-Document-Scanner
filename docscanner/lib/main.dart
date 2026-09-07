@@ -1,6 +1,7 @@
 // my packages:
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import 'app/app_globals.dart';
 import 'app/metadata_helper.dart';
@@ -2779,7 +2780,7 @@ class _PagesState extends State<Pages> with RouteAware {
                     ? ListView.builder(
                         padding: EdgeInsets.fromLTRB(15, 6, 15, 24),
                         controller: _scrollController,
-                        cacheExtent: 1000,
+                        scrollCacheExtent: ScrollCacheExtent.viewport(2),
                         itemCount: _displayPagesCount,
                         itemBuilder: (BuildContext context, int pageIndex) {
                           final displayPageIndex = pageIndex + 1;
@@ -8862,7 +8863,7 @@ class _CameraScreenState extends State<CameraScreen> {
           return Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
             child: GridView.builder(
-              cacheExtent: 1000,
+              scrollCacheExtent: ScrollCacheExtent.viewport(2),
               addRepaintBoundaries: false,
               itemCount: _capturedImages.length + 3,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
