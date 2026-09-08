@@ -4260,6 +4260,7 @@ class PagePreviewState extends State<PagePreview> {
   double? _initialPhotoScale;
   // Status
   bool _isRotating = false;
+  bool _rotateBlocked = true;
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
@@ -4447,14 +4448,8 @@ class PagePreviewState extends State<PagePreview> {
             _versionPaths[i] = _photoPath = polledPath;
             _refreshCornersOverlay(supressWarnings: true);
 
-            await imageProcessingManager.deleteRotatedPhotos();
-            // Preload rotated photo
-            _rotatedPhotoPaths = await imageProcessingManager
-                .rotatePhotoInTmpDir(
-                  _photoPath,
-                  widget.docIndex,
-                  widget.pageIndex,
-                );
+            await _preloadRotatedPhotos(thisProcessingIndex);
+            if (thisProcessingIndex != _processingIndex || !mounted) return;
           } else {
             _versionPaths[i] = polledPath;
           }
@@ -4469,6 +4464,29 @@ class PagePreviewState extends State<PagePreview> {
     setState(() {
       _versionLoading;
     });
+  }
+
+  Future<void> _preloadRotatedPhotos(int processingIndex) async {
+    _rotateBlocked = true;
+    if (mounted) setState(() {});
+
+    await imageProcessingManager.deleteRotatedPhotos();
+    final rotatedPhotoPaths = await imageProcessingManager.rotatePhotoInTmpDir(
+      _photoPath,
+      widget.docIndex,
+      widget.pageIndex,
+    );
+
+    while (mounted &&
+        processingIndex == _processingIndex &&
+        !rotatedPhotoPaths.every((path) => File(path).existsSync())) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
+    if (!mounted || processingIndex != _processingIndex) return;
+    _rotatedPhotoPaths = rotatedPhotoPaths;
+    _rotateBlocked = false;
+    setState(() {});
   }
 
   void _pollWhile({
@@ -4545,6 +4563,7 @@ class PagePreviewState extends State<PagePreview> {
     _processingIndex++;
     _hideOverlayReprocessing = true;
     _metadataBlocked = true;
+    _rotateBlocked = true;
     _ratioValue = null; // don't reset _new values, for uninterrupted display
     _orientationIndex = null;
     setState(() {});
@@ -5255,7 +5274,8 @@ class PagePreviewState extends State<PagePreview> {
     return CustomIconButton(
       width: 42,
       height: 42,
-      isDisabled: _versionPaths.first.isEmpty || _metadataBlocked,
+      isDisabled:
+          _versionPaths.first.isEmpty || _metadataBlocked || _rotateBlocked,
       onTap: () {
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;

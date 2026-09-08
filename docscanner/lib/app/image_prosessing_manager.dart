@@ -1748,12 +1748,13 @@ class ImageProcessingManager {
     for (var angle = 90; angle <= 270; angle += 90) {
       paths.add("${tmpDir.path}/rotated_$angle.png");
     }
-    await FilesHelper.deleteImagePaths(paths);
-    for (var killer in rotatePhotoKillers) {
-      killer.kill();
+    final killers = List<TaskKiller>.from(rotatePhotoKillers);
+    rotatePhotoKillers.clear();
+    for (var killer in killers) {
       taskKillers.removeWhere((element) => element.$2 == killer);
     }
-    rotatePhotoKillers.clear();
+    await Future.wait(killers.map((killer) => killer.kill()));
+    await FilesHelper.deleteImagePaths(paths);
   }
 
   static Future<bool> _compressAndReplacePng({
