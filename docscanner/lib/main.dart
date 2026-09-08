@@ -4259,7 +4259,6 @@ class PagePreviewState extends State<PagePreview> {
   bool _overlayZoomed = false;
   double? _initialPhotoScale;
   // Status
-  bool _isRotating = false;
   bool _rotateBlocked = true;
   bool _metadataBlocked = true;
   // PageView
@@ -4688,9 +4687,7 @@ class PagePreviewState extends State<PagePreview> {
             (_orientationIndex == _guiOrientationIndex)) &&
         _totalRotation == 0);
     bool enableFAB0 =
-        _versionPaths.first.isNotEmpty &&
-        !_versionLoading[_selectedVersion] &&
-        !_isRotating;
+        _versionPaths.first.isNotEmpty && !_versionLoading[_selectedVersion];
     bool enableFABs = _selectedVersion == 0
         ? (enableFAB0 && noReprocessingChanges)
         : _versionPaths[_selectedVersion].isNotEmpty &&
@@ -4878,21 +4875,6 @@ class PagePreviewState extends State<PagePreview> {
 
                           // Corner Points
                           _displayCornersOverlay(context),
-
-                          if (_isRotating)
-                            Positioned.fill(
-                              child: Material(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHigh
-                                    .withAlpha(150),
-                                child: Center(
-                                  child: IndicatorProcessingImage(
-                                    text: tr("loading.rotating"),
-                                  ),
-                                ),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -5281,37 +5263,15 @@ class PagePreviewState extends State<PagePreview> {
         int quarterTurns = _totalRotation ~/ 90;
         _currentPhotoScale = 0.0;
         _initialPhotoScale = null;
-        _isRotating = true;
         _guiOrientationIndex = // toggle
             ((_guiOrientationIndex ?? 0) - 1) * (-1);
         _guiRatioValue = 1.0 / _guiRatioValue!;
-        setState(() {});
         if (_totalRotation == 0) {
           _versionPaths[0] = _photoPath;
-          _isRotating = false;
-          setState(() {});
         } else {
-          Future<void> pollRoatedPhoto() async {
-            while (_rotatedPhotoPaths.length <= quarterTurns - 1 ||
-                !File(_rotatedPhotoPaths[quarterTurns - 1]).existsSync() &&
-                    quarterTurns == _totalRotation ~/ 90) {
-              await Future.delayed(Duration(milliseconds: 100));
-            }
-            if (quarterTurns == _totalRotation ~/ 90) {
-              // if polling for correct rotation
-              _versionPaths[0] = _rotatedPhotoPaths[quarterTurns - 1];
-              _isRotating = false;
-              if (mounted) setState(() {});
-            }
-          }
-
-          pollRoatedPhoto();
-          imageProcessingManager.changePrioForIsolatesOfPage(
-            widget.docIndex,
-            widget.pageIndex,
-            IsolatePriority.immediate,
-          );
+          _versionPaths[0] = _rotatedPhotoPaths[quarterTurns - 1];
         }
+        setState(() {});
       },
       isFlat: true,
       //isDisabled: _rotationOngoing,
@@ -5337,7 +5297,6 @@ class PagePreviewState extends State<PagePreview> {
         iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
         isDisabled:
             _metadataBlocked ||
-            _isRotating ||
             _versionPaths.isEmpty ||
             _versionPaths.first.isEmpty ||
             !File(_versionPaths.first).existsSync(),
@@ -5699,7 +5658,6 @@ class PagePreviewState extends State<PagePreview> {
     if (_importedPdfMode ||
         (_cornerPoints == null || _cornerPoints!.isEmpty) ||
         _currentPhotoScale == 0.0 ||
-        _isRotating ||
         _hideOverlayReprocessing ||
         _overlayZoomed ||
         _imagePixelHeight == 0 ||
