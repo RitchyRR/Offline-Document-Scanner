@@ -609,7 +609,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       supressWarnings: supressWarnings,
     );
 
-    if (mounted) {
+    if (mounted && loadGeneration == _thumbnailLoadGeneration) {
       setState(() {});
     }
   }

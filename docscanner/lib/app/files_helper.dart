@@ -68,6 +68,18 @@ class FilesHelper {
     return selectedPath;
   }
 
+  String? _latestThumbnailPath(Iterable<FileSystemEntity> files) {
+    String? selectedPath;
+    for (var file in files) {
+      final String path = file.path;
+      if (!path.contains("thumbnail") || !File(path).existsSync()) continue;
+      if (selectedPath == null || path.compareTo(selectedPath) > 0) {
+        selectedPath = path;
+      }
+    }
+    return selectedPath;
+  }
+
   Future<List<int>> getMarkedDeletedPages(int docIndex) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
@@ -425,12 +437,9 @@ class FilesHelper {
         0,
         supressWarnings: true,
       );
-      final thumbnailName = "thumbnail";
       final backupName = thumbnailIndex != null
           ? versionNamesInternal[thumbnailIndex]
           : null;
-      String? thumbnailPath;
-      String? backupPath;
       List<FileSystemEntity> versions = [];
       try {
         versions = (Directory(page0Path).listSync()
@@ -438,13 +447,10 @@ class FilesHelper {
       } catch (e) {
         dev.log("Error: getDocThumbnails: $e");
       }
-      for (var version in versions) {
-        if (version.path.contains(thumbnailName)) {
-          thumbnailPath = version.path;
-        } else if (backupName != null && version.path.contains(backupName)) {
-          backupPath = version.path;
-        }
-      }
+      final String? thumbnailPath = _latestThumbnailPath(versions);
+      final String? backupPath = backupName == null
+          ? null
+          : _latestVersionPath(versions, backupName);
       if (thumbnailPath != null) {
         thumbnailPaths[docIndex] = thumbnailPath;
         if (backupPath != null) {
@@ -489,21 +495,14 @@ class FilesHelper {
           ? versionNamesInternal[thumbnailIndex]
           : null;
       if (versionName == null) continue;
-      final thumbnailName = "thumbnail";
       // Find Thumbnail or versionName Image
       String? thumbnailPath;
       String? backupPath;
       try {
         List<FileSystemEntity> versions = Directory(pagePath).listSync()
           ..sort((a, b) => a.path.compareTo(b.path));
-        for (var version in versions) {
-          if (!fullSized && version.path.contains(thumbnailName)) {
-            thumbnailPath = version.path;
-          } else if (version.path.contains(versionName) &&
-              !version.path.contains(thumbnailName)) {
-            backupPath = version.path;
-          }
-        }
+        if (!fullSized) thumbnailPath = _latestThumbnailPath(versions);
+        backupPath = _latestVersionPath(versions, versionName);
         if (thumbnailPath != null) {
           thumbnailPaths[pageIndexes.indexOf(pageIndex)] = thumbnailPath;
           if (backupPath != null) {
