@@ -4413,24 +4413,30 @@ class PagePreviewState extends State<PagePreview> {
   }
 
   int _processingIndex = 0;
-  void _pollImages() {
+  void _pollImages({Future<void>? processingFuture}) {
     // Poll Images
     final int thisProcessingIndex = _processingIndex;
     int completedCount = 0;
     bool photoWasRotated = _totalRotation != 0;
     for (int i = 0; i < _versionPaths.length; i++) {
+      final String previousPath = _versionPaths[i];
+      final bool waitForReplacement = processingFuture != null;
       String polledPath = "";
       _versionLoading[i] = true;
       _pollWhile(
         pollWhileCondition: () {
           return thisProcessingIndex == _processingIndex &&
-              !((polledPath.isNotEmpty && _versionPaths[i].isEmpty) ||
+              !((polledPath.isNotEmpty &&
+                      _versionPaths[i].isEmpty &&
+                      !polledPath.contains("_uncompressed")) ||
                   (polledPath.isNotEmpty &&
                       File(polledPath).existsSync() &&
                       (i == 0
                           ? polledPath != _photoPath && _totalRotation == 0 ||
                                 !photoWasRotated
-                          : polledPath != _versionPaths[i])));
+                          : !polledPath.contains("_uncompressed") &&
+                                (!waitForReplacement ||
+                                    polledPath != previousPath))));
         },
         onTick: () async {
           polledPath = await g.filesHelper.getVersionPath(
@@ -4439,6 +4445,14 @@ class PagePreviewState extends State<PagePreview> {
             i,
             supressWarnings: true,
           );
+          if (i != 0 &&
+              polledPath.isNotEmpty &&
+              File(polledPath).existsSync() &&
+              _versionPaths[i] != polledPath) {
+            _versionPaths[i] = polledPath;
+            _versionLoading[i] = false;
+            if (mounted) setState(() {});
+          }
         },
         onComplete: () async {
           if (thisProcessingIndex != _processingIndex || !mounted) return;
@@ -4447,6 +4461,12 @@ class PagePreviewState extends State<PagePreview> {
             _versionPaths[i] = _photoPath = polledPath;
             _refreshCornersOverlay(supressWarnings: true);
 
+            if (processingFuture != null) {
+              await processingFuture;
+              if (thisProcessingIndex != _processingIndex || !mounted) {
+                return;
+              }
+            }
             await _preloadRotatedPhotos(thisProcessingIndex);
             if (thisProcessingIndex != _processingIndex || !mounted) return;
           } else {
@@ -4568,9 +4588,10 @@ class PagePreviewState extends State<PagePreview> {
     setState(() {});
   }
 
-  void _reprocessingCleanup() {
+  void _reprocessingCleanup(Future<void> processingFuture) {
     _refreshCornersOverlay();
-    _pollImagesAndMetadata();
+    _pollMetadata();
+    _pollImages(processingFuture: processingFuture);
     _totalRotation = 0;
     setState(() {});
   }
@@ -5390,6 +5411,7 @@ class PagePreviewState extends State<PagePreview> {
       onlyRotation = false;
     }
 
+    late Future<void> processingFuture;
     if (_importedPdfMode ||
         onlyRotation &&
             _versionPaths.every((path) => File(path).existsSync())) {
@@ -5400,14 +5422,14 @@ class PagePreviewState extends State<PagePreview> {
           newCornerPoints,
         );
       }
-      imageProcessingManager.rotatePage(
+      processingFuture = imageProcessingManager.rotatePage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // rotated photo
         _totalRotation,
       );
     } else {
-      imageProcessingManager.reprocessPage(
+      processingFuture = imageProcessingManager.reprocessPage(
         widget.docIndex,
         widget.pageIndex,
         _versionPaths[0], // potentially rotated photo
@@ -5416,7 +5438,7 @@ class PagePreviewState extends State<PagePreview> {
         _totalRotation,
       );
     }
-    _reprocessingCleanup();
+    _reprocessingCleanup(processingFuture);
   }
 
   List<List<int>> rotateCornerPoints(List<List<int>> cornerPoints) {

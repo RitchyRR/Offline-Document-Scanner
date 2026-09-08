@@ -43,6 +43,31 @@ class FilesHelper {
   final List<List<int>> _markedDeletedPages = [];
   final List<int> _markedDeletedDocs = [];
 
+  String? _latestVersionPath(
+    Iterable<FileSystemEntity> files,
+    String versionName,
+  ) {
+    String? selectedPath;
+    String? selectedNormalizedPath;
+
+    for (var file in files) {
+      final String path = file.path;
+      if (!path.contains(versionName) || path.contains("thumbnail")) continue;
+
+      final String normalizedPath = path.replaceFirst("_uncompressed", "");
+      if (selectedPath == null ||
+          normalizedPath.compareTo(selectedNormalizedPath!) > 0 ||
+          normalizedPath == selectedNormalizedPath &&
+              selectedPath.contains("_uncompressed") &&
+              !path.contains("_uncompressed")) {
+        selectedPath = path;
+        selectedNormalizedPath = normalizedPath;
+      }
+    }
+
+    return selectedPath;
+  }
+
   Future<List<int>> getMarkedDeletedPages(int docIndex) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString("markedDeletedPages");
@@ -914,11 +939,11 @@ class FilesHelper {
         ..sort((a, b) => a.path.compareTo(b.path)));
       for (var fse in versionsFSE) {
         for (var (versionIndex, versionName) in versionNamesInternal.indexed) {
-          if (fse.path.contains(versionName) &&
-              !fse.path.contains("thumbnail")) {
-            versionPaths[versionIndex] = fse.path;
-            break;
-          }
+          final String? latestPath = _latestVersionPath(
+            versionsFSE,
+            versionName,
+          );
+          if (latestPath != null) versionPaths[versionIndex] = latestPath;
         }
         if (fse.path.contains("thumbnail")) {
           thumbnailPath = fse.path;
@@ -946,12 +971,11 @@ class FilesHelper {
     try {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
-      for (var fse in versionsFSE) {
-        if (fse.path.contains(versionNamesInternal[versionIndex]) &&
-            !fse.path.contains("thumbnail")) {
-          return fse.path;
-        }
-      }
+      return _latestVersionPath(
+            versionsFSE,
+            versionNamesInternal[versionIndex],
+          ) ??
+          "";
     } catch (e) {
       if (!supressWarnings) {
         dev.log("Warning, getVersionPath failed: $e");
