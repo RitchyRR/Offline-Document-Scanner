@@ -555,11 +555,14 @@ class _DocumentsHomeState extends State<DocumentsHome>
   List<double> _thumbnailRatios = [];
   int _docsCount = 0;
   int _displayDocsCount = 0;
+  int _thumbnailLoadGeneration = 0;
   Future<void> _loadDocsDisplay({bool onInit = false}) async {
+    final int loadGeneration = ++_thumbnailLoadGeneration;
     bool supressWarnings = onInit;
     // Thumbnails
     _deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
     final thumbs = await g.filesHelper.getDocThumbnails();
+    if (!mounted || loadGeneration != _thumbnailLoadGeneration) return;
     _docThumbnails = thumbs.$1;
     _docsCount = thumbs.$2;
     _displayDocsCount = _docsCount - _deletedDocs.length;
@@ -2330,6 +2333,7 @@ class _PagesState extends State<Pages> with RouteAware {
   List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
   int _displayPagesCount = 0;
+  int _thumbnailLoadGeneration = 0;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2423,15 +2427,18 @@ class _PagesState extends State<Pages> with RouteAware {
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
-  // didPopNext() triggers before PopScope is finished, use signals instead if possible
-  //@override
-  //Future<void> didPopNext() async {}
+  @override
+  void didPopNext() {
+    _loadPagesThumbnails();
+  }
 
   Future<void> _loadPagesThumbnails({
     bool onInit = false,
     bool supressWarnings = false,
   }) async {
+    final int loadGeneration = ++_thumbnailLoadGeneration;
     var thumbs = await g.filesHelper.getPagesThumbnails(widget.docIndex);
+    if (!mounted || loadGeneration != _thumbnailLoadGeneration) return;
     _pagesCount = thumbs.$2;
     List<String> thumbnailPaths = thumbs.$1;
     List<double> newRatios = List.generate(_pagesCount, (_) => math.sqrt1_2);
@@ -2451,6 +2458,7 @@ class _PagesState extends State<Pages> with RouteAware {
       thumbnailPaths,
       supressWarnings: supressWarnings,
     );
+    if (!mounted || loadGeneration != _thumbnailLoadGeneration) return;
     _displayPagesCount = _pagesCount - _deletedPages.length;
 
     if (_displayPagesCount <= 0) {

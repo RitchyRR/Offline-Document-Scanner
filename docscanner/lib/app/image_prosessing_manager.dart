@@ -1133,7 +1133,7 @@ class ImageProcessingManager {
       versionPath.lastIndexOf("."),
     );
 
-    // if overwriting -> delete existing thumbnail file
+    final List<String> oldThumbnailPaths = [];
     try {
       await isolateExitPoint(kill);
       for (FileSystemEntity fse in Directory(
@@ -1145,9 +1145,7 @@ class ImageProcessingManager {
             // Is same
             return false;
           } else {
-            // Overwrite
-            await isolateExitPoint(kill);
-            File(oldThumbnailPath).deleteSync();
+            oldThumbnailPaths.add(oldThumbnailPath);
           }
         }
       }
@@ -1164,6 +1162,14 @@ class ImageProcessingManager {
     String thumbnailPath = "$pagePath/${versionFileName}_thumbnail.png";
     imageProcessor.scaleImageToWidth(versionPath, thumbnailPath, newWidth);
     imageProcessor.dispose();
+
+    // Keep the previous thumbnail available until the replacement is complete.
+    for (final oldThumbnailPath in oldThumbnailPaths) {
+      await isolateExitPoint(kill);
+      if (File(oldThumbnailPath).existsSync()) {
+        File(oldThumbnailPath).deleteSync();
+      }
+    }
 
     try {
       // Update thumbnails:
