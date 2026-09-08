@@ -1748,7 +1748,7 @@ class ImageProcessingManager {
     for (var angle = 90; angle <= 270; angle += 90) {
       paths.add("${tmpDir.path}/rotated_$angle.png");
     }
-    FilesHelper.deleteImagePaths(paths);
+    await FilesHelper.deleteImagePaths(paths);
     for (var killer in rotatePhotoKillers) {
       killer.kill();
       taskKillers.removeWhere((element) => element.$2 == killer);
