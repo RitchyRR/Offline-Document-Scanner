@@ -164,13 +164,20 @@ class IsolatesManager {
           _tryStartNext();
         }
         // Task running -> kill / cleanup
-        else if (task._worker?.isolate != null) {
+        else if (task._worker != null) {
+          task._cancelRequested = true;
           task._cleanup?.call("kill");
           await task.exitCompleter.future;
         }
       },
       // changePrio
       (IsolatePriority newPrio) {
+        if (_taskQueue.remove(task)) {
+          task.prio = newPrio;
+          _taskQueue.add(task);
+          _tryStartNext();
+          return;
+        }
         task.prio = newPrio;
       },
       // setControlPort(SendPort controlPort)
@@ -195,19 +202,15 @@ class IsolatesManager {
   }
 
   void _tryStartNext() {
-    bool wasStarted = false; // for prio == IsolatePriority.immediate
     for (final worker in _workers) {
-      if (!worker.isBusy && _taskQueue.isNotEmpty) {
-        wasStarted = true;
-        final task = _taskQueue.removeFirst();
-        worker.isBusy = true;
-        worker.task = task;
-
-        task.startIsolate(worker);
-        break;
-      }
+      if (worker.isBusy || _taskQueue.isEmpty) continue;
+      final task = _taskQueue.removeFirst();
+      worker.isBusy = true;
+      worker.task = task;
+      task.startIsolate(worker);
     }
-    if (!wasStarted && _taskQueue.isNotEmpty) {
+
+    if (_taskQueue.isNotEmpty) {
       final task = _taskQueue.first;
       if (task.prio == IsolatePriority.immediate &&
           _workers.length < maxIsolates) {
@@ -234,6 +237,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   TaskKiller? killer;
   ReceivePort entryPointPort;
   SendPort? controlPort;
+  bool _cancelRequested = false;
 
   final exitCompleter = Completer();
   bool _exitCompleted = false;
@@ -311,8 +315,13 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
             dev.log("Killing isolate due to timeout: $maxRuntime");
             _cleanup!("timeout, ${maxRuntime.toString()}");
           });
+
+          if (_cancelRequested) {
+            _cleanup!("kill");
+          }
         })
         .catchError((e) {
+          workerIn.isBusy = false;
           workerIn.reset();
           onBadExit(e);
           _completeExit();
