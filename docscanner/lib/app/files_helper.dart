@@ -95,33 +95,41 @@ class FilesHelper {
     return _markedDeletedPages[docIndex];
   }
 
-  Future<void> _addMarkedDeletedPage(int docIndex, int pageIndex) async {
+  Future<void> _addMarkedDeletedPages(
+    int docIndex,
+    List<int> pageIndexes,
+  ) async {
+    if (pageIndexes.isEmpty) return;
+    await getMarkedDeletedPages(docIndex);
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
-    if (_markedDeletedPages[docIndex].contains(pageIndex)) return;
-    _markedDeletedPages[docIndex].add(pageIndex);
-    _markedDeletedPages[docIndex].sort();
+    final indexes = _markedDeletedPages[docIndex].toSet()..addAll(pageIndexes);
+    _markedDeletedPages[docIndex] = indexes.toList()..sort();
     _markedDeletedPages[docIndex] = _markedDeletedPages[docIndex].reversed
         .toList();
-    // prefs
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_markedDeletedPages);
-    await prefs.setString("markedDeletedPages", jsonString);
-    // signal
+    await prefs.setString(
+      "markedDeletedPages",
+      jsonEncode(_markedDeletedPages),
+    );
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
-  Future<void> _removeMarkedDeletedPage(int docIndex, int pageIndex) async {
+  Future<void> _removeMarkedDeletedPages(
+    int docIndex,
+    Iterable<int> pageIndexes,
+  ) async {
+    await getMarkedDeletedPages(docIndex);
     while (_markedDeletedPages.length <= docIndex) {
       _markedDeletedPages.add([]);
     }
-    //while (_markedDeletedPages[docIndex].contains(pageIndex)) {}
-    _markedDeletedPages[docIndex].remove(pageIndex);
-    // prefs
+    _markedDeletedPages[docIndex].removeWhere(pageIndexes.contains);
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_markedDeletedPages);
-    prefs.setString("markedDeletedPages", jsonString);
+    await prefs.setString(
+      "markedDeletedPages",
+      jsonEncode(_markedDeletedPages),
+    );
   }
 
   Future<List<int>> getMarkedDeletedDocs() async {
@@ -137,26 +145,23 @@ class FilesHelper {
   }
 
   Future<void> _addMarkedDeletedDoc(int docIndex) async {
+    await getMarkedDeletedDocs();
     if (_markedDeletedDocs.contains(docIndex)) return;
     _markedDeletedDocs.add(docIndex);
-    List<int> tmp = _markedDeletedDocs.toList();
-    tmp.sort();
-    _markedDeletedDocs.clear();
-    _markedDeletedDocs.addAll(tmp.reversed.toList());
-    // prefs
+    final sortedIndexes = _markedDeletedDocs.toList()..sort();
+    _markedDeletedDocs
+      ..clear()
+      ..addAll(sortedIndexes.reversed);
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_markedDeletedDocs);
-    await prefs.setString("markedDeletedDocs", jsonString);
-    // signal
+    await prefs.setString("markedDeletedDocs", jsonEncode(_markedDeletedDocs));
     globalNotifier.triggerEvent(NotifierEvent.imagesDeleted);
   }
 
   Future<void> _removeMarkedDeletedDoc(int docIndex) async {
+    await getMarkedDeletedDocs();
     _markedDeletedDocs.remove(docIndex);
-    // prefs
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(_markedDeletedDocs);
-    prefs.setString("markedDeletedDocs", jsonString);
+    await prefs.setString("markedDeletedDocs", jsonEncode(_markedDeletedDocs));
   }
 
   Future<void> _deleteMarkedDeleted() async {
@@ -181,10 +186,10 @@ class FilesHelper {
       pagesFutures.add(_deletePages(docIndex, pageIndexes));
     }
     await Future.wait(pagesFutures);
-    _markedDeletedDocs.clear;
-    _markedDeletedPages.clear;
-    prefs.setString("markedDeletedDocs", "[]");
-    prefs.setString("markedDeletedPages", "[]");
+    _markedDeletedDocs.clear();
+    _markedDeletedPages.clear();
+    await prefs.setString("markedDeletedDocs", "[]");
+    await prefs.setString("markedDeletedPages", "[]");
   }
 
   FilesHelper() : screenWidth = 1080 {
@@ -741,6 +746,10 @@ class FilesHelper {
       await higherIndexedDocsFuture;
     }
 
+    await _deleteDocumentFilesystem(docIndex, docPath);
+  }
+
+  Future<void> _deleteDocumentFilesystem(int docIndex, String docPath) async {
     final docsCount = await getDocumentsCount();
     // delete
     if (Directory(docPath).existsSync()) {
@@ -781,7 +790,6 @@ class FilesHelper {
     List<int> deletePageIndexes, {
     bool supressInfo = false,
   }) async {
-    final oldPagesCount = await getPagesCount(docIndex);
     if (deletePageIndexes.isEmpty) return;
     deletePageIndexes.sort();
     List<int> displayPageIndexes = [];
@@ -792,10 +800,8 @@ class FilesHelper {
 
     // Show deleted in Frontend
     // Kill Isolates of Pages
-    List<Future<void>> markDeletedFutures = [];
     List<Future<void>> killFutures = [];
     for (var pageIndex in deletePageIndexes) {
-      markDeletedFutures.add(_addMarkedDeletedPage(docIndex, pageIndex));
       killFutures.add(
         imageProcessingManager.killIsolatesOfPage(docIndex, pageIndex),
       );
@@ -816,40 +822,42 @@ class FilesHelper {
     // Await Isolates
     Future higherIndexedPagesFuture = imageProcessingManager
         .awaitIsolatesOfHigherIndexPages(docIndex, deletePageIndexes);
-    await Future.wait(markDeletedFutures);
+    await _addMarkedDeletedPages(docIndex, deletePageIndexes);
     await Future.wait(killFutures);
     await imageProcessingManager.pdfProcessingFutures[docIndex];
     await higherIndexedPagesFuture;
 
-    // Delete
-    List<String> deletedPagePaths = [];
-    for (var (i, deletePageIndex) in deletePageIndexes.indexed) {
-      deletedPagePaths.add(await getPagePath(docIndex, deletePageIndex));
-      final deletePageDir = Directory(deletedPagePaths[i]);
-      if (!deletePageDir.existsSync()) {
-        dev.log(
-          "Warning, deletePage: Document $docIndex, Page $deletePageIndex doesn't exist",
-        );
-      } else {
-        for (var file in deletePageDir.listSync(recursive: true)) {
-          imageCache.evict(FileImage(File(file.path)), includeLive: true);
+    for (var pageIndex in deletePageIndexes) {
+      final pageDirectory = Directory(
+        await getPagePath(docIndex, pageIndex, supressWarnings: true),
+      );
+      if (!pageDirectory.existsSync()) continue;
+      for (var file in pageDirectory.listSync(recursive: true)) {
+        if (file is File) {
+          imageCache.evict(FileImage(file), includeLive: true);
         }
-        // Delete
-        deletePageDir.deleteSync(recursive: true);
-        dev.log("_deletePages: Deleted page directory: ${deletedPagePaths[i]}");
       }
     }
 
-    // Rename all with higher pageIndex to close the gap
-    List<Future> removeMarkedDeletetedFutures = [];
-    int toI = deletePageIndexes.last; // pages are in reverse order
+    final oldPagesCount = await getPagesCount(docIndex);
+
+    for (var pageIndex in deletePageIndexes) {
+      final deletePageDir = Directory(
+        await getPagePath(docIndex, pageIndex, supressWarnings: true),
+      );
+      if (deletePageDir.existsSync()) {
+        await deletePageDir.delete(recursive: true);
+      }
+    }
+
+    final removedMarkerIndexes = <int>[...deletePageIndexes];
+    int toI = deletePageIndexes.last;
     int fromI = toI + 1;
     for (; fromI < oldPagesCount;) {
       final fromDir = Directory(
         await getPagePath(docIndex, fromI, supressWarnings: true),
       );
       if (fromDir.existsSync()) {
-        dev.log("Renaming Page $fromI -> $toI (in Document $docIndex)");
         final toDir = Directory(
           await getPagePath(docIndex, toI, supressWarnings: true),
         );
@@ -857,20 +865,20 @@ class FilesHelper {
           await toDir.delete(recursive: true);
         }
         await fromDir.rename(toDir.path);
-        removeMarkedDeletetedFutures.add(
-          _removeMarkedDeletedPage(docIndex, toI),
-        );
+        removedMarkerIndexes.add(toI);
         toI++;
       }
       fromI++;
     }
-    await Future.wait(removeMarkedDeletetedFutures);
+    await _removeMarkedDeletedPages(docIndex, removedMarkerIndexes);
 
-    // Check if document is now empty and delete it
     final newPagesCount = await getPagesCount(docIndex);
     if (newPagesCount == 0) {
       dev.log("Deleting empty Document $docIndex");
-      await _deleteDocument(docIndex, supressInfo: true);
+      await _deleteDocumentFilesystem(
+        docIndex,
+        await getDocumentPath(docIndex, supressWarnings: true),
+      );
       globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
     } else {
       globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
