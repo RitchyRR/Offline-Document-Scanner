@@ -61,6 +61,7 @@ class IsolatesManager {
   final List<_Worker> _workers = [];
   final HeapPriorityQueue<_QueuedTask<dynamic>> _taskQueue =
       HeapPriorityQueue<_QueuedTask<dynamic>>();
+  bool _recoveringFromWatchdog = false;
 
   Future<void> _init() async {
     for (int i = 0; i < baseNOfIsolates; i++) {
@@ -92,33 +93,48 @@ class IsolatesManager {
           pinger.kill(priority: Isolate.immediate);
           pingCheckTimer?.cancel();
           pingPort.close();
-          //todo cleanup all isolates and trigger _onBadExit
-          for (var task in _taskQueue.toList()) {
-            Future.delayed(Duration(seconds: 1), () {
-              task.onBadExit(
-                Exception(
-                  "Isolate missed ping. Likely killed by System, restarting all isolates.",
-                ),
-              );
-              _taskQueue.remove(task);
-            });
-          }
-          for (var worker in _workers) {
-            Future.delayed(Duration(seconds: 1), () {
-              //worker.isolate?.kill(priority: Isolate.immediate);
-              worker.task?.onBadExit(
-                Exception(
-                  "Isolate missed ping. Likely killed by System, restarting all isolates.",
-                ),
-              );
-              worker.reset();
-            });
-          }
-          _startPinger();
+          _recoverFromWatchdog();
         }
         lastCheckedTime = now;
       });
     });
+  }
+
+  void _recoverFromWatchdog() {
+    if (_recoveringFromWatchdog) return;
+    _recoveringFromWatchdog = true;
+
+    final error = Exception(
+      "Isolate missed ping. Likely killed by System, restarting all isolates.",
+    );
+
+    for (final task in _taskQueue.toList()) {
+      _taskQueue.remove(task);
+      task.onBadExit(error);
+      task._cleanedUp = true;
+      task._completeExit();
+    }
+
+    for (final worker in List<_Worker>.from(_workers)) {
+      final task = worker.task;
+      final isolate = worker.isolate;
+      if (task != null) {
+        task.onBadExit(error);
+        task._cleanedUp = true;
+        task._completeExit();
+      }
+      isolate?.kill(priority: Isolate.immediate);
+      worker.reset();
+      worker.isBusy = false;
+    }
+
+    _workers.clear();
+    for (int i = 0; i < baseNOfIsolates; i++) {
+      _workers.add(_Worker());
+    }
+    _recoveringFromWatchdog = false;
+    _tryStartNext();
+    _startPinger();
   }
 
   static Future<void> _isolatePinger<T>(SendPort sendPing) async {
