@@ -319,24 +319,14 @@ private:
         int rows = testShape.rows;
         int cols = testShape.cols;
         
-        auto pixelAt = [&](int r, int c) {
-            return testShape.at<uchar>(r, c);
-        };
-        
-        if (pixelAt(0, 0) == 0 &&
-            pixelAt(0, cols / 2) == 0 &&
-            pixelAt(0, cols - 1) == 0 &&
-            pixelAt(rows - 1, 0) == 0 &&
-            pixelAt(rows - 1, cols / 2) == 0 &&
-            pixelAt(rows - 1, cols - 1) == 0 &&
-            pixelAt(rows / 2, 0) == 0 &&
-            pixelAt(rows / 2, cols - 1) == 0) {
-            LOG_EXIT();
-            return true;
-        }
-        
+        bool spillsOver =
+            cv::countNonZero(testShape.row(0)) != 0 ||
+            cv::countNonZero(testShape.row(rows - 1)) != 0 ||
+            cv::countNonZero(testShape.col(0)) != 0 ||
+            cv::countNonZero(testShape.col(cols - 1)) != 0;
+
         LOG_EXIT();
-        return false;
+        return !spillsOver;
     }
     
     // Standard Hough with infinitely long edges
@@ -485,7 +475,7 @@ private:
         LOG_ENTRY();
         
         CV_Assert(edges.type() == CV_8UC1);
-
+        
         int kSizeD = (K / 2) * 2 + 1;
         int kSizeE = (K / 3) * 2 + 1;
 
@@ -704,52 +694,67 @@ private:
         
         if (!xy1.empty()) {
             outerPoints[0] = *std::max_element(xy1.begin(), xy1.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
-        return (-a.y - a.x) < (-b.y - b.x); });
-        } else { fallbacks.push_back(0); outerPoints[0] = cv::Point(cols / 2 - 1, rows / 2 - 1); }
+                [](const cv::Point& a, const cv::Point& b) {
+                    return (-a.y - a.x) < (-b.y - b.x);
+                });
+        } else {
+            fallbacks.push_back(0);
+            outerPoints[0] = cv::Point(cols / 2 - 1, rows / 2 - 1);
+        }
         
         if (!xy2.empty()) {
             outerPoints[1] = *std::max_element(xy2.begin(), xy2.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
-        return (a.y - a.x) < (b.y - b.x); });
-        } else { fallbacks.push_back(1); outerPoints[1] = cv::Point(cols / 2 - 1, rows / 2 + 1); }
+                [](const cv::Point& a, const cv::Point& b) {
+                    return (a.y - a.x) < (b.y - b.x);
+                });
+        } else {
+            fallbacks.push_back(1);
+            outerPoints[1] = cv::Point(cols / 2 - 1, rows / 2 + 1);
+        }
 
         if (!xy3.empty()) {
             outerPoints[2] = *std::max_element(xy3.begin(), xy3.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
-        return (-a.y + a.x) < (-b.y + b.x); });
-        } else { fallbacks.push_back(2); outerPoints[2] = cv::Point(cols / 2 + 1, rows / 2 - 1); }
+                [](const cv::Point& a, const cv::Point& b) {
+                    return (-a.y + a.x) < (-b.y + b.x);
+                });
+        } else {
+            fallbacks.push_back(2);
+            outerPoints[2] = cv::Point(cols / 2 + 1, rows / 2 - 1);
+        }
         
         if (!xy4.empty()) {
             outerPoints[3] = *std::max_element(xy4.begin(), xy4.end(),
-                                            [](const cv::Point& a, const cv::Point& b){ LOG_EXIT();
-        return (a.y + a.x) < (b.y + b.x); });
-        } else { fallbacks.push_back(3); outerPoints[3] = cv::Point(cols / 2 + 1, rows / 2 + 1); }
+                [](const cv::Point& a, const cv::Point& b) {
+                    return (a.y + a.x) < (b.y + b.x);
+                });
+        } else {
+            fallbacks.push_back(3);
+            outerPoints[3] = cv::Point(cols / 2 + 1, rows / 2 + 1);
+        }
         
         if (fallbacks.size() == 4) {
-            outerPoints = { {0,0}, {0,rows-1}, {cols-1,0}, {cols-1, rows-1} };
+            outerPoints = {{0, 0}, {0, rows - 1},
+                           {cols - 1, 0}, {cols - 1, rows - 1}};
         } else if (!fallbacks.empty()) {
             for (int cornerIndex : fallbacks) {
-                int xRef=-1, yRef=-1;
-                switch(cornerIndex) {
-                    case 0: xRef=1; yRef=2; break;
-                    case 1: xRef=0; yRef=3; break;
-                    case 2: xRef=3; yRef=0; break;
-                    case 3: xRef=2; yRef=1; break;
+                int xRef = -1;
+                int yRef = -1;
+                switch (cornerIndex) {
+                    case 0: xRef = 1; yRef = 2; break;
+                    case 1: xRef = 0; yRef = 3; break;
+                    case 2: xRef = 3; yRef = 0; break;
+                    case 3: xRef = 2; yRef = 1; break;
                 }
-                outerPoints[cornerIndex] = cv::Point(outerPoints[xRef].x, outerPoints[yRef].y);
+                outerPoints[cornerIndex] =
+                    cv::Point(outerPoints[xRef].x, outerPoints[yRef].y);
             }
         }
         
         std::vector<std::vector<int>> outerPointsList;
-        for (auto& pt : outerPoints) {
+        for (const auto& pt : outerPoints) {
             outerPointsList.push_back({pt.y, pt.x});
         }
         
-        //LOG_VAR(outerPointsList);
-        //for (size_t i = 0; i < outerPointsList.size(); ++i) {
-        //    LOGD("outerPointsList[%zu] = (%d, %d)", i, outerPointsList[i][0], outerPointsList[i][1]);
-        //}
         LOG_EXIT();
         return outerPointsList;
     }
@@ -858,7 +863,7 @@ private:
         std::vector<int> depths(width, 0);
         for (int j = 0; j < width; j++) {
             for (int i = 0; i < maxCutIn; i++) {
-                if (warpedBCMask.at<int>(i, j) == 0) depths[j] = i;
+                if (warpedBCMask.at<uchar>(i, j) == 0) depths[j] = i;
                 else break;
             }
         }
@@ -868,7 +873,7 @@ private:
         depths.assign(width, 0);
         for (int j = 0; j < width; j++) {
             for (int i = height - 1; i > height - maxCutIn; i--) {
-                if (warpedBCMask.at<int>(i, j) == 0) depths[j] = height - i;
+                if (warpedBCMask.at<uchar>(i, j) == 0) depths[j] = height - i;
                 else break;
             }
         }
@@ -878,7 +883,7 @@ private:
         depths.assign(height, 0);
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < maxCutIn; j++) {
-                if (warpedBCMask.at<int>(i, j) == 0) depths[i] = j;
+                if (warpedBCMask.at<uchar>(i, j) == 0) depths[i] = j;
                 else break;
             }
         }
@@ -888,7 +893,7 @@ private:
         depths.assign(height, 0);
         for (int i = 0; i < height; i++) {
             for (int j = width - 1; j > width - maxCutIn; j--) {
-                if (warpedBCMask.at<int>(i, j) == 0) depths[i] = width - j;
+                if (warpedBCMask.at<uchar>(i, j) == 0) depths[i] = width - j;
                 else break;
             }
         }
