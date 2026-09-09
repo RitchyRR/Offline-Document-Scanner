@@ -144,6 +144,8 @@ class IsolatesManager {
         // Task queued -> remove from queue
         if (_taskQueue.remove(task)) {
           task._cleanedUp = true;
+          task._completeExit();
+          _tryStartNext();
         }
         // Task running -> kill / cleanup
         else if (task._worker?.isolate != null) {
@@ -218,6 +220,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
   SendPort? controlPort;
 
   final exitCompleter = Completer();
+  bool _exitCompleted = false;
 
   _Worker? _worker;
   void Function(String reason)? _cleanup;
@@ -246,8 +249,7 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
       exitPort.close();
       errorPort.close();
       _cleanup?.call("exit");
-      exitCompleter.complete();
-      killer?.exited = true;
+      _completeExit();
       _worker?.isBusy = false;
     });
     errorPort.listen((e) {
@@ -297,8 +299,18 @@ class _QueuedTask<T> implements Comparable<_QueuedTask> {
         .catchError((e) {
           workerIn.reset();
           onBadExit(e);
+          _completeExit();
           IsolatesManager()._tryStartNext();
         });
+  }
+
+  void _completeExit() {
+    if (_exitCompleted) return;
+    _exitCompleted = true;
+    killer?.exited = true;
+    if (!exitCompleter.isCompleted) {
+      exitCompleter.complete();
+    }
   }
 
   void onBadExit(dynamic e) {
