@@ -98,7 +98,12 @@
     "viewer": {
       "preview": "Preview Photos",
       "back": "Back",
-      "delete": "Delete Photo"
+      "delete": "Delete Photo",
+      "deletePopup": {
+        "title": "Delete Photo",
+        "text": "Are you sure you want to delete this photo?",
+        "delete": "Delete"
+      }
     }
   },
   "popup": {

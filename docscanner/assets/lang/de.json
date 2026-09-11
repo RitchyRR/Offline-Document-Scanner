@@ -97,7 +97,12 @@
     "viewer": {
       "preview": "Fotos vorab anschauen",
       "back": "Zurück",
-      "delete": "Foto löschen"
+      "delete": "Foto löschen",
+      "deletePopup": {
+        "title": "Foto löschen",
+        "text": "Möchtest du dieses Foto wirklich löschen?",
+        "delete": "Löschen"
+      }
     }
   },
   "popup": {

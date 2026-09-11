@@ -9052,47 +9052,54 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
 
-                GestureDetector(
-                  onTapDown: (details) {
-                    if (_cameraFlash) return;
-                    HapticFeedback.mediumImpact();
-                    setState(() {
-                      _isPressingCaptureButton = true;
-                    });
-                  },
-                  onTapUp: (details) {
-                    if (!_isPressingCaptureButton) return;
-                    HapticFeedback.lightImpact();
-                    _takePhoto();
-                    setState(() {
-                      _isPressingCaptureButton = false;
-                    });
-                  },
-                  onTapCancel: () {
-                    setState(() {
-                      _isPressingCaptureButton = false;
-                    });
-                  },
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: GestureDetector(
+                    onTapDown: (details) {
+                      if (_cameraFlash) return;
+                      HapticFeedback.mediumImpact();
+                      setState(() {
+                        _isPressingCaptureButton = true;
+                      });
+                    },
+                    onTapUp: (details) {
+                      if (!_isPressingCaptureButton) return;
+                      HapticFeedback.lightImpact();
+                      _takePhoto();
+                      setState(() {
+                        _isPressingCaptureButton = false;
+                      });
+                    },
+                    onTapCancel: () {
+                      setState(() {
+                        _isPressingCaptureButton = false;
+                      });
+                    },
 
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: _isPressingCaptureButton || _cameraFlash
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isPressingCaptureButton || _cameraFlash
-                              ? Colors.transparent
-                              : Colors.white,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          curve: Curves.easeOutCubic,
+                          width: _isPressingCaptureButton || _cameraFlash
+                              ? 80
+                              : 60,
+                          height: _isPressingCaptureButton || _cameraFlash
+                              ? 80
+                              : 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isPressingCaptureButton || _cameraFlash
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -9148,16 +9155,12 @@ class _CameraScreenState extends State<CameraScreen> {
                     icon: Icon(Icons.delete, color: Colors.white),
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      int index = controller.page!.round();
-                      setState(() {
-                        _capturedImages.removeAt(index);
-                      });
-                      setStateGallery(() {});
-                      if (_capturedImages.isEmpty) {
-                        Navigator.pop(context);
-                      } else {
-                        setStateDialog(() {});
-                      }
+                      _confirmDeletePhoto(
+                        context,
+                        controller,
+                        setStateDialog,
+                        setStateGallery,
+                      );
                     },
                   ),
                 ],
@@ -9208,6 +9211,59 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       },
     );
+  }
+
+  Future<void> _confirmDeletePhoto(
+    BuildContext context,
+    PageController controller,
+    StateSetter setStateDialog,
+    Function(void Function()) setStateGallery,
+  ) async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.delete,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 30,
+            ),
+            const SizedBox(width: 12),
+            Flexible(child: Text(tr("camera.viewer.deletePopup.title"))),
+          ],
+        ),
+        content: Text(tr("camera.viewer.deletePopup.text")),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr("popup.cancel")),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              tr("camera.viewer.deletePopup.delete"),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !context.mounted) return;
+
+    final int index = controller.page?.round() ?? 0;
+    if (index >= _capturedImages.length) return;
+    setState(() {
+      _capturedImages.removeAt(index);
+    });
+    setStateGallery(() {});
+    if (_capturedImages.isEmpty) {
+      Navigator.pop(context);
+    } else {
+      setStateDialog(() {});
+    }
   }
 }
 
