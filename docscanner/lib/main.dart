@@ -8837,20 +8837,38 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_controller == null || _controller!.value.isTakingPicture) {
       return;
     }
+    bool previewPaused = false;
     try {
       setState(() {
         _cameraFlash = true;
       });
       final XFile xFile = await _controller!.takePicture();
+      await _controller!.pausePreview();
+      previewPaused = true;
       // Scale down if too large
       final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
       imageProcessor.scaleImageToMaxSize(xFile.path, xFile.path);
       imageProcessor.dispose();
       _capturedImages.add(xFile);
+      if (previewPaused) {
+        await _controller!.resumePreview();
+      }
       setState(() {
         _cameraFlash = false;
       });
     } catch (e) {
+      if (previewPaused) {
+        try {
+          await _controller?.resumePreview();
+        } catch (resumeError) {
+          dev.log("Warning resuming camera preview: $resumeError");
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _cameraFlash = false;
+        });
+      }
       dev.log("Warning taking photo: $e");
     }
   }
