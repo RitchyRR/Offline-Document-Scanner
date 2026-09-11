@@ -8829,6 +8829,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   bool _cameraFlash = false;
+  bool _isPressingFlashButton = false;
+  bool _isPressingGalleryButton = false;
   Future<void> _takePhoto() async {
     if (_permissionStatus != PermissionStatus.granted) {
       if (mounted) _initializeCamera();
@@ -9048,75 +9050,45 @@ class _CameraScreenState extends State<CameraScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Container(
-                  width: 55,
-                  height: 55,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: IconButton(
-                    tooltip: _isFlashOn
-                        ? tr("camera.flash.disable")
-                        : tr("camera.flash.enable"),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _toggleFlash();
-                    },
-                    icon: Icon(
-                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-
-                SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: GestureDetector(
-                    onTapDown: (details) {
-                      if (_cameraFlash) return;
-                      HapticFeedback.mediumImpact();
-                      setState(() {
-                        _isPressingCaptureButton = true;
-                      });
-                    },
-                    onTapUp: (details) {
-                      if (!_isPressingCaptureButton) return;
-                      HapticFeedback.lightImpact();
-                      _takePhoto();
-                      setState(() {
-                        _isPressingCaptureButton = false;
-                      });
-                    },
-                    onTapCancel: () {
-                      setState(() {
-                        _isPressingCaptureButton = false;
-                      });
-                    },
-
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: Center(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 120),
-                          curve: Curves.easeOutCubic,
-                          width: _isPressingCaptureButton || _cameraFlash
-                              ? 80
-                              : 60,
-                          height: _isPressingCaptureButton || _cameraFlash
-                              ? 80
-                              : 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _isPressingCaptureButton || _cameraFlash
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Colors.white,
+                Listener(
+                  onPointerDown: (_) {
+                    setState(() {
+                      _isPressingFlashButton = true;
+                    });
+                  },
+                  onPointerUp: (_) {
+                    setState(() {
+                      _isPressingFlashButton = false;
+                    });
+                  },
+                  onPointerCancel: (_) {
+                    setState(() {
+                      _isPressingFlashButton = false;
+                    });
+                  },
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: _isPressingFlashButton ? 1.18 : 1,
+                      duration: const Duration(milliseconds: 60),
+                      curve: Curves.easeOutCubic,
+                      child: Container(
+                        width: 55,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: IconButton(
+                          tooltip: _isFlashOn
+                              ? tr("camera.flash.disable")
+                              : tr("camera.flash.enable"),
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            _toggleFlash();
+                          },
+                          icon: Icon(
+                            _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -9124,16 +9096,96 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
 
-                Tooltip(
-                  message: tr("camera.viewer.preview"),
-                  child: ThumbnailWithBadge(
-                    image: _capturedImages.isNotEmpty
-                        ? _capturedImages.first
-                        : null,
-                    count: _capturedImages.length,
-                    onTap: _capturedImages.isEmpty
-                        ? null
-                        : () => _openPhotosGrid(context),
+                GestureDetector(
+                  onTapDown: (details) {
+                    if (_cameraFlash) return;
+                    HapticFeedback.mediumImpact();
+                    setState(() {
+                      _isPressingCaptureButton = true;
+                    });
+                  },
+                  onTapUp: (details) {
+                    if (!_isPressingCaptureButton) return;
+                    HapticFeedback.lightImpact();
+                    _takePhoto();
+                    setState(() {
+                      _isPressingCaptureButton = false;
+                    });
+                  },
+                  onTapCancel: () {
+                    setState(() {
+                      _isPressingCaptureButton = false;
+                    });
+                  },
+
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 60),
+                        curve: Curves.easeOutCubic,
+                        width: _isPressingCaptureButton || _cameraFlash
+                            ? 80
+                            : 60,
+                        height: _isPressingCaptureButton || _cameraFlash
+                            ? 80
+                            : 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isPressingCaptureButton || _cameraFlash
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                Listener(
+                  onPointerDown: _capturedImages.isEmpty
+                      ? null
+                      : (_) {
+                          setState(() {
+                            _isPressingGalleryButton = true;
+                          });
+                        },
+                  onPointerUp: _capturedImages.isEmpty
+                      ? null
+                      : (_) {
+                          setState(() {
+                            _isPressingGalleryButton = false;
+                          });
+                        },
+                  onPointerCancel: _capturedImages.isEmpty
+                      ? null
+                      : (_) {
+                          setState(() {
+                            _isPressingGalleryButton = false;
+                          });
+                        },
+                  child: Center(
+                    child: Tooltip(
+                      message: tr("camera.viewer.preview"),
+                      child: AnimatedScale(
+                        scale: _isPressingGalleryButton ? 1.18 : 1,
+                        duration: const Duration(milliseconds: 60),
+                        curve: Curves.easeOutCubic,
+                        child: ThumbnailWithBadge(
+                          image: _capturedImages.isNotEmpty
+                              ? _capturedImages.first
+                              : null,
+                          count: _capturedImages.length,
+                          onTap: _capturedImages.isEmpty
+                              ? null
+                              : () => _openPhotosGrid(context),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
