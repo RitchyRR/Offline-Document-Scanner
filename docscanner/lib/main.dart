@@ -9191,7 +9191,10 @@ class _CameraScreenState extends State<CameraScreen> {
                           count: _capturedImages.length,
                           onTap: _capturedImages.isEmpty
                               ? null
-                              : () => _openPhotosGrid(context),
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  _openPhotosGrid(context);
+                                },
                         ),
                       ),
                     ),
