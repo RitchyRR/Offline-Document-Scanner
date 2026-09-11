@@ -98,9 +98,15 @@
       "preview": "Fotos vorab anschauen",
       "back": "Zurück",
       "delete": "Foto löschen",
+      "deleteSelected": "Ausgewählte Fotos löschen",
       "deletePopup": {
         "title": "Foto löschen",
         "text": "Möchtest du dieses Foto wirklich löschen?",
+        "delete": "Löschen"
+      },
+      "deleteSelectedPopup": {
+        "title": "Ausgewählte Fotos löschen",
+        "text": "Möchtest du diese {count} Fotos wirklich löschen?",
         "delete": "Löschen"
       }
     }

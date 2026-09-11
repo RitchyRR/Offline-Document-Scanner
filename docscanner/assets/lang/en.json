@@ -99,9 +99,15 @@
       "preview": "Preview Photos",
       "back": "Back",
       "delete": "Delete Photo",
+      "deleteSelected": "Delete selected photos",
       "deletePopup": {
         "title": "Delete Photo",
         "text": "Are you sure you want to delete this photo?",
+        "delete": "Delete"
+      },
+      "deleteSelectedPopup": {
+        "title": "Delete selected photos",
+        "text": "Are you sure you want to delete these {count} photos?",
         "delete": "Delete"
       }
     }

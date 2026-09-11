@@ -8877,6 +8877,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
   void _openPhotosGrid(BuildContext context) {
     _setFlash(false);
+    final Set<int> selectedIndices = <int>{};
+    bool selectionMode = false;
     showModalBottomSheet(
       backgroundColor: ColorScheme.dark().surface,
       showDragHandle: true,
@@ -8887,48 +8889,173 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
       builder: (_) => StatefulBuilder(
         builder: (context, setStateDialog) {
-          if (_capturedImages.isEmpty) Navigator.pop(context);
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-            child: GridView.builder(
-              scrollCacheExtent: ScrollCacheExtent.viewport(2),
-              addRepaintBoundaries: false,
-              itemCount: _capturedImages.length + 3,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 3,
-                mainAxisSpacing: 3,
+          final bool hasSelection = selectedIndices.isNotEmpty;
+          return PopScope(
+            canPop: !selectionMode,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && selectionMode) {
+                selectedIndices.clear();
+                setStateDialog(() {
+                  selectionMode = false;
+                });
+              }
+            },
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: GridView.builder(
+                  scrollCacheExtent: ScrollCacheExtent.viewport(2),
+                  addRepaintBoundaries: false,
+                  itemCount: _capturedImages.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 3,
+                    mainAxisSpacing: 3,
+                  ),
+                  itemBuilder: (context, index) {
+                    final bool isSelected = selectedIndices.contains(index);
+                    return Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.file(
+                            File(_capturedImages[index].path),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        if (isSelected)
+                          Positioned.fill(
+                            child: ColoredBox(
+                              color: Colors.black38,
+                              child: Center(
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 34,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Positioned.fill(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              splashColor: Colors.white30,
+                              highlightColor: Colors.white10,
+                              onTap: () {
+                                if (!selectionMode) {
+                                  _openFullscreenViewer(
+                                    index,
+                                    setStateDialog,
+                                    () => Navigator.pop(context),
+                                  );
+                                  return;
+                                }
+                                setStateDialog(() {
+                                  if (isSelected) {
+                                    selectedIndices.remove(index);
+                                    if (selectedIndices.isEmpty) {
+                                      selectionMode = false;
+                                    }
+                                  } else {
+                                    selectedIndices.add(index);
+                                  }
+                                });
+                              },
+                              onLongPress: () {
+                                HapticFeedback.mediumImpact();
+                                setStateDialog(() {
+                                  selectionMode = true;
+                                  selectedIndices.add(index);
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
-              itemBuilder: (context, index) {
-                if (index >= _capturedImages.length) {
-                  return SizedBox();
-                }
-                return Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Image.file(
-                        File(_capturedImages[index].path),
-                        fit: BoxFit.cover,
+              floatingActionButton: selectionMode && hasSelection
+                  ? FloatingActionButton(
+                      heroTag: "deleteSelectedCameraPhotos",
+                      tooltip: tr("camera.viewer.deleteSelected"),
+                      onPressed: () => _confirmDeleteSelectedPhotos(
+                        context,
+                        selectedIndices,
+                        setStateDialog,
                       ),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        splashColor: Colors.white30,
-                        highlightColor: Colors.white10,
-                        onTap: () {
-                          _openFullscreenViewer(index, setStateDialog);
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
+                      child: const Icon(Icons.delete),
+                    )
+                  : null,
             ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _confirmDeleteSelectedPhotos(
+    BuildContext context,
+    Set<int> selectedIndices,
+    StateSetter setStateDialog,
+  ) async {
+    final int selectedCount = selectedIndices.length;
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.delete,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 30,
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(tr("camera.viewer.deleteSelectedPopup.title")),
+            ),
+          ],
+        ),
+        content: Text(
+          tr(
+            "camera.viewer.deleteSelectedPopup.text",
+            namedArgs: {"count": "$selectedCount"},
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr("popup.cancel")),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              tr("camera.viewer.deleteSelectedPopup.delete"),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !context.mounted) return;
+
+    final indicesToDelete = selectedIndices.toList()..sort((a, b) => b - a);
+    setState(() {
+      for (final index in indicesToDelete) {
+        if (index < _capturedImages.length) {
+          _capturedImages.removeAt(index);
+        }
+      }
+    });
+    selectedIndices.clear();
+    setStateDialog(() {});
+    if (_capturedImages.isEmpty && context.mounted) {
+      Navigator.pop(context);
+    }
   }
 
   Future<bool> _leaveConfirmationDialog() async {
@@ -9212,6 +9339,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _openFullscreenViewer(
     int initialIndex,
     Function(void Function()) setStateGallery,
+    VoidCallback closeGallery,
   ) async {
     PageController controller = PageController(initialPage: initialIndex);
 
@@ -9242,6 +9370,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         controller,
                         setStateDialog,
                         setStateGallery,
+                        closeGallery,
                       );
                     },
                   ),
@@ -9300,6 +9429,7 @@ class _CameraScreenState extends State<CameraScreen> {
     PageController controller,
     StateSetter setStateDialog,
     Function(void Function()) setStateGallery,
+    VoidCallback closeGallery,
   ) async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
@@ -9343,6 +9473,7 @@ class _CameraScreenState extends State<CameraScreen> {
     setStateGallery(() {});
     if (_capturedImages.isEmpty) {
       Navigator.pop(context);
+      closeGallery();
     } else {
       setStateDialog(() {});
     }
