@@ -9096,50 +9096,59 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
 
-                GestureDetector(
-                  onTapDown: (details) {
+                Listener(
+                  onPointerDown: (_) {
                     if (_cameraFlash) return;
                     HapticFeedback.mediumImpact();
                     setState(() {
                       _isPressingCaptureButton = true;
                     });
                   },
-                  onTapUp: (details) {
-                    if (!_isPressingCaptureButton) return;
-                    HapticFeedback.lightImpact();
-                    _takePhoto();
+                  onPointerUp: (_) {
                     setState(() {
                       _isPressingCaptureButton = false;
                     });
                   },
-                  onTapCancel: () {
+                  onPointerCancel: (_) {
                     setState(() {
                       _isPressingCaptureButton = false;
                     });
                   },
-
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 60),
-                        curve: Curves.easeOutCubic,
-                        width: _isPressingCaptureButton || _cameraFlash
-                            ? 80
-                            : 60,
-                        height: _isPressingCaptureButton || _cameraFlash
-                            ? 80
-                            : 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isPressingCaptureButton || _cameraFlash
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : Colors.white,
+                  child: Material(
+                    color: Colors.transparent,
+                    shape: const CircleBorder(),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Center(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 60),
+                          curve: Curves.easeOutCubic,
+                          width: _isPressingCaptureButton || _cameraFlash
+                              ? 80
+                              : 60,
+                          height: _isPressingCaptureButton || _cameraFlash
+                              ? 80
+                              : 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isPressingCaptureButton || _cameraFlash
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Colors.white,
+                          ),
+                          child: IconButton(
+                            onPressed: _cameraFlash
+                                ? null
+                                : () {
+                                    HapticFeedback.lightImpact();
+                                    _takePhoto();
+                                  },
+                            icon: const SizedBox.shrink(),
+                          ),
                         ),
                       ),
                     ),
