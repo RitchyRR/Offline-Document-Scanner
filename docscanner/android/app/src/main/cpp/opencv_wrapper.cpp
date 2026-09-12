@@ -1853,30 +1853,19 @@ int rotateImage(
     return 1;
 }
 
-int scaleImageToWidth(
-    const char* inSourcePath,
+static int _scaleImageToWidth(
+    const cv::Mat& source,
     const char* inScaledPath,
     int inNewWidth,
     int* outNewHeight
 ) {
-    LOG_ENTRY();
-    LOG_VAR(inNewWidth);
-    
-    if (!inSourcePath || !inScaledPath || !outNewHeight) {
-        LOG_EXIT();
+    if (source.empty() || !inScaledPath || !outNewHeight || inNewWidth <= 0) {
         return 0;
     }
-    
-    // Read image
-    cv::Mat source = cv::imread(inSourcePath);
-    if (source.empty()) {
-        LOG_EXIT();
-        return 0;
-    }
-    
-    // Compute new height maintaining aspect ratio
-    int newHeight = static_cast<int>(source.rows * static_cast<double>(inNewWidth) / source.cols);
-    
+
+    int newHeight = static_cast<int>(
+        source.rows * static_cast<double>(inNewWidth) / source.cols
+    );
     cv::Mat scaled;
     try {
         cv::resize(
@@ -1900,8 +1889,37 @@ int scaleImageToWidth(
     }
     
     *outNewHeight = newHeight;
-    LOG_EXIT();
     return 1;
+}
+
+int scaleImageToWidth(
+    const char* inSourcePath,
+    const char* inScaledPath,
+    int inNewWidth,
+    int* outNewHeight
+) {
+    LOG_ENTRY();
+    LOG_VAR(inNewWidth);
+
+    if (!inSourcePath || !inScaledPath || !outNewHeight) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    cv::Mat source = cv::imread(inSourcePath);
+    if (source.empty()) {
+        LOG_EXIT();
+        return 0;
+    }
+
+    int result = _scaleImageToWidth(
+        source,
+        inScaledPath,
+        inNewWidth,
+        outNewHeight
+    );
+    LOG_EXIT();
+    return result;
 }
 
 int scaleImageToMaxSize(
@@ -1930,15 +1948,21 @@ int scaleImageToMaxSize(
     if (srcWidth < inMaxSize && srcHeight < inMaxSize) {
       return 0;
     }
+
     // Compute new width
     int newWidth = inMaxSize;
     if (srcWidth < srcHeight) {
       newWidth = inMaxSize * srcWidth / srcHeight;
     }
-    
+
     int newHeight;
-    int success = scaleImageToWidth(inSourcePath, inScaledPath, newWidth, &newHeight);
-    
+    int success = _scaleImageToWidth(
+        source,
+        inScaledPath,
+        newWidth,
+        &newHeight
+    );
+
     LOG_EXIT();
     return success;
 }
