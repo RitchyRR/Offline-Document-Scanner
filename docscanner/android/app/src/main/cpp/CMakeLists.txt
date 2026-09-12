@@ -24,6 +24,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 file(GLOB SRC_FILES *.cpp)
 add_library(opencv_wrapper SHARED ${SRC_FILES})
 
+# Favor throughput for the native image-processing library in the release APK.
+target_compile_options(opencv_wrapper PRIVATE
+  "$<$<CONFIG:Release>:-O3>"
+)
+
 # Link with OpenCV
 target_link_libraries(opencv_wrapper
   ${OpenCV_LIBS}

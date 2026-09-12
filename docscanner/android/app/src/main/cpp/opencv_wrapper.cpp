@@ -174,7 +174,7 @@ private:
             cv::cvtColor(ref, ref, cv::COLOR_BGR2GRAY);
         }
         
-        // Pixels -> sorted list
+        // Pixels -> percentile sample
         std::vector<uchar> refList;
         if (ref.isContinuous()) {
             refList.assign(ref.datastart, ref.dataend);
@@ -183,11 +183,25 @@ private:
                 refList.insert(refList.end(), ref.ptr<uchar>(r), ref.ptr<uchar>(r) + ref.cols);
             }
         }
-        std::sort(refList.begin(), refList.end());
-        
-        int lowIndex = static_cast<int>(refList.size() * lowPercentile);
+        if (refList.empty()) {
+            return matIn.clone();
+        }
+
+        const int lastIndex = static_cast<int>(refList.size()) - 1;
+        const int lowIndex = std::clamp(
+            static_cast<int>(refList.size() * lowPercentile),
+            0,
+            lastIndex
+        );
+        const int highIndex = std::clamp(
+            static_cast<int>(refList.size() * highPercentile),
+            0,
+            lastIndex
+        );
+
+        std::nth_element(refList.begin(), refList.begin() + lowIndex, refList.end());
         double lowValue = static_cast<double>(refList[lowIndex]);
-        int highIndex = static_cast<int>(refList.size() * highPercentile);
+        std::nth_element(refList.begin(), refList.begin() + highIndex, refList.end());
         double highValue = static_cast<double>(refList[highIndex]);
         
         // Stretch to low / high values
@@ -768,8 +782,8 @@ private:
             return 0.0;
         }
         std::vector<int> sorted = values;
-        std::sort(sorted.begin(), sorted.end());
         int idx = std::clamp(static_cast<int>(percentile * length), 0, length - 1);
+        std::nth_element(sorted.begin(), sorted.begin() + idx, sorted.end());
         
         LOG_EXIT();
         return sorted[idx];
@@ -1635,6 +1649,7 @@ public:
 // ------------------ Instance Lifecycle ------------------
 ImageProcessor* createProcessor() {
     LOG_ENTRY();
+    cv::setUseOptimized(true);
     LOG_EXIT();
     return new ImageProcessor();
 }

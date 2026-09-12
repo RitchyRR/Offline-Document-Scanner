@@ -16,14 +16,21 @@
 #define LOGI(fmt, ...) NLOG_BASE(ANDROID_LOG_INFO, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) NLOG_BASE(ANDROID_LOG_WARN, fmt, ##__VA_ARGS__)
 #define LOGE(fmt, ...) NLOG_BASE(ANDROID_LOG_ERROR, fmt, ##__VA_ARGS__)
-#define LOGD(fmt, ...) NLOG_BASE(ANDROID_LOG_DEBUG, fmt, ##__VA_ARGS__)
 
 // Log function entry automatically
+#ifdef NDEBUG
+#define LOGD(fmt, ...) do {} while (false)
+#define LOG_ENTRY() do {} while (false)
+#define LOG_EXIT() do {} while (false)
+#define LOG_VAR(var) do {} while (false)
+#else
+#define LOGD(fmt, ...) NLOG_BASE(ANDROID_LOG_DEBUG, fmt, ##__VA_ARGS__)
 #define LOG_ENTRY() \
     LOGD("ENTER");// thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
 
 #define LOG_EXIT() \
     LOGD("EXIT");// thread=%ld", (long)std::hash<std::thread::id>{}(std::this_thread::get_id()))
+#endif
 
 // Helper to demangle type names (for fallback)
 inline std::string demangle(const char* name) {
@@ -70,5 +77,7 @@ void logVarInternal(const char* name, const T& value, const char* file, int line
     }
 }
 
+#ifndef NDEBUG
 // The LOG_VAR macro automatically handles pointers safely
 #define LOG_VAR(var) logVarInternal(#var, var, __FILENAME__, __LINE__, __func__)
+#endif
