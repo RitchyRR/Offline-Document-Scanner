@@ -2384,6 +2384,8 @@ class _PagesState extends State<Pages> with RouteAware {
   Timer? _fullSizeLoadTimer;
   final TransformationController _zoomTransformationController =
       TransformationController();
+  double? _zoomCanvasWidth;
+  bool _normalizingZoomTransform = false;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2403,6 +2405,7 @@ class _PagesState extends State<Pages> with RouteAware {
     _initAsync();
     _loadGridView();
     _scrollController.addListener(_scheduleFullSizeLoad);
+    _zoomTransformationController.addListener(_keepZoomCanvasCentered);
   }
 
   bool selectAllButtonUsed = true;
@@ -2445,6 +2448,7 @@ class _PagesState extends State<Pages> with RouteAware {
     _fullSizeLoadTimer?.cancel();
     _scrollController.removeListener(_scheduleFullSizeLoad);
     _scrollController.dispose();
+    _zoomTransformationController.removeListener(_keepZoomCanvasCentered);
     _zoomTransformationController.dispose();
     routeObserver.unsubscribe(this);
     super.dispose();
@@ -2682,6 +2686,24 @@ class _PagesState extends State<Pages> with RouteAware {
     });
   }
 
+  void _keepZoomCanvasCentered() {
+    final canvasWidth = _zoomCanvasWidth;
+    if (!_zoomMode || canvasWidth == null || _normalizingZoomTransform) {
+      return;
+    }
+    final transform = _zoomTransformationController.value;
+    final scale = transform.getMaxScaleOnAxis();
+    if (scale >= 1) return;
+
+    final centeredX = canvasWidth * (1 - scale) / 2;
+    if ((transform.getTranslation().x - centeredX).abs() < 0.01) return;
+
+    _normalizingZoomTransform = true;
+    _zoomTransformationController.value = Matrix4.copy(transform)
+      ..setEntry(0, 3, centeredX);
+    _normalizingZoomTransform = false;
+  }
+
   int _currentDisplayPageIndex() {
     if (!_scrollController.hasClients || _displayPagesCount <= 1) return 0;
     final position = _scrollController.position;
@@ -2906,6 +2928,7 @@ class _PagesState extends State<Pages> with RouteAware {
     final pageIndexes = _displayedPageIndexes;
     return LayoutBuilder(
       builder: (context, constraints) {
+        _zoomCanvasWidth = constraints.maxWidth;
         final gridColumns = [<int>[], <int>[]];
         final gridColumnHeights = [0.0, 0.0];
         final gridPageWidth = (constraints.maxWidth - 40) / 2;
@@ -2961,6 +2984,7 @@ class _PagesState extends State<Pages> with RouteAware {
           ),
           minScale: 0.5,
           maxScale: _gridView == true ? 16 : 8,
+          interactionEndFrictionCoefficient: 0.0000005,
           onInteractionEnd: (_) {
             final scale = _zoomTransformationController.value
                 .getMaxScaleOnAxis();
