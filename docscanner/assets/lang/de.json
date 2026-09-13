@@ -35,6 +35,10 @@
       "gridView": "Rasteransicht",
       "listView": "Listenansicht"
     },
+    "zoom": {
+      "activate": "Vergrößern",
+      "close": "Vergrößerung beenden"
+    },
     "select": {
       "selectAll": "Alle auswählen",
       "selected": "{selectedCount} Seiten ausgewählt",

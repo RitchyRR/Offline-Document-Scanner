@@ -35,6 +35,10 @@
       "gridView": "Grid View",
       "listView": "List View"
     },
+    "zoom": {
+      "activate": "Zoom",
+      "close": "Exit zoom"
+    },
     "select": {
       "selectAll": "Select all",
       "selected": "{selectedCount} Pages selected",

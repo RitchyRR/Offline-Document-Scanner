@@ -2374,10 +2374,16 @@ class Pages extends StatefulWidget {
 class _PagesState extends State<Pages> with RouteAware {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
+  List<String> _fullSizedPages = [];
   List<double> _thumbnailRatios = [];
   int _pagesCount = 0;
   int _displayPagesCount = 0;
   int _thumbnailLoadGeneration = 0;
+  int _fullSizeLoadGeneration = 0;
+  int? _lastFullSizeLoadCenter;
+  Timer? _fullSizeLoadTimer;
+  final TransformationController _zoomTransformationController =
+      TransformationController();
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2396,6 +2402,7 @@ class _PagesState extends State<Pages> with RouteAware {
     _initPushToPreview();
     _initAsync();
     _loadGridView();
+    _scrollController.addListener(_scheduleFullSizeLoad);
   }
 
   bool selectAllButtonUsed = true;
@@ -2435,6 +2442,10 @@ class _PagesState extends State<Pages> with RouteAware {
       widget.docIndex,
     );
     _eventSubscription.cancel();
+    _fullSizeLoadTimer?.cancel();
+    _scrollController.removeListener(_scheduleFullSizeLoad);
+    _scrollController.dispose();
+    _zoomTransformationController.dispose();
     routeObserver.unsubscribe(this);
     super.dispose();
   }
@@ -2517,7 +2528,12 @@ class _PagesState extends State<Pages> with RouteAware {
       if (mounted) {
         setState(() {
           _pageThumbnails = thumbnailPaths;
+          _fullSizedPages = List.filled(_pagesCount, "");
         });
+        if (_zoomMode) {
+          _lastFullSizeLoadCenter = null;
+          _scheduleFullSizeLoad();
+        }
       }
     }
   }
@@ -2624,8 +2640,134 @@ class _PagesState extends State<Pages> with RouteAware {
 
   bool _selectMode = false;
   List<int> _selectedPages = [];
+  bool _zoomMode = false;
+
+  Future<void> _startZoomMode() async {
+    if (_selectMode || _zoomMode) return;
+    _zoomTransformationController.value = Matrix4.identity();
+    setState(() {
+      _zoomMode = true;
+      _fullSizedPages = List.filled(_pagesCount, "");
+    });
+    _loadFullSizedPages(_currentDisplayPageIndex());
+  }
+
+  void _endZoomMode() {
+    if (!_zoomMode) return;
+    final fullSizedPages = List<String>.from(_fullSizedPages);
+    _fullSizeLoadGeneration++;
+    _fullSizeLoadTimer?.cancel();
+    _lastFullSizeLoadCenter = null;
+    _zoomTransformationController.value = Matrix4.identity();
+    setState(() {
+      _zoomMode = false;
+      _fullSizedPages = List.filled(_pagesCount, "");
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final path in fullSizedPages) {
+        if (path.isNotEmpty) {
+          imageCache.evict(FileImage(File(path)), includeLive: false);
+        }
+      }
+    });
+  }
+
+  void _scheduleFullSizeLoad() {
+    if (!_zoomMode) return;
+    _fullSizeLoadTimer?.cancel();
+    _fullSizeLoadTimer = Timer(const Duration(milliseconds: 120), () {
+      if (mounted && _zoomMode) {
+        _loadFullSizedPages(_currentDisplayPageIndex());
+      }
+    });
+  }
+
+  int _currentDisplayPageIndex() {
+    if (!_scrollController.hasClients || _displayPagesCount <= 1) return 0;
+    final position = _scrollController.position;
+    final fraction = position.maxScrollExtent == 0
+        ? 0.0
+        : (position.pixels / position.maxScrollExtent).clamp(0.0, 1.0);
+    final ratios = _thumbnailRatios
+        .whereIndexed((index, _) => !_deletedPages.contains(index))
+        .map((ratio) => 1.0 / ratio)
+        .toList();
+    final target = ratios.sum * fraction;
+    double cumulative = 0;
+    for (var index = 0; index < ratios.length; index++) {
+      cumulative += ratios[index];
+      if (target < cumulative) return index;
+    }
+    return ratios.length - 1;
+  }
+
+  Future<void> _loadFullSizedPages(int centerDisplayIndex) async {
+    if (!_zoomMode || centerDisplayIndex == _lastFullSizeLoadCenter) return;
+    _lastFullSizeLoadCenter = centerDisplayIndex;
+    final loadGeneration = ++_fullSizeLoadGeneration;
+    final displayedPageIndexes = List<int>.generate(
+      _pagesCount,
+      (index) => index,
+    ).where((index) => !_deletedPages.contains(index)).toList();
+
+    for (var offset = 0; offset < displayedPageIndexes.length; offset++) {
+      for (final displayIndex in [
+        centerDisplayIndex + offset,
+        if (offset != 0) centerDisplayIndex - offset,
+      ]) {
+        if (displayIndex < 0 || displayIndex >= displayedPageIndexes.length) {
+          continue;
+        }
+        final pageIndex = displayedPageIndexes[displayIndex];
+        final path = (await g.filesHelper.getPagesThumbnails(
+          widget.docIndex,
+          pageIndexes: [pageIndex],
+          fullSized: true,
+          supressWarnings: true,
+        )).$1.first;
+        if (!mounted ||
+            !_zoomMode ||
+            loadGeneration != _fullSizeLoadGeneration) {
+          return;
+        }
+        if (path.isNotEmpty && _fullSizedPages[pageIndex] != path) {
+          setState(() => _fullSizedPages[pageIndex] = path);
+        }
+      }
+    }
+  }
+
+  String _imagePathForPage(int pageIndex, String thumbnailPath) {
+    if (_zoomMode &&
+        pageIndex < _fullSizedPages.length &&
+        _fullSizedPages[pageIndex].isNotEmpty) {
+      return _fullSizedPages[pageIndex];
+    }
+    return thumbnailPath;
+  }
+
+  Widget _pageImage(File imageFile, String imagePath) {
+    final image = SizedBox.expand(
+      child: Image.file(
+        imageFile,
+        fit: BoxFit.cover,
+        key: ValueKey(imagePath),
+        errorBuilder: (context, error, stackTrace) {
+          return Material(
+            color: Theme.of(context).colorScheme.surfaceBright,
+            child: const Icon(Icons.broken_image),
+          );
+        },
+      ),
+    );
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: image,
+    );
+  }
 
   void _selectPage(int index) {
+    if (_zoomMode) return;
     if (_selectedPages.contains(index)) {
       _selectedPages.remove(index);
     } else {
@@ -2705,6 +2847,7 @@ class _PagesState extends State<Pages> with RouteAware {
   }
 
   Future<void> _selectAll() async {
+    if (_zoomMode) return;
     _setSelectAllButtonUsed(true);
 
     final lengthBefore = _selectedPages.length;
@@ -2734,6 +2877,90 @@ class _PagesState extends State<Pages> with RouteAware {
     });
   }
 
+  List<int> get _displayedPageIndexes => List<int>.generate(
+    _pagesCount,
+    (index) => index,
+  ).where((index) => !_deletedPages.contains(index)).toList();
+
+  Widget _zoomPage(int pageIndex) {
+    final imagePath = _imagePathForPage(pageIndex, _pageThumbnails[pageIndex]);
+    final isLoading =
+        _loadingPages.length <= pageIndex || _loadingPages[pageIndex];
+    return AspectRatio(
+      aspectRatio: _thumbnailRatios[pageIndex],
+      child: Container(
+        decoration: BoxDecoration(boxShadow: [bigBoxShadow(context)]),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Material(color: Theme.of(context).colorScheme.surfaceBright),
+            if (imagePath.isNotEmpty) _pageImage(File(imagePath), imagePath),
+            if (imagePath.isEmpty || isLoading) IndicatorProcessingImage(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZoomCanvas(BuildContext context) {
+    final pageIndexes = _displayedPageIndexes;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canvas = _gridView == true
+            ? Padding(
+                padding: const EdgeInsets.all(15),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final pageIndex in pageIndexes)
+                      SizedBox(
+                        width: (constraints.maxWidth - 40) / 2,
+                        child: _zoomPage(pageIndex),
+                      ),
+                  ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(15, 6, 15, 24),
+                child: Column(
+                  children: [
+                    for (final pageIndex in pageIndexes) ...[
+                      _zoomPage(pageIndex),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                ),
+              );
+        return InteractiveViewer(
+          transformationController: _zoomTransformationController,
+          constrained: false,
+          boundaryMargin: EdgeInsets.symmetric(
+            horizontal: constraints.maxWidth / 4,
+            vertical: constraints.maxHeight / 4,
+          ),
+          minScale: 0.5,
+          maxScale: _gridView == true ? 16 : 8,
+          onInteractionEnd: (_) {
+            final scale = _zoomTransformationController.value
+                .getMaxScaleOnAxis();
+            if (scale < 1) {
+              final translation = _zoomTransformationController.value
+                  .getTranslation();
+              _zoomTransformationController.value = Matrix4.identity()
+                ..setEntry(0, 0, scale)
+                ..setEntry(1, 1, scale)
+                ..setEntry(2, 2, scale)
+                ..setEntry(0, 3, constraints.maxWidth * (1 - scale) / 2)
+                ..setEntry(1, 3, translation.y);
+            }
+          },
+          child: SizedBox(width: constraints.maxWidth, child: canvas),
+        );
+      },
+    );
+  }
+
   final _scrollController = CustomScrollController();
   // Pages
   @override
@@ -2742,15 +2969,32 @@ class _PagesState extends State<Pages> with RouteAware {
     //    ModalRoute.of(context)?.isCurrent ?? false;
     _displayPagesCount = _pagesCount - _deletedPages.length;
     return PopScope(
-      canPop: !_selectMode,
+      canPop: !_selectMode && !_zoomMode,
       onPopInvokedWithResult: (didPop, _) async {
-        if (_selectMode) {
+        if (_zoomMode) {
+          _endZoomMode();
+        } else if (_selectMode) {
           _cancelSelectMode();
         }
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        appBar: !_selectMode
+        appBar: _zoomMode
+            ? AppBar(
+                title: Text(
+                  _docName ??
+                      tr(
+                        "pages.title",
+                        namedArgs: {"docIndex": "${widget.docIndex + 1}"},
+                      ),
+                ),
+                leading: IconButton(
+                  onPressed: _endZoomMode,
+                  icon: const Icon(Icons.close),
+                  tooltip: tr("pages.zoom.close"),
+                ),
+              )
+            : !_selectMode
             ? AppBar(
                 // Title
                 title: DocNameEditor(
@@ -2777,6 +3021,11 @@ class _PagesState extends State<Pages> with RouteAware {
                           ? tr("pages.views.listView")
                           : tr("pages.views.gridView")),
                     ),
+                  IconButton(
+                    onPressed: _startZoomMode,
+                    icon: const Icon(Icons.zoom_in),
+                    tooltip: tr("pages.zoom.activate"),
+                  ),
                   // Select All Button
                   selectAllButtonUsed
                       ? IconButton(
@@ -2815,9 +3064,10 @@ class _PagesState extends State<Pages> with RouteAware {
                   ),
                 ],
               ),
-        body:
-            _pageThumbnails
-                .isNotEmpty // && isTopOfNavigationStack
+        body: _zoomMode
+            ? _buildZoomCanvas(context)
+            : _pageThumbnails
+                  .isNotEmpty // && isTopOfNavigationStack
             // Pages
             ? CustomScrollbar(
                 controller: _scrollController,
@@ -2842,8 +3092,10 @@ class _PagesState extends State<Pages> with RouteAware {
                           pageIndex += _deletedPages
                               .where((e) => e <= pageIndex)
                               .length;
-                          final String thumbnailPath =
-                              _pageThumbnails[pageIndex];
+                          final String thumbnailPath = _imagePathForPage(
+                            pageIndex,
+                            _pageThumbnails[pageIndex],
+                          );
                           final double thumbnailRatio =
                               _thumbnailRatios[pageIndex];
                           if (thumbnailRatio == 0.0) {
@@ -2872,27 +3124,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                     ),
                                     // Thumbnail
                                     if (thumbnailPath.isNotEmpty)
-                                      AnimatedSwitcher(
-                                        duration: Duration(milliseconds: 200),
-                                        child: SizedBox.expand(
-                                          child: Image.file(
-                                            pageThumbnail,
-                                            fit: BoxFit.cover,
-                                            key: ValueKey(thumbnailPath),
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Material(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.surfaceBright,
-                                                    child: const Icon(
-                                                      Icons.broken_image,
-                                                    ),
-                                                  );
-                                                },
-                                          ),
-                                        ),
-                                      ),
+                                      _pageImage(pageThumbnail, thumbnailPath),
                                     // Loading Indicator
                                     if (isLoading)
                                       Positioned.fill(
@@ -2908,7 +3140,183 @@ class _PagesState extends State<Pages> with RouteAware {
                                     // Edit Page Hint
                                     if (_hintEditPage)
                                       FlashHint(text: tr("pages.editHint")),
-                                    // InkWell
+                                    if (!_zoomMode)
+                                      Positioned.fill(
+                                        child: Material(
+                                          color:
+                                              (_selectMode &&
+                                                  _selectedPages.contains(
+                                                    pageIndex,
+                                                  ))
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primaryContainer
+                                                    .withAlpha(150)
+                                              : Colors.transparent,
+                                          child: InkWell(
+                                            onTap: !_selectMode
+                                                ? () => _openPagePreview(
+                                                    pageIndex,
+                                                  )
+                                                : () {
+                                                    HapticFeedback.lightImpact();
+                                                    _selectPage(pageIndex);
+                                                  },
+                                            onLongPress: () =>
+                                                _selectPage(pageIndex),
+                                            splashColor: Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer
+                                                .withAlpha(150),
+                                            highlightColor: Theme.of(context)
+                                                .colorScheme
+                                                .primaryContainer
+                                                .withAlpha(150),
+                                          ),
+                                        ),
+                                      ),
+                                    // Page Index Indicator
+                                    if (!_zoomMode)
+                                      Positioned(
+                                        top: 18,
+                                        left: 12,
+                                        child: GestureDetector(
+                                          // Move Page Index Dialog
+                                          onTap: _selectMode
+                                              ? () => _selectPage(pageIndex)
+                                              : () => _openPageEditDialog(
+                                                  context,
+                                                  pageIndex,
+                                                  displayPageIndex,
+                                                ),
+                                          onLongPress: () =>
+                                              _selectPage(pageIndex),
+                                          child: Container(
+                                            padding: EdgeInsets.fromLTRB(
+                                              12,
+                                              6,
+                                              (_selectMode &&
+                                                      _selectedPages.contains(
+                                                        pageIndex,
+                                                      ))
+                                                  ? 6
+                                                  : 12,
+                                              6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.surfaceBright,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              boxShadow: [
+                                                smallBoxShadow(context),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  "$displayPageIndex/$_displayPagesCount",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width:
+                                                      (_selectMode &&
+                                                          _selectedPages
+                                                              .contains(
+                                                                pageIndex,
+                                                              ))
+                                                      ? 8
+                                                      : 0,
+                                                ),
+                                                (_selectMode &&
+                                                        _selectedPages.contains(
+                                                          pageIndex,
+                                                        ))
+                                                    ? Icon(
+                                                        Icons.check,
+                                                        size: 20,
+                                                      )
+                                                    : SizedBox(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    // Grid View
+                    : MasonryGridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        padding: EdgeInsets.fromLTRB(15, 6, 15, 36),
+                        controller: _scrollController,
+                        cacheExtent: 1000,
+                        itemCount: _displayPagesCount,
+                        itemBuilder: (BuildContext context, int pageIndex) {
+                          final displayPageIndex = pageIndex + 1;
+                          pageIndex += _deletedPages
+                              .where((e) => e <= pageIndex)
+                              .length;
+                          String thumbnailPath = _imagePathForPage(
+                            pageIndex,
+                            _pageThumbnails[pageIndex],
+                          );
+                          double thumbnailRatio = _thumbnailRatios[pageIndex];
+                          if (thumbnailRatio == 0.0) {
+                            throw StateError("thumbnailRatio == 0.0");
+                          }
+                          File pageThumbnail = File(thumbnailPath);
+                          final bool isLoading =
+                              _loadingPages.length <= pageIndex ||
+                              _loadingPages[pageIndex];
+                          return AspectRatio(
+                            aspectRatio: thumbnailRatio,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                boxShadow: [bigBoxShadow(context)],
+                              ),
+                              child: Stack(
+                                fit: StackFit.passthrough,
+                                children: [
+                                  // BG
+                                  Material(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceBright,
+                                  ),
+                                  // Thumbnail
+                                  if (thumbnailPath.isNotEmpty)
+                                    _pageImage(pageThumbnail, thumbnailPath),
+                                  // Loading Indicator
+                                  if (isLoading)
+                                    Positioned.fill(
+                                      child: Material(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHigh
+                                            .withAlpha(150),
+                                      ),
+                                    ),
+                                  if (thumbnailPath.isEmpty || isLoading)
+                                    IndicatorProcessingImage(),
+                                  // Edit Page Hint
+                                  if (_hintEditPage)
+                                    FlashHint(text: tr("pages.editHint")),
+                                  if (!_zoomMode)
                                     Positioned.fill(
                                       child: Material(
                                         color:
@@ -2929,9 +3337,8 @@ class _PagesState extends State<Pages> with RouteAware {
                                                   HapticFeedback.lightImpact();
                                                   _selectPage(pageIndex);
                                                 },
-                                          onLongPress: () {
-                                            _selectPage(pageIndex);
-                                          },
+                                          onLongPress: () =>
+                                              _selectPage(pageIndex),
                                           splashColor: Theme.of(context)
                                               .colorScheme
                                               .primaryContainer
@@ -2943,10 +3350,11 @@ class _PagesState extends State<Pages> with RouteAware {
                                         ),
                                       ),
                                     ),
-                                    // Page Index Indicator
+                                  // Page Index Indicator
+                                  if (!_zoomMode)
                                     Positioned(
-                                      top: 18,
-                                      left: 12,
+                                      top: 9,
+                                      left: 6,
                                       child: GestureDetector(
                                         // Move Page Index Dialog
                                         onTap: _selectMode
@@ -3014,191 +3422,6 @@ class _PagesState extends State<Pages> with RouteAware {
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    // Grid View
-                    : MasonryGridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        padding: EdgeInsets.fromLTRB(15, 6, 15, 36),
-                        controller: _scrollController,
-                        cacheExtent: 1000,
-                        itemCount: _displayPagesCount,
-                        itemBuilder: (BuildContext context, int pageIndex) {
-                          final displayPageIndex = pageIndex + 1;
-                          pageIndex += _deletedPages
-                              .where((e) => e <= pageIndex)
-                              .length;
-                          String thumbnailPath = _pageThumbnails[pageIndex];
-                          double thumbnailRatio = _thumbnailRatios[pageIndex];
-                          if (thumbnailRatio == 0.0) {
-                            throw StateError("thumbnailRatio == 0.0");
-                          }
-                          File pageThumbnail = File(thumbnailPath);
-                          final bool isLoading =
-                              _loadingPages.length <= pageIndex ||
-                              _loadingPages[pageIndex];
-                          return AspectRatio(
-                            aspectRatio: thumbnailRatio,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                boxShadow: [bigBoxShadow(context)],
-                              ),
-                              child: Stack(
-                                fit: StackFit.passthrough,
-                                children: [
-                                  // BG
-                                  Material(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceBright,
-                                  ),
-                                  // Thumbnail
-                                  if (thumbnailPath.isNotEmpty)
-                                    AnimatedSwitcher(
-                                      duration: Duration(milliseconds: 200),
-                                      child: SizedBox.expand(
-                                        child: Image.file(
-                                          pageThumbnail,
-                                          fit: BoxFit.cover,
-                                          key: ValueKey(thumbnailPath),
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Material(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                  ),
-                                                );
-                                              },
-                                        ),
-                                      ),
-                                    ),
-                                  // Loading Indicator
-                                  if (isLoading)
-                                    Positioned.fill(
-                                      child: Material(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHigh
-                                            .withAlpha(150),
-                                      ),
-                                    ),
-                                  if (thumbnailPath.isEmpty || isLoading)
-                                    IndicatorProcessingImage(),
-                                  // Edit Page Hint
-                                  if (_hintEditPage)
-                                    FlashHint(text: tr("pages.editHint")),
-                                  // InkWell
-                                  Positioned.fill(
-                                    child: Material(
-                                      color:
-                                          (_selectMode &&
-                                              _selectedPages.contains(
-                                                pageIndex,
-                                              ))
-                                          ? Theme.of(context)
-                                                .colorScheme
-                                                .primaryContainer
-                                                .withAlpha(150)
-                                          : Colors.transparent,
-                                      child: InkWell(
-                                        onTap: !_selectMode
-                                            ? () => _openPagePreview(pageIndex)
-                                            : () {
-                                                HapticFeedback.lightImpact();
-                                                _selectPage(pageIndex);
-                                              },
-                                        onLongPress: () {
-                                          _selectPage(pageIndex);
-                                        },
-                                        splashColor: Theme.of(context)
-                                            .colorScheme
-                                            .primaryContainer
-                                            .withAlpha(150),
-                                        highlightColor: Theme.of(context)
-                                            .colorScheme
-                                            .primaryContainer
-                                            .withAlpha(150),
-                                      ),
-                                    ),
-                                  ),
-                                  // Page Index Indicator
-                                  Positioned(
-                                    top: 9,
-                                    left: 6,
-                                    child: GestureDetector(
-                                      // Move Page Index Dialog
-                                      onTap: _selectMode
-                                          ? () => _selectPage(pageIndex)
-                                          : () => _openPageEditDialog(
-                                              context,
-                                              pageIndex,
-                                              displayPageIndex,
-                                            ),
-                                      onLongPress: () => _selectPage(pageIndex),
-                                      child: Container(
-                                        padding: EdgeInsets.fromLTRB(
-                                          12,
-                                          6,
-                                          (_selectMode &&
-                                                  _selectedPages.contains(
-                                                    pageIndex,
-                                                  ))
-                                              ? 6
-                                              : 12,
-                                          6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.surfaceBright,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          boxShadow: [smallBoxShadow(context)],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              "$displayPageIndex/$_displayPagesCount",
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            SizedBox(
-                                              width:
-                                                  (_selectMode &&
-                                                      _selectedPages.contains(
-                                                        pageIndex,
-                                                      ))
-                                                  ? 8
-                                                  : 0,
-                                            ),
-                                            (_selectMode &&
-                                                    _selectedPages.contains(
-                                                      pageIndex,
-                                                    ))
-                                                ? Icon(Icons.check, size: 20)
-                                                : SizedBox(),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -3208,198 +3431,212 @@ class _PagesState extends State<Pages> with RouteAware {
               )
             : const SizedBox(),
         // Floating Action Buttons
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: !_selectMode
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    // Add Images
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        heroTag: "pickImagesPage",
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () {
-                          _openImagePicker(ImageSource.gallery);
-                        },
-                        tooltip: tr("fabs.images"),
-                        child: IconWithPlusBadge(icon: Icons.photo_library),
-                      ),
-                    ),
-                    SizedBox(height: 18.0),
-                    // Add PDF
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        heroTag: "pickPdfPage",
-                        onPressed: () async {
-                          final indexPairsList = await g.filesHelper
-                              .pickPdfToDoc(addToDocWithIndex: widget.docIndex);
-                          int pdfsCount = indexPairsList.length;
-                          if (pdfsCount != 0 && context.mounted) {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final snackBar = SnackBar(
-                              content: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(tr("loading.importingPdf")),
-                                  SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surface,
-                                    ),
-                                  ),
-                                ],
+        floatingActionButton: _zoomMode
+            ? null
+            : Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: !_selectMode
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          // Add Images
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: FloatingActionButton(
+                              heroTag: "pickImagesPage",
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              duration: const Duration(days: 1),
-                            );
-                            messenger.showSnackBar(snackBar);
+                              onPressed: () {
+                                _openImagePicker(ImageSource.gallery);
+                              },
+                              tooltip: tr("fabs.images"),
+                              child: IconWithPlusBadge(
+                                icon: Icons.photo_library,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 18.0),
+                          // Add PDF
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: FloatingActionButton(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              heroTag: "pickPdfPage",
+                              onPressed: () async {
+                                final indexPairsList = await g.filesHelper
+                                    .pickPdfToDoc(
+                                      addToDocWithIndex: widget.docIndex,
+                                    );
+                                int pdfsCount = indexPairsList.length;
+                                if (pdfsCount != 0 && context.mounted) {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  final snackBar = SnackBar(
+                                    content: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(tr("loading.importingPdf")),
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.surface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    duration: const Duration(days: 1),
+                                  );
+                                  messenger.showSnackBar(snackBar);
 
-                            // Hide snackbar when page is loaded
-                            StreamSubscription<NotifierEvent>?
-                            eventSubscriptionSnackbar;
-                            hideSnackbarOnPageReload(NotifierEvent event) {
-                              if (event == NotifierEvent.loadPagesThumbnails) {
-                                messenger.hideCurrentSnackBar();
-                                eventSubscriptionSnackbar?.cancel();
-                              }
-                            }
+                                  // Hide snackbar when page is loaded
+                                  StreamSubscription<NotifierEvent>?
+                                  eventSubscriptionSnackbar;
+                                  hideSnackbarOnPageReload(
+                                    NotifierEvent event,
+                                  ) {
+                                    if (event ==
+                                        NotifierEvent.loadPagesThumbnails) {
+                                      messenger.hideCurrentSnackBar();
+                                      eventSubscriptionSnackbar?.cancel();
+                                    }
+                                  }
 
-                            eventSubscriptionSnackbar = globalNotifier.stream
-                                .listen(hideSnackbarOnPageReload);
-                          }
-                        },
-                        tooltip: tr("fabs.pdfs"),
-                        child: IconWithPlusBadge(icon: Icons.picture_as_pdf),
+                                  eventSubscriptionSnackbar = globalNotifier
+                                      .stream
+                                      .listen(hideSnackbarOnPageReload);
+                                }
+                              },
+                              tooltip: tr("fabs.pdfs"),
+                              child: IconWithPlusBadge(
+                                icon: Icons.picture_as_pdf,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 18.0),
+                          // Take and add Photos
+                          if (_picker.supportsImageSource(ImageSource.camera))
+                            FloatingActionButton(
+                              heroTag: "takePhotoPage",
+                              onPressed: () {
+                                _openImagePicker(ImageSource.camera);
+                              },
+                              tooltip: tr("fabs.camera"),
+                              child: const Icon(Icons.camera_alt),
+                            ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: FloatingActionButton(
+                              heroTag: "selectionChangeThumbnail",
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onPressed: () async {
+                                //if (
+                                await _changeThumbnailVersionsPopup(
+                                  context,
+                                  _selectedPages,
+                                  widget.docIndex,
+                                );
+                                //) {
+                                //  _cancelSelectMode();
+                                //}
+                              },
+                              tooltip: tr("fabs.thumbnail"),
+                              child: IconWithBadge(
+                                icon: Icons.image,
+                                badgeIcon: Icons.change_circle,
+                                mainIconSize: 24,
+                                iconColor: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                bgColor: Theme.of(
+                                  context,
+                                ).colorScheme.primaryContainer,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 18.0),
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: FloatingActionButton(
+                              heroTag: "selectionDeletePage",
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onPressed: () async {
+                                bool deletionConfirmed = await _pagesPopup(
+                                  context,
+                                  _selectedPages,
+                                  PopUpType.delete,
+                                  widget.docIndex,
+                                );
+                                if (deletionConfirmed) {
+                                  _cancelSelectMode();
+                                }
+                              },
+                              tooltip: tr("fabs.delete"),
+                              child: const Icon(Icons.delete),
+                            ),
+                          ),
+                          SizedBox(height: 18.0),
+                          SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: FloatingActionButton(
+                              heroTag: "selectionSavePage",
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onPressed: () async {
+                                if (await _pagesPopup(
+                                      context,
+                                      _selectedPages,
+                                      PopUpType.save,
+                                      widget.docIndex,
+                                    ) &&
+                                    mounted) {
+                                  _cancelSelectMode();
+                                }
+                              },
+                              tooltip: tr("fabs.save"),
+                              child: const Icon(Icons.save),
+                            ),
+                          ),
+                          SizedBox(height: 18.0),
+                          if (_picker.supportsImageSource(ImageSource.camera))
+                            FloatingActionButton(
+                              heroTag: "selectionSharePage",
+                              onPressed: () async {
+                                _pagesPopup(
+                                  context,
+                                  _selectedPages,
+                                  PopUpType.share,
+                                  widget.docIndex,
+                                );
+                              },
+                              tooltip: tr("fabs.share"),
+                              child: const Icon(Icons.share),
+                            ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: 18.0),
-                    // Take and add Photos
-                    if (_picker.supportsImageSource(ImageSource.camera))
-                      FloatingActionButton(
-                        heroTag: "takePhotoPage",
-                        onPressed: () {
-                          _openImagePicker(ImageSource.camera);
-                        },
-                        tooltip: tr("fabs.camera"),
-                        child: const Icon(Icons.camera_alt),
-                      ),
-                  ],
-                )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        heroTag: "selectionChangeThumbnail",
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () async {
-                          //if (
-                          await _changeThumbnailVersionsPopup(
-                            context,
-                            _selectedPages,
-                            widget.docIndex,
-                          );
-                          //) {
-                          //  _cancelSelectMode();
-                          //}
-                        },
-                        tooltip: tr("fabs.thumbnail"),
-                        child: IconWithBadge(
-                          icon: Icons.image,
-                          badgeIcon: Icons.change_circle,
-                          mainIconSize: 24,
-                          iconColor: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
-                          bgColor: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 18.0),
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        heroTag: "selectionDeletePage",
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () async {
-                          bool deletionConfirmed = await _pagesPopup(
-                            context,
-                            _selectedPages,
-                            PopUpType.delete,
-                            widget.docIndex,
-                          );
-                          if (deletionConfirmed) {
-                            _cancelSelectMode();
-                          }
-                        },
-                        tooltip: tr("fabs.delete"),
-                        child: const Icon(Icons.delete),
-                      ),
-                    ),
-                    SizedBox(height: 18.0),
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: FloatingActionButton(
-                        heroTag: "selectionSavePage",
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () async {
-                          if (await _pagesPopup(
-                                context,
-                                _selectedPages,
-                                PopUpType.save,
-                                widget.docIndex,
-                              ) &&
-                              mounted) {
-                            _cancelSelectMode();
-                          }
-                        },
-                        tooltip: tr("fabs.save"),
-                        child: const Icon(Icons.save),
-                      ),
-                    ),
-                    SizedBox(height: 18.0),
-                    if (_picker.supportsImageSource(ImageSource.camera))
-                      FloatingActionButton(
-                        heroTag: "selectionSharePage",
-                        onPressed: () async {
-                          _pagesPopup(
-                            context,
-                            _selectedPages,
-                            PopUpType.share,
-                            widget.docIndex,
-                          );
-                        },
-                        tooltip: tr("fabs.share"),
-                        child: const Icon(Icons.share),
-                      ),
-                  ],
-                ),
-        ),
+              ),
       ),
     );
   }
