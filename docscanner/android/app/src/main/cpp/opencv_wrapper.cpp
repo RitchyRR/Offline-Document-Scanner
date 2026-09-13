@@ -1,9 +1,41 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
+// cvconfig.h defines HAVE_OPENCL, but it's OpenCV's internal build config
+// header and is not pulled in automatically by any public opencv2/*.hpp
+// header, so we must include it explicitly to detect OpenCL support.
+#include <opencv2/cvconfig.h>
 #include <filesystem>
+#include <mutex>
 
 #include "native_log.h"
 
 namespace fs = std::filesystem;
+
+static void _initializeGpuAcceleration() {
+    static std::once_flag initialized;
+    std::call_once(initialized, [] {
+        cv::setUseOptimized(true);
+
+#if defined(HAVE_OPENCL)
+        if (!cv::ocl::haveOpenCL()) {
+            LOGW("OpenCV was built with OpenCL support, but no OpenCL runtime is available");
+            return;
+        }
+
+        cv::ocl::setUseOpenCL(true);
+        if (!cv::ocl::useOpenCL()) {
+            LOGW("OpenCV OpenCL support is available, but could not be enabled");
+            return;
+        }
+
+        const cv::ocl::Device& device = cv::ocl::Device::getDefault();
+        LOGI("OpenCV GPU acceleration enabled: %s (%s)",
+             device.name().c_str(), device.version().c_str());
+#else
+        LOGW("OpenCV was built without OpenCL; using the optimized CPU path");
+#endif
+    });
+}
 
 static bool _writeCompressedPng(const std::string& inPngPath, const cv::Mat& inImage) {
     LOG_ENTRY();
@@ -119,20 +151,24 @@ private:
         
         // Histogram stretching
         preFiltered = _stretchMat(preFiltered, 0.001, 0.999, std::numeric_limits<double>::quiet_NaN());
+
+        cv::UMat preFilteredGpu;
+        preFiltered.copyTo(preFilteredGpu);
         
         // Gaussian blur (kernel size 3x3, sigma = 0)
-        cv::GaussianBlur(preFiltered, preFiltered, cv::Size(3, 3), 0);
+        cv::GaussianBlur(preFilteredGpu, preFilteredGpu, cv::Size(3, 3), 0);
         
         // Median blur (kernel size 3)
-        cv::medianBlur(preFiltered, preFiltered, 3);
+        cv::medianBlur(preFilteredGpu, preFilteredGpu, 3);
         
         // Remove sharpening glow
         int kGlow = std::clamp(K / 17, 3, std::numeric_limits<int>::max());
         if (kGlow % 2 == 0) kGlow += 1;
         cv::Mat kernelGlow = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kGlow, kGlow));
-        cv::morphologyEx(preFiltered, preFiltered, cv::MORPH_OPEN, kernelGlow, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+        cv::morphologyEx(preFilteredGpu, preFilteredGpu, cv::MORPH_OPEN, kernelGlow, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
         
         // Remove text
+        preFilteredGpu.copyTo(preFiltered);
         preFiltered = _closingCircleApprox(preFiltered, K);
         
         LOG_EXIT();
@@ -289,22 +325,24 @@ private:
         double lowT = 0.7 * highT;
         
         // Step 1: grayscale edges
-        cv::Mat gray;
-        cv::cvtColor(prefiltered, gray, cv::COLOR_BGR2GRAY);
-        cv::Mat edges;
-        cv::Canny(gray, edges, lowT, highT);
+        cv::UMat prefilteredGpu;
+        prefiltered.copyTo(prefilteredGpu);
+        cv::UMat grayGpu;
+        cv::cvtColor(prefilteredGpu, grayGpu, cv::COLOR_BGR2GRAY);
+        cv::UMat edgesGpu;
+        cv::Canny(grayGpu, edgesGpu, lowT, highT);
         
         // Add saturation-based edges
-        cv::Mat hsv;
-        cv::cvtColor(prefiltered, hsv, cv::COLOR_BGR2HSV);
-        std::vector<cv::Mat> hsvChannels;
-        cv::split(hsv, hsvChannels);
-        cv::Mat sEdges;
-        cv::Canny(hsvChannels[1], sEdges, lowT, highT);
-        cv::add(edges, sEdges, edges);
+        cv::UMat hsvGpu;
+        cv::cvtColor(prefilteredGpu, hsvGpu, cv::COLOR_BGR2HSV);
+        std::vector<cv::UMat> hsvChannelsGpu;
+        cv::split(hsvGpu, hsvChannelsGpu);
+        cv::UMat sEdgesGpu;
+        cv::Canny(hsvChannelsGpu[1], sEdgesGpu, lowT, highT);
+        cv::add(edgesGpu, sEdgesGpu, edgesGpu);
         
         // Step 2: Edge density
-        int edgePixelsCount = cv::countNonZero(edges);
+        int edgePixelsCount = cv::countNonZero(edgesGpu);
         int totalPixels = prefiltered.rows * prefiltered.cols;
         double edgeDensity = static_cast<double>(edgePixelsCount) / static_cast<double>(totalPixels);
         
@@ -317,11 +355,13 @@ private:
         lowT = 0.7 * highT;
         
         // Step 4: Run Canny again with adjusted thresholds
-        cv::Canny(gray, edges, lowT, highT);
-        cv::Canny(hsvChannels[1], sEdges, lowT, highT);
-        cv::add(edges, sEdges, edges);
+        cv::Canny(grayGpu, edgesGpu, lowT, highT);
+        cv::Canny(hsvChannelsGpu[1], sEdgesGpu, lowT, highT);
+        cv::add(edgesGpu, sEdgesGpu, edgesGpu);
         
         LOG_EXIT();
+        cv::Mat edges;
+        edgesGpu.copyTo(edges);
         return edges;
     }
     
@@ -982,10 +1022,14 @@ private:
         // Perspective transform matrix
         cv::Mat transformationMatrix = cv::getPerspectiveTransform(srcPoints, dstPoints);
         
-        // Warp image
+        // Warp image on the OpenCL-backed T-API when available.
         cv::Mat warped;
         try {
-            cv::warpPerspective(imageMat, warped, transformationMatrix, cv::Size(width, height));
+            cv::UMat imageGpu;
+            cv::UMat warpedGpu;
+            imageMat.copyTo(imageGpu);
+            cv::warpPerspective(imageGpu, warpedGpu, transformationMatrix, cv::Size(width, height));
+            warpedGpu.copyTo(warped);
         } catch (const cv::Exception& e) {
             LOGE("OpenCV exception: %s", e.what());
             LOG_EXIT();
@@ -1001,13 +1045,17 @@ private:
         int k1 = std::clamp((K / 18) + 1, 3, std::numeric_limits<int>::max());
         cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k1, k1));
         
-        cv::Mat bg;
-        cv::morphologyEx(src, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
+        cv::UMat srcGpu;
+        cv::UMat bgGpu;
+        src.copyTo(srcGpu);
+        cv::morphologyEx(srcGpu, bgGpu, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 1, cv::BORDER_REPLICATE);
         
         // 2. Blur
-        cv::blur(bg, bg, cv::Size((K * 2) + 1, (K * 2) + 1));
+        cv::blur(bgGpu, bgGpu, cv::Size((K * 2) + 1, (K * 2) + 1));
         
         // 3. Remove dark structures (closing)
+        cv::Mat bg;
+        bgGpu.copyTo(bg);
         int k2 = K * 2;
         bg = _closingCircleApprox(bg, k2);
         
@@ -1079,11 +1127,13 @@ private:
     
     cv::Mat _proFilterBG(const cv::Mat& warped, int K) {
         cv::Mat bg = warped.clone();
+        cv::UMat bgGpu;
+        bg.copyTo(bgGpu);
         
         // 1. Remove glow (Opening)
         int k1 = std::clamp((K / 30) + 1, 3, std::numeric_limits<int>::max());
         cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(k1, k1));
-        cv::morphologyEx(bg, bg, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 2, cv::BORDER_REPLICATE);
+        cv::morphologyEx(bgGpu, bgGpu, cv::MORPH_OPEN, kernel1, cv::Point(-1, -1), 2, cv::BORDER_REPLICATE);
         
         // 2. Median blur
         int kernelSize = (K * 2) + 1;
@@ -1092,7 +1142,7 @@ private:
         bool medianBlurSucceeded = false;
         while (!medianBlurSucceeded) {
             try {
-                cv::medianBlur(bg, bg, kernelSize);
+                cv::medianBlur(bgGpu, bgGpu, kernelSize);
                 medianBlurSucceeded = true;
             }
             catch (...) {
@@ -1102,22 +1152,28 @@ private:
         }
         
         // 3. Remove dark structures (Closing)
+        bgGpu.copyTo(bg);
         bg = _closingCircleApprox(bg, K * 2);
 
         // 4. HSV: V channel max(bg, warpedV)
-        cv::Mat bgHSV, warpedHSV;
-        cv::cvtColor(bg, bgHSV, cv::COLOR_BGR2HSV);
-        cv::cvtColor(warped, warpedHSV, cv::COLOR_BGR2HSV);
+        cv::UMat bgGpuForColor, warpedGpu;
+        bg.copyTo(bgGpuForColor);
+        warped.copyTo(warpedGpu);
+        cv::UMat bgHSVGpu, warpedHSVGpu;
+        cv::cvtColor(bgGpuForColor, bgHSVGpu, cv::COLOR_BGR2HSV);
+        cv::cvtColor(warpedGpu, warpedHSVGpu, cv::COLOR_BGR2HSV);
         
-        std::vector<cv::Mat> bgChannels, warpedChannels;
-        cv::split(bgHSV, bgChannels);
-        cv::split(warpedHSV, warpedChannels);
+        std::vector<cv::UMat> bgChannelsGpu, warpedChannelsGpu;
+        cv::split(bgHSVGpu, bgChannelsGpu);
+        cv::split(warpedHSVGpu, warpedChannelsGpu);
         
         bg = _closingCircleApprox(bg, K / 9);
-        bgChannels[2] = cv::max(bgChannels[2], warpedChannels[2]);
+        cv::max(bgChannelsGpu[2], warpedChannelsGpu[2], bgChannelsGpu[2]);
 
-        cv::merge(bgChannels, bgHSV);
-        cv::cvtColor(bgHSV, bg, cv::COLOR_HSV2BGR);
+        cv::merge(bgChannelsGpu, bgHSVGpu);
+        cv::UMat bgResultGpu;
+        cv::cvtColor(bgHSVGpu, bgResultGpu, cv::COLOR_HSV2BGR);
+        bgResultGpu.copyTo(bg);
         
         return bg;
     }
@@ -1243,9 +1299,13 @@ private:
         float sharpenKernelCenter = static_cast<float>(-sumKernel + 1.0);
         sharpenKernel.at<float>(2, 2) = sharpenKernelCenter;
 
-        // Apply filter
+        // Apply filter through the OpenCL-backed T-API when available.
+        cv::UMat warpedGpu;
+        cv::UMat sharpenedGpu;
+        warped.copyTo(warpedGpu);
+        cv::filter2D(warpedGpu, sharpenedGpu, -1, sharpenKernel, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
         cv::Mat sharpened;
-        cv::filter2D(warped, sharpened, -1, sharpenKernel, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
+        sharpenedGpu.copyTo(sharpened);
         
         // Apply sharpening only to text/fine lines
         sharpened = _applyFilterToText(warped, sharpened, K);
@@ -1649,7 +1709,7 @@ public:
 // ------------------ Instance Lifecycle ------------------
 ImageProcessor* createProcessor() {
     LOG_ENTRY();
-    cv::setUseOptimized(true);
+    _initializeGpuAcceleration();
     LOG_EXIT();
     return new ImageProcessor();
 }
@@ -1827,6 +1887,7 @@ int rotateImage(
     bool hideUncompressedSuffix
 ) {
     LOG_ENTRY();
+    _initializeGpuAcceleration();
     LOG_VAR(inAngle);
     LOGD("inSourcePath %s",inSourcePath);
  
@@ -1845,11 +1906,23 @@ int rotateImage(
     // rotate
     cv::Mat rotated;
     if (inAngle == 90) {
-        cv::rotate(source, rotated, cv::ROTATE_90_CLOCKWISE);
+    cv::UMat sourceGpu;
+    cv::UMat rotatedGpu;
+    source.copyTo(sourceGpu);
+    cv::rotate(sourceGpu, rotatedGpu, cv::ROTATE_90_CLOCKWISE);
+    rotatedGpu.copyTo(rotated);
     } else if (inAngle == 270) {
-        cv::rotate(source, rotated, cv::ROTATE_90_COUNTERCLOCKWISE);
+    cv::UMat sourceGpu;
+    cv::UMat rotatedGpu;
+    source.copyTo(sourceGpu);
+    cv::rotate(sourceGpu, rotatedGpu, cv::ROTATE_90_COUNTERCLOCKWISE);
+    rotatedGpu.copyTo(rotated);
     } else if (inAngle == 180){
-        cv::rotate(source, rotated, cv::ROTATE_180);
+    cv::UMat sourceGpu;
+    cv::UMat rotatedGpu;
+    source.copyTo(sourceGpu);
+    cv::rotate(sourceGpu, rotatedGpu, cv::ROTATE_180);
+    rotatedGpu.copyTo(rotated);
     } else {
         rotated = source;
     }
@@ -1874,6 +1947,7 @@ static int _scaleImageToWidth(
     int inNewWidth,
     int* outNewHeight
 ) {
+    _initializeGpuAcceleration();
     if (source.empty() || !inScaledPath || !outNewHeight || inNewWidth <= 0) {
         return 0;
     }
@@ -1881,11 +1955,13 @@ static int _scaleImageToWidth(
     int newHeight = static_cast<int>(
         source.rows * static_cast<double>(inNewWidth) / source.cols
     );
-    cv::Mat scaled;
+    cv::UMat sourceGpu;
+    cv::UMat scaledGpu;
+    source.copyTo(sourceGpu);
     try {
         cv::resize(
-            source,
-            scaled,
+            sourceGpu,
+            scaledGpu,
             cv::Size(inNewWidth, newHeight),
             0,
             0,
@@ -1896,6 +1972,8 @@ static int _scaleImageToWidth(
         //scaled = cv::Mat::zeros(newHeight, inNewWidth, CV_8UC3);
         return 0;
     }
+    cv::Mat scaled;
+    scaledGpu.copyTo(scaled);
     
     // Write output image
     if (!_writeCompressedPng(inScaledPath, scaled)) {
@@ -1914,6 +1992,7 @@ int scaleImageToWidth(
     int* outNewHeight
 ) {
     LOG_ENTRY();
+    _initializeGpuAcceleration();
     LOG_VAR(inNewWidth);
 
     if (!inSourcePath || !inScaledPath || !outNewHeight) {
@@ -1943,6 +2022,7 @@ int scaleImageToMaxSize(
     int inMaxSize
 ) {
     LOG_ENTRY();
+    _initializeGpuAcceleration();
     LOG_VAR(inMaxSize);
     
     if (!inSourcePath || !inScaledPath) {
@@ -2055,6 +2135,7 @@ int writeCompressedPng(
     const char* inPngPath
 ) {
     LOG_ENTRY();
+    _initializeGpuAcceleration();
     
     // read
     cv::Mat source = cv::imread(inSourcePath);

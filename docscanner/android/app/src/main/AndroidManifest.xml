@@ -4,6 +4,16 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
+        <!-- Grants access to the vendor OpenCL driver, which the Android linker
+             otherwise blocks for app processes. android:required="false" means
+             the app still installs/runs fine on devices without an OpenCL
+             driver (OpenCV just falls back to its CPU path in that case). -->
+        <uses-native-library
+            android:name="libOpenCL.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libOpenCL-pixel.so"
+            android:required="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

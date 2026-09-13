@@ -55,6 +55,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Keep the installed release app/data while enabling adb debugging.
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
         }

@@ -16,8 +16,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-warn-mismatch")
 
 
-# OpenCV, Android
-set(OpenCV_DIR "/home/rr/Android/OpenCV-android-sdk/sdk/native/jni")
+# OpenCV, Android. Use an OpenCV Android build compiled with OpenCL for GPU
+# execution; the official SDK without OpenCL remains a valid CPU fallback.
+if(DEFINED ENV{OPENCV_ANDROID_SDK} AND NOT "$ENV{OPENCV_ANDROID_SDK}" STREQUAL "")
+  set(OPENCV_ANDROID_SDK "$ENV{OPENCV_ANDROID_SDK}" CACHE PATH
+      "Path to the OpenCV Android SDK")
+else()
+  set(OPENCV_ANDROID_SDK "/home/rr/Android/opencv-android-sdk-opencl/o4a/install" CACHE PATH
+      "Path to the OpenCV Android SDK")
+endif()
+set(OpenCV_DIR "${OPENCV_ANDROID_SDK}/sdk/native/jni")
 find_package(OpenCV REQUIRED core imgproc imgcodecs)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
