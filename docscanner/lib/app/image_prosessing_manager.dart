@@ -83,7 +83,7 @@ class ImageProcessingManager {
 
     // Only the photo, the warped (deskewed) version and the version used
     // for the thumbnail/filter are computed and saved here. The remaining
-    // filter versions are only generated on demand when the Page View is
+    // filter versions are only generated on demand when PagePreview is
     // opened (see generateOtherVersions).
     (_, futures) = await _processPageIsolateThumbnailVersion(
       sendPort,
@@ -274,14 +274,14 @@ class ImageProcessingManager {
 
   /// Generates the filter versions that are not essential for the thumbnail
   /// (i.e. every version except photo, warped and the currently selected
-  /// thumbnail version). This is only called when the Page View is opened,
+  /// thumbnail version). This is only called when PagePreview is opened,
   /// so the user can switch between filters without waiting for processing.
   /// The generated files are compressed just like the essential versions,
   /// since the user can select, share or save any version while viewing the
-  /// page. They are deleted again once the page/document is closed.
+  /// page. They are deleted again once Pages/DocumentsHome is opened or the app is closed.
   ///
   /// Since this can run while the initial (essential) processing of a
-  /// freshly captured photo is still in progress (Page View opens right
+  /// freshly captured photo is still in progress (PagePreview opens right
   /// away), it first polls for the warped file and the essential thumbnail
   /// version to appear, instead of giving up immediately.
   static Future<void> _generateOtherVersionsIsolate(
@@ -317,7 +317,7 @@ class ImageProcessingManager {
     List<Future<void>> compressFutures = [];
 
     try {
-      // The Page View can open right after a photo was taken, before the
+      // PagePreview can open right after a photo was taken, before the
       // initial (essential) processing has finished writing the warped
       // file and the thumbnail version. Poll for both for a while instead
       // of giving up immediately, so the other versions still get
@@ -481,9 +481,8 @@ class ImageProcessingManager {
     Isolate.exit(sendPort, "done");
   }
 
-  /// Deletes every generated filter version except photo, warped and the
-  /// version currently used for the thumbnail. Called when a page/document
-  /// is closed (Page View closed, Documents View opened, or app closed).
+  /// Deletes every generated filter version except photo, warped and the version currently used for the thumbnail.
+  /// Called when returning to DocumentsHome or when the app is closed.
   static Future<void> deleteNonEssentialVersions(
     int docIndex,
     int pageIndex, {
@@ -1084,10 +1083,10 @@ class ImageProcessingManager {
 
   /// Generates the non-essential filter versions (everything except photo,
   /// warped and the selected thumbnail version) in a background isolate.
-  /// Called when the Page View is opened, so the user can switch filters
+  /// Called when PagePreview is opened, so the user can switch filters
   /// without having to wait. The generated files are compressed just like
   /// the essential versions (they can be shared/saved while viewing the
-  /// page), but get deleted again once the page/document is closed.
+  /// page), but get deleted again once Pages/DocumentsHome is opened or the app is closed.
   Future<void> generateOtherVersions(int docIndex, int pageIndex) async {
     final completer = Completer<void>();
     final port = ReceivePort();
