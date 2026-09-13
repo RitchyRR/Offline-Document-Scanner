@@ -366,6 +366,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden) wasHidden = true;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      imageProcessingManager.deleteNonEssentialVersionsOfAllDocuments();
+    }
     if (state == AppLifecycleState.resumed) {
       if (wasHidden && !isTmpExternal) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -2387,6 +2391,9 @@ class _PagesState extends State<Pages> with RouteAware {
 
   @override
   void dispose() {
+    imageProcessingManager.deleteNonEssentialVersionsOfDocument(
+      widget.docIndex,
+    );
     _eventSubscription.cancel();
     routeObserver.unsubscribe(this);
     super.dispose();
@@ -4323,6 +4330,13 @@ class PagePreviewState extends State<PagePreview> {
       widget.pageIndex,
     );
     if (_importedPdfMode && mounted) setState(() {});
+    // Generate the remaining filter versions (only essential ones were kept)
+    if (!_importedPdfMode) {
+      imageProcessingManager.generateOtherVersions(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+    }
     // Images
     _pageUnlocked = await g.metadataHelper.readPageUnlocked(
       widget.docIndex,

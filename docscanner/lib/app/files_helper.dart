@@ -398,7 +398,8 @@ class FilesHelper {
       for (var fse in Directory(
         pagePath,
       ).listSync()..sort((a, b) => a.path.compareTo(b.path))) {
-        if (fse.path.contains("$versionName.")) {
+        if (fse.path.contains("$versionName.") ||
+            fse.path.contains("${versionName}_uncompressed.")) {
           fse.deleteSync();
           deleted = true;
         }
@@ -600,12 +601,33 @@ class FilesHelper {
                 oldVersionFileNames == null || oldVersionFileNames.isEmpty
                 ? null
                 : oldVersionFileNames;
+            // Only photo, warped and the version used for the thumbnail are kept persistently.
+            // The remaining filter versions are generated on demand
+            // and deleted again once the document is closed,
+            // so they must not be required for a page to count as complete.
+            final int thumbnailIndex =
+                await MetadataHelper.readPageThumbnailIndex(
+                  docIndex,
+                  pageIndex,
+                  supressWarnings: true,
+                ) ??
+                g.defaultIndex;
+            final Set<String> essentialVersionNames = {
+              versionNamesInternal[0],
+              versionNamesInternal[1],
+              versionNamesInternal[thumbnailIndex],
+            };
             for (var imageFse in pageFseL) {
-              if (imageFse.path.contains("thumbnail") ||
-                  versionNamesInternal.any(
-                    (element) => imageFse.path.contains(element),
-                  )) {
-                countVersionsAndThumbnail++;
+              bool isRecognizedVersion = versionNamesInternal.any(
+                (element) => imageFse.path.contains(element),
+              );
+              if (imageFse.path.contains("thumbnail") || isRecognizedVersion) {
+                if (imageFse.path.contains("thumbnail") ||
+                    essentialVersionNames.any(
+                      (element) => imageFse.path.contains(element),
+                    )) {
+                  countVersionsAndThumbnail++;
+                }
               } else if (!imageFse.path.endsWith("metadata.json")) {
                 dev.log(
                   "Info, _repairAll: Deleting unrecognized file: $imageFse.path",
@@ -626,7 +648,8 @@ class FilesHelper {
                 ? countVersionsAndThumbnail !=
                       2 // photo + thumbnail
                 : countVersionsAndThumbnail <
-                      versionNamesInternal.length + 1; // versions +  thumbnail
+                      essentialVersionNames.length +
+                          1; // essential versions + thumbnail
           }
 
           if (pageIncomplete) {

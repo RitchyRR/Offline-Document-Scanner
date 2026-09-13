@@ -66,8 +66,6 @@ class ImageProcessingManager {
 
     List<Future<void>> futures = [];
 
-    final int initialThumbnailIndex;
-
     //OpenCVHelper cvHelper = OpenCVHelper(g);
     final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
     imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
@@ -83,10 +81,11 @@ class ImageProcessingManager {
       );
     }
 
-    (
-      initialThumbnailIndex,
-      futures,
-    ) = await _processPageIsolateThumbnailVersion(
+    // Only the photo, the warped (deskewed) version and the version used
+    // for the thumbnail/filter are computed and saved here. The remaining
+    // filter versions are only generated on demand when the Page View is
+    // opened (see generateOtherVersions).
+    (_, futures) = await _processPageIsolateThumbnailVersion(
       sendPort,
       docIndex,
       pageIndex,
@@ -95,16 +94,6 @@ class ImageProcessingManager {
       cornerPointsIn,
       //rotationIn,
       isInitial,
-      g,
-      imageProcessor,
-      futures,
-    );
-
-    futures = await _processPageIsolateFilters(
-      sendPort,
-      docIndex,
-      pageIndex,
-      initialThumbnailIndex,
       g,
       imageProcessor,
       futures,
@@ -274,22 +263,44 @@ class ImageProcessingManager {
       _compressVersion(docIndex, pageIndex, initialThumbnailIndex, gIn: g),
     );
 
-    // Update thumbnails:
+    // Generate and save the actual thumbnail image (used in grid/list views)
     await isolateExitPoint(kill, futures: futures);
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
+    futures.add(
+      _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g),
+    );
 
     return (initialThumbnailIndex, futures);
   }
 
-  static Future<List<Future<void>>> _processPageIsolateFilters(
-    SendPort sendPort,
-    int docIndex,
-    int pageIndex,
-    int initialThumbnailIndex,
-    AppGlobals g,
-    final cvb.ImageProcessor imageProcessor,
-    List<Future<void>> futures,
+  /// Generates the filter versions that are not essential for the thumbnail
+  /// (i.e. every version except photo, warped and the currently selected
+  /// thumbnail version). This is only called when the Page View is opened,
+  /// so the user can switch between filters without waiting for processing.
+  /// The generated files are compressed just like the essential versions,
+  /// since the user can select, share or save any version while viewing the
+  /// page. They are deleted again once the page/document is closed.
+  ///
+  /// Since this can run while the initial (essential) processing of a
+  /// freshly captured photo is still in progress (Page View opens right
+  /// away), it first polls for the warped file and the essential thumbnail
+  /// version to appear, instead of giving up immediately.
+  static Future<void> _generateOtherVersionsIsolate(
+    (
+      SendPort sendPort,
+      RootIsolateToken token,
+      int docIndex,
+      int pageIndex,
+      AppGlobals g,
+    )
+    data,
   ) async {
+    SendPort? sendPort = data.$1;
+    RootIsolateToken token = data.$2;
+    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+    int docIndex = data.$3;
+    int pageIndex = data.$4;
+    AppGlobals g = data.$5;
+
     // Control Port for exiting gracefully
     bool kill = false;
     final controlPort = ReceivePort();
@@ -300,55 +311,205 @@ class ImageProcessingManager {
       }
     });
 
-    // Contrast
-    await isolateExitPoint(kill, futures: futures);
-    int filterIndex = versionNamesInternal.indexOf("contrast");
-    if (initialThumbnailIndex != filterIndex) {
-      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
-      await isolateExitPoint(kill, futures: futures);
-      imageProcessor.contrastFilter(
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
+    bool anyChange = false;
+    List<Future<void>> compressFutures = [];
+
+    try {
+      // The Page View can open right after a photo was taken, before the
+      // initial (essential) processing has finished writing the warped
+      // file and the thumbnail version. Poll for both for a while instead
+      // of giving up immediately, so the other versions still get
+      // generated once essential processing is done, and so we don't race
+      // with it re-generating the same essential version concurrently.
+      String warpedPath = "";
+      int thumbnailIndex = g.defaultIndex;
+      for (var attempt = 0; attempt < 120; attempt++) {
+        await isolateExitPoint(kill);
+        warpedPath = await g.filesHelper.getVersionPath(
+          docIndex,
+          pageIndex,
+          1,
+          supressWarnings: true,
+        );
+        thumbnailIndex =
+            await MetadataHelper.readPageThumbnailIndex(
+              docIndex,
+              pageIndex,
+              gIn: g,
+              supressWarnings: true,
+            ) ??
+            g.defaultIndex;
+        final bool warpedReady =
+            warpedPath.isNotEmpty && File(warpedPath).existsSync();
+        final bool thumbnailReady =
+            thumbnailIndex <= 1 ||
+            (await g.filesHelper.getVersionPath(
+              docIndex,
+              pageIndex,
+              thumbnailIndex,
+              supressWarnings: true,
+            )).isNotEmpty;
+        if (warpedReady && thumbnailReady) break;
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+      if (warpedPath.isEmpty || !File(warpedPath).existsSync()) {
+        imageProcessor.dispose();
+        Isolate.exit(sendPort, "done");
+      }
+      await isolateExitPoint(kill);
+      imageProcessor.loadWarped(warpedPath);
+
+      // Contrast
+      await isolateExitPoint(kill);
+      int filterIndex = versionNamesInternal.indexOf("contrast");
+      final String existingContrastPath = await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        filterIndex,
+        supressWarnings: true,
       );
-    }
-    // Document
-    await isolateExitPoint(kill, futures: futures);
-    filterIndex = versionNamesInternal.indexOf("processed1");
-    if (initialThumbnailIndex != filterIndex) {
-      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
-      await isolateExitPoint(kill, futures: futures);
-      imageProcessor.documentFilter(
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
+      if (thumbnailIndex != filterIndex && existingContrastPath.isEmpty) {
+        imageProcessor.contrastFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            filterIndex,
+          ),
+        );
+        anyChange = true;
+        compressFutures.add(
+          _compressVersion(docIndex, pageIndex, filterIndex, gIn: g),
+        );
+      }
+
+      // Document
+      await isolateExitPoint(kill);
+      filterIndex = versionNamesInternal.indexOf("processed1");
+      final String existingDocumentPath = await g.filesHelper.getVersionPath(
+        docIndex,
+        pageIndex,
+        filterIndex,
+        supressWarnings: true,
       );
-    }
-    // PRO
-    await isolateExitPoint(kill, futures: futures);
-    filterIndex = versionNamesInternal.indexOf("processed2");
-    if (initialThumbnailIndex != filterIndex &&
-        initialThumbnailIndex != versionNamesInternal.indexOf("processed3")) {
-      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
-      await isolateExitPoint(kill, futures: futures);
-      imageProcessor.proFilter(
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
-      );
-      // PRO 2
-      await isolateExitPoint(kill, futures: futures);
-      filterIndex = versionNamesInternal.indexOf("processed3");
-      g.filesHelper.deleteExistingVersion(docIndex, pageIndex, filterIndex);
-      await isolateExitPoint(kill, futures: futures);
-      imageProcessor.proColorFilter(
-        await g.filesHelper.createVersionPath(docIndex, pageIndex, filterIndex),
-      );
+      if (thumbnailIndex != filterIndex && existingDocumentPath.isEmpty) {
+        imageProcessor.documentFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            filterIndex,
+          ),
+        );
+        anyChange = true;
+        compressFutures.add(
+          _compressVersion(docIndex, pageIndex, filterIndex, gIn: g),
+        );
+      }
+
+      // PRO / PRO 2
+      await isolateExitPoint(kill);
+      final int proIndex = versionNamesInternal.indexOf("processed2");
+      final int proColorIndex = versionNamesInternal.indexOf("processed3");
+      bool needsPro =
+          thumbnailIndex != proIndex &&
+          (await g.filesHelper.getVersionPath(
+            docIndex,
+            pageIndex,
+            proIndex,
+            supressWarnings: true,
+          )).isEmpty;
+      bool needsProColor =
+          thumbnailIndex != proColorIndex &&
+          (await g.filesHelper.getVersionPath(
+            docIndex,
+            pageIndex,
+            proColorIndex,
+            supressWarnings: true,
+          )).isEmpty;
+      if (needsPro || needsProColor) {
+        if (needsPro) {
+          await isolateExitPoint(kill);
+          imageProcessor.proFilter(
+            await g.filesHelper.createVersionPath(
+              docIndex,
+              pageIndex,
+              proIndex,
+            ),
+          );
+          anyChange = true;
+          compressFutures.add(
+            _compressVersion(docIndex, pageIndex, proIndex, gIn: g),
+          );
+        } else {
+          // Pro version already exists (it's the selected thumbnail),
+          // load it so proColorFilter can use it.
+          String proPath = await g.filesHelper.getVersionPath(
+            docIndex,
+            pageIndex,
+            proIndex,
+            supressWarnings: true,
+          );
+          if (proPath.isNotEmpty) imageProcessor.loadPro(proPath);
+        }
+        if (needsProColor) {
+          await isolateExitPoint(kill);
+          imageProcessor.proColorFilter(
+            await g.filesHelper.createVersionPath(
+              docIndex,
+              pageIndex,
+              proColorIndex,
+            ),
+          );
+          anyChange = true;
+          compressFutures.add(
+            _compressVersion(docIndex, pageIndex, proColorIndex, gIn: g),
+          );
+        }
+      }
+
+      if (anyChange) {
+        await isolateExitPoint(kill);
+        await Future.wait(compressFutures);
+        sendPort.send(NotifierEvent.loadPagesThumbnails);
+      }
+    } catch (e) {
+      dev.log("Error, _generateOtherVersionsIsolate: $e");
     }
 
-    // Set New Thumbnail
-    await isolateExitPoint(kill, futures: futures);
-    await Future.wait(futures);
-    await isolateExitPoint(kill, futures: futures);
-    futures.add(
-      _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g),
-    );
+    imageProcessor.dispose();
+    Isolate.exit(sendPort, "done");
+  }
 
-    return futures;
+  /// Deletes every generated filter version except photo, warped and the
+  /// version currently used for the thumbnail. Called when a page/document
+  /// is closed (Page View closed, Documents View opened, or app closed).
+  static Future<void> deleteNonEssentialVersions(
+    int docIndex,
+    int pageIndex, {
+    AppGlobals? gIn,
+  }) async {
+    gIn ??= g;
+    int thumbnailIndex =
+        await MetadataHelper.readPageThumbnailIndex(
+          docIndex,
+          pageIndex,
+          gIn: gIn,
+          supressWarnings: true,
+        ) ??
+        gIn.defaultIndex;
+    for (
+      var versionIndex = 2;
+      versionIndex < versionNamesInternal.length;
+      versionIndex++
+    ) {
+      if (versionIndex == thumbnailIndex) continue;
+      await gIn.filesHelper.deleteExistingVersion(
+        docIndex,
+        pageIndex,
+        versionIndex,
+      );
+    }
   }
 
   static Future<void> isolateExitPoint(
@@ -921,6 +1082,73 @@ class ImageProcessingManager {
     await _compressPage(docIndex, pageIndex);
   }
 
+  /// Generates the non-essential filter versions (everything except photo,
+  /// warped and the selected thumbnail version) in a background isolate.
+  /// Called when the Page View is opened, so the user can switch filters
+  /// without having to wait. The generated files are compressed just like
+  /// the essential versions (they can be shared/saved while viewing the
+  /// page), but get deleted again once the page/document is closed.
+  Future<void> generateOtherVersions(int docIndex, int pageIndex) async {
+    final completer = Completer<void>();
+    final port = ReceivePort();
+    final token = RootIsolateToken.instance!;
+
+    TaskKiller killer = await IsolatesManager().runTask(
+      _generateOtherVersionsIsolate,
+      (port.sendPort, token, docIndex, pageIndex, g),
+      portIn: port,
+      prio: IsolatePriority.immediate,
+      onErrorFunction: (error, stack) async {
+        dev.log(
+          "_generateOtherVersionsIsolate, onErrorFunction: $error $stack",
+        );
+      },
+    );
+    taskKillers.add(((docIndex, pageIndex), killer));
+
+    port.listen((message) async {
+      if (message is NotifierEvent) {
+        globalNotifier.triggerEvent(message);
+      } else if (message is SendPort) {
+        killer.setControlPort(message);
+      } else if (message == "done") {
+        taskKillers.removeWhere((element) => element.$2 == killer);
+        completer.complete();
+      }
+    });
+    await completer.future;
+  }
+
+  /// Deletes the non-essential filter versions of a single page (see
+  /// [deleteNonEssentialVersions]). Waits for any running isolates of the
+  /// page to finish first, so files being generated/used are not deleted
+  /// out from under them.
+  Future<void> deleteNonEssentialVersionsOfPage(
+    int docIndex,
+    int pageIndex,
+  ) async {
+    await awaitIsolatesOfPage(docIndex, pageIndex);
+    await deleteNonEssentialVersions(docIndex, pageIndex, gIn: g);
+  }
+
+  /// Deletes the non-essential filter versions of every page of a document.
+  Future<void> deleteNonEssentialVersionsOfDocument(int docIndex) async {
+    await awaitIsolatesOfDocument(docIndex);
+    final pagesCount = await g.filesHelper.getPagesCount(docIndex);
+    for (var pageIndex = 0; pageIndex < pagesCount; pageIndex++) {
+      await deleteNonEssentialVersions(docIndex, pageIndex, gIn: g);
+    }
+  }
+
+  /// Deletes the non-essential filter versions of every page of every
+  /// document. Called when the app is closed/backgrounded.
+  Future<void> deleteNonEssentialVersionsOfAllDocuments() async {
+    final docsCount = await g.filesHelper.getDocumentsCount();
+    for (var docIndex = 0; docIndex < docsCount; docIndex++) {
+      await deleteNonEssentialVersionsOfDocument(docIndex);
+    }
+  }
+
   static Future<void> _rotatePageIsolate(
     (
       SendPort sendPort,
@@ -1210,6 +1438,86 @@ class ImageProcessingManager {
     }
   }
 
+  /// Generates a single non-essential filter version (2-5) if its file is
+  /// missing, using the already loaded `warped` image in [imageProcessor].
+  /// Used when the thumbnail selection is changed to a version that was
+  /// never generated (or already deleted again after closing the page).
+  static Future<void> _generateSingleVersionIfMissing(
+    cvb.ImageProcessor imageProcessor,
+    AppGlobals g,
+    int docIndex,
+    int pageIndex,
+    int versionIndex,
+  ) async {
+    if (versionIndex <= 1) return;
+    final String existingPath = await g.filesHelper.getVersionPath(
+      docIndex,
+      pageIndex,
+      versionIndex,
+      supressWarnings: true,
+    );
+    if (existingPath.isNotEmpty) return;
+
+    switch (versionIndex) {
+      case 2:
+        // Contrast
+        imageProcessor.contrastFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            versionIndex,
+          ),
+        );
+        break;
+      case 3:
+        // Document
+        imageProcessor.documentFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            versionIndex,
+          ),
+        );
+        break;
+      case 4:
+        // PRO
+        imageProcessor.proFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            versionIndex,
+          ),
+        );
+        break;
+      case 5:
+        // PRO 2, needs the PRO Mat in memory first.
+        final String proPath = await g.filesHelper.getVersionPath(
+          docIndex,
+          pageIndex,
+          4,
+          supressWarnings: true,
+        );
+        if (proPath.isNotEmpty) {
+          imageProcessor.loadPro(proPath);
+        } else {
+          imageProcessor.proFilter(
+            await g.filesHelper.createVersionPath(docIndex, pageIndex, 4),
+          );
+          await _compressVersion(docIndex, pageIndex, 4, gIn: g);
+        }
+        imageProcessor.proColorFilter(
+          await g.filesHelper.createVersionPath(
+            docIndex,
+            pageIndex,
+            versionIndex,
+          ),
+        );
+        break;
+      default:
+    }
+    await _compressVersion(docIndex, pageIndex, versionIndex, gIn: g);
+  }
+
   static Future<void> _saveNewThumbnailIsolate(
     (
       SendPort sendPort,
@@ -1238,6 +1546,65 @@ class ImageProcessingManager {
 
     BackgroundIsolateBinaryMessenger.ensureInitialized(token);
 
+    // The newly selected thumbnail version might not exist yet (only the
+    // essential versions were kept). Generate it if missing, waiting for
+    // the warped file if the essential processing hasn't finished yet.
+    // Wrapped in try/catch so a failure here can never prevent "done" from
+    // being sent (which would otherwise hang the caller forever, since
+    // setNewThumbnail awaits that message).
+    try {
+      await isolateExitPoint(kill);
+      int thumbnailIndex =
+          await MetadataHelper.readPageThumbnailIndex(
+            docIndex,
+            pageIndex,
+            gIn: gIn,
+            supressWarnings: true,
+          ) ??
+          gIn.defaultIndex;
+      if (thumbnailIndex > 1) {
+        final String existingPath = await gIn.filesHelper.getVersionPath(
+          docIndex,
+          pageIndex,
+          thumbnailIndex,
+          supressWarnings: true,
+        );
+        if (existingPath.isEmpty) {
+          String warpedPath = "";
+          for (var attempt = 0; attempt < 120; attempt++) {
+            await isolateExitPoint(kill);
+            warpedPath = await gIn.filesHelper.getVersionPath(
+              docIndex,
+              pageIndex,
+              1,
+              supressWarnings: true,
+            );
+            if (warpedPath.isNotEmpty && File(warpedPath).existsSync()) break;
+            await Future.delayed(const Duration(milliseconds: 250));
+          }
+          if (warpedPath.isNotEmpty && File(warpedPath).existsSync()) {
+            final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+            imageProcessor.setAvailableAspectRatios(gIn.availableAspectRatios);
+            imageProcessor.loadWarped(warpedPath);
+            await isolateExitPoint(kill);
+            try {
+              await _generateSingleVersionIfMissing(
+                imageProcessor,
+                gIn,
+                docIndex,
+                pageIndex,
+                thumbnailIndex,
+              );
+            } finally {
+              imageProcessor.dispose();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      dev.log("Error, _saveNewThumbnailIsolate (generate missing version): $e");
+    }
+
     await isolateExitPoint(kill);
     await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, gIn);
 
@@ -1260,16 +1627,23 @@ class ImageProcessingManager {
 
     final port = ReceivePort();
     RootIsolateToken token = RootIsolateToken.instance!;
+    final completer = Completer<void>();
     TaskKiller killer = await IsolatesManager().runTask(
       _saveNewThumbnailIsolate,
       (port.sendPort, token, docIndex, pageIndex, g),
       portIn: port,
       prio: IsolatePriority.regular,
+      // Safety net: if the isolate crashes/is killed outside of its own
+      // try/catch (e.g. hits the max runtime timeout), still complete so
+      // callers awaiting setNewThumbnail don't hang forever.
+      onErrorFunction: (error, stack) {
+        dev.log("Error, setNewThumbnail isolate failed: $error");
+        if (!completer.isCompleted) completer.complete();
+      },
     );
 
     taskKillers.add(((docIndex, pageIndex), killer));
 
-    final completer = Completer<void>();
     port.listen((message) async {
       if (message is NotifierEvent) {
         globalNotifier.triggerEvent(message);
@@ -1283,7 +1657,7 @@ class ImageProcessingManager {
         killer.setControlPort(message);
       } else if (message == "done") {
         taskKillers.removeWhere((element) => element.$2 == killer);
-        completer.complete();
+        if (!completer.isCompleted) completer.complete();
       }
     });
     await completer.future;
