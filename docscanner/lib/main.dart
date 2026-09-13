@@ -2906,18 +2906,38 @@ class _PagesState extends State<Pages> with RouteAware {
     final pageIndexes = _displayedPageIndexes;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final gridColumns = [<int>[], <int>[]];
+        final gridColumnHeights = [0.0, 0.0];
+        final gridPageWidth = (constraints.maxWidth - 40) / 2;
+        if (_gridView == true) {
+          for (final pageIndex in pageIndexes) {
+            final column = gridColumnHeights[0] <= gridColumnHeights[1] ? 0 : 1;
+            gridColumns[column].add(pageIndex);
+            gridColumnHeights[column] +=
+                gridPageWidth / _thumbnailRatios[pageIndex] + 10;
+          }
+        }
         final canvas = _gridView == true
             ? Padding(
                 padding: const EdgeInsets.all(15),
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final pageIndex in pageIndexes)
-                      SizedBox(
-                        width: (constraints.maxWidth - 40) / 2,
-                        child: _zoomPage(pageIndex),
+                    for (final column in gridColumns) ...[
+                      Expanded(
+                        child: Column(
+                          children: [
+                            for (final (index, pageIndex)
+                                in column.indexed) ...[
+                              _zoomPage(pageIndex),
+                              if (index < column.length - 1)
+                                const SizedBox(height: 10),
+                            ],
+                          ],
+                        ),
                       ),
+                      if (column != gridColumns.last) const SizedBox(width: 10),
+                    ],
                   ],
                 ),
               )
