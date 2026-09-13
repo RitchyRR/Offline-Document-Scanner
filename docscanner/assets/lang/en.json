@@ -4,6 +4,10 @@
     "title": "Documents",
     "docIndex": "Document {docIndex}",
     "addDoc": "Add a new Document",
+    "views": {
+      "compactView": "Compact View",
+      "spaciousView": "Spacious View"
+    },
     "menu": {
       "pro1": "PRO Features",
       "pro2": "Unlock PRO",

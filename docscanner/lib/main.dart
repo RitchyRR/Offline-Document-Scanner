@@ -359,6 +359,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     WidgetsBinding.instance.addObserver(this);
     initAsync();
+    _loadCompactDocumentsView();
     _loadAvailableAspectRatios(context);
   }
 
@@ -930,6 +931,26 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   final _scrollController = CustomScrollController();
+  bool? _compactDocumentsView;
+
+  Future<void> _loadCompactDocumentsView() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _compactDocumentsView = prefs.getBool("compactDocumentsView") ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleCompactDocumentsView() async {
+    if (_compactDocumentsView == null) return;
+    _compactDocumentsView = !_compactDocumentsView!;
+    _scrollController.reset();
+    setState(() {});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("compactDocumentsView", _compactDocumentsView!);
+  }
+
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -943,6 +964,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
       appBar: AppBar(
         title: Text(tr("documents.title")),
         actions: [
+          if (_compactDocumentsView != null)
+            IconButton(
+              onPressed: _toggleCompactDocumentsView,
+              icon: _compactDocumentsView!
+                  ? const Icon(Icons.format_list_bulleted)
+                  : const Icon(Icons.list),
+              tooltip: _compactDocumentsView!
+                  ? tr("documents.views.spaciousView")
+                  : tr("documents.views.compactView"),
+            ),
           if (feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
@@ -1160,6 +1191,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       : -1;
                   final bool isLoading =
                       _loadingDocs.length <= docIndex || _loadingDocs[docIndex];
+                  final bool compactView = _compactDocumentsView ?? false;
+                  final double cardHeight = compactView
+                      ? 128.0
+                      : 160.0 * math.sqrt2;
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -1168,7 +1203,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       ),
                       elevation: 2.0,
                       child: SizedBox(
-                        height: 160.0 * math.sqrt2,
+                        height: cardHeight,
                         child: Row(
                           children: [
                             // Document Info + Buttons (Left Side)
@@ -1190,7 +1225,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         displayDocIndex,
                                       ),
                                       child: Padding(
-                                        padding: EdgeInsets.all(12),
+                                        padding: EdgeInsets.all(
+                                          compactView ? 8 : 12,
+                                        ),
                                         child: Builder(
                                           builder: (context) {
                                             return Column(
@@ -1207,9 +1244,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   ),
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  maxLines: 5,
+                                                  maxLines: compactView ? 2 : 5,
                                                 ),
-                                                SizedBox(height: 6),
+                                                SizedBox(
+                                                  height: compactView ? 4 : 6,
+                                                ),
                                                 displayCreationDate.isNotEmpty
                                                     ? Text(
                                                         tr(
@@ -1264,6 +1303,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   // Button Column
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
+                                    spacing: compactView ? -8 : 0,
                                     children: [
                                       // Save
                                       IconButton(
@@ -1306,7 +1346,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                             // Thumbnail (Right Side)
                             ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxWidth: 184,
+                                maxWidth: compactView ? cardHeight : 184,
                               ), // space for creation date
                               child: AspectRatio(
                                 aspectRatio: _thumbnailRatios.length > docIndex
