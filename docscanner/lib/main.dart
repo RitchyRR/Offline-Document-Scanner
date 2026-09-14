@@ -3095,7 +3095,12 @@ class _PagesState extends State<Pages>
         }
         final canvas = _gridView == true
             ? Padding(
-                padding: const EdgeInsets.all(15),
+                padding: EdgeInsets.fromLTRB(
+                  15,
+                  _gridView == true ? 6 : 15,
+                  15,
+                  _gridView == true ? 36 : 15,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -4753,6 +4758,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   bool _atTopOrBottom = true;
+  static const double _edgeHapticRearmDistance = 24;
   void _maybeTriggerHaptics() {
     final page = _getCurrentPage();
     if (!widget.noTumb && _isDragging && page != _lastPage) {
@@ -4760,7 +4766,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       _lastPage = page;
     }
 
-    if ((_scrollOffset <= 0 || _scrollOffset >= _maxScroll)) {
+    final atTopOrBottom = _scrollOffset <= 0 || _scrollOffset >= _maxScroll;
+    if (atTopOrBottom) {
       if (!_atTopOrBottom) {
         if (_isDragging) {
           HapticFeedback.lightImpact();
@@ -4769,7 +4776,8 @@ class _CustomScrollbarState extends State<CustomScrollbar>
         }
       }
       _atTopOrBottom = true;
-    } else {
+    } else if (_scrollOffset > _edgeHapticRearmDistance &&
+        _scrollOffset < _maxScroll - _edgeHapticRearmDistance) {
       _atTopOrBottom = false;
     }
   }
