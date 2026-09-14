@@ -1,7 +1,7 @@
 // my packages:
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:flutter/foundation.dart' show listEquals;
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/rendering.dart' show RenderBox, ScrollCacheExtent;
 
 import 'app/app_globals.dart';
 import 'app/metadata_helper.dart';
@@ -2386,6 +2386,7 @@ class _PagesState extends State<Pages> with RouteAware {
       TransformationController();
   double? _zoomCanvasWidth;
   bool _normalizingZoomTransform = false;
+  final GlobalKey _pagesCanvasKey = GlobalKey();
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2648,7 +2649,6 @@ class _PagesState extends State<Pages> with RouteAware {
 
   Future<void> _startZoomMode() async {
     if (_selectMode || _zoomMode) return;
-    _zoomTransformationController.value = Matrix4.identity();
     setState(() {
       _zoomMode = true;
       _fullSizedPages = List.filled(_pagesCount, "");
@@ -2908,6 +2908,7 @@ class _PagesState extends State<Pages> with RouteAware {
     final imagePath = _imagePathForPage(pageIndex, _pageThumbnails[pageIndex]);
     final isLoading =
         _loadingPages.length <= pageIndex || _loadingPages[pageIndex];
+    final displayPageIndex = _displayedPageIndexes.indexOf(pageIndex) + 1;
     return AspectRatio(
       aspectRatio: _thumbnailRatios[pageIndex],
       child: Container(
@@ -2917,7 +2918,72 @@ class _PagesState extends State<Pages> with RouteAware {
           children: [
             Material(color: Theme.of(context).colorScheme.surfaceBright),
             if (imagePath.isNotEmpty) _pageImage(File(imagePath), imagePath),
+            if (isLoading)
+              Material(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHigh.withAlpha(150),
+              ),
             if (imagePath.isEmpty || isLoading) IndicatorProcessingImage(),
+            if (!_zoomMode) ...[
+              if (_hintEditPage) FlashHint(text: tr("pages.editHint")),
+              Positioned.fill(
+                child: Material(
+                  color: _selectMode && _selectedPages.contains(pageIndex)
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer.withAlpha(150)
+                      : Colors.transparent,
+                  child: InkWell(
+                    onTap: !_selectMode
+                        ? () => _openPagePreview(pageIndex)
+                        : () {
+                            HapticFeedback.lightImpact();
+                            _selectPage(pageIndex);
+                          },
+                    onLongPress: () => _selectPage(pageIndex),
+                    splashColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withAlpha(150),
+                    highlightColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withAlpha(150),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: _gridView == true ? 9 : 18,
+                left: _gridView == true ? 6 : 12,
+                child: GestureDetector(
+                  onTap: _selectMode
+                      ? () => _selectPage(pageIndex)
+                      : () => _openPageEditDialog(
+                          context,
+                          pageIndex,
+                          displayPageIndex,
+                        ),
+                  onLongPress: () => _selectPage(pageIndex),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceBright,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [smallBoxShadow(context)],
+                    ),
+                    child: Text(
+                      "$displayPageIndex/$_displayPagesCount",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -2975,31 +3041,49 @@ class _PagesState extends State<Pages> with RouteAware {
                   ],
                 ),
               );
-        return InteractiveViewer(
+        return CustomScrollbar(
+          controller: _scrollController,
+          pageAspectRatios: _thumbnailRatios
+              .whereIndexed((index, _) => !_deletedPages.contains(index))
+              .toList(),
+          scrollRangeStart: 0.1,
+          scrollRangeEnd: 0.675,
           transformationController: _zoomTransformationController,
-          constrained: false,
-          boundaryMargin: EdgeInsets.symmetric(
-            horizontal: constraints.maxWidth / 4,
-            vertical: constraints.maxHeight / 4,
+          canvasKey: _pagesCanvasKey,
+          child: InteractiveViewer(
+            transformationController: _zoomTransformationController,
+            constrained: false,
+            boundaryMargin: _zoomMode
+                ? EdgeInsets.symmetric(
+                    horizontal: constraints.maxWidth / 4,
+                    vertical: constraints.maxHeight / 4,
+                  )
+                : EdgeInsets.zero,
+            minScale: _zoomMode ? 0.5 : 1,
+            maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
+            scaleEnabled: _zoomMode,
+            interactionEndFrictionCoefficient: 1,
+            onInteractionEnd: (_) {
+              if (!_zoomMode) return;
+              final scale = _zoomTransformationController.value
+                  .getMaxScaleOnAxis();
+              if (scale < 1) {
+                final translation = _zoomTransformationController.value
+                    .getTranslation();
+                _zoomTransformationController.value = Matrix4.identity()
+                  ..setEntry(0, 0, scale)
+                  ..setEntry(1, 1, scale)
+                  ..setEntry(2, 2, scale)
+                  ..setEntry(0, 3, constraints.maxWidth * (1 - scale) / 2)
+                  ..setEntry(1, 3, translation.y);
+              }
+            },
+            child: SizedBox(
+              key: _pagesCanvasKey,
+              width: constraints.maxWidth,
+              child: canvas,
+            ),
           ),
-          minScale: 0.5,
-          maxScale: _gridView == true ? 16 : 8,
-          interactionEndFrictionCoefficient: 0.0000005,
-          onInteractionEnd: (_) {
-            final scale = _zoomTransformationController.value
-                .getMaxScaleOnAxis();
-            if (scale < 1) {
-              final translation = _zoomTransformationController.value
-                  .getTranslation();
-              _zoomTransformationController.value = Matrix4.identity()
-                ..setEntry(0, 0, scale)
-                ..setEntry(1, 1, scale)
-                ..setEntry(2, 2, scale)
-                ..setEntry(0, 3, constraints.maxWidth * (1 - scale) / 2)
-                ..setEntry(1, 3, translation.y);
-            }
-          },
-          child: SizedBox(width: constraints.maxWidth, child: canvas),
         );
       },
     );
@@ -3108,7 +3192,7 @@ class _PagesState extends State<Pages> with RouteAware {
                   ),
                 ],
               ),
-        body: _zoomMode
+        body: _zoomMode || _pageThumbnails.isNotEmpty
             ? _buildZoomCanvas(context)
             : _pageThumbnails
                   .isNotEmpty // && isTopOfNavigationStack
@@ -3982,6 +4066,107 @@ class _PagesState extends State<Pages> with RouteAware {
   }
 }
 
+class _CanvasScrollbar extends StatefulWidget {
+  const _CanvasScrollbar({
+    required this.transformationController,
+    required this.canvasKey,
+    required this.zoomMode,
+  });
+
+  final TransformationController transformationController;
+  final GlobalKey canvasKey;
+  final bool zoomMode;
+
+  @override
+  State<_CanvasScrollbar> createState() => _CanvasScrollbarState();
+}
+
+class _CanvasScrollbarState extends State<_CanvasScrollbar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.transformationController.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.transformationController.removeListener(_onTransformChanged);
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final renderObject = widget.canvasKey.currentContext
+            ?.findRenderObject();
+        final canvasHeight = renderObject is RenderBox
+            ? renderObject.size.height
+            : constraints.maxHeight;
+        final transform = widget.transformationController.value;
+        final scale = transform.getMaxScaleOnAxis();
+        final scaledCanvasHeight = canvasHeight * scale;
+        if (scaledCanvasHeight <= constraints.maxHeight) {
+          return const SizedBox();
+        }
+
+        final margin = widget.zoomMode ? constraints.maxHeight / 4 : 0.0;
+        final minY = constraints.maxHeight - scaledCanvasHeight - margin;
+        final maxY = margin;
+        final range = maxY - minY;
+        const minThumbHeight = 32.0;
+        final thumbHeight =
+            (constraints.maxHeight * constraints.maxHeight / scaledCanvasHeight)
+                .clamp(minThumbHeight, 72.0)
+                .toDouble();
+        final travel = constraints.maxHeight - thumbHeight;
+        final thumbTop =
+            ((maxY - transform.getTranslation().y) / range * travel).clamp(
+              0.0,
+              travel,
+            );
+
+        return Align(
+          alignment: Alignment.topRight,
+          child: Transform.translate(
+            offset: Offset(0, thumbTop),
+            child: GestureDetector(
+              onVerticalDragUpdate: (details) {
+                final y =
+                    (transform.getTranslation().y -
+                            details.delta.dy * range / travel)
+                        .clamp(minY, maxY);
+                widget.transformationController.value = Matrix4.copy(
+                  widget.transformationController.value,
+                )..setEntry(1, 3, y);
+              },
+              child: SizedBox(
+                width: 24,
+                height: thumbHeight,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    width: 8,
+                    height: thumbHeight,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class FlashHint extends StatefulWidget {
   final String text;
 
@@ -4168,6 +4353,8 @@ class CustomScrollbar extends StatefulWidget {
   final double scrollRangeStart; // 0.0 to 1.0
   final double scrollRangeEnd; // 0.0 to 1.0
   final bool noTumb;
+  final TransformationController? transformationController;
+  final GlobalKey? canvasKey;
 
   const CustomScrollbar({
     super.key,
@@ -4181,6 +4368,8 @@ class CustomScrollbar extends StatefulWidget {
     this.scrollRangeStart = 0.0,
     this.scrollRangeEnd = 1.0,
     this.noTumb = false,
+    this.transformationController,
+    this.canvasKey,
   });
 
   @override
@@ -4195,6 +4384,29 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   Timer? _hideTimer;
   int _lastPage = 0;
   static const double _thumbSize = 56;
+  double _viewportHeight = 0;
+
+  bool get _usesCanvas =>
+      widget.transformationController != null && widget.canvasKey != null;
+
+  bool get _hasScrollableContent => _usesCanvas
+      ? _canvasHeight * _canvasScale > _viewportHeight
+      : widget.controller.hasClients;
+
+  double get _canvasHeight {
+    final renderObject = widget.canvasKey?.currentContext?.findRenderObject();
+    return renderObject is RenderBox ? renderObject.size.height : 0;
+  }
+
+  double get _canvasScale =>
+      widget.transformationController!.value.getMaxScaleOnAxis();
+
+  double get _scrollOffset => _usesCanvas
+      ? (-widget.transformationController!.value.getTranslation().y).clamp(
+          0.0,
+          _maxScroll,
+        )
+      : widget.controller.offset;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -4209,6 +4421,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   void initState() {
     super.initState();
     widget.controller.addListener(_scrollListener);
+    widget.transformationController?.addListener(_scrollListener);
     _fadeController = AnimationController(
       vsync: this,
       duration: widget.thumbVisibilityFadeDuration,
@@ -4234,7 +4447,11 @@ class _CustomScrollbarState extends State<CustomScrollbar>
     _setRatios();
     widget.controller.resetCallback = () {
       if (mounted) {
-        widget.controller.jumpTo(0);
+        if (_usesCanvas) {
+          widget.transformationController!.value = Matrix4.identity();
+        } else {
+          widget.controller.jumpTo(0);
+        }
       }
     };
   }
@@ -4242,6 +4459,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   @override
   void dispose() {
     widget.controller.removeListener(_scrollListener);
+    widget.transformationController?.removeListener(_scrollListener);
     _hideTimer?.cancel();
     _fadeController.dispose();
     _railSlideController.dispose();
@@ -4250,6 +4468,10 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
   double _maxScroll = 0.0;
   Future<void> _setMaxScroll({bool jump = false}) async {
+    if (_usesCanvas) {
+      _maxScroll = math.max(0, _canvasHeight * _canvasScale - _viewportHeight);
+      return;
+    }
     if (!widget.controller.hasClients ||
         !widget.controller.position.hasContentDimensions) {
       return;
@@ -4312,16 +4534,19 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   void _updateThumbPosition() {
-    if (!widget.controller.hasClients ||
-        !widget.controller.position.hasContentDimensions) {
+    if (!_usesCanvas &&
+        (!widget.controller.hasClients ||
+            !widget.controller.position.hasContentDimensions)) {
       return;
     }
 
-    final viewportHeight = widget.controller.position.viewportDimension;
+    final viewportHeight = _usesCanvas
+        ? _viewportHeight
+        : widget.controller.position.viewportDimension;
 
     final scrollFraction = _maxScroll == 0
         ? 0
-        : (widget.controller.offset / _maxScroll).clamp(0.0, 1.0);
+        : (_scrollOffset / _maxScroll).clamp(0.0, 1.0);
     final thumbTravelHeight =
         viewportHeight * (widget.scrollRangeEnd - widget.scrollRangeStart);
 
@@ -4393,7 +4618,13 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     final newScrollOffset = scrollFraction * _maxScroll;
     if (_isDragging) {
-      widget.controller.jumpTo(newScrollOffset);
+      if (_usesCanvas) {
+        widget.transformationController!.value = Matrix4.copy(
+          widget.transformationController!.value,
+        )..setEntry(1, 3, -newScrollOffset);
+      } else {
+        widget.controller.jumpTo(newScrollOffset);
+      }
     }
 
     _maybeTriggerHaptics();
@@ -4408,11 +4639,11 @@ class _CustomScrollbarState extends State<CustomScrollbar>
   }
 
   int _getCurrentPage() {
-    if (!widget.controller.hasClients || _ratios.isEmpty) {
+    if ((!_usesCanvas && !widget.controller.hasClients) || _ratios.isEmpty) {
       return 0;
     }
 
-    final offset = widget.controller.offset;
+    final offset = _scrollOffset;
 
     final total = _ratios.fold<double>(0.0, (a, b) => a + b);
     final cumulative = <double>[];
@@ -4442,9 +4673,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
       _lastPage = page;
     }
 
-    if ((widget.controller.offset <=
-            widget.controller.position.minScrollExtent ||
-        widget.controller.offset >= _maxScroll)) {
+    if ((_scrollOffset <= 0 || _scrollOffset >= _maxScroll)) {
       if (!_atTopOrBottom) {
         if (_isDragging) {
           HapticFeedback.lightImpact();
@@ -4473,10 +4702,12 @@ class _CustomScrollbarState extends State<CustomScrollbar>
 
     return LayoutBuilder(
       builder: (_, constraints) {
+        _viewportHeight = constraints.maxHeight;
+        _setMaxScroll();
         return Stack(
           children: [
             widget.child,
-            if (_isThumbVisible && widget.controller.hasClients)
+            if (_isThumbVisible && _hasScrollableContent)
               Positioned(
                 right: -railWidth / 2,
                 top:
@@ -4498,7 +4729,7 @@ class _CustomScrollbarState extends State<CustomScrollbar>
                 ),
               ),
             // Thumb
-            if (_isThumbVisible && widget.controller.hasClients)
+            if (_isThumbVisible && _hasScrollableContent)
               Positioned(
                 right: -16,
                 top: _thumbTop.clamp(
