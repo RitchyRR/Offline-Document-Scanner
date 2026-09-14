@@ -2388,7 +2388,8 @@ class Pages extends StatefulWidget {
   State<Pages> createState() => _PagesState();
 }
 
-class _PagesState extends State<Pages> with RouteAware {
+class _PagesState extends State<Pages>
+    with RouteAware, SingleTickerProviderStateMixin {
   final ImagePicker _picker = ImagePicker();
   List<String> _pageThumbnails = [];
   List<String> _fullSizedPages = [];
@@ -2402,9 +2403,12 @@ class _PagesState extends State<Pages> with RouteAware {
   final TransformationController _zoomTransformationController =
       TransformationController();
   double? _zoomCanvasWidth;
+  double _pagesCanvasViewportHeight = 0;
   double _zoomCanvasScale = 1;
   bool _normalizingZoomTransform = false;
   final GlobalKey _pagesCanvasKey = GlobalKey();
+  late final AnimationController _canvasTransitionController;
+  late Animation<Matrix4> _canvasTransitionAnimation;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -2425,6 +2429,14 @@ class _PagesState extends State<Pages> with RouteAware {
     _loadGridView();
     _scrollController.addListener(_scheduleFullSizeLoad);
     _zoomTransformationController.addListener(_keepZoomCanvasCentered);
+    _canvasTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _canvasTransitionAnimation = AlwaysStoppedAnimation(Matrix4.identity());
+    _canvasTransitionController.addListener(() {
+      _zoomTransformationController.value = _canvasTransitionAnimation.value;
+    });
   }
 
   bool selectAllButtonUsed = true;
@@ -2469,6 +2481,7 @@ class _PagesState extends State<Pages> with RouteAware {
     _scrollController.dispose();
     _zoomTransformationController.removeListener(_keepZoomCanvasCentered);
     _zoomTransformationController.dispose();
+    _canvasTransitionController.dispose();
     routeObserver.unsubscribe(this);
     super.dispose();
   }
@@ -2664,6 +2677,16 @@ class _PagesState extends State<Pages> with RouteAware {
   bool _selectMode = false;
   List<int> _selectedPages = [];
   bool _zoomMode = false;
+  static const double _pinchZoomActivationThreshold = 0.08;
+
+  void _activateZoomFromPinch(ScaleUpdateDetails details) {
+    if (_zoomMode ||
+        _selectMode ||
+        (details.scale - 1).abs() < _pinchZoomActivationThreshold) {
+      return;
+    }
+    _startZoomMode();
+  }
 
   Future<void> _startZoomMode() async {
     if (_selectMode || _zoomMode) return;
@@ -2677,15 +2700,37 @@ class _PagesState extends State<Pages> with RouteAware {
   void _endZoomMode() {
     if (!_zoomMode) return;
     final fullSizedPages = List<String>.from(_fullSizedPages);
+    final currentTransform = Matrix4.copy(_zoomTransformationController.value);
+    final canvasRenderObject = _pagesCanvasKey.currentContext
+        ?.findRenderObject();
+    final canvasHeight = canvasRenderObject is RenderBox
+        ? canvasRenderObject.size.height
+        : 0.0;
+    final scale = currentTransform.getMaxScaleOnAxis();
+    final contentTop = -currentTransform.getTranslation().y / scale;
+    final normalMaxScroll = math.max(
+      0.0,
+      canvasHeight - _pagesCanvasViewportHeight,
+    );
+    final normalTransform = Matrix4.identity()
+      ..setEntry(1, 3, -contentTop.clamp(0.0, normalMaxScroll));
     _fullSizeLoadGeneration++;
     _fullSizeLoadTimer?.cancel();
     _lastFullSizeLoadCenter = null;
-    _zoomTransformationController.value = Matrix4.identity();
     setState(() {
       _zoomMode = false;
       _fullSizedPages = List.filled(_pagesCount, "");
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _canvasTransitionAnimation =
+        Matrix4Tween(begin: currentTransform, end: normalTransform).animate(
+          CurvedAnimation(
+            parent: _canvasTransitionController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _canvasTransitionController.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted || _zoomMode) return;
       for (final path in fullSizedPages) {
         if (path.isNotEmpty) {
           imageCache.evict(FileImage(File(path)), includeLive: false);
@@ -3012,6 +3057,7 @@ class _PagesState extends State<Pages> with RouteAware {
     return LayoutBuilder(
       builder: (context, constraints) {
         _zoomCanvasWidth = constraints.maxWidth;
+        _pagesCanvasViewportHeight = constraints.maxHeight;
         final gridColumns = [<int>[], <int>[]];
         final gridColumnHeights = [0.0, 0.0];
         final gridPageWidth = (constraints.maxWidth - 40) / 2;
@@ -3084,6 +3130,7 @@ class _PagesState extends State<Pages> with RouteAware {
             maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
             scaleEnabled: _zoomMode,
             interactionEndFrictionCoefficient: 0.00000001,
+            onInteractionUpdate: _activateZoomFromPinch,
             onInteractionEnd: (_) {
               if (!_zoomMode) return;
               final scale = _zoomTransformationController.value
@@ -3170,11 +3217,6 @@ class _PagesState extends State<Pages> with RouteAware {
                           ? tr("pages.views.listView")
                           : tr("pages.views.gridView")),
                     ),
-                  IconButton(
-                    onPressed: _startZoomMode,
-                    icon: const Icon(Icons.zoom_in),
-                    tooltip: tr("pages.zoom.activate"),
-                  ),
                   // Select All Button
                   selectAllButtonUsed
                       ? IconButton(
