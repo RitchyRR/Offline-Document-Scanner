@@ -2679,6 +2679,9 @@ class _PagesState extends State<Pages>
   List<int> _selectedPages = [];
   bool _zoomMode = false;
   static const double _pinchZoomActivationThreshold = 0.08;
+  static const double _frictionAtDefaultScale = 0.15;
+  static const double _frictionAtMaximumScale = 0.001;
+  static const double _frictionAtMinimumScale = 0.3;
 
   void _activateZoomFromPinch(ScaleUpdateDetails details) {
     if (_zoomMode ||
@@ -2687,6 +2690,26 @@ class _PagesState extends State<Pages>
       return;
     }
     _startZoomMode();
+  }
+
+  double _interactionEndFrictionCoefficient() {
+    if (!_zoomMode) return _frictionAtDefaultScale;
+
+    final scale = _zoomTransformationController.value.getMaxScaleOnAxis();
+    if (scale <= 1) {
+      return _frictionAtDefaultScale +
+          (1 - scale).clamp(0.0, 0.5) *
+              2 *
+              (_frictionAtMinimumScale - _frictionAtDefaultScale);
+    }
+
+    final maxScale = _gridView == true ? 16.0 : 8.0;
+    final zoomProgress = ((scale - 1) / (maxScale - 1)).clamp(0.0, 1.0);
+    return _frictionAtDefaultScale *
+        math.pow(
+          _frictionAtMaximumScale / _frictionAtDefaultScale,
+          zoomProgress,
+        );
   }
 
   Future<void> _startZoomMode({
@@ -3227,7 +3250,8 @@ class _PagesState extends State<Pages>
               minScale: _zoomMode ? 0.5 : 1,
               maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
               scaleEnabled: _zoomMode,
-              interactionEndFrictionCoefficient: 0.00000001,
+              interactionEndFrictionCoefficient:
+                  _interactionEndFrictionCoefficient(),
               onInteractionUpdate: _activateZoomFromPinch,
               onInteractionEnd: (_) {
                 if (!_zoomMode) return;
