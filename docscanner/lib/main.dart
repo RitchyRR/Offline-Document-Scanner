@@ -3112,12 +3112,22 @@ class _PagesState extends State<Pages>
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [smallBoxShadow(context)],
                     ),
-                    child: Text(
-                      "$displayPageIndex/$_displayPagesCount",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "$displayPageIndex/$_displayPagesCount",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (_selectMode && _selectedPages.contains(pageIndex))
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(Icons.check, size: 20),
+                          ),
+                      ],
                     ),
                   ),
                 ),
