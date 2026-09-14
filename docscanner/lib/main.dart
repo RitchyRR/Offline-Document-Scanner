@@ -2407,6 +2407,7 @@ class _PagesState extends State<Pages>
   double _zoomCanvasScale = 1;
   bool _normalizingZoomTransform = false;
   final GlobalKey _pagesCanvasKey = GlobalKey();
+  Offset? _lastDoubleTapPosition;
   late final AnimationController _canvasTransitionController;
   late Animation<Matrix4> _canvasTransitionAnimation;
 
@@ -2688,17 +2689,69 @@ class _PagesState extends State<Pages>
     _startZoomMode();
   }
 
-  Future<void> _startZoomMode() async {
+  Future<void> _startZoomMode({
+    double? initialScale,
+    Offset? focalPoint,
+  }) async {
     if (_selectMode || _zoomMode) return;
     setState(() {
       _zoomMode = true;
       _fullSizedPages = List.filled(_pagesCount, "");
     });
+    if (initialScale != null) {
+      _animateCanvasToScale(initialScale, focalPoint: focalPoint);
+    }
     _loadFullSizedPages(_currentDisplayPageIndex());
+  }
+
+  void _animateCanvasToScale(double targetScale, {Offset? focalPoint}) {
+    final currentTransform = Matrix4.copy(_zoomTransformationController.value);
+    final currentScale = currentTransform.getMaxScaleOnAxis();
+    if (currentScale == targetScale) return;
+
+    final translation = currentTransform.getTranslation();
+    final zoomFocalPoint =
+        focalPoint ??
+        Offset((_zoomCanvasWidth ?? 0) / 2, _pagesCanvasViewportHeight / 2);
+    final targetTranslation =
+        zoomFocalPoint -
+        (zoomFocalPoint - Offset(translation.x, translation.y)) *
+            targetScale /
+            currentScale;
+    final targetTransform = Matrix4.identity()
+      ..setEntry(0, 0, targetScale)
+      ..setEntry(1, 1, targetScale)
+      ..setEntry(2, 2, targetScale)
+      ..setEntry(0, 3, targetTranslation.dx)
+      ..setEntry(1, 3, targetTranslation.dy);
+    _canvasTransitionAnimation =
+        Matrix4Tween(begin: currentTransform, end: targetTransform).animate(
+          CurvedAnimation(
+            parent: _canvasTransitionController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _canvasTransitionController.forward(from: 0);
+  }
+
+  void _handleCanvasDoubleTap() {
+    if (_selectMode) return;
+    final scale = _zoomTransformationController.value.getMaxScaleOnAxis();
+    if (!_zoomMode) {
+      _startZoomMode(initialScale: 2, focalPoint: _lastDoubleTapPosition);
+    } else if (scale >= 1 && scale <= 2) {
+      _animateCanvasToScale(
+        _gridView == true ? 16 : 8,
+        focalPoint: _lastDoubleTapPosition,
+      );
+    } else {
+      _endZoomMode();
+    }
   }
 
   void _endZoomMode() {
     if (!_zoomMode) return;
+    _canvasTransitionController.stop();
     final fullSizedPages = List<String>.from(_fullSizedPages);
     final currentTransform = Matrix4.copy(_zoomTransformationController.value);
     final canvasRenderObject = _pagesCanvasKey.currentContext
@@ -3142,43 +3195,50 @@ class _PagesState extends State<Pages>
           scrollRangeEnd: 0.675,
           transformationController: _zoomTransformationController,
           canvasKey: _pagesCanvasKey,
-          child: InteractiveViewer(
-            transformationController: _zoomTransformationController,
-            constrained: false,
-            boundaryMargin: _zoomMode
-                ? EdgeInsets.symmetric(
-                    horizontal:
-                        constraints.maxWidth /
-                        (8 * _zoomCanvasScale * _zoomCanvasScale),
-                    vertical:
-                        constraints.maxHeight /
-                        (8 * _zoomCanvasScale * _zoomCanvasScale),
-                  )
-                : EdgeInsets.zero,
-            minScale: _zoomMode ? 0.5 : 1,
-            maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
-            scaleEnabled: _zoomMode,
-            interactionEndFrictionCoefficient: 0.00000001,
-            onInteractionUpdate: _activateZoomFromPinch,
-            onInteractionEnd: (_) {
-              if (!_zoomMode) return;
-              final scale = _zoomTransformationController.value
-                  .getMaxScaleOnAxis();
-              if (scale < 1) {
-                final translation = _zoomTransformationController.value
-                    .getTranslation();
-                _zoomTransformationController.value = Matrix4.identity()
-                  ..setEntry(0, 0, scale)
-                  ..setEntry(1, 1, scale)
-                  ..setEntry(2, 2, scale)
-                  ..setEntry(0, 3, constraints.maxWidth * (1 - scale) / 2)
-                  ..setEntry(1, 3, translation.y);
-              }
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onDoubleTapDown: (details) {
+              _lastDoubleTapPosition = details.localPosition;
             },
-            child: SizedBox(
-              key: _pagesCanvasKey,
-              width: constraints.maxWidth,
-              child: canvas,
+            onDoubleTap: _handleCanvasDoubleTap,
+            child: InteractiveViewer(
+              transformationController: _zoomTransformationController,
+              constrained: false,
+              boundaryMargin: _zoomMode
+                  ? EdgeInsets.symmetric(
+                      horizontal:
+                          constraints.maxWidth /
+                          (8 * _zoomCanvasScale * _zoomCanvasScale),
+                      vertical:
+                          constraints.maxHeight /
+                          (8 * _zoomCanvasScale * _zoomCanvasScale),
+                    )
+                  : EdgeInsets.zero,
+              minScale: _zoomMode ? 0.5 : 1,
+              maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
+              scaleEnabled: _zoomMode,
+              interactionEndFrictionCoefficient: 0.00000001,
+              onInteractionUpdate: _activateZoomFromPinch,
+              onInteractionEnd: (_) {
+                if (!_zoomMode) return;
+                final scale = _zoomTransformationController.value
+                    .getMaxScaleOnAxis();
+                if (scale < 1) {
+                  final translation = _zoomTransformationController.value
+                      .getTranslation();
+                  _zoomTransformationController.value = Matrix4.identity()
+                    ..setEntry(0, 0, scale)
+                    ..setEntry(1, 1, scale)
+                    ..setEntry(2, 2, scale)
+                    ..setEntry(0, 3, constraints.maxWidth * (1 - scale) / 2)
+                    ..setEntry(1, 3, translation.y);
+                }
+              },
+              child: SizedBox(
+                key: _pagesCanvasKey,
+                width: constraints.maxWidth,
+                child: canvas,
+              ),
             ),
           ),
         );
@@ -3212,6 +3272,7 @@ class _PagesState extends State<Pages>
                         "pages.title",
                         namedArgs: {"docIndex": "${widget.docIndex + 1}"},
                       ),
+                  style: TextStyle(letterSpacing: 0.5),
                 ),
                 leading: IconButton(
                   onPressed: _endZoomMode,
