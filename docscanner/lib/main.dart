@@ -1303,10 +1303,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   // Button Column
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    spacing: compactView ? -8 : 0,
                                     children: [
                                       // Save
                                       IconButton(
+                                        visualDensity: compactView
+                                            ? VisualDensity.compact
+                                            : null,
+                                        padding: compactView
+                                            ? EdgeInsets.all(4)
+                                            : null,
                                         onPressed: () => _pagesPopup(
                                           context,
                                           [],
@@ -1318,6 +1323,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                       ),
                                       // Share
                                       IconButton(
+                                        visualDensity: compactView
+                                            ? VisualDensity.compact
+                                            : null,
+                                        padding: compactView
+                                            ? EdgeInsets.all(4)
+                                            : null,
                                         onPressed: () => _pagesPopup(
                                           context,
                                           [],
@@ -1329,6 +1340,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                       ),
                                       // Delete
                                       IconButton(
+                                        visualDensity: compactView
+                                            ? VisualDensity.compact
+                                            : null,
+                                        padding: compactView
+                                            ? EdgeInsets.all(4)
+                                            : null,
                                         onPressed: () => _pagesPopup(
                                           context,
                                           [],
@@ -2385,6 +2402,7 @@ class _PagesState extends State<Pages> with RouteAware {
   final TransformationController _zoomTransformationController =
       TransformationController();
   double? _zoomCanvasWidth;
+  double _zoomCanvasScale = 1;
   bool _normalizingZoomTransform = false;
   final GlobalKey _pagesCanvasKey = GlobalKey();
 
@@ -2693,6 +2711,9 @@ class _PagesState extends State<Pages> with RouteAware {
     }
     final transform = _zoomTransformationController.value;
     final scale = transform.getMaxScaleOnAxis();
+    if ((scale - _zoomCanvasScale).abs() > 0.001) {
+      setState(() => _zoomCanvasScale = scale);
+    }
     if (scale >= 1) return;
 
     final centeredX = canvasWidth * (1 - scale) / 2;
@@ -3055,14 +3076,18 @@ class _PagesState extends State<Pages> with RouteAware {
             constrained: false,
             boundaryMargin: _zoomMode
                 ? EdgeInsets.symmetric(
-                    horizontal: constraints.maxWidth / 4,
-                    vertical: constraints.maxHeight / 4,
+                    horizontal:
+                        constraints.maxWidth /
+                        (8 * _zoomCanvasScale * _zoomCanvasScale),
+                    vertical:
+                        constraints.maxHeight /
+                        (8 * _zoomCanvasScale * _zoomCanvasScale),
                   )
                 : EdgeInsets.zero,
             minScale: _zoomMode ? 0.5 : 1,
             maxScale: _zoomMode ? (_gridView == true ? 16 : 8) : 1,
             scaleEnabled: _zoomMode,
-            interactionEndFrictionCoefficient: 1,
+            interactionEndFrictionCoefficient: 0.00000001,
             onInteractionEnd: (_) {
               if (!_zoomMode) return;
               final scale = _zoomTransformationController.value
