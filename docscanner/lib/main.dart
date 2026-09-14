@@ -2923,9 +2923,33 @@ class _PagesState extends State<Pages>
 
   Future<void> _toggleGridView() async {
     if (_gridView == null) return;
+    final canvasRenderObject = _pagesCanvasKey.currentContext
+        ?.findRenderObject();
+    final canvasHeight = canvasRenderObject is RenderBox
+        ? canvasRenderObject.size.height
+        : 0.0;
+    final maxScroll = math.max(0.0, canvasHeight - _pagesCanvasViewportHeight);
+    final scrollFraction = maxScroll == 0
+        ? 0.0
+        : (-_zoomTransformationController.value.getTranslation().y / maxScroll)
+              .clamp(0.0, 1.0);
+
     _gridView = !_gridView!;
-    _scrollController.reset();
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final newCanvasRenderObject = _pagesCanvasKey.currentContext
+          ?.findRenderObject();
+      final newCanvasHeight = newCanvasRenderObject is RenderBox
+          ? newCanvasRenderObject.size.height
+          : 0.0;
+      final newMaxScroll = math.max(
+        0.0,
+        newCanvasHeight - _pagesCanvasViewportHeight,
+      );
+      _zoomTransformationController.value = Matrix4.identity()
+        ..setEntry(1, 3, -newMaxScroll * scrollFraction);
+    });
     final prefs = await SharedPreferences.getInstance();
     prefs.setBool("gridView", _gridView!);
   }
