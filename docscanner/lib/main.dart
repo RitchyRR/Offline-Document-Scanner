@@ -2789,12 +2789,12 @@ class _PagesState extends State<Pages> with RouteAware {
     return thumbnailPath;
   }
 
-  Widget _pageImage(File imageFile, String imagePath) {
-    final image = SizedBox.expand(
+  Widget _pageImage(File imageFile) {
+    return SizedBox.expand(
       child: Image.file(
         imageFile,
         fit: BoxFit.cover,
-        key: ValueKey(imagePath),
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           return Material(
             color: Theme.of(context).colorScheme.surfaceBright,
@@ -2802,10 +2802,6 @@ class _PagesState extends State<Pages> with RouteAware {
           );
         },
       ),
-    );
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: image,
     );
   }
 
@@ -2938,7 +2934,7 @@ class _PagesState extends State<Pages> with RouteAware {
           fit: StackFit.expand,
           children: [
             Material(color: Theme.of(context).colorScheme.surfaceBright),
-            if (imagePath.isNotEmpty) _pageImage(File(imagePath), imagePath),
+            if (imagePath.isNotEmpty) _pageImage(File(imagePath)),
             if (isLoading)
               Material(
                 color: Theme.of(
@@ -3277,7 +3273,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                     ),
                                     // Thumbnail
                                     if (thumbnailPath.isNotEmpty)
-                                      _pageImage(pageThumbnail, thumbnailPath),
+                                      _pageImage(pageThumbnail),
                                     // Loading Indicator
                                     if (isLoading)
                                       Positioned.fill(
@@ -3453,7 +3449,7 @@ class _PagesState extends State<Pages> with RouteAware {
                                   ),
                                   // Thumbnail
                                   if (thumbnailPath.isNotEmpty)
-                                    _pageImage(pageThumbnail, thumbnailPath),
+                                    _pageImage(pageThumbnail),
                                   // Loading Indicator
                                   if (isLoading)
                                     Positioned.fill(
