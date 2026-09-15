@@ -5,6 +5,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('preserves an external transform when the image changes', (
+    tester,
+  ) async {
+    final controller = TransformationController(
+      Matrix4.identity()
+        ..scaleByDouble(2, 2, 2, 1)
+        ..translateByDouble(-80, -120, 0, 1),
+    );
+
+    Widget viewer(String imagePath) {
+      return MaterialApp(
+        home: Scaffold(
+          body: CustomPhotoViewer(
+            imagePath: imagePath,
+            imageSize: const Size(400, 400),
+            transformationController: controller,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(viewer('first'));
+    final expectedTransform = Matrix4.copy(controller.value);
+
+    await tester.pumpWidget(viewer('second'));
+
+    expect(controller.value, expectedTransform);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
   testWidgets('dampens rotation with an ease-in and ease-out curve', (
     tester,
   ) async {

@@ -73,9 +73,12 @@ class PagePreviewState extends State<PagePreview>
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
+  final TransformationController _previewTransformationController =
+      TransformationController();
   double _currentPhotoScale = 0.0;
   bool _previewImageMultiTouch = false;
   bool _previewImageZoomed = false;
+  bool _preserveTransformOnNextPageChange = false;
   int? _previewPageDragIndex;
   double _previewPageDragOffset = 0;
   // Thumbnail Bar
@@ -172,6 +175,7 @@ class PagePreviewState extends State<PagePreview>
   @override
   void dispose() {
     _pageController.dispose();
+    _previewTransformationController.dispose();
     _thumbnailScrollController.dispose();
     _eventSubscription.cancel();
     super.dispose();
@@ -515,8 +519,21 @@ class PagePreviewState extends State<PagePreview>
   }
 
   void _setPreviewImageZoomed(bool zoomed) {
-    if (_previewImageZoomed == zoomed) return;
-    setState(() => _previewImageZoomed = zoomed);
+    if (_previewImageZoomed == zoomed && _overlayZoomed == zoomed) return;
+    setState(() {
+      _previewImageZoomed = zoomed;
+      _overlayZoomed = zoomed;
+    });
+  }
+
+  bool get _isPreviewTransformZoomed =>
+      (_previewTransformationController.value.getMaxScaleOnAxis() - 1).abs() >
+      0.01;
+
+  void _resetPreviewTransform() {
+    _previewTransformationController.value = Matrix4.identity();
+    _previewImageZoomed = false;
+    _overlayZoomed = false;
   }
 
   void _updatePreviewPageDrag(double progress) {
@@ -541,6 +558,9 @@ class PagePreviewState extends State<PagePreview>
         initialIndex + direction >= 0 &&
         initialIndex + direction < _versionPaths.length;
     final targetIndex = shouldChange ? initialIndex + direction : initialIndex;
+    if (shouldChange) {
+      _resetPreviewTransform();
+    }
     _pageController
         .animateToPage(
           targetIndex,
@@ -553,7 +573,8 @@ class PagePreviewState extends State<PagePreview>
           if (_selectedVersion == targetIndex) return;
           if (targetIndex != 0) _selectedThumbnail = targetIndex;
           _selectedVersion = targetIndex;
-          _previewImageZoomed = false;
+          _previewImageZoomed = _isPreviewTransformZoomed;
+          _overlayZoomed = _previewImageZoomed;
           setState(() {});
           _scrollToThumbnail(targetIndex);
         });
@@ -594,6 +615,7 @@ class PagePreviewState extends State<PagePreview>
 
     return CustomPhotoViewer(
       imagePath: _versionPaths[index],
+      transformationController: _previewTransformationController,
       imageSize: index == 0 && _imagePixelWidth > 0 && _imagePixelHeight > 0
           ? Size(
               _totalRotation ~/ 90 % 2 == 0
@@ -765,9 +787,15 @@ class PagePreviewState extends State<PagePreview>
               ),
               onPageChanged: (index) {
                 if (_previewPageDragIndex != null) return;
+                final preserveTransform = _preserveTransformOnNextPageChange;
+                _preserveTransformOnNextPageChange = false;
+                if (!preserveTransform) {
+                  _resetPreviewTransform();
+                }
                 if (index != 0) _selectedThumbnail = index;
                 _selectedVersion = index;
-                _previewImageZoomed = false;
+                _previewImageZoomed = _isPreviewTransformZoomed;
+                _overlayZoomed = _previewImageZoomed;
                 setState(() {});
                 _scrollToThumbnail(index);
               },
@@ -914,6 +942,8 @@ class PagePreviewState extends State<PagePreview>
                       itemBuilder: (context, index) {
                         return GestureDetector(
                           onTap: () {
+                            final changesPage = index != _selectedVersion;
+                            _preserveTransformOnNextPageChange = changesPage;
                             if (index != 0) _selectedThumbnail = index;
                             _selectedVersion = index;
                             setState(() {});

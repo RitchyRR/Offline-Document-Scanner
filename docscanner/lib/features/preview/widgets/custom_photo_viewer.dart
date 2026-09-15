@@ -10,6 +10,7 @@ class CustomPhotoViewer extends StatefulWidget {
     required this.imagePath,
     required this.child,
     this.imageSize,
+    this.transformationController,
     this.onScaleChanged,
     this.onMultiTouchChanged,
     this.onZoomChanged,
@@ -20,6 +21,7 @@ class CustomPhotoViewer extends StatefulWidget {
   final String imagePath;
   final Widget child;
   final Size? imageSize;
+  final TransformationController? transformationController;
   final void Function(double displayScale, bool isZoomed)? onScaleChanged;
   final ValueChanged<bool>? onMultiTouchChanged;
   final ValueChanged<bool>? onZoomChanged;
@@ -32,8 +34,7 @@ class CustomPhotoViewer extends StatefulWidget {
 
 class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     with TickerProviderStateMixin {
-  final TransformationController _transformationController =
-      TransformationController();
+  late TransformationController _transformationController;
   late final AnimationController _animationController;
   late Animation<Matrix4> _animation;
   Offset? _doubleTapPosition;
@@ -62,6 +63,8 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   @override
   void initState() {
     super.initState();
+    _transformationController =
+        widget.transformationController ?? TransformationController();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -98,9 +101,23 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   @override
   void didUpdateWidget(covariant CustomPhotoViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(
+      oldWidget.transformationController,
+      widget.transformationController,
+    )) {
+      _animationController.stop();
+      final previousController = _transformationController;
+      _transformationController =
+          widget.transformationController ?? TransformationController();
+      if (oldWidget.transformationController == null) {
+        previousController.dispose();
+      }
+    }
     if (oldWidget.imagePath != widget.imagePath) {
       _animationController.stop();
-      _transformationController.value = Matrix4.identity();
+      if (widget.transformationController == null) {
+        _transformationController.value = Matrix4.identity();
+      }
       _resolvedImageSize = null;
       _resolveImageSize();
     }
@@ -112,7 +129,9 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     _animationController.dispose();
     _rotationAnimationController.dispose();
     _scaleAnimationController.dispose();
-    _transformationController.dispose();
+    if (widget.transformationController == null) {
+      _transformationController.dispose();
+    }
     super.dispose();
   }
 
