@@ -73,8 +73,8 @@ class PagePreviewState extends State<PagePreview>
   bool _metadataBlocked = true;
   // PageView
   final PageController _pageController = PageController();
-  final TransformationController _previewTransformationController =
-      TransformationController();
+  final List<TransformationController> _previewTransformationControllers =
+      List.generate(versionNames.length, (_) => TransformationController());
   double _currentPhotoScale = 0.0;
   bool _previewImageMultiTouch = false;
   bool _previewImageZoomed = false;
@@ -175,7 +175,9 @@ class PagePreviewState extends State<PagePreview>
   @override
   void dispose() {
     _pageController.dispose();
-    _previewTransformationController.dispose();
+    for (final controller in _previewTransformationControllers) {
+      controller.dispose();
+    }
     _thumbnailScrollController.dispose();
     _eventSubscription.cancel();
     super.dispose();
@@ -527,13 +529,34 @@ class PagePreviewState extends State<PagePreview>
   }
 
   bool get _isPreviewTransformZoomed =>
-      (_previewTransformationController.value.getMaxScaleOnAxis() - 1).abs() >
+      (_previewTransformationControllers[_selectedVersion].value
+                  .getMaxScaleOnAxis() -
+              1)
+          .abs() >
       0.01;
 
-  void _resetPreviewTransform() {
-    _previewTransformationController.value = Matrix4.identity();
+  void _resetPreviewTransforms() {
+    for (final controller in _previewTransformationControllers) {
+      controller.value = Matrix4.identity();
+    }
     _previewImageZoomed = false;
     _overlayZoomed = false;
+  }
+
+  void _prepareThumbnailVersionSwitch(int targetIndex) {
+    if (targetIndex == _selectedVersion) return;
+    final transform = Matrix4.copy(
+      _previewTransformationControllers[_selectedVersion].value,
+    );
+    for (
+      var index = 0;
+      index < _previewTransformationControllers.length;
+      index++
+    ) {
+      _previewTransformationControllers[index].value = index == targetIndex
+          ? transform
+          : Matrix4.identity();
+    }
   }
 
   void _updatePreviewPageDrag(double progress) {
@@ -559,7 +582,7 @@ class PagePreviewState extends State<PagePreview>
         initialIndex + direction < _versionPaths.length;
     final targetIndex = shouldChange ? initialIndex + direction : initialIndex;
     if (shouldChange) {
-      _resetPreviewTransform();
+      _resetPreviewTransforms();
     }
     _pageController
         .animateToPage(
@@ -615,7 +638,8 @@ class PagePreviewState extends State<PagePreview>
 
     return CustomPhotoViewer(
       imagePath: _versionPaths[index],
-      transformationController: _previewTransformationController,
+      transformationController: _previewTransformationControllers[index],
+      isActive: index == _selectedVersion,
       imageSize: index == 0 && _imagePixelWidth > 0 && _imagePixelHeight > 0
           ? Size(
               _totalRotation ~/ 90 % 2 == 0
@@ -790,7 +814,7 @@ class PagePreviewState extends State<PagePreview>
                 final preserveTransform = _preserveTransformOnNextPageChange;
                 _preserveTransformOnNextPageChange = false;
                 if (!preserveTransform) {
-                  _resetPreviewTransform();
+                  _resetPreviewTransforms();
                 }
                 if (index != 0) _selectedThumbnail = index;
                 _selectedVersion = index;
@@ -944,6 +968,9 @@ class PagePreviewState extends State<PagePreview>
                           onTap: () {
                             final changesPage = index != _selectedVersion;
                             _preserveTransformOnNextPageChange = changesPage;
+                            if (changesPage) {
+                              _prepareThumbnailVersionSwitch(index);
+                            }
                             if (index != 0) _selectedThumbnail = index;
                             _selectedVersion = index;
                             setState(() {});

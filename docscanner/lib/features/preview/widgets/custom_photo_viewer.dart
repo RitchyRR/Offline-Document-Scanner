@@ -11,6 +11,7 @@ class CustomPhotoViewer extends StatefulWidget {
     required this.child,
     this.imageSize,
     this.transformationController,
+    this.isActive = true,
     this.onScaleChanged,
     this.onMultiTouchChanged,
     this.onZoomChanged,
@@ -22,6 +23,7 @@ class CustomPhotoViewer extends StatefulWidget {
   final Widget child;
   final Size? imageSize;
   final TransformationController? transformationController;
+  final bool isActive;
   final void Function(double displayScale, bool isZoomed)? onScaleChanged;
   final ValueChanged<bool>? onMultiTouchChanged;
   final ValueChanged<bool>? onZoomChanged;
@@ -113,6 +115,9 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
         previousController.dispose();
       }
     }
+    if (oldWidget.isActive && !widget.isActive) {
+      _resetInactiveViewer();
+    }
     if (oldWidget.imagePath != widget.imagePath) {
       _animationController.stop();
       if (widget.transformationController == null) {
@@ -121,6 +126,17 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
       _resolvedImageSize = null;
       _resolveImageSize();
     }
+  }
+
+  void _resetInactiveViewer() {
+    _settleTimer?.cancel();
+    _gestureGeneration++;
+    _animationController.stop();
+    _rotationAnimationController.stop();
+    _scaleAnimationController.stop();
+    _visualRotation = 0;
+    _visualScale = 1;
+    _transformationController.value = Matrix4.identity();
   }
 
   @override
@@ -351,7 +367,8 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   }
 
   void _handleInteractionEnd(ScaleEndDetails details) {
-    if (_pageDragStarted) {
+    final endedPageDrag = _pageDragStarted;
+    if (endedPageDrag) {
       widget.onPageDragEnd?.call(
         _pageDragProgress,
         -details.velocity.pixelsPerSecond.dx,
@@ -359,7 +376,13 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
       _pageDragProgress = 0;
       _pageDragStarted = false;
     }
-    _scheduleTransformSettle();
+    if (endedPageDrag) {
+      _settleTimer?.cancel();
+      _gestureGeneration++;
+      _imageGestureActive = false;
+    } else {
+      _scheduleTransformSettle();
+    }
     _rotationAnimation = Tween<double>(begin: _visualRotation, end: 0).animate(
       CurvedAnimation(
         parent: _rotationAnimationController,

@@ -38,6 +38,38 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('resets its transform when it becomes inactive', (tester) async {
+    final controller = TransformationController(
+      Matrix4.identity()
+        ..scaleByDouble(2, 2, 2, 1)
+        ..translateByDouble(-80, -120, 0, 1),
+    );
+
+    Widget viewer({required bool isActive}) {
+      return MaterialApp(
+        home: Scaffold(
+          body: CustomPhotoViewer(
+            imagePath: 'image',
+            imageSize: const Size(400, 400),
+            transformationController: controller,
+            isActive: isActive,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(viewer(isActive: true));
+    expect(controller.value.getMaxScaleOnAxis(), 2);
+
+    await tester.pumpWidget(viewer(isActive: false));
+
+    expect(controller.value, Matrix4.identity());
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
   testWidgets('dampens rotation with an ease-in and ease-out curve', (
     tester,
   ) async {
