@@ -6769,6 +6769,15 @@ class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
     );
   }
 
+  Matrix4 _transformFor(double scale, Offset translation) {
+    return Matrix4.identity()
+      ..setEntry(0, 0, scale)
+      ..setEntry(1, 1, scale)
+      ..setEntry(2, 2, scale)
+      ..setEntry(0, 3, translation.dx)
+      ..setEntry(1, 3, translation.dy);
+  }
+
   void _handleDoubleTap() {
     final current = _transformationController.value;
     final currentScale = current.getMaxScaleOnAxis();
@@ -6795,12 +6804,7 @@ class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
         targetTranslation,
         targetScale,
       );
-      target = Matrix4.identity()
-        ..setEntry(0, 0, targetScale)
-        ..setEntry(1, 1, targetScale)
-        ..setEntry(2, 2, targetScale)
-        ..setEntry(0, 3, boundedTranslation.dx)
-        ..setEntry(1, 3, boundedTranslation.dy);
+      target = _transformFor(targetScale, boundedTranslation);
     }
     _animation = Matrix4Tween(begin: current, end: target).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
@@ -6863,12 +6867,10 @@ class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
       targetTranslation,
       targetScale,
     );
-    _transformationController.value = Matrix4.identity()
-      ..setEntry(0, 0, targetScale)
-      ..setEntry(1, 1, targetScale)
-      ..setEntry(2, 2, targetScale)
-      ..setEntry(0, 3, boundedTranslation.dx)
-      ..setEntry(1, 3, boundedTranslation.dy);
+    _transformationController.value = _transformFor(
+      targetScale,
+      boundedTranslation,
+    );
 
     if (details.pointerCount > 1) {
       // Dampen large rotations while preserving a direct response to small ones.
@@ -6920,26 +6922,13 @@ class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
       final scale = current.getMaxScaleOnAxis();
       final target = scale <= 1.01
           ? Matrix4.identity()
-          : (Matrix4.identity()
-              ..setEntry(0, 0, scale)
-              ..setEntry(1, 1, scale)
-              ..setEntry(2, 2, scale)
-              ..setEntry(
-                0,
-                3,
-                _clampTranslation(
-                  Offset(current.getTranslation().x, 0),
-                  scale,
-                ).dx,
-              )
-              ..setEntry(
-                1,
-                3,
-                _clampTranslation(
-                  Offset(0, current.getTranslation().y),
-                  scale,
-                ).dy,
-              ));
+          : _transformFor(
+              scale,
+              _clampTranslation(
+                Offset(current.getTranslation().x, current.getTranslation().y),
+                scale,
+              ),
+            );
       _animation = Matrix4Tween(begin: current, end: target).animate(
         CurvedAnimation(
           parent: _animationController,
