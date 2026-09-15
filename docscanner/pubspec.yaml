@@ -14,7 +14,6 @@ dependencies:
   ffi:
   # design:
   dynamic_color:
-  photo_view:
   flutter_staggered_grid_view:
   # image handling:
   path_provider:

@@ -13,8 +13,6 @@ import 'package:docscanner/app/isolates_manager.dart'
     show IsolatePriority, IsolatesManager;
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 import 'package:share_plus/share_plus.dart' show ShareParams, SharePlus;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart'
@@ -5539,7 +5537,7 @@ class PagePreviewState extends State<PagePreview> {
           )
         : image;
 
-    return _TapFocusedImageViewer(
+    return CustomPhotoViewer(
       imagePath: _versionPaths[index],
       imageSize: index == 0 && _imagePixelWidth > 0 && _imagePixelHeight > 0
           ? Size(
@@ -6596,8 +6594,9 @@ class PagePreviewState extends State<PagePreview> {
   }
 }
 
-class _TapFocusedImageViewer extends StatefulWidget {
-  const _TapFocusedImageViewer({
+class CustomPhotoViewer extends StatefulWidget {
+  const CustomPhotoViewer({
+    super.key,
     required this.imagePath,
     required this.child,
     this.imageSize,
@@ -6618,10 +6617,10 @@ class _TapFocusedImageViewer extends StatefulWidget {
   final void Function(double progress, double velocity)? onPageDragEnd;
 
   @override
-  State<_TapFocusedImageViewer> createState() => _TapFocusedImageViewerState();
+  State<CustomPhotoViewer> createState() => _CustomPhotoViewerState();
 }
 
-class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
+class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     with TickerProviderStateMixin {
   final TransformationController _transformationController =
       TransformationController();
@@ -6684,7 +6683,7 @@ class _TapFocusedImageViewerState extends State<_TapFocusedImageViewer>
   }
 
   @override
-  void didUpdateWidget(covariant _TapFocusedImageViewer oldWidget) {
+  void didUpdateWidget(covariant CustomPhotoViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imagePath != widget.imagePath) {
       _animationController.stop();
@@ -10552,6 +10551,9 @@ class _CameraScreenState extends State<CameraScreen> {
     VoidCallback closeGallery,
   ) async {
     PageController controller = PageController(initialPage: initialIndex);
+    int galleryIndex = initialIndex;
+    bool galleryImageZoomed = false;
+    bool galleryImageMultiTouch = false;
 
     await showDialog(
       context: context,
@@ -10586,20 +10588,35 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ],
               ),
-              body: PhotoViewGallery.builder(
-                pageController: controller,
-                scrollPhysics: const PageScrollPhysics(),
-                backgroundDecoration: BoxDecoration(color: Colors.transparent),
+              body: PageView.builder(
+                controller: controller,
+                physics: galleryImageZoomed || galleryImageMultiTouch
+                    ? const NeverScrollableScrollPhysics()
+                    : const PageScrollPhysics(),
                 itemCount: _capturedImages.length,
-                builder: (context, index) {
-                  // Processed Images
-                  return PhotoViewGalleryPageOptions(
-                    imageProvider: FileImage(File(_capturedImages[index].path)),
-                    filterQuality: FilterQuality.high,
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: 1.0,
-                  );
+                onPageChanged: (index) {
+                  galleryIndex = index;
+                  galleryImageZoomed = false;
+                  setStateDialog(() {});
                 },
+                itemBuilder: (context, index) => CustomPhotoViewer(
+                  imagePath: _capturedImages[index].path,
+                  onZoomChanged: (zoomed) {
+                    if (index != galleryIndex) return;
+                    if (galleryImageZoomed == zoomed) return;
+                    setStateDialog(() => galleryImageZoomed = zoomed);
+                  },
+                  onMultiTouchChanged: (multiTouch) {
+                    if (index != galleryIndex) return;
+                    if (galleryImageMultiTouch == multiTouch) return;
+                    setStateDialog(() => galleryImageMultiTouch = multiTouch);
+                  },
+                  child: Image.file(
+                    File(_capturedImages[index].path),
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
               ),
               //floatingActionButton: Padding(
               //  padding: const EdgeInsets.fromLTRB(0, 0, 20, 100),
