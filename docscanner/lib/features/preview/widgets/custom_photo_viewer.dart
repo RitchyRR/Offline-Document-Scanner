@@ -326,7 +326,8 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     const maxInputRotation = math.pi / 2;
     const maxVisualRotation = math.pi / 6;
     final progress = (rotation.abs() / maxInputRotation).clamp(0.0, 1.0);
-    final easedProgress = progress * progress * (3 - 2 * progress);
+    final easedProgress =
+        progress * progress * progress * (progress * (progress * 6 - 15) + 10);
     return rotation.sign * maxVisualRotation * easedProgress;
   }
 
