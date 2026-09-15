@@ -16,20 +16,14 @@ import 'package:flutter/services.dart'
 import 'dart:isolate' show ReceivePort, SendPort, Isolate;
 import 'package:docscanner/app/isolates_manager.dart';
 // my packages:
-import 'package:docscanner/main.dart' show globalNotifier;
+import 'package:docscanner/app/global_notifier.dart' show globalNotifier;
 import 'package:docscanner/app/metadata_helper.dart';
 import 'package:docscanner/app/app_globals.dart';
+import 'package:docscanner/app/filter_names.dart' show versionNamesInternal;
 // ffi:
 import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 
-const List<String> versionNamesInternal = [
-  "photo",
-  "warped",
-  "contrast",
-  "processed1",
-  "processed2",
-  "processed3",
-];
+final ImageProcessingManager imageProcessingManager = ImageProcessingManager();
 
 class ImageProcessingManager {
   List<((int, int), TaskKiller)> taskKillers = [];

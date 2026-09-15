@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart'
 import 'package:url_launcher/url_launcher.dart' show canLaunchUrl, launchUrl;
 import 'package:crypto/crypto.dart';
 
+final FeedbackHelper feedbackHelper = FeedbackHelper();
+
 enum FeedbackState {
   init,
   afterFirstExport,
