@@ -541,6 +541,7 @@ class ImageProcessingManager {
         pageIndex,
         isPhotoAlreadyInPage: isPhotoAlreadyInPage,
       );
+      await deleteNonEssentialVersions(docIndex, pageIndex, gIn: g);
     }
 
     final completer = Completer<void>();
@@ -593,6 +594,10 @@ class ImageProcessingManager {
     await completer.future;
 
     await _compressPage(docIndex, pageIndex);
+
+    if (!isInitial) {
+      await generateOtherVersions(docIndex, pageIndex);
+    }
   }
 
   Future<void> saveOldVersionFileNames(
