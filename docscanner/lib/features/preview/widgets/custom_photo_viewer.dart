@@ -41,6 +41,9 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   Size? _resolvedImageSize;
   int _activePointerCount = 0;
   double _visualRotation = 0;
+  double _continuousGestureRotation = 0;
+  double _lastGestureRotation = 0;
+  bool _isTrackingRotation = false;
   double _visualScale = 1;
   Offset _lastRotationFocalPoint = Offset.zero;
   Size _viewportSize = Size.zero;
@@ -228,6 +231,9 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     _rotationAnimationController.stop();
     _scaleAnimationController.stop();
     _visualRotation = 0;
+    _continuousGestureRotation = 0;
+    _lastGestureRotation = 0;
+    _isTrackingRotation = false;
     _visualScale = 1;
     _lastRotationFocalPoint = details.localFocalPoint;
     _imageGestureActive = true;
@@ -282,10 +288,20 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     );
 
     if (details.pointerCount > 1) {
-      // Dampen large rotations while preserving a direct response to small ones.
-      _visualRotation = math.atan(details.rotation * 3) / 3;
+      if (_isTrackingRotation) {
+        _continuousGestureRotation += _normalizeRotationDelta(
+          details.rotation - _lastGestureRotation,
+        );
+      } else {
+        _continuousGestureRotation += _normalizeRotationDelta(details.rotation);
+        _isTrackingRotation = true;
+      }
+      _lastGestureRotation = details.rotation;
+      _visualRotation = _dampenRotation(_continuousGestureRotation);
       _lastRotationFocalPoint = details.localFocalPoint;
       setState(() {});
+    } else {
+      _isTrackingRotation = false;
     }
     if (requestedScale < 1) {
       setState(() => _visualScale = requestedScale.clamp(0.5, 1.0));
@@ -293,6 +309,25 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
       setState(() => _visualScale = 1);
     }
     _reportScale();
+  }
+
+  double _normalizeRotationDelta(double delta) {
+    const fullTurn = 2 * math.pi;
+    while (delta > math.pi) {
+      delta -= fullTurn;
+    }
+    while (delta < -math.pi) {
+      delta += fullTurn;
+    }
+    return delta;
+  }
+
+  double _dampenRotation(double rotation) {
+    const maxInputRotation = math.pi / 2;
+    const maxVisualRotation = math.pi / 6;
+    final progress = (rotation.abs() / maxInputRotation).clamp(0.0, 1.0);
+    final easedProgress = progress * progress * (3 - 2 * progress);
+    return rotation.sign * maxVisualRotation * easedProgress;
   }
 
   void _handleInteractionEnd(ScaleEndDetails details) {
