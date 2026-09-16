@@ -637,7 +637,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _compactDocumentsView = prefs.getBool("compactDocumentsView") ?? false;
+        _compactDocumentsView = prefs.getBool("compactDocumentsView") ?? true;
       });
     }
   }
