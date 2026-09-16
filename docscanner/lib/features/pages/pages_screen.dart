@@ -329,6 +329,7 @@ class _PagesState extends State<Pages>
   bool _selectMode = false;
   List<int> _selectedPages = [];
   bool _zoomMode = false;
+  static const double _zoomCanvasHorizontalInset = 15;
   static const double _pinchZoomActivationThreshold = 0.08;
   static const double _frictionAtDefaultScale = 0.15;
   static const double _frictionAtMaximumScale = 0.001;
@@ -434,13 +435,18 @@ class _PagesState extends State<Pages>
         ? canvasRenderObject.size.height
         : 0.0;
     final scale = currentTransform.getMaxScaleOnAxis();
-    final contentTop = -currentTransform.getTranslation().y / scale;
+    final viewportCenterY = _pagesCanvasViewportHeight / 2;
+    final contentCenterY =
+        (viewportCenterY - currentTransform.getTranslation().y) / scale;
     final normalMaxScroll = math.max(
       0.0,
       canvasHeight - _pagesCanvasViewportHeight,
     );
-    final normalTransform = Matrix4.identity()
-      ..setEntry(1, 3, -contentTop.clamp(0.0, normalMaxScroll));
+    final normalScroll = (contentCenterY - viewportCenterY).clamp(
+      0.0,
+      normalMaxScroll,
+    );
+    final normalTransform = Matrix4.identity()..setEntry(1, 3, -normalScroll);
     _fullSizeLoadGeneration++;
     _fullSizeLoadTimer?.cancel();
     _lastFullSizeLoadCenter = null;
@@ -486,7 +492,8 @@ class _PagesState extends State<Pages>
     if ((scale - _zoomCanvasScale).abs() > 0.001) {
       setState(() => _zoomCanvasScale = scale);
     }
-    if (scale >= 1) return;
+    final contentWidth = canvasWidth - 2 * _zoomCanvasHorizontalInset;
+    if (contentWidth <= 0 || contentWidth * scale > canvasWidth) return;
 
     final centeredX = canvasWidth * (1 - scale) / 2;
     if ((transform.getTranslation().x - centeredX).abs() < 0.01) return;
@@ -821,7 +828,8 @@ class _PagesState extends State<Pages>
         _pagesCanvasViewportHeight = constraints.maxHeight;
         final gridColumns = [<int>[], <int>[]];
         final gridColumnHeights = [0.0, 0.0];
-        final gridPageWidth = (constraints.maxWidth - 40) / 2;
+        final gridPageWidth =
+            (constraints.maxWidth - 2 * _zoomCanvasHorizontalInset - 10) / 2;
         if (_gridView == true) {
           for (final pageIndex in pageIndexes) {
             final column = gridColumnHeights[0] <= gridColumnHeights[1] ? 0 : 1;
@@ -833,9 +841,9 @@ class _PagesState extends State<Pages>
         final canvas = _gridView == true
             ? Padding(
                 padding: EdgeInsets.fromLTRB(
-                  15,
+                  _zoomCanvasHorizontalInset,
                   _gridView == true ? 6 : 15,
-                  15,
+                  _zoomCanvasHorizontalInset,
                   _gridView == true ? 36 : 15,
                 ),
                 child: Row(
@@ -860,7 +868,12 @@ class _PagesState extends State<Pages>
                 ),
               )
             : Padding(
-                padding: const EdgeInsets.fromLTRB(15, 6, 15, 24),
+                padding: const EdgeInsets.fromLTRB(
+                  _zoomCanvasHorizontalInset,
+                  6,
+                  _zoomCanvasHorizontalInset,
+                  24,
+                ),
                 child: Column(
                   children: [
                     for (final pageIndex in pageIndexes) ...[
