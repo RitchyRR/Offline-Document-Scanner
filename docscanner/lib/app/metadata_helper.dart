@@ -574,21 +574,30 @@ class MetadataHelper {
           file,
           supressWarnings: supressWarnings,
         );
-        List<String> oldVersionFileNames =
-            (metadata["oldVersionFileNames"] as List)
-                .map<String>((e) => e as String)
-                .toList();
-        return oldVersionFileNames;
+        final value = metadata["oldVersionFileNames"];
+        if (value == null) return null;
+        if (value is! List || value.any((element) => element is! String)) {
+          if (!supressWarnings) {
+            dev.log(
+              "Warning, readOldPageFileNames: Invalid oldVersionFileNames "
+              "metadata for Document $docIndex Page $pageIndex",
+            );
+          }
+          return null;
+        }
+
+        final oldVersionFileNames = value.cast<String>();
+        return List.generate(
+          versionNamesInternal.length,
+          (index) => index < oldVersionFileNames.length
+              ? oldVersionFileNames[index]
+              : "",
+        );
       } catch (e) {
         if (!supressWarnings) {
-          dev.log("Warning, readOldVersionFileNames: $e");
+          dev.log("Warning, readOldPageFileNames: $e");
         }
       }
-    }
-    if (!supressWarnings) {
-      dev.log(
-        "Warning, readOldVersionFileNames: Metadata does not exist for $pagePath",
-      );
     }
     return null;
   }
