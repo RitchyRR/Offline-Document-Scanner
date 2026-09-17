@@ -61,7 +61,7 @@
       "confirm": "Änderungen bestätigen",
       "pdfPopup": {
         "title": "Bearbeitung für PDF aktivieren",
-        "text": "Diese Seite wurde aus einer PDF-Datei importiert.\n\nEin Zuschneiden dieses Bildes oder das Hinzufügen zusätzlicher Filter ist wahrscheinlich unnötig.\n\nSind Sie sicher, dass Sie das Zuschneiden und Filtern für diese Seite aktivieren möchten?",
+        "text": "Diese Seite wird gerastert, damit sie zugeschnitten, entzerrt und gefiltert werden kann. Die ursprüngliche PDF-Seite bleibt unverändert erhalten.\n\nMöchtest du die Bearbeitung aktivieren?",
         "confirm": "Bearbeitung aktivieren"
       }
     },
@@ -259,6 +259,7 @@
     "importingImages": "Bilder werden importiert...",
     "importingPdf": "PDF wird importiert...",
     "importingPdfs": "PDFs werden importiert...",
+    "rasterizingPdfPage": "PDF-Seite wird für die Bearbeitung vorbereitet...",
     "changingThumbnails": "Thumbnails werden geändert...",
     "rotating": "Bild wird gedreht..."
   },
@@ -284,6 +285,7 @@
   "snackbar": {
     "e_savePdf": "Fehler: Kein PDF zum Speichern vorhanden.",
     "e_pdfTooLargeToSave": "Dieses PDF ist zu groß, um es in der App zu speichern. Die maximal unterstützte Exportgröße beträgt {maxSize}.",
+    "e_rasterizePdfPage": "Die PDF-Seite konnte nicht für die Bearbeitung vorbereitet werden.",
     "e_shareImages": "Fehler: Keine Bilder zum Teilen vorhanden.",
     "e_sharePdf": "Fehler: Kein PDF zum Teilen vorhanden."
   }

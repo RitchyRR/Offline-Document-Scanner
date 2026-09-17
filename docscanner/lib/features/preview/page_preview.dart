@@ -1423,7 +1423,7 @@ class PagePreviewState extends State<PagePreview>
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(radius),
-            onTap: _nativePdfMode
+            onTap: _metadataBlocked
                 ? null
                 : () => _enableEditingForImportedPdfPagePopup(context),
             child: Center(
@@ -1478,20 +1478,93 @@ class PagePreviewState extends State<PagePreview>
       },
     );
 
-    if (confirmed == true) {
-      await MetadataHelper.writePageImportedPdf(
-        widget.docIndex,
-        widget.pageIndex,
-        false,
+    if (confirmed == true && context.mounted) {
+      final wasNativePdfMode = _nativePdfMode;
+      final messenger = ScaffoldMessenger.of(context);
+      var errorShown = false;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(tr("loading.rasterizingPdfPage")),
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(days: 1),
+        ),
       );
-      _importedPdfMode = false;
+      _metadataBlocked = true;
       setState(() {});
-      await MetadataHelper.writePageThumbnailIndex(
-        widget.docIndex,
-        widget.pageIndex,
-        g.defaultIndex,
-      );
-      reprocessPhoto();
+
+      try {
+        if (_nativePdfMode) {
+          await imageProcessingManager.convertPdfPageToEditable(
+            widget.docIndex,
+            widget.pageIndex,
+          );
+        } else {
+          await MetadataHelper.writePageImportedPdf(
+            widget.docIndex,
+            widget.pageIndex,
+            false,
+          );
+          _importedPdfMode = false;
+          if (mounted) setState(() {});
+          await MetadataHelper.writePageThumbnailIndex(
+            widget.docIndex,
+            widget.pageIndex,
+            g.defaultIndex,
+          );
+          await reprocessPhoto();
+          return;
+        }
+
+        if (!mounted) return;
+        _importedPdfMode = false;
+        _nativePdfMode = false;
+        _selectedVersion = 0;
+        _selectedThumbnail = g.defaultIndex;
+        _processingIndex = 0;
+        final imagePaths = (await g.filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        )).$1;
+        for (var i = 0; i < _versionPaths.length; i++) {
+          _versionPaths[i] = imagePaths[i];
+          _versionLoading[i] = imagePaths[i].isEmpty;
+        }
+        _photoPath = _versionPaths.first;
+        _resetPreviewTransforms();
+        await _loadPageMetadata(supressWarnings: true);
+        await _preloadRotatedPhotos(_processingIndex);
+        globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+        globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+      } catch (error, stackTrace) {
+        dev.log(
+          "Error converting PDF page to editable image: $error",
+          stackTrace: stackTrace,
+        );
+        if (mounted) {
+          messenger.hideCurrentSnackBar();
+          errorShown = true;
+          messenger.showSnackBar(
+            SnackBar(content: Text(tr("snackbar.e_rasterizePdfPage"))),
+          );
+        }
+      } finally {
+        if (!errorShown && messenger.mounted) messenger.hideCurrentSnackBar();
+        if (wasNativePdfMode) {
+          _metadataBlocked = false;
+          if (mounted) setState(() {});
+        }
+      }
     }
   }
 

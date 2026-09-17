@@ -313,10 +313,19 @@ class FilesHelper {
     return "$pagePath/$pdfPageFileName";
   }
 
-  Future<bool> hasPdfPage(int docIndex, int pageIndex) async {
+  Future<bool> hasOriginalPdfPage(int docIndex, int pageIndex) async {
     return File(
       await getPdfPagePath(docIndex, pageIndex, supressWarnings: true),
     ).existsSync();
+  }
+
+  Future<bool> hasPdfPage(int docIndex, int pageIndex) async {
+    return await hasOriginalPdfPage(docIndex, pageIndex) &&
+        await MetadataHelper.readPageImportedPdf(
+          docIndex,
+          pageIndex,
+          supressWarnings: true,
+        );
   }
 
   Future<String> writeImageRaw(
@@ -476,7 +485,7 @@ class FilesHelper {
         0,
         supressWarnings: true,
       );
-      if (File(pdfPagePath).existsSync()) {
+      if (await hasPdfPage(docIndex, 0)) {
         thumbnailPaths[docIndex] = pdfPagePath;
         continue;
       }
@@ -539,7 +548,7 @@ class FilesHelper {
         pageIndex,
         supressWarnings: true,
       );
-      if (File(pdfPagePath).existsSync()) {
+      if (await hasPdfPage(docIndex, pageIndex)) {
         thumbnailPaths[pageIndexes.indexOf(pageIndex)] = pdfPagePath;
         continue;
       }
@@ -643,7 +652,7 @@ class FilesHelper {
             pageIndex,
             supressWarnings: true,
           );
-          final hasPdfPage = File(pdfPagePath).existsSync();
+          final hasOriginalPdfPage = File(pdfPagePath).existsSync();
           if (!pageIncomplete) {
             List<String>? oldVersionFileNames =
                 await MetadataHelper.readOldPageFileNames(
@@ -704,7 +713,7 @@ class FilesHelper {
               }
             }
 
-            pageIncomplete = hasPdfPage
+            pageIncomplete = isImportedPdf && hasOriginalPdfPage
                 ? false
                 : isImportedPdf
                 ? countVersionsAndThumbnail !=
@@ -716,18 +725,25 @@ class FilesHelper {
 
           if (pageIncomplete) {
             anyChange = true;
-            bool photoExists = true;
+            final photoName = versionNamesInternal[0];
+            final photoExists = pageFseL.any(
+              (entity) => entity.path.contains(photoName),
+            );
+            if (!photoExists && hasOriginalPdfPage && !isImportedPdf) {
+              dev.log(
+                "Restoring original PDF mode: Doc $docIndex Page $pageIndex",
+              );
+              await MetadataHelper.writePageImportedPdf(
+                docIndex,
+                pageIndex,
+                true,
+              );
+              continue;
+            }
             if (countVersionsAndThumbnail <= 0 || isImportedPdf) {
               dev.log("Deleting empty page: Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex, supressInfo: true);
             } else {
-              String photoName = versionNamesInternal[0];
-              for (var imageFse in pageFseL) {
-                if (imageFse.path.contains(photoName)) {
-                  photoExists = true;
-                  break;
-                }
-              }
               if (photoExists) {
                 dev.log("Repairing page: Doc $docIndex Page $pageIndex");
                 Future future = imageProcessingManager.repairPage(
@@ -1021,7 +1037,7 @@ class FilesHelper {
       pageIndex,
       supressWarnings: true,
     );
-    if (File(pdfPagePath).existsSync()) {
+    if (await hasPdfPage(docIndex, pageIndex)) {
       versionPaths[0] = pdfPagePath;
       return (versionPaths, pdfPagePath);
     }
@@ -1059,7 +1075,7 @@ class FilesHelper {
         pageIndex,
         supressWarnings: true,
       );
-      if (File(pdfPagePath).existsSync()) return pdfPagePath;
+      if (await hasPdfPage(docIndex, pageIndex)) return pdfPagePath;
     }
     String pagePath = await getPagePath(
       docIndex,
@@ -1584,7 +1600,7 @@ class FilesHelper {
         pageIndex,
         supressWarnings: true,
       );
-      if (File(pdfPagePath).existsSync()) {
+      if (await hasPdfPage(docIndex, pageIndex)) {
         sources.add(pdfm_io.FileSource(File(pdfPagePath)));
         continue;
       }
@@ -1601,6 +1617,11 @@ class FilesHelper {
         );
         await imagePdf.writeAsBytes(await imageDocument.save());
         sources.add(pdfm_io.FileSource(imagePdf));
+      } else {
+        await workingDirectory.delete(recursive: true);
+        throw StateError(
+          "Could not create PDF source for page $pageIndex in document $docIndex",
+        );
       }
     }
 
@@ -1608,7 +1629,9 @@ class FilesHelper {
       await workingDirectory.delete(recursive: true);
       return null;
     }
-    if (sources.length == 1) {
+    if (pageIndexes.length == 1 &&
+        sources.length == 1 &&
+        await hasPdfPage(docIndex, pageIndexes.first)) {
       final sourcePath = await getPdfPagePath(
         docIndex,
         pageIndexes.first,

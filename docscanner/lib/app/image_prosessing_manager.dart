@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 import 'package:pdf_manipulator/pdf_manipulator.dart' as pdfm;
 import 'package:pdf_manipulator/io.dart' as pdfm_io;
+import 'package:image/image.dart' as img;
 // isolates:
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -524,8 +525,9 @@ class ImageProcessingManager {
     int rotationIn,
     bool isInitial,
     bool isPhotoAlreadyInPage,
-    IsolatePriority prio,
-  ) async {
+    IsolatePriority prio, {
+    bool propagateErrors = false,
+  }) async {
     if (photoPath.isEmpty) return;
 
     // Save current (to be outdated) filenames to metadata
@@ -542,7 +544,9 @@ class ImageProcessingManager {
     final port = ReceivePort();
     final token = RootIsolateToken.instance!;
 
-    TaskKiller killer = await IsolatesManager().runTask(
+    var receivedDone = false;
+    late TaskKiller killer;
+    killer = await IsolatesManager().runTask(
       _processPageIsolate,
       (
         port.sendPort,
@@ -560,31 +564,51 @@ class ImageProcessingManager {
       prio: prio,
       onErrorFunction: (error, stack) async {
         dev.log("_processPageIsolate, onErrorFunction: $error $stack");
+        taskKillers.removeWhere((element) => element.$2 == killer);
+        if (propagateErrors) {
+          if (!completer.isCompleted) completer.completeError(error, stack);
+          return;
+        }
         if (!error.toString().contains("No photo")) {
           repairPage(docIndex, pageIndex);
         } else {
           g.filesHelper.deleteImages(null, docIndex, pageIndexes: [pageIndex]);
         }
+        if (!completer.isCompleted) completer.complete();
       },
     );
     taskKillers.add(((docIndex, pageIndex), killer));
 
-    port.listen((message) async {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-        if (message == NotifierEvent.loadPagesThumbnails) {
-          if (pageIndex == 0) {
-            await Future.delayed(Duration(milliseconds: 100));
-            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    port.listen(
+      (message) async {
+        if (message is NotifierEvent) {
+          globalNotifier.triggerEvent(message);
+          if (message == NotifierEvent.loadPagesThumbnails) {
+            if (pageIndex == 0) {
+              await Future.delayed(Duration(milliseconds: 100));
+              globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+            }
           }
+        } else if (message is SendPort) {
+          killer.setControlPort(message);
+        } else if (message == "done") {
+          receivedDone = true;
+          taskKillers.removeWhere((element) => element.$2 == killer);
+          if (!completer.isCompleted) completer.complete();
         }
-      } else if (message is SendPort) {
-        killer.setControlPort(message);
-      } else if (message == "done") {
+      },
+      onDone: () {
         taskKillers.removeWhere((element) => element.$2 == killer);
-        completer.complete();
-      }
-    });
+        if (completer.isCompleted) return;
+        if (propagateErrors && !receivedDone) {
+          completer.completeError(
+            StateError("Page processing stopped before completion"),
+          );
+        } else {
+          completer.complete();
+        }
+      },
+    );
     await completer.future;
 
     await _compressPage(docIndex, pageIndex);
@@ -1757,6 +1781,104 @@ class ImageProcessingManager {
       if (splitDirectory.existsSync()) {
         await splitDirectory.delete(recursive: true);
       }
+    }
+  }
+
+  Future<void> convertPdfPageToEditable(int docIndex, int pageIndex) async {
+    final pdfPath = await g.filesHelper.getPdfPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    final pdfFile = File(pdfPath);
+    if (!pdfFile.existsSync()) {
+      throw StateError("Original PDF page does not exist: $pdfPath");
+    }
+
+    final document = await pdfrx.PdfDocument.openFile(pdfPath);
+    final tempDirectory = await getTemporaryDirectory();
+    final rasterFile = File(
+      "${tempDirectory.path}/pdf_page_${docIndex}_${pageIndex}_${DateTime.now().microsecondsSinceEpoch}.png",
+    );
+
+    try {
+      if (document.pages.length != 1) {
+        throw StateError("Expected a one-page PDF: $pdfPath");
+      }
+      final page = document.pages.first;
+      const targetScale = 300 / 72;
+      final maxDimension = math.max(page.width, page.height);
+      final renderScale = math.min(
+        targetScale,
+        AppGlobals.maxPhotoSize / maxDimension,
+      );
+      final width = math.max(1, (page.width * renderScale).round());
+      final height = math.max(1, (page.height * renderScale).round());
+      final renderedPage = await page.render(
+        fullWidth: width.toDouble(),
+        fullHeight: height.toDouble(),
+        backgroundColor: 0xffffffff,
+      );
+      if (renderedPage == null) {
+        throw StateError("Failed to render PDF page: $pdfPath");
+      }
+
+      try {
+        final pageImage = renderedPage.createImageNF();
+        final pngBytes = await Isolate.run(() => img.encodePng(pageImage));
+        await rasterFile.writeAsBytes(pngBytes, flush: true);
+      } finally {
+        renderedPage.dispose();
+      }
+
+      final corners = <List<int>>[
+        [0, 0],
+        [height - 1, 0],
+        [0, width - 1],
+        [height - 1, width - 1],
+      ];
+      await MetadataHelper.writePageThumbnailIndex(
+        docIndex,
+        pageIndex,
+        g.defaultIndex,
+        supressWarnings: true,
+      );
+      await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, false);
+
+      try {
+        await _processPageWrapper(
+          docIndex,
+          pageIndex,
+          rasterFile.path,
+          height / width,
+          corners,
+          0,
+          false,
+          false,
+          IsolatePriority.immediate,
+          propagateErrors: true,
+        );
+      } catch (_) {
+        await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, true);
+        final pagePath = await g.filesHelper.getPagePath(
+          docIndex,
+          pageIndex,
+          supressWarnings: true,
+        );
+        if (Directory(pagePath).existsSync()) {
+          for (final entity in Directory(pagePath).listSync()) {
+            if (entity is File &&
+                entity.path != pdfPath &&
+                !entity.path.endsWith("metadata.json")) {
+              await entity.delete();
+            }
+          }
+        }
+        rethrow;
+      }
+    } finally {
+      document.dispose();
+      if (rasterFile.existsSync()) await rasterFile.delete();
     }
   }
 

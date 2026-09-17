@@ -61,7 +61,7 @@
       "confirm": "Confirm Changes",
       "pdfPopup": {
         "title": "Enable editing for PDF",
-        "text": "This page was imported from a PDF file.\n\nCropping this image or adding additional filters is probably unnecessary.\n\nAre you sure you want to enable cropping and filtering for this page?",
+        "text": "This page will be rasterized so it can be cropped, warped, and filtered. The original PDF page will be kept unchanged.\n\nDo you want to enable editing?",
         "confirm": "Enable editing"
       }
     },
@@ -260,6 +260,7 @@
     "importingImages": "Importing Images...",
     "importingPdf": "Importing PDF...",
     "importingPdfs": "Importing PDFs...",
+    "rasterizingPdfPage": "Preparing PDF page for editing...",
     "changingThumbnails": "Changing Thumbnails...",
     "rotating": "Rotating Image..."
   },
@@ -285,6 +286,7 @@
   "snackbar": {
     "e_savePdf": "Error: No PDF available to save.",
     "e_pdfTooLargeToSave": "This PDF is too large to save in-app. The maximum supported export size is {maxSize}.",
+    "e_rasterizePdfPage": "The PDF page could not be prepared for editing.",
     "e_shareImages": "Error: No Images available to share.",
     "e_sharePdf": "Error: No PDF available to share."
   }
