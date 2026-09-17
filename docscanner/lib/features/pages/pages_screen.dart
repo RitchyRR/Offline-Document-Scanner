@@ -503,14 +503,30 @@ class _PagesState extends State<Pages>
     }
     _scheduleFullSizeLoad();
     final contentWidth = canvasWidth - 2 * _zoomCanvasHorizontalInset;
-    if (contentWidth <= 0 || contentWidth * scale > canvasWidth) return;
-
-    final centeredX = canvasWidth * (1 - scale) / 2;
-    if ((transform.getTranslation().x - centeredX).abs() < 0.01) return;
+    final canvasRenderObject = _pagesCanvasKey.currentContext
+        ?.findRenderObject();
+    final canvasHeight = canvasRenderObject is RenderBox
+        ? canvasRenderObject.size.height
+        : 0.0;
+    final translation = transform.getTranslation();
+    var centeredX = translation.x;
+    var centeredY = translation.y;
+    if (contentWidth > 0 && contentWidth * scale <= canvasWidth) {
+      centeredX = canvasWidth * (1 - scale) / 2;
+    }
+    if (canvasHeight > 0 &&
+        canvasHeight * scale <= _pagesCanvasViewportHeight) {
+      centeredY = (_pagesCanvasViewportHeight - canvasHeight * scale) / 2;
+    }
+    if ((translation.x - centeredX).abs() < 0.01 &&
+        (translation.y - centeredY).abs() < 0.01) {
+      return;
+    }
 
     _normalizingZoomTransform = true;
     _zoomTransformationController.value = Matrix4.copy(transform)
-      ..setEntry(0, 3, centeredX);
+      ..setEntry(0, 3, centeredX)
+      ..setEntry(1, 3, centeredY);
     _normalizingZoomTransform = false;
   }
 
@@ -980,7 +996,17 @@ class _PagesState extends State<Pages>
               child: SizedBox(
                 key: _pagesCanvasKey,
                 width: constraints.maxWidth,
-                child: canvas,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        constraints.maxHeight / math.max(1, _zoomCanvasScale),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [canvas],
+                  ),
+                ),
               ),
             ),
           ),
