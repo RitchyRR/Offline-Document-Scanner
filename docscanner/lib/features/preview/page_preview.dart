@@ -1414,7 +1414,8 @@ class PagePreviewState extends State<PagePreview>
 
     late Future<void> processingFuture;
     if (_importedPdfMode ||
-        onlyRotation &&
+        !_hasOriginalPdfPage &&
+            onlyRotation &&
             _versionPaths.every((path) => File(path).existsSync())) {
       if (newCornerPoints != null) {
         await MetadataHelper.writePageCornerPoints(

@@ -1056,7 +1056,7 @@ class ImageProcessingManager {
     final int rotationIn,
   ) async {
     await killIsolatesOfPage(docIndex, pageIndex);
-    _processPageWrapper(
+    await _processPageWrapper(
       docIndex,
       pageIndex,
       pathIn,
