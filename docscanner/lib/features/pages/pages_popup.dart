@@ -623,75 +623,70 @@ Future<bool> showPagesPopup(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   // Image
-                                  if (!hasPdfPages)
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: lockAll ? 4 : 0,
-                                      ),
-                                      // Image Export
-                                      child: ElevatedButton.icon(
-                                        onPressed: allImagesLoaded && !lockAll
-                                            ? () async {
-                                                confirmAction = true;
-                                                Navigator.pop(context);
-                                                Future? afterExport;
-                                                switch (type) {
-                                                  case PopUpType.share:
-                                                    afterExport = g.filesHelper
-                                                        .shareImages(
-                                                          docIndex,
-                                                          pageIndexes:
-                                                              pageIndexes,
-                                                          versionIndex:
-                                                              versionIndex,
-                                                          maxDpi: selectedDpi,
-                                                          useSameWidth:
-                                                              sameWidth,
-                                                        );
-                                                    break;
-                                                  case PopUpType.save:
-                                                    afterExport = g.filesHelper
-                                                        .saveImagesToGallery(
-                                                          docIndex,
-                                                          pageIndexes:
-                                                              pageIndexes,
-                                                          versionIndex:
-                                                              versionIndex,
-                                                          maxDpi: selectedDpi,
-                                                          useSameWidth:
-                                                              sameWidth,
-                                                        );
-                                                    break;
-                                                  default:
-                                                }
-                                                if (feedbackHelper
-                                                    .canShowExportPopup()) {
-                                                  WidgetsBinding.instance
-                                                      .addPostFrameCallback((
-                                                        _,
-                                                      ) async {
-                                                        await afterExport;
-                                                        if (type ==
-                                                            PopUpType.share) {
-                                                          await Future.delayed(
-                                                            Duration(
-                                                              seconds: 4,
-                                                            ),
-                                                          );
-                                                        }
-                                                        feedbackHelper
-                                                            .showRatingDialog(
-                                                              // ignore: use_build_context_synchronously
-                                                              callContext,
-                                                            );
-                                                      });
-                                                }
-                                              }
-                                            : null,
-                                        icon: Icon(Icons.image),
-                                        label: Text("$buttonTextImage"),
-                                      ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: lockAll ? 4 : 0,
                                     ),
+                                    // Image Export
+                                    child: ElevatedButton.icon(
+                                      onPressed: allImagesLoaded && !lockAll
+                                          ? () async {
+                                              confirmAction = true;
+                                              Navigator.pop(context);
+                                              Future? afterExport;
+                                              switch (type) {
+                                                case PopUpType.share:
+                                                  afterExport = g.filesHelper
+                                                      .shareImages(
+                                                        docIndex,
+                                                        pageIndexes:
+                                                            pageIndexes,
+                                                        versionIndex:
+                                                            versionIndex,
+                                                        maxDpi: selectedDpi,
+                                                        useSameWidth: sameWidth,
+                                                      );
+                                                  break;
+                                                case PopUpType.save:
+                                                  afterExport = g.filesHelper
+                                                      .saveImagesToGallery(
+                                                        docIndex,
+                                                        pageIndexes:
+                                                            pageIndexes,
+                                                        versionIndex:
+                                                            versionIndex,
+                                                        maxDpi: selectedDpi,
+                                                        useSameWidth: sameWidth,
+                                                      );
+                                                  break;
+                                                default:
+                                              }
+                                              if (feedbackHelper
+                                                  .canShowExportPopup()) {
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback((
+                                                      _,
+                                                    ) async {
+                                                      await afterExport;
+                                                      if (type ==
+                                                          PopUpType.share) {
+                                                        await Future.delayed(
+                                                          Duration(seconds: 4),
+                                                        );
+                                                      }
+                                                      feedbackHelper
+                                                          .showRatingDialog(
+                                                            // ignore: use_build_context_synchronously
+                                                            callContext,
+                                                          );
+                                                    });
+                                              }
+                                            }
+                                          : null,
+                                      icon: Icon(Icons.image),
+                                      label: Text("$buttonTextImage"),
+                                    ),
+                                  ),
 
                                   // PDF
                                   SizedBox(height: lockPdf && !lockAll ? 4 : 0),

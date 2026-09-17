@@ -1291,36 +1291,32 @@ class FilesHelper {
     int? maxDpi,
     bool useSameWidth = false,
   }) async {
-    // DPI Scaling
-    List<String> imagePaths;
-    (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
-      docIndex,
-      pageIndexes,
-      versionIndex,
-      maxDpi,
-    );
-
-    final albumName = "Scanned Documents";
-    for (var (pageIndex, imagePath) in imagePaths.indexed) {
-      final extension = imagePath.split(".").last;
-      final newName = await _generateFileName(
+    try {
+      final (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
         docIndex,
-        [pageIndex],
+        pageIndexes,
         versionIndex,
-        ".$extension",
+        maxDpi,
       );
-      final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
-      final renamedFile = await File(imagePath).copy(renamedPath);
-      await Gal.putImage(renamedPath, album: albumName);
-      await Fluttertoast.showToast(
-        msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
-      );
-      await renamedFile.delete();
-    }
-
-    // DPI Scaling Delete
-    if (maxDpi != null) {
-      deleteCachedScaledImages();
+      final albumName = "Scanned Documents";
+      for (var (pageIndex, imagePath) in imagePaths.indexed) {
+        final extension = imagePath.split(".").last;
+        final newName = await _generateFileName(
+          docIndex,
+          [pageIndex],
+          versionIndex,
+          ".$extension",
+        );
+        final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
+        final renamedFile = await File(imagePath).copy(renamedPath);
+        await Gal.putImage(renamedPath, album: albumName);
+        await Fluttertoast.showToast(
+          msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
+        );
+        await renamedFile.delete();
+      }
+    } finally {
+      await deleteCachedScaledImages();
     }
   }
 
@@ -1920,36 +1916,34 @@ class FilesHelper {
     int? maxDpi,
     bool useSameWidth = false,
   }) async {
-    // DPI Scaling
-    List<String> imagePaths;
-    (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
-      docIndex,
-      pageIndexes,
-      versionIndex,
-      maxDpi,
-    );
-
-    List<XFile> xFiles = [];
-    for (var (pageIndex, imagePath) in imagePaths.indexed) {
-      final extension = imagePath.split(".").last;
-      final newName = await _generateFileName(
+    final xFiles = <XFile>[];
+    try {
+      final (imagePaths, _) = await imageProcessingManager.scaleImagesToMaxDpi(
         docIndex,
-        [pageIndex],
+        pageIndexes,
         versionIndex,
-        ".$extension",
+        maxDpi,
       );
-      final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
-      await File(imagePath).copy(renamedPath);
-      xFiles.add(XFile(renamedPath));
-    }
+      for (var (pageIndex, imagePath) in imagePaths.indexed) {
+        final extension = imagePath.split(".").last;
+        final newName = await _generateFileName(
+          docIndex,
+          [pageIndex],
+          versionIndex,
+          ".$extension",
+        );
+        final renamedPath = imagePath.replaceFirst(RegExp(r"[^/]+$"), newName);
+        await File(imagePath).copy(renamedPath);
+        xFiles.add(XFile(renamedPath));
+      }
 
-    await SharePlus.instance.share(ShareParams(files: xFiles));
-    for (var renamedFile in xFiles) {
-      File(renamedFile.path).delete();
-    }
-    // DPI Scaling Delete
-    if (maxDpi != null) {
-      deleteCachedScaledImages();
+      await SharePlus.instance.share(ShareParams(files: xFiles));
+    } finally {
+      for (final renamedFile in xFiles) {
+        final file = File(renamedFile.path);
+        if (file.existsSync()) await file.delete();
+      }
+      await deleteCachedScaledImages();
     }
   }
 

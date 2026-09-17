@@ -2051,27 +2051,54 @@ class ImageProcessingManager {
     int? versionIndexIn,
     int? maxDpi,
   ) async {
-    List<String> imagePaths = await g.filesHelper.getImagePaths(
-      pageIndexes,
-      versionIndexIn,
-      docIndex,
-    );
-    List<int> pagesDpis;
-    List<double> widthsInInches;
-    (pagesDpis, widthsInInches) = await g.filesHelper.getPdfPageDpis(
-      docIndex,
-      pageIndexes: pageIndexes,
-      versionIndex: versionIndexIn,
-    );
+    if (pageIndexes.isEmpty) {
+      pageIndexes = List.generate(
+        await g.filesHelper.getPagesCount(docIndex),
+        (index) => index,
+      );
+    }
+    final tmpDir = await getTemporaryDirectory();
+    final imagePaths = <String>[];
+    final pagesDpis = <int>[];
+    final widthsInInches = <double>[];
+    final nativePdfPages = <bool>[];
+
+    for (final pageIndex in pageIndexes) {
+      final isNativePdf = await g.filesHelper.hasPdfPage(docIndex, pageIndex);
+      nativePdfPages.add(isNativePdf);
+      if (isNativePdf) {
+        final rendered = await _renderNativePdfPageForImageExport(
+          docIndex,
+          pageIndex,
+          maxDpi ?? 300,
+          tmpDir,
+        );
+        imagePaths.add(rendered.$1);
+        pagesDpis.add(rendered.$2);
+        widthsInInches.add(rendered.$3);
+      } else {
+        imagePaths.add(
+          (await g.filesHelper.getImagePaths(
+            [pageIndex],
+            versionIndexIn,
+            docIndex,
+          )).first,
+        );
+        final dpiInfo = await g.filesHelper.getPdfPageDpis(
+          docIndex,
+          pageIndexes: [pageIndex],
+          versionIndex: versionIndexIn,
+        );
+        pagesDpis.add(dpiInfo.$1.first);
+        widthsInInches.add(dpiInfo.$2.first);
+      }
+    }
+
     if (maxDpi == null) return (imagePaths, widthsInInches);
 
-    final tmpDir = await getTemporaryDirectory();
     List<Future> futures = [];
-    if (pageIndexes.isEmpty) {
-      pageIndexes = List.generate(imagePaths.length, (index) => index);
-    }
     for (var (i, pageIndex) in pageIndexes.indexed) {
-      if (pagesDpis[i] > maxDpi) {
+      if (!nativePdfPages[i] && pagesDpis[i] > maxDpi) {
         final int versionIndex =
             await MetadataHelper.readPageThumbnailIndex(docIndex, pageIndex) ??
             g.defaultIndex;
@@ -2116,6 +2143,54 @@ class ImageProcessingManager {
 
     await Future.wait(futures);
     return (imagePaths, widthsInInches);
+  }
+
+  Future<(String, int, double)> _renderNativePdfPageForImageExport(
+    int docIndex,
+    int pageIndex,
+    int requestedDpi,
+    Directory tmpDir,
+  ) async {
+    final pdfPath = await g.filesHelper.getPdfPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    final document = await pdfrx.PdfDocument.openFile(pdfPath);
+    try {
+      final page = document.pages.first;
+      final widthInInches = page.width / 72;
+      final renderScale = math.min(
+        requestedDpi / 72,
+        AppGlobals.maxPhotoSize / math.max(page.width, page.height),
+      );
+      final width = math.max(1, (page.width * renderScale).round());
+      final height = math.max(1, (page.height * renderScale).round());
+      final actualDpi = math.max(1, (width / widthInInches).round());
+      final renderedPage = await page.render(
+        fullWidth: width.toDouble(),
+        fullHeight: height.toDouble(),
+        backgroundColor: 0xffffffff,
+      );
+      if (renderedPage == null) {
+        throw StateError(
+          "Failed to render PDF page for image export: $pdfPath",
+        );
+      }
+
+      try {
+        final pageImage = renderedPage.createImageNF();
+        final pngBytes = await Isolate.run(() => img.encodePng(pageImage));
+        final outputPath =
+            "${tmpDir.path}/scaled_pdf_${docIndex}_${pageIndex}_DPI_$actualDpi.png";
+        await File(outputPath).writeAsBytes(pngBytes, flush: true);
+        return (outputPath, actualDpi, widthInInches);
+      } finally {
+        renderedPage.dispose();
+      }
+    } finally {
+      document.dispose();
+    }
   }
 
   static void _scaleImageToDpiIsolate(
