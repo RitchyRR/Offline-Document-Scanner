@@ -1,7 +1,6 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'package:docscanner/app/files_helper.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress_lite/flutter_image_compress_lite.dart'
     show FlutterImageCompress, CompressFormat;
 import 'dart:io';
@@ -9,7 +8,8 @@ import 'dart:async';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
-import 'package:image/image.dart' as img;
+import 'package:pdf_manipulator/pdf_manipulator.dart' as pdfm;
+import 'package:pdf_manipulator/io.dart' as pdfm_io;
 // isolates:
 import 'package:flutter/services.dart'
     show BackgroundIsolateBinaryMessenger, RootIsolateToken;
@@ -1662,251 +1662,102 @@ class ImageProcessingManager {
   }
 
   Future<(int, int)> importPdf(String pdfPath, {int? addToDocWithIndex}) async {
-    // Open and render PDF
+    final sourceFile = File(pdfPath);
     final pdfrx.PdfDocument doc = await pdfrx.PdfDocument.openFile(pdfPath);
     final int pageCount = doc.pages.length;
-    // Create Page directories
+    final tempDirectory = await getTemporaryDirectory();
+    final splitDirectory = Directory(
+      "${tempDirectory.path}/pdf_import_${DateTime.now().microsecondsSinceEpoch}",
+    );
+    await splitDirectory.create(recursive: true);
+    final splitFiles = <File>[];
+    final manipulator = pdfm.Pdf();
+
+    try {
+      for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+        final outputFile = File("${splitDirectory.path}/$pageIndex.pdf");
+        final output = await pdfm_io.FileSink.create(outputFile);
+        try {
+          await manipulator.extractPages(
+            pdfm_io.FileSource(sourceFile),
+            output,
+            pages: [pageIndex],
+          );
+        } finally {
+          await output.close();
+        }
+        final pageBytes = await outputFile.length();
+        if (pageBytes > FilesHelper.maxPdfPageBytes) {
+          throw PdfPageTooLargeException(
+            pageNumber: pageIndex + 1,
+            actualBytes: pageBytes,
+            maxBytes: FilesHelper.maxPdfPageBytes,
+          );
+        }
+        splitFiles.add(outputFile);
+      }
+    } catch (_) {
+      doc.dispose();
+      if (splitDirectory.existsSync()) {
+        await splitDirectory.delete(recursive: true);
+      }
+      rethrow;
+    } finally {
+      await manipulator.dispose();
+    }
+
     int docIndex;
     int firstPageIndex;
-    if (addToDocWithIndex != null) {
-      docIndex = addToDocWithIndex;
-      firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
-        docIndex,
-        pageCount,
-        importedPdf: true,
-      );
-    } else {
-      var newDoc = await g.filesHelper.createNewDocument(
-        pageCount,
-        importedPdf: true,
-      );
-      docIndex = newDoc.$1;
-      firstPageIndex = newDoc.$2;
-    }
-    // Render PDF -> Pages
-    pdfProcessingFutures[docIndex] = _convertPdfToPages(
-      firstPageIndex,
-      pageCount,
-      doc,
-      docIndex,
-    );
-    // Creation Date
-    final now = DateTime.now();
-    g.metadataHelper.writeDocDate(
-      docIndex,
-      now.toString(),
-      supressWarnings: true,
-    );
-    return (docIndex, firstPageIndex);
-  }
-
-  Map<int, Future<void>> pdfProcessingFutures = {};
-  Future<bool> _pdfProcessingExitpoint(int docIndex, {int? pageIndex}) async {
-    if ((await g.filesHelper.getMarkedDeletedDocs()).contains(docIndex) ||
-        (pageIndex != null &&
-            (await g.filesHelper.getMarkedDeletedPages(
-              docIndex,
-            )).contains(pageIndex))) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> _convertPdfToPages(
-    int firstPageIndex,
-    int pageCount,
-    pdfrx.PdfDocument doc,
-    int docIndex,
-  ) async {
-    await Future.delayed(Duration(milliseconds: 100)); // wait for navigation
-    if (await _pdfProcessingExitpoint(docIndex)) return;
-
-    List<Future> futures = [];
-    final List<pdfrx.PdfPage> pdfPages = doc.pages;
-    for (final (pageIndex, pdfPage) in pdfPages.indexed) {
-      if (await _pdfProcessingExitpoint(docIndex, pageIndex: pageIndex)) return;
-      futures.add(_renderPdfPage(pdfPage, docIndex, pageIndex, firstPageIndex));
-    }
-
-    // Cleanup
-    await Future.wait(futures);
-    doc.dispose();
-    Future.microtask(() async {
-      await Future.delayed(Duration(microseconds: 100));
-      pdfProcessingFutures.remove(docIndex);
-    });
-  }
-
-  Future<void> _renderPdfPage(
-    pdfrx.PdfPage page,
-    int docIndex,
-    int pageIndex,
-    int firstPageIndex,
-  ) async {
-    // render Page at 300 DPI (max 4048 pixel)
-    const targetDpi = 300;
-    const defaultAssumedDpi = 72;
-    final dpiScale = targetDpi / defaultAssumedDpi;
-    const maxSize = AppGlobals.maxPhotoSize;
-    final pageSize = page.width > page.height ? page.width : page.height;
-    final limitingScale = (maxSize / pageSize * dpiScale).clamp(
-      double.minPositive,
-      1.0,
-    );
-    if (await _pdfProcessingExitpoint(
-      docIndex,
-      pageIndex: pageIndex + firstPageIndex,
-    )) {
-      return;
-    }
-    final renderedPage = await page.render(
-      fullWidth: (page.width * limitingScale * dpiScale),
-      fullHeight: (page.height * limitingScale * dpiScale),
-    );
-    // Uint8List, PNG
-    final img.Image pageImage = renderedPage!.createImageNF();
-    final Uint8List pngBytes = Uint8List.fromList(img.encodePng(pageImage));
-    // Processing
-    if (await _pdfProcessingExitpoint(
-      docIndex,
-      pageIndex: pageIndex + firstPageIndex,
-    )) {
-      return;
-    }
-    _processPdfPage(docIndex, pageIndex + firstPageIndex, pngBytes);
-  }
-
-  Future<void> _processPdfPage(
-    int docIndex,
-    int pageIndex,
-    Uint8List pngBytes,
-  ) async {
-    if (pngBytes.isEmpty) return;
-
-    final wrapperCompleter = Completer<void>();
-    final port = ReceivePort();
-    final token = RootIsolateToken.instance!;
-
-    TaskKiller killer = await IsolatesManager().runTask(
-      _processPdfPageIsolate,
-      (port.sendPort, token, docIndex, pageIndex, pngBytes, g),
-      portIn: port,
-      prio: IsolatePriority.quick,
-      onErrorFunction: (error, stack) async {
-        dev.log(
-          "_processPdfPageIsolateThumbnail, onErrorFunction: $error $stack",
+    try {
+      if (addToDocWithIndex != null) {
+        docIndex = addToDocWithIndex;
+        firstPageIndex = await g.filesHelper.reserveNewPagesInDocment(
+          docIndex,
+          pageCount,
+          importedPdf: true,
         );
-        if (!error.toString().contains("No photo")) {
-          repairPage(docIndex, pageIndex);
-        }
-      },
-    );
-    taskKillers.add(((docIndex, pageIndex), killer));
-
-    port.listen((message) async {
-      if (message is NotifierEvent) {
-        globalNotifier.triggerEvent(message);
-        if (message == NotifierEvent.loadPagesThumbnails) {
-          if (pageIndex == 0) {
-            await Future.delayed(Duration(milliseconds: 100));
-            globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
-          }
-        }
-      } else if (message is SendPort) {
-        killer.setControlPort(message);
-      } else if (message == "done") {
-        wrapperCompleter.complete();
-        taskKillers.removeWhere((element) => element.$2 == killer);
+      } else {
+        final newDoc = await g.filesHelper.createNewDocument(
+          pageCount,
+          importedPdf: true,
+        );
+        docIndex = newDoc.$1;
+        firstPageIndex = newDoc.$2;
       }
-    });
-    await wrapperCompleter.future;
-  }
 
-  static void _processPdfPageIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      int docIndex,
-      int pageIndex,
-      Uint8List pngBytes,
-      AppGlobals g,
-    )
-    data,
-  ) async {
-    SendPort? sendPort = data.$1;
-    // Control Port for exiting gracefully
-    final controlPort = ReceivePort();
-    sendPort.send(controlPort.sendPort);
-    bool kill = false;
-    controlPort.listen((msg) {
-      if (msg == "kill") {
-        kill = true;
+      for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+        final targetPageIndex = firstPageIndex + pageIndex;
+        final destination = File(
+          await g.filesHelper.getPdfPagePath(
+            docIndex,
+            targetPageIndex,
+            supressWarnings: true,
+          ),
+        );
+        await splitFiles[pageIndex].rename(destination.path);
+        final page = doc.pages[pageIndex];
+        await MetadataHelper.writePageProcessingMetadata(
+          docIndex,
+          targetPageIndex,
+          page.height / page.width,
+          null,
+        );
       }
-    });
 
-    RootIsolateToken token = data.$2;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-    int docIndex = data.$3;
-    int pageIndex = data.$4;
-    Uint8List pngBytes = data.$5;
-    AppGlobals g = data.$6;
-
-    // Thumbnail
-    await isolateExitPoint(kill);
-    await MetadataHelper.writePageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      0,
-      gIn: g,
-      supressWarnings: true,
-    );
-
-    // Save Photo
-    await isolateExitPoint(kill);
-    await g.filesHelper.savePageVersion(
-      docIndex,
-      pageIndex,
-      0,
-      pngBytes,
-      ".png",
-    );
-    sendPort.send(NotifierEvent.loadPagesThumbnails);
-
-    // Generate Metadata
-    await isolateExitPoint(kill);
-    final imgInfo = AppGlobals.getPngInfo(pngBytes);
-    if (imgInfo == null) {
-      throw StateError("Error, processPdfPage: can't decode Image.");
+      await g.metadataHelper.writeDocDate(
+        docIndex,
+        DateTime.now().toString(),
+        supressWarnings: true,
+      );
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+      return (docIndex, firstPageIndex);
+    } finally {
+      doc.dispose();
+      if (splitDirectory.existsSync()) {
+        await splitDirectory.delete(recursive: true);
+      }
     }
-    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
-    await isolateExitPoint(kill);
-    imageProcessor.setAvailableAspectRatios(g.availableAspectRatios);
-    final matchingAspectRatio = imageProcessor.matchAspectRatioAndOrientation(
-      imgInfo.height / imgInfo.width,
-    );
-    imageProcessor.dispose();
-
-    // Write Metadata
-    await isolateExitPoint(kill);
-    await MetadataHelper.writePageProcessingMetadata(
-      docIndex,
-      pageIndex,
-      matchingAspectRatio,
-      null,
-      gIn: g,
-    );
-
-    await isolateExitPoint(kill);
-    await MetadataHelper.writePageThumbnailIndex(
-      docIndex,
-      pageIndex,
-      0,
-      gIn: g,
-    );
-    await isolateExitPoint(kill);
-    await _scaleAndSaveThumbnailInIsolate(sendPort, docIndex, pageIndex, g);
-
-    Isolate.exit(sendPort, "done");
   }
 
   Future<(List<String>, List<double>)> scaleImagesToMaxDpi(

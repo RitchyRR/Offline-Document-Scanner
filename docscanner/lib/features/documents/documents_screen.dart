@@ -18,6 +18,7 @@ import '../../app/app_globals.dart';
 import '../../app/app_navigation.dart';
 import '../../app/app_runtime.dart';
 import '../../app/feedback_helper.dart';
+import '../../app/files_helper.dart';
 import '../../app/global_notifier.dart';
 import '../../app/image_prosessing_manager.dart';
 import '../../app/isolates_manager.dart' show IsolatesManager;
@@ -27,6 +28,7 @@ import '../../widgets/custom_expanding_button.dart';
 import '../../widgets/custom_scrollbar.dart';
 import '../../widgets/icon_badges.dart';
 import '../../widgets/indicator_processing_image.dart';
+import '../../widgets/pdf_page_view.dart';
 import '../pages/pages_popup.dart';
 import '../pro/pro_purchase.dart';
 import '../settings/aspect_ratio_settings.dart';
@@ -240,8 +242,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
     // PDFs
     if (pdfs.isNotEmpty) {
       for (final pdf in pdfs) {
-        final docData = await imageProcessingManager.importPdf(pdf.path);
-        _openDocument(docData.$1);
+        try {
+          final docData = await imageProcessingManager.importPdf(pdf.path);
+          _openDocument(docData.$1);
+        } on PdfPageTooLargeException catch (e) {
+          await Fluttertoast.showToast(
+            msg: tr(
+              "toast.e_pdfPageTooLarge",
+              namedArgs: {
+                "pageNumber": "${e.pageNumber}",
+                "actualSize": g.filesHelper.formatBytes(e.actualBytes),
+                "maxSize": g.filesHelper.formatBytes(e.maxBytes),
+              },
+            ),
+            toastLength: Toast.LENGTH_LONG,
+          );
+        }
       }
     }
     // Images
@@ -1091,24 +1107,42 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         AnimatedSwitcher(
                                           duration: Duration(milliseconds: 200),
                                           child: SizedBox.expand(
-                                            child: Image.file(
-                                              File(_docThumbnails[docIndex]),
-                                              fit: BoxFit.cover,
-                                              key: ValueKey(
-                                                _docThumbnails[docIndex],
-                                              ),
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Material(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .surfaceBright,
-                                                      child: const Icon(
-                                                        Icons.broken_image,
-                                                      ),
-                                                    );
-                                                  },
-                                            ),
+                                            child:
+                                                _docThumbnails[docIndex]
+                                                    .toLowerCase()
+                                                    .endsWith(".pdf")
+                                                ? PdfPageView(
+                                                    path:
+                                                        _docThumbnails[docIndex],
+                                                  )
+                                                : Image.file(
+                                                    File(
+                                                      _docThumbnails[docIndex],
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                    key: ValueKey(
+                                                      _docThumbnails[docIndex],
+                                                    ),
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) {
+                                                          return Material(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .surfaceBright,
+                                                            child: const Icon(
+                                                              Icons
+                                                                  .broken_image,
+                                                            ),
+                                                          );
+                                                        },
+                                                  ),
                                           ),
                                         ),
                                       // Loading Indicator
@@ -1213,43 +1247,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 ),
                 heroTag: "pickPdfDoc",
                 onPressed: () async {
-                  final indexPairsList = await g.filesHelper.pickPdfToDoc();
-                  int pdfsCount = indexPairsList.length;
-                  if (pdfsCount != 0 && context.mounted) {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final snackBar = SnackBar(
-                      content: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(tr("loading.importingPdf")),
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Theme.of(context).colorScheme.surface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      duration: const Duration(days: 1),
-                    );
-                    messenger.hideCurrentSnackBar();
-                    messenger.showSnackBar(snackBar);
-
-                    // Hide snackbar when page is loaded
-                    StreamSubscription<NotifierEvent>?
-                    eventSubscriptionSnackbar;
-                    hideSnackbarOnPageReload(NotifierEvent event) {
-                      if (event == NotifierEvent.loadPagesThumbnails) {
-                        messenger.hideCurrentSnackBar();
-                        eventSubscriptionSnackbar?.cancel();
-                        _openDocument(indexPairsList.first.$1!);
-                      }
-                    }
-
-                    eventSubscriptionSnackbar = globalNotifier.stream.listen(
-                      hideSnackbarOnPageReload,
-                    );
+                  final indexPairsList = await g.filesHelper.pickPdfToDoc(
+                    context,
+                  );
+                  if (indexPairsList.isNotEmpty && context.mounted) {
+                    _openDocument(indexPairsList.first.$1!);
                   }
                 },
                 tooltip: tr("fabs.pdfs"),

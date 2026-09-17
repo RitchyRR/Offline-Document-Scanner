@@ -12,6 +12,7 @@ import '../../app/global_notifier.dart';
 import '../../app/metadata_helper.dart';
 import '../../widgets/app_shadows.dart';
 import '../../widgets/indicator_processing_image.dart';
+import '../../widgets/pdf_page_view.dart';
 import '../pro/ads_helper.dart';
 import '../pro/pro_purchase.dart';
 
@@ -71,19 +72,25 @@ class _ImagesScrollPreview extends StatelessWidget {
                               AnimatedSwitcher(
                                 duration: Duration(milliseconds: 200),
                                 child: SizedBox.expand(
-                                  child: Image.file(
-                                    File(imagePath),
-                                    fit: BoxFit.cover,
-                                    key: ValueKey(imagePath),
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Material(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceBright,
-                                        child: const Icon(Icons.broken_image),
-                                      );
-                                    },
-                                  ),
+                                  child:
+                                      imagePath.toLowerCase().endsWith(".pdf")
+                                      ? PdfPageView(path: imagePath)
+                                      : Image.file(
+                                          File(imagePath),
+                                          fit: BoxFit.cover,
+                                          key: ValueKey(imagePath),
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Material(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.surfaceBright,
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                  ),
+                                                );
+                                              },
+                                        ),
                                 ),
                               ),
                             // Loading Indicator
@@ -187,6 +194,14 @@ Future<bool> showPagesPopup(
     pagesCount = thumbs.$2;
   }
   final bool isSinglePage = pagesCount == 1; // Locked?
+  final effectivePageIndexes = pageIndexes.isEmpty
+      ? List.generate(pagesCount, (index) => index)
+      : pageIndexes;
+  final bool hasPdfPages = (await Future.wait(
+    effectivePageIndexes.map(
+      (pageIndex) => g.filesHelper.hasPdfPage(docIndex, pageIndex),
+    ),
+  )).any((value) => value);
   bool docUnlocked = await g.metadataHelper.readDocUnlocked(docIndex);
   bool pageUnlocked = false;
   if (pageIndexes.isNotEmpty) {
@@ -201,11 +216,13 @@ Future<bool> showPagesPopup(
     pageIndexes: pageIndexes,
     versionIndex: versionIndex,
   );
-  List<int> pagesDpis = (await g.filesHelper.getPdfPageDpis(
-    docIndex,
-    pageIndexes: pageIndexes,
-    versionIndex: versionIndex,
-  )).$1;
+  List<int> pagesDpis = hasPdfPages
+      ? []
+      : (await g.filesHelper.getPdfPageDpis(
+          docIndex,
+          pageIndexes: pageIndexes,
+          versionIndex: versionIndex,
+        )).$1;
   int? selectedDpi;
   // Loading...
   List<bool> loadingImages = await _loadLoadingImages(
@@ -294,13 +311,15 @@ Future<bool> showPagesPopup(
                     versionIndex: versionIndex,
                   );
                 });
-                Future.microtask(() async {
-                  pagesDpis = (await g.filesHelper.getPdfPageDpis(
-                    docIndex,
-                    pageIndexes: pageIndexes,
-                    versionIndex: versionIndex,
-                  )).$1;
-                });
+                if (!hasPdfPages) {
+                  Future.microtask(() async {
+                    pagesDpis = (await g.filesHelper.getPdfPageDpis(
+                      docIndex,
+                      pageIndexes: pageIndexes,
+                      versionIndex: versionIndex,
+                    )).$1;
+                  });
+                }
               }
               String title;
               if (isDocument) {
@@ -493,7 +512,7 @@ Future<bool> showPagesPopup(
                           child: Text(deleteText!),
                         )
                       : SizedBox(),
-                  if (type != PopUpType.delete)
+                  if (type != PopUpType.delete && !hasPdfPages)
                     _DpiDropdown(
                       pagesDpis: pagesDpis,
                       imagesFilesizes: imagesFilesizes,
@@ -505,6 +524,7 @@ Future<bool> showPagesPopup(
                       allPagesLoaded: allImagesLoaded,
                     ),
                   if (type != PopUpType.delete &&
+                      !hasPdfPages &&
                       !isSinglePage &&
                       imageRatios.any((element) => element != imageRatios.last))
                     Padding(
@@ -538,71 +558,75 @@ Future<bool> showPagesPopup(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   // Image
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: lockAll ? 4 : 0,
-                                    ),
-                                    // Image Export
-                                    child: ElevatedButton.icon(
-                                      onPressed: allImagesLoaded && !lockAll
-                                          ? () async {
-                                              confirmAction = true;
-                                              Navigator.pop(context);
-                                              Future? afterExport;
-                                              switch (type) {
-                                                case PopUpType.share:
-                                                  afterExport = g.filesHelper
-                                                      .shareImages(
-                                                        docIndex,
-                                                        pageIndexes:
-                                                            pageIndexes,
-                                                        versionIndex:
-                                                            versionIndex,
-                                                        maxDpi: selectedDpi,
-                                                        useSameWidth: sameWidth,
-                                                      );
-                                                  break;
-                                                case PopUpType.save:
-                                                  afterExport = g.filesHelper
-                                                      .saveImagesToGallery(
-                                                        docIndex,
-                                                        pageIndexes:
-                                                            pageIndexes,
-                                                        versionIndex:
-                                                            versionIndex,
-                                                        maxDpi: selectedDpi,
-                                                        useSameWidth: sameWidth,
-                                                      );
-                                                  break;
-                                                default:
-                                              }
-                                              if (feedbackHelper
-                                                  .canShowExportPopup()) {
-                                                WidgetsBinding.instance
-                                                    .addPostFrameCallback((
-                                                      _,
-                                                    ) async {
-                                                      await afterExport;
-                                                      if (type ==
-                                                          PopUpType.share) {
-                                                        await Future.delayed(
-                                                          Duration(seconds: 4),
+                                  if (!hasPdfPages)
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: lockAll ? 4 : 0,
+                                      ),
+                                      // Image Export
+                                      child: ElevatedButton.icon(
+                                        onPressed: allImagesLoaded && !lockAll
+                                            ? () async {
+                                                confirmAction = true;
+                                                Navigator.pop(context);
+                                                Future? afterExport;
+                                                switch (type) {
+                                                  case PopUpType.share:
+                                                    afterExport = g.filesHelper
+                                                        .shareImages(
+                                                          docIndex,
+                                                          pageIndexes:
+                                                              pageIndexes,
+                                                          versionIndex:
+                                                              versionIndex,
+                                                          maxDpi: selectedDpi,
+                                                          useSameWidth:
+                                                              sameWidth,
                                                         );
-                                                      }
-                                                      feedbackHelper
-                                                          .showRatingDialog(
-                                                            // ignore: use_build_context_synchronously
-                                                            callContext,
+                                                    break;
+                                                  case PopUpType.save:
+                                                    afterExport = g.filesHelper
+                                                        .saveImagesToGallery(
+                                                          docIndex,
+                                                          pageIndexes:
+                                                              pageIndexes,
+                                                          versionIndex:
+                                                              versionIndex,
+                                                          maxDpi: selectedDpi,
+                                                          useSameWidth:
+                                                              sameWidth,
+                                                        );
+                                                    break;
+                                                  default:
+                                                }
+                                                if (feedbackHelper
+                                                    .canShowExportPopup()) {
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback((
+                                                        _,
+                                                      ) async {
+                                                        await afterExport;
+                                                        if (type ==
+                                                            PopUpType.share) {
+                                                          await Future.delayed(
+                                                            Duration(
+                                                              seconds: 4,
+                                                            ),
                                                           );
-                                                    });
+                                                        }
+                                                        feedbackHelper
+                                                            .showRatingDialog(
+                                                              // ignore: use_build_context_synchronously
+                                                              callContext,
+                                                            );
+                                                      });
+                                                }
                                               }
-                                            }
-                                          : null,
-
-                                      icon: Icon(Icons.image),
-                                      label: Text("$buttonTextImage"),
+                                            : null,
+                                        icon: Icon(Icons.image),
+                                        label: Text("$buttonTextImage"),
+                                      ),
                                     ),
-                                  ),
 
                                   // PDF
                                   SizedBox(height: lockPdf && !lockAll ? 4 : 0),

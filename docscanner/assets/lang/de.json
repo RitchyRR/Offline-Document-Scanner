@@ -278,10 +278,12 @@
     "tmp_combiPfd": "Kombiniertes PDF vorübergehend freigeschaltet!",
     "tmp_proFilter": "PRO-Filter vorübergehend freigeschaltet!",
     "e_ad": "Fehler: Werbung konnte nicht geladen werden.",
-    "e_noAd": "Fehler: Keine Werbung verfügbar."
+    "e_noAd": "Fehler: Keine Werbung verfügbar.",
+    "e_pdfPageTooLarge": "PDF-Seite {pageNumber} ist {actualSize} groß. Die maximal unterstützte Seitengröße beträgt {maxSize}."
   },
   "snackbar": {
     "e_savePdf": "Fehler: Kein PDF zum Speichern vorhanden.",
+    "e_pdfTooLargeToSave": "Dieses PDF ist zu groß, um es in der App zu speichern. Die maximal unterstützte Exportgröße beträgt {maxSize}.",
     "e_shareImages": "Fehler: Keine Bilder zum Teilen vorhanden.",
     "e_sharePdf": "Fehler: Kein PDF zum Teilen vorhanden."
   }

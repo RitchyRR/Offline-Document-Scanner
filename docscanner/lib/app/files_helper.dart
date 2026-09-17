@@ -11,8 +11,6 @@ import 'package:docscanner/ffi/opencv_bindings.dart' as cvb;
 import 'package:easy_localization/easy_localization.dart' show tr, NumberFormat;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show BackgroundIsolateBinaryMessenger, RootIsolateToken;
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:gal/gal.dart';
 import 'package:image/image.dart' show DecodeInfo;
@@ -27,9 +25,8 @@ import 'package:flutter_image_compress_lite/flutter_image_compress_lite.dart'
 // pdf:
 import 'package:pdf/pdf.dart' as pdf;
 import 'package:pdf/widgets.dart' as pdfw;
-// isolates:
-import 'dart:isolate' show ReceivePort, SendPort, Isolate;
-import 'isolates_manager.dart';
+import 'package:pdf_manipulator/pdf_manipulator.dart' as pdfm;
+import 'package:pdf_manipulator/io.dart' as pdfm_io;
 // my packages:
 import 'image_prosessing_manager.dart';
 import 'app_runtime.dart' show isTmpExternal;
@@ -38,7 +35,23 @@ import 'global_notifier.dart' show globalNotifier;
 import 'metadata_helper.dart';
 import 'app_globals.dart' show AppGlobals, NotifierEvent, g;
 
+class PdfPageTooLargeException implements Exception {
+  const PdfPageTooLargeException({
+    required this.pageNumber,
+    required this.actualBytes,
+    required this.maxBytes,
+  });
+
+  final int pageNumber;
+  final int actualBytes;
+  final int maxBytes;
+}
+
 class FilesHelper {
+  static const int maxPdfPageBytes = 20 * 1024 * 1024;
+  static const int maxPdfSaveBytes = 100 * 1024 * 1024;
+  static const String pdfPageFileName = "page.pdf";
+
   late String docsPath = "";
   int screenWidth;
   final List<List<int>> _markedDeletedPages = [];
@@ -287,6 +300,25 @@ class FilesHelper {
     return pagePath;
   }
 
+  Future<String> getPdfPagePath(
+    int docIndex,
+    int pageIndex, {
+    bool supressWarnings = false,
+  }) async {
+    final pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: supressWarnings,
+    );
+    return "$pagePath/$pdfPageFileName";
+  }
+
+  Future<bool> hasPdfPage(int docIndex, int pageIndex) async {
+    return File(
+      await getPdfPagePath(docIndex, pageIndex, supressWarnings: true),
+    ).existsSync();
+  }
+
   Future<String> writeImageRaw(
     int docIndex,
     int pageIndex,
@@ -439,6 +471,15 @@ class FilesHelper {
     for (var docIndex = 0; docIndex < docsCount; docIndex++) {
       if (deletedDocs.contains(docIndex)) continue;
       final page0Path = await getPagePath(docIndex, 0);
+      final pdfPagePath = await getPdfPagePath(
+        docIndex,
+        0,
+        supressWarnings: true,
+      );
+      if (File(pdfPagePath).existsSync()) {
+        thumbnailPaths[docIndex] = pdfPagePath;
+        continue;
+      }
       int? thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         0,
@@ -493,6 +534,15 @@ class FilesHelper {
     // Find Thumbnails for Pages
     for (int pageIndex in pageIndexes) {
       final pagePath = await getPagePath(docIndex, pageIndex);
+      final pdfPagePath = await getPdfPagePath(
+        docIndex,
+        pageIndex,
+        supressWarnings: true,
+      );
+      if (File(pdfPagePath).existsSync()) {
+        thumbnailPaths[pageIndexes.indexOf(pageIndex)] = pdfPagePath;
+        continue;
+      }
       final thumbnailIndex = await MetadataHelper.readPageThumbnailIndex(
         docIndex,
         pageIndex,
@@ -588,6 +638,12 @@ class FilesHelper {
           }
           bool pageIncomplete = pageFseL.isEmpty;
           int countVersionsAndThumbnail = 0;
+          final pdfPagePath = await getPdfPagePath(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
+          final hasPdfPage = File(pdfPagePath).existsSync();
           if (!pageIncomplete) {
             List<String>? oldVersionFileNames =
                 await MetadataHelper.readOldPageFileNames(
@@ -619,6 +675,9 @@ class FilesHelper {
               versionNamesInternal[thumbnailIndex],
             };
             for (var imageFse in pageFseL) {
+              if (imageFse.path == pdfPagePath) {
+                continue;
+              }
               bool isRecognizedVersion = versionNamesInternal.any(
                 (element) => imageFse.path.contains(element),
               );
@@ -645,7 +704,9 @@ class FilesHelper {
               }
             }
 
-            pageIncomplete = isImportedPdf
+            pageIncomplete = hasPdfPage
+                ? false
+                : isImportedPdf
                 ? countVersionsAndThumbnail !=
                       2 // photo + thumbnail
                 : countVersionsAndThumbnail <
@@ -766,7 +827,6 @@ class FilesHelper {
           .awaitIsolatesOfHigherIndexedDocuments(docIndex);
       await markDeletedFuture;
       await killFuture;
-      await imageProcessingManager.pdfProcessingFutures[docIndex];
       await higherIndexedDocsFuture;
     }
 
@@ -848,7 +908,6 @@ class FilesHelper {
         .awaitIsolatesOfHigherIndexPages(docIndex, deletePageIndexes);
     await _addMarkedDeletedPages(docIndex, deletePageIndexes);
     await Future.wait(killFutures);
-    await imageProcessingManager.pdfProcessingFutures[docIndex];
     await higherIndexedPagesFuture;
 
     for (var pageIndex in deletePageIndexes) {
@@ -921,7 +980,7 @@ class FilesHelper {
     for (var i = 0; i < pageCount; i++) {
       final newPage = await _reserveNewPage(docIndex);
       if (importedPdf) {
-        MetadataHelper.writePageImportedPdf(docIndex, newPage.$2, true);
+        await MetadataHelper.writePageImportedPdf(docIndex, newPage.$2, true);
       }
       firstPageIndex ??= newPage.$2;
     }
@@ -936,23 +995,15 @@ class FilesHelper {
   }) async {
     if (pageCount <= 0) return 0;
 
-    Completer afterFirst = Completer();
-    Future.microtask(() async {
-      await afterFirst.future;
-      for (var i = 1; i < pageCount; i++) {
-        int pageIndex;
-        (_, pageIndex) = await _reserveNewPage(docIndex);
-        if (importedPdf) {
-          MetadataHelper.writePageImportedPdf(docIndex, pageIndex, true);
-        }
+    int? firstPageIndex;
+    for (var i = 0; i < pageCount; i++) {
+      final pageIndex = (await _reserveNewPage(docIndex)).$2;
+      if (importedPdf) {
+        await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, true);
       }
-    });
-    int firstPageIndex = (await _reserveNewPage(docIndex)).$2;
-    if (importedPdf) {
-      MetadataHelper.writePageImportedPdf(docIndex, firstPageIndex, true);
+      firstPageIndex ??= pageIndex;
     }
-    afterFirst.complete();
-    return firstPageIndex;
+    return firstPageIndex!;
   }
 
   Future<(List<String>, String)> getImagePathsForPage(
@@ -965,6 +1016,15 @@ class FilesHelper {
       (_) => "",
     );
     String thumbnailPath = "";
+    final pdfPagePath = await getPdfPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    if (File(pdfPagePath).existsSync()) {
+      versionPaths[0] = pdfPagePath;
+      return (versionPaths, pdfPagePath);
+    }
     try {
       List<FileSystemEntity> versionsFSE = (Directory(pagePath).listSync()
         ..sort((a, b) => a.path.compareTo(b.path)));
@@ -993,6 +1053,14 @@ class FilesHelper {
     int versionIndex, {
     bool supressWarnings = false,
   }) async {
+    if (versionIndex == 0) {
+      final pdfPagePath = await getPdfPagePath(
+        docIndex,
+        pageIndex,
+        supressWarnings: true,
+      );
+      if (File(pdfPagePath).existsSync()) return pdfPagePath;
+    }
     String pagePath = await getPagePath(
       docIndex,
       pageIndex,
@@ -1426,6 +1494,7 @@ class FilesHelper {
           physicalHeight = physicalWidth * photoRatio;
         }
       }
+
       physicalHeight ??= physicalWidth * (ratioValue ?? math.sqrt2);
       pageFormats.add(pdf.PdfPageFormat(physicalWidth, physicalHeight));
     }
@@ -1466,6 +1535,110 @@ class FilesHelper {
       }
       throw StateError("Error, _convertImagesToPdf: $e");
     }
+  }
+
+  Future<File?> _createPdfExportFile(
+    int docIndex, {
+    List<int> pageIndexes = const [],
+    int? versionIndex,
+    int? maxDpi,
+    bool useSameWidth = false,
+  }) async {
+    if (pageIndexes.isEmpty) {
+      pageIndexes = List.generate(
+        await getPagesCount(docIndex),
+        (index) => index,
+      );
+    }
+
+    final tempDirectory = await getTemporaryDirectory();
+    final workingDirectory = Directory(
+      "${tempDirectory.path}/pdf_export_${DateTime.now().microsecondsSinceEpoch}",
+    );
+    await workingDirectory.create(recursive: true);
+    final outputFile = File("${workingDirectory.path}/document.pdf");
+
+    final hasPdfPages = (await Future.wait(
+      pageIndexes.map((pageIndex) => hasPdfPage(docIndex, pageIndex)),
+    )).any((value) => value);
+    if (!hasPdfPages) {
+      final document = await _convertImagesToPdf(
+        docIndex,
+        pageIndexes: pageIndexes,
+        versionIndex: versionIndex,
+        maxDpi: maxDpi,
+        useSameWidth: useSameWidth,
+      );
+      if (document == null) {
+        await workingDirectory.delete(recursive: true);
+        return null;
+      }
+      await outputFile.writeAsBytes(await document.save());
+      return outputFile;
+    }
+
+    final sources = <pdfm.DataSource>[];
+    for (final pageIndex in pageIndexes) {
+      final pdfPagePath = await getPdfPagePath(
+        docIndex,
+        pageIndex,
+        supressWarnings: true,
+      );
+      if (File(pdfPagePath).existsSync()) {
+        sources.add(pdfm_io.FileSource(File(pdfPagePath)));
+        continue;
+      }
+
+      final imageDocument = await _convertImagesToPdf(
+        docIndex,
+        pageIndexes: [pageIndex],
+        versionIndex: versionIndex,
+        maxDpi: maxDpi,
+      );
+      if (imageDocument != null) {
+        final imagePdf = File(
+          "${workingDirectory.path}/image_page_$pageIndex.pdf",
+        );
+        await imagePdf.writeAsBytes(await imageDocument.save());
+        sources.add(pdfm_io.FileSource(imagePdf));
+      }
+    }
+
+    if (sources.isEmpty) {
+      await workingDirectory.delete(recursive: true);
+      return null;
+    }
+    if (sources.length == 1) {
+      final sourcePath = await getPdfPagePath(
+        docIndex,
+        pageIndexes.first,
+        supressWarnings: true,
+      );
+      final sourceFile = File(sourcePath);
+      if (sourceFile.existsSync()) {
+        await sourceFile.copy(outputFile.path);
+        return outputFile;
+      }
+    }
+
+    final manipulator = pdfm.Pdf();
+    final output = await pdfm_io.FileSink.create(outputFile);
+    var merged = false;
+    try {
+      await manipulator.merge(sources, output);
+      merged = true;
+    } finally {
+      await output.close();
+      await manipulator.dispose();
+      if (merged) {
+        for (final file in workingDirectory.listSync().whereType<File>()) {
+          if (file.path != outputFile.path) await file.delete();
+        }
+      } else if (workingDirectory.existsSync()) {
+        await workingDirectory.delete(recursive: true);
+      }
+    }
+    return outputFile;
   }
 
   Future<List<String>> getImagePaths(
@@ -1537,8 +1710,7 @@ class FilesHelper {
     messenger?.showSnackBar(snackBar!);
 
     // Save PDF
-    pdfw.Document? pdf;
-    pdf = await _convertImagesToPdf(
+    final pdfFile = await _createPdfExportFile(
       docIndex,
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
@@ -1548,24 +1720,45 @@ class FilesHelper {
     // Ask user to pick a folder
     isTmpExternal = true;
     Uri? pdfPath;
-    if (pdf != null) {
+    if (pdfFile != null) {
       try {
+        if (await pdfFile.length() > maxPdfSaveBytes) {
+          messenger?.hideCurrentSnackBar();
+          messenger?.showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(
+                  "snackbar.e_pdfTooLargeToSave",
+                  namedArgs: {"maxSize": formatBytes(maxPdfSaveBytes)},
+                ),
+              ),
+            ),
+          );
+          isTmpExternal = false;
+          await pdfFile.parent.delete(recursive: true);
+          return;
+        }
+        final pdfBytes = await pdfFile.readAsBytes();
         pdfPath = await FilePicker.saveFile(
           fileName: docFileName,
           type: FileType.custom,
           allowedExtensions: ["pdf"],
-          bytes: await pdf.save(),
+          bytes: pdfBytes,
         );
       } catch (e) {
         dev.log("Error, pickFolderForDocumentPdf: $e");
         messenger?.hideCurrentSnackBar();
         isTmpExternal = false;
+        if (pdfFile.parent.existsSync()) {
+          await pdfFile.parent.delete(recursive: true);
+        }
         throw StateError("Error, pickFolderForDocumentPdf: $e");
       }
       if (pdfPath == null) {
         dev.log("User-Action, pickFolderForDocumentPdf: cancelled");
         messenger?.hideCurrentSnackBar();
         isTmpExternal = false;
+        await pdfFile.parent.delete(recursive: true);
         return;
       }
     } else {
@@ -1575,6 +1768,9 @@ class FilesHelper {
       );
       isTmpExternal = false;
       return;
+    }
+    if (pdfFile.parent.existsSync()) {
+      await pdfFile.parent.delete(recursive: true);
     }
     messenger?.hideCurrentSnackBar();
     Future.delayed(Duration(seconds: 1), () {
@@ -1714,8 +1910,6 @@ class FilesHelper {
     int? maxDpi,
     bool useSameWidth = false,
   }) async {
-    final port = ReceivePort();
-    final token = RootIsolateToken.instance!;
     ScaffoldMessengerState? messenger;
 
     // Snackbar
@@ -1740,8 +1934,6 @@ class FilesHelper {
     );
     messenger?.showSnackBar(snackBar);
 
-    // Save PDF
-    final docsDir = await _getDocumentsPath();
     // PDF Name
     String docFileName = await _generateFileName(
       docIndex,
@@ -1749,8 +1941,7 @@ class FilesHelper {
       versionIndex,
       ".pdf",
     );
-    final String pdfPath = "$docsDir/$docFileName";
-    pdfw.Document? pdf = await _convertImagesToPdf(
+    final pdfFile = await _createPdfExportFile(
       docIndex,
       pageIndexes: pageIndexes,
       versionIndex: versionIndex,
@@ -1758,61 +1949,27 @@ class FilesHelper {
       useSameWidth: useSameWidth,
     );
 
-    // Isolate
-    await IsolatesManager().runTask(
-      _writePfdToInternalPathIsolate,
-      (port.sendPort, token, pdfPath, pdf),
-      portIn: port,
-      prio: IsolatePriority.immediate,
-    );
-
-    final completer = Completer();
-    port.listen((message) async {
-      if (message is bool) {
-        if (message) {
-          messenger?.hideCurrentSnackBar();
-          completer.complete(message);
-          await SharePlus.instance.share(ShareParams(files: [XFile(pdfPath)]));
-          File(pdfPath).delete();
-        } else {
-          messenger?.hideCurrentSnackBar();
-          messenger?.showSnackBar(
-            SnackBar(content: Text(tr("snackbar.e_sharePdf"))),
-          );
-        }
-      }
-    });
-    return await completer.future;
-  }
-
-  static Future<void> _writePfdToInternalPathIsolate(
-    (
-      SendPort sendPort,
-      RootIsolateToken token,
-      String pdfPath,
-      pdfw.Document? pdf,
-    )
-    data,
-  ) async {
-    SendPort sendPort = data.$1;
-    RootIsolateToken token = data.$2;
-    String pdfPath = data.$3;
-    pdfw.Document? pdf = data.$4;
-    BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-
-    if (pdf != null) {
-      try {
-        final pdfFile = File(pdfPath);
-        await pdfFile.writeAsBytes(await pdf.save());
-        sendPort.send(true);
-      } catch (e) {
-        sendPort.send(false);
-        throw StateError("Error, _writePfdToInternalPathIsolate: $e");
-      }
-    } else {
-      sendPort.send(false);
+    if (pdfFile == null) {
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
+        SnackBar(content: Text(tr("snackbar.e_sharePdf"))),
+      );
+      return;
     }
-    Isolate.exit();
+    messenger?.hideCurrentSnackBar();
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(pdfFile.path, name: docFileName, mimeType: "application/pdf"),
+          ],
+        ),
+      );
+    } finally {
+      if (pdfFile.parent.existsSync()) {
+        await pdfFile.parent.delete(recursive: true);
+      }
+    }
   }
 
   Future<String> _generateFileName(
@@ -1857,7 +2014,10 @@ class FilesHelper {
     await Future.wait(futures);
   }
 
-  Future<List<(int?, int?)>> pickPdfToDoc({int? addToDocWithIndex}) async {
+  Future<List<(int?, int?)>> pickPdfToDoc(
+    BuildContext context, {
+    int? addToDocWithIndex,
+  }) async {
     final List<(int?, int?)> indexPairsList = [];
     if (isTmpExternal) return indexPairsList;
     // User picks PDF
@@ -1887,23 +2047,61 @@ class FilesHelper {
       isTmpExternal = false;
       return indexPairsList;
     }
-    // Process multiple PDFs
-    for (var file in pickedFiles) {
-      final docData = await imageProcessingManager.importPdf(
-        file.path,
-        addToDocWithIndex: addToDocWithIndex,
-      );
-      addToDocWithIndex = (addToDocWithIndex != null)
-          ? addToDocWithIndex++
-          : null;
-      indexPairsList.add((docData.$1, docData.$2));
-    }
-    Future.microtask(() async {
-      for (var element in indexPairsList) {
-        await imageProcessingManager.pdfProcessingFutures[element.$1];
-      }
+    if (!context.mounted) {
       isTmpExternal = false;
-    });
+      return indexPairsList;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(tr("loading.importingPdf")),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.surface,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+      ),
+    );
+    try {
+      // Process multiple PDFs
+      for (var file in pickedFiles) {
+        late (int, int) docData;
+        try {
+          docData = await imageProcessingManager.importPdf(
+            file.path,
+            addToDocWithIndex: addToDocWithIndex,
+          );
+        } on PdfPageTooLargeException catch (e) {
+          await Fluttertoast.showToast(
+            msg: tr(
+              "toast.e_pdfPageTooLarge",
+              namedArgs: {
+                "pageNumber": "${e.pageNumber}",
+                "actualSize": formatBytes(e.actualBytes),
+                "maxSize": formatBytes(e.maxBytes),
+              },
+            ),
+            toastLength: Toast.LENGTH_LONG,
+          );
+          continue;
+        }
+        addToDocWithIndex = (addToDocWithIndex != null)
+            ? addToDocWithIndex++
+            : null;
+        indexPairsList.add((docData.$1, docData.$2));
+      }
+    } finally {
+      messenger.hideCurrentSnackBar();
+      isTmpExternal = false;
+    }
     return indexPairsList;
   }
 

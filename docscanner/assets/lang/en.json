@@ -279,10 +279,12 @@
     "tmp_combiPfd": "Combined PDF temorarily unlocked for Document!",
     "tmp_proFilter": "PRO filter temorarily unlocked for Page!",
     "e_ad": "Error: Failed to load ad.",
-    "e_noAd": "Error: No ads available."
+    "e_noAd": "Error: No ads available.",
+    "e_pdfPageTooLarge": "PDF page {pageNumber} is {actualSize}. The maximum supported page size is {maxSize}."
   },
   "snackbar": {
     "e_savePdf": "Error: No PDF available to save.",
+    "e_pdfTooLargeToSave": "This PDF is too large to save in-app. The maximum supported export size is {maxSize}.",
     "e_shareImages": "Error: No Images available to share.",
     "e_sharePdf": "Error: No PDF available to share."
   }

@@ -49,6 +49,7 @@ dependencies:
   pdfrx:
   crypto:
   synchronized:
+  pdf_manipulator: ^5.0.0
 
 dev_dependencies:
   flutter_test:

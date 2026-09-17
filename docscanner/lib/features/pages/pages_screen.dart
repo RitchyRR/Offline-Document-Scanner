@@ -26,6 +26,7 @@ import '../../widgets/custom_expanding_button.dart';
 import '../../widgets/custom_scrollbar.dart';
 import '../../widgets/icon_badges.dart';
 import '../../widgets/indicator_processing_image.dart';
+import '../../widgets/pdf_page_view.dart';
 import '../pro/pro_purchase.dart';
 import 'pages_popup.dart';
 
@@ -465,7 +466,7 @@ class _PagesState extends State<Pages>
     Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted || _zoomMode) return;
       for (final path in fullSizedPages) {
-        if (path.isNotEmpty) {
+        if (path.isNotEmpty && !path.toLowerCase().endsWith(".pdf")) {
           imageCache.evict(FileImage(File(path)), includeLive: false);
         }
       }
@@ -568,10 +569,13 @@ class _PagesState extends State<Pages>
     return thumbnailPath;
   }
 
-  Widget _pageImage(File imageFile) {
+  Widget _pageImage(String path) {
+    if (path.toLowerCase().endsWith(".pdf")) {
+      return PdfPageView(path: path);
+    }
     return SizedBox.expand(
       child: Image.file(
-        imageFile,
+        File(path),
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
@@ -737,7 +741,7 @@ class _PagesState extends State<Pages>
           fit: StackFit.expand,
           children: [
             Material(color: Theme.of(context).colorScheme.surfaceBright),
-            if (imagePath.isNotEmpty) _pageImage(File(imagePath)),
+            if (imagePath.isNotEmpty) _pageImage(imagePath),
             if (isLoading)
               Material(
                 color: Theme.of(
@@ -1080,7 +1084,6 @@ class _PagesState extends State<Pages>
                           if (thumbnailRatio == 0.0) {
                             throw StateError("thumbnailRatio == 0.0");
                           }
-                          final File pageThumbnail = File(thumbnailPath);
                           final bool isLoading =
                               _loadingPages.length <= pageIndex ||
                               _loadingPages[pageIndex];
@@ -1103,7 +1106,7 @@ class _PagesState extends State<Pages>
                                     ),
                                     // Thumbnail
                                     if (thumbnailPath.isNotEmpty)
-                                      _pageImage(pageThumbnail),
+                                      _pageImage(thumbnailPath),
                                     // Loading Indicator
                                     if (isLoading)
                                       Positioned.fill(
@@ -1258,7 +1261,6 @@ class _PagesState extends State<Pages>
                           if (thumbnailRatio == 0.0) {
                             throw StateError("thumbnailRatio == 0.0");
                           }
-                          File pageThumbnail = File(thumbnailPath);
                           final bool isLoading =
                               _loadingPages.length <= pageIndex ||
                               _loadingPages[pageIndex];
@@ -1279,7 +1281,7 @@ class _PagesState extends State<Pages>
                                   ),
                                   // Thumbnail
                                   if (thumbnailPath.isNotEmpty)
-                                    _pageImage(pageThumbnail),
+                                    _pageImage(thumbnailPath),
                                   // Loading Indicator
                                   if (isLoading)
                                     Positioned.fill(
@@ -1447,53 +1449,10 @@ class _PagesState extends State<Pages>
                               ),
                               heroTag: "pickPdfPage",
                               onPressed: () async {
-                                final indexPairsList = await g.filesHelper
-                                    .pickPdfToDoc(
-                                      addToDocWithIndex: widget.docIndex,
-                                    );
-                                int pdfsCount = indexPairsList.length;
-                                if (pdfsCount != 0 && context.mounted) {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  final snackBar = SnackBar(
-                                    content: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(tr("loading.importingPdf")),
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.surface,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    duration: const Duration(days: 1),
-                                  );
-                                  messenger.showSnackBar(snackBar);
-
-                                  // Hide snackbar when page is loaded
-                                  StreamSubscription<NotifierEvent>?
-                                  eventSubscriptionSnackbar;
-                                  hideSnackbarOnPageReload(
-                                    NotifierEvent event,
-                                  ) {
-                                    if (event ==
-                                        NotifierEvent.loadPagesThumbnails) {
-                                      messenger.hideCurrentSnackBar();
-                                      eventSubscriptionSnackbar?.cancel();
-                                    }
-                                  }
-
-                                  eventSubscriptionSnackbar = globalNotifier
-                                      .stream
-                                      .listen(hideSnackbarOnPageReload);
-                                }
+                                await g.filesHelper.pickPdfToDoc(
+                                  context,
+                                  addToDocWithIndex: widget.docIndex,
+                                );
                               },
                               tooltip: tr("fabs.pdfs"),
                               child: IconWithPlusBadge(

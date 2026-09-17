@@ -18,6 +18,7 @@ import '../../app/metadata_helper.dart';
 import '../../widgets/app_shadows.dart';
 import '../../widgets/custom_icon_button.dart';
 import '../../widgets/indicator_processing_image.dart';
+import '../../widgets/pdf_page_view.dart';
 import '../pages/pages_popup.dart';
 import '../pro/ads_helper.dart';
 import '../pro/pro_purchase.dart';
@@ -93,6 +94,8 @@ class PagePreviewState extends State<PagePreview>
   bool _pageUnlocked = false;
   // Imported PDF Mode
   bool _importedPdfMode = false;
+  bool _nativePdfMode = false;
+  String _pdfPagePath = "";
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -122,6 +125,16 @@ class PagePreviewState extends State<PagePreview>
       widget.docIndex,
       widget.pageIndex,
     );
+    _pdfPagePath = await g.filesHelper.getPdfPagePath(
+      widget.docIndex,
+      widget.pageIndex,
+      supressWarnings: true,
+    );
+    _nativePdfMode = _importedPdfMode && File(_pdfPagePath).existsSync();
+    if (_nativePdfMode) {
+      _versionPaths[0] = _photoPath = _pdfPagePath;
+      _versionLoading[0] = false;
+    }
     if (_importedPdfMode && mounted) setState(() {});
     // Generate the remaining filter versions (only essential ones were kept)
     if (!_importedPdfMode) {
@@ -136,9 +149,13 @@ class PagePreviewState extends State<PagePreview>
       widget.pageIndex,
       supressWarnings: true,
     );
-    await _loadOldVersionFileNames(supressWarnings: true);
-    _pollImagesAndMetadata();
-    if (_versionPaths.any((element) => element.isEmpty)) {
+    if (!_nativePdfMode) {
+      await _loadOldVersionFileNames(supressWarnings: true);
+      _pollImagesAndMetadata();
+    } else {
+      await _loadPageMetadata(supressWarnings: true);
+    }
+    if (!_nativePdfMode && _versionPaths.any((element) => element.isEmpty)) {
       // if processing on init
       bool showRatingPopupWhileProcessing = feedbackHelper
           .canShowProcessingPopup();
@@ -381,6 +398,7 @@ class PagePreviewState extends State<PagePreview>
       supressWarnings: supressWarnings || _importedPdfMode,
     );
     // Image pixel size
+    if (_nativePdfMode) return;
     final imageFile = File(_versionPaths[0]);
     if (_versionPaths[0].isEmpty || !imageFile.existsSync()) return;
     final ui.Image image = await decodeImageFromList(
@@ -611,6 +629,13 @@ class PagePreviewState extends State<PagePreview>
     if (_versionPaths[index].isEmpty) {
       return IndicatorProcessingImage();
     }
+    if (_nativePdfMode) {
+      return PdfPageView(
+        path: _pdfPagePath,
+        interactive: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      );
+    }
 
     final image = Image.file(
       File(_versionPaths[index]),
@@ -729,7 +754,9 @@ class PagePreviewState extends State<PagePreview>
           );
           // New thumbnail
           // If done processing
-          if (_processingIndex == 0) {
+          if (_nativePdfMode) {
+            globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+          } else if (_processingIndex == 0) {
             imageProcessingManager.setNewThumbnail(
               widget.docIndex,
               widget.pageIndex,
@@ -1396,7 +1423,9 @@ class PagePreviewState extends State<PagePreview>
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(radius),
-            onTap: () => _enableEditingForImportedPdfPagePopup(context),
+            onTap: _nativePdfMode
+                ? null
+                : () => _enableEditingForImportedPdfPagePopup(context),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1415,7 +1444,7 @@ class PagePreviewState extends State<PagePreview>
   Future<void> _enableEditingForImportedPdfPagePopup(
     BuildContext context,
   ) async {
-    bool? confirmed = await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -1437,15 +1466,11 @@ class PagePreviewState extends State<PagePreview>
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context, false);
-              },
+              onPressed: () => Navigator.pop(context, false),
               child: Text(tr("popup.cancel")),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, true);
-              },
+              onPressed: () => Navigator.pop(context, true),
               child: Text(tr("pagePreview.editBar.pdfPopup.confirm")),
             ),
           ],
@@ -1453,7 +1478,6 @@ class PagePreviewState extends State<PagePreview>
       },
     );
 
-    // Handle Results after Dialog closes
     if (confirmed == true) {
       await MetadataHelper.writePageImportedPdf(
         widget.docIndex,

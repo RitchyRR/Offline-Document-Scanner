@@ -837,6 +837,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.13.0"
+  pdf_manipulator:
+    dependency: "direct main"
+    description:
+      name: pdf_manipulator
+      sha256: fabf7505b114009f872358495889adef8b2a4c439d03d8307148fe9b36514ff2
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.0"
   pdfium_dart:
     dependency: transitive
     description:
