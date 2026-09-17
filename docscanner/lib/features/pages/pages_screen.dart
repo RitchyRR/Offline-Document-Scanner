@@ -502,17 +502,19 @@ class _PagesState extends State<Pages>
       setState(() => _zoomCanvasScale = scale);
     }
     _scheduleFullSizeLoad();
-    final contentWidth = canvasWidth - 2 * _zoomCanvasHorizontalInset;
     final canvasRenderObject = _pagesCanvasKey.currentContext
         ?.findRenderObject();
+    final actualCanvasWidth = canvasRenderObject is RenderBox
+        ? canvasRenderObject.size.width
+        : 0.0;
     final canvasHeight = canvasRenderObject is RenderBox
         ? canvasRenderObject.size.height
         : 0.0;
     final translation = transform.getTranslation();
     var centeredX = translation.x;
     var centeredY = translation.y;
-    if (contentWidth > 0 && contentWidth * scale <= canvasWidth) {
-      centeredX = canvasWidth * (1 - scale) / 2;
+    if (actualCanvasWidth > 0 && actualCanvasWidth * scale <= canvasWidth) {
+      centeredX = (canvasWidth - actualCanvasWidth * scale) / 2;
     }
     if (canvasHeight > 0 &&
         canvasHeight * scale <= _pagesCanvasViewportHeight) {
@@ -898,6 +900,18 @@ class _PagesState extends State<Pages>
                 gridPageWidth / _thumbnailRatios[pageIndex] + 10;
           }
         }
+        final usedGridColumns = gridColumns
+            .where((column) => column.isNotEmpty)
+            .toList();
+        final gridContentWidth =
+            2 * _zoomCanvasHorizontalInset +
+            usedGridColumns.length * gridPageWidth +
+            math.max(0, usedGridColumns.length - 1) * 10;
+        final minimumCanvasWidth =
+            constraints.maxWidth / math.max(1, _zoomCanvasScale);
+        final canvasWidth = _gridView == true
+            ? math.max(gridContentWidth, minimumCanvasWidth)
+            : constraints.maxWidth;
         final canvas = _gridView == true
             ? Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -909,8 +923,10 @@ class _PagesState extends State<Pages>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final column in gridColumns) ...[
-                      Expanded(
+                    for (final (columnIndex, column)
+                        in usedGridColumns.indexed) ...[
+                      SizedBox(
+                        width: gridPageWidth,
                         child: Column(
                           children: [
                             for (final (index, pageIndex)
@@ -922,7 +938,8 @@ class _PagesState extends State<Pages>
                           ],
                         ),
                       ),
-                      if (column != gridColumns.last) const SizedBox(width: 10),
+                      if (columnIndex < usedGridColumns.length - 1)
+                        const SizedBox(width: 10),
                     ],
                   ],
                 ),
@@ -995,7 +1012,7 @@ class _PagesState extends State<Pages>
               },
               child: SizedBox(
                 key: _pagesCanvasKey,
-                width: constraints.maxWidth,
+                width: canvasWidth,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     minHeight:
