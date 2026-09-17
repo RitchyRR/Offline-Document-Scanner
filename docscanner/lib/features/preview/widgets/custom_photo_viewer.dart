@@ -4,6 +4,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../widgets/cyclic_double_tap_zoom.dart';
+
 class CustomPhotoViewer extends StatefulWidget {
   const CustomPhotoViewer({
     super.key,
@@ -229,13 +231,11 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     final current = _transformationController.value;
     final currentScale = current.getMaxScaleOnAxis();
     final maxScale = math.max(1.0, 1 / _containedScale);
-    final firstZoomScale = math.min(2.0, maxScale);
-    final targetScale = currentScale <= 1.01
-        ? firstZoomScale
-        : currentScale <= firstZoomScale + 0.01 &&
-              maxScale > firstZoomScale + 0.01
-        ? maxScale
-        : 1.0;
+    final targetScale = nextDoubleTapZoom(
+      currentZoom: currentScale,
+      baseZoom: 1,
+      maxZoom: maxScale,
+    );
     final Matrix4 target;
     if (targetScale == 1) {
       target = Matrix4.identity();
