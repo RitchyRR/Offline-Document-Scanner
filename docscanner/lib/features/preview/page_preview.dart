@@ -95,6 +95,9 @@ class PagePreviewState extends State<PagePreview>
   // Imported PDF Mode
   bool _importedPdfMode = false;
   bool _nativePdfMode = false;
+  bool _hasOriginalPdfPage = false;
+  bool _pdfModeSwitching = false;
+  int _pdfRevision = 0;
   String _pdfPagePath = "";
 
   @override
@@ -130,8 +133,13 @@ class PagePreviewState extends State<PagePreview>
       widget.pageIndex,
       supressWarnings: true,
     );
-    _nativePdfMode = _importedPdfMode && File(_pdfPagePath).existsSync();
+    _hasOriginalPdfPage = File(_pdfPagePath).existsSync();
+    _nativePdfMode = _importedPdfMode && _hasOriginalPdfPage;
     if (_nativePdfMode) {
+      await imageProcessingManager.syncNativePdfMetadata(
+        widget.docIndex,
+        widget.pageIndex,
+      );
       _versionPaths[0] = _photoPath = _pdfPagePath;
       _versionLoading[0] = false;
     }
@@ -630,10 +638,15 @@ class PagePreviewState extends State<PagePreview>
       return IndicatorProcessingImage();
     }
     if (_nativePdfMode) {
-      return PdfPageView(
-        path: _pdfPagePath,
-        interactive: true,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+      return RotatedBox(
+        quarterTurns: (_totalRotation ~/ 90) % 4,
+        child: PdfPageView(
+          key: ValueKey("$_pdfPagePath-$_pdfRevision"),
+          path: _pdfPagePath,
+          cacheRevision: _pdfRevision,
+          interactive: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+        ),
       );
     }
 
@@ -800,6 +813,21 @@ class PagePreviewState extends State<PagePreview>
               namedArgs: {"pageIndex": "${widget.pageIndex + 1}"},
             ),
           ),
+          actions: [
+            if (_importedPdfMode || _hasOriginalPdfPage)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Center(
+                  child: _pdfBadge(
+                    context,
+                    disabled:
+                        !noReprocessingChanges ||
+                        _pdfModeSwitching ||
+                        (_nativePdfMode && _metadataBlocked),
+                  ),
+                ),
+              ),
+          ],
         ),
         body: Stack(
           children: [
@@ -1150,7 +1178,6 @@ class PagePreviewState extends State<PagePreview>
                       Row(
                         spacing: 6,
                         children: [
-                          if (_importedPdfMode) _pdfBadge(context),
                           if (!_importedPdfMode) _aspectRatioDropDown(context),
                           if (!_importedPdfMode)
                             Padding(
@@ -1210,9 +1237,17 @@ class PagePreviewState extends State<PagePreview>
     return CustomIconButton(
       width: 42,
       height: 42,
-      isDisabled:
-          _versionPaths.first.isEmpty || _metadataBlocked || _rotateBlocked,
+      isDisabled: _nativePdfMode
+          ? _metadataBlocked
+          : _versionPaths.first.isEmpty || _metadataBlocked || _rotateBlocked,
       onTap: () {
+        if (_nativePdfMode) {
+          _totalRotation = (_totalRotation + rotation) % 360;
+          _currentPhotoScale = 0.0;
+          _initialPhotoScale = null;
+          setState(() {});
+          return;
+        }
         _totalRotation = (_totalRotation + rotation) % 360;
         int quarterTurns = _totalRotation ~/ 90;
         _currentPhotoScale = 0.0;
@@ -1236,6 +1271,34 @@ class PagePreviewState extends State<PagePreview>
     );
   }
 
+  Future<void> _rotateNativePdfPage(int degrees) async {
+    _metadataBlocked = true;
+    setState(() {});
+    try {
+      await imageProcessingManager.rotateNativePdfPage(
+        widget.docIndex,
+        widget.pageIndex,
+        degrees,
+      );
+      if (!mounted) return;
+      _totalRotation = 0;
+      _pdfRevision++;
+      await _loadPageMetadata(supressWarnings: true);
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    } catch (error, stackTrace) {
+      dev.log("Error rotating native PDF page: $error", stackTrace: stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr("snackbar.e_rotatePdfPage"))));
+      }
+    } finally {
+      _metadataBlocked = false;
+      if (mounted) setState(() {});
+    }
+  }
+
   Padding _confirmReProcessingButton(
     BuildContext context,
     bool noReprocessingChanges,
@@ -1256,8 +1319,12 @@ class PagePreviewState extends State<PagePreview>
             !File(_versionPaths.first).existsSync(),
         isHidden: noReprocessingChanges,
         tooltip: tr("pagePreview.editBar.confirm"),
-        onTap: () {
-          reprocessPhoto();
+        onTap: () async {
+          if (_nativePdfMode) {
+            await _rotateNativePdfPage(_totalRotation);
+          } else {
+            reprocessPhoto();
+          }
         },
       ),
     );
@@ -1405,7 +1472,7 @@ class PagePreviewState extends State<PagePreview>
     return rotated;
   }
 
-  Container _pdfBadge(BuildContext context) {
+  Container _pdfBadge(BuildContext context, {required bool disabled}) {
     const double height = 30;
     const double radius = 20;
 
@@ -1417,15 +1484,21 @@ class PagePreviewState extends State<PagePreview>
         boxShadow: [tinyBoxShadow(context)],
       ),
       child: Tooltip(
-        message: tr("pagePreview.editBar.pdf"),
+        message: tr(
+          _nativePdfMode
+              ? "pagePreview.editBar.pdf"
+              : "pagePreview.editBar.restorePdf",
+        ),
         waitDuration: Duration(milliseconds: 400),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(radius),
-            onTap: _metadataBlocked
+            onTap: disabled
                 ? null
-                : () => _enableEditingForImportedPdfPagePopup(context),
+                : () => _nativePdfMode || !_hasOriginalPdfPage
+                      ? _enableEditingForImportedPdfPagePopup(context)
+                      : _restoreOriginalPdfPagePopup(context),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1439,6 +1512,82 @@ class PagePreviewState extends State<PagePreview>
         ),
       ),
     );
+  }
+
+  Future<void> _restoreOriginalPdfPagePopup(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr("pagePreview.editBar.restorePdfPopup.title")),
+        content: Text(tr("pagePreview.editBar.restorePdfPopup.text")),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr("popup.cancel")),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(tr("pagePreview.editBar.restorePdfPopup.confirm")),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    _pdfModeSwitching = true;
+    setState(() {});
+    try {
+      imageProcessingManager.cancelIsolatesOfPage(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+      await MetadataHelper.writePageImportedPdf(
+        widget.docIndex,
+        widget.pageIndex,
+        true,
+      );
+      if (!mounted) return;
+
+      _importedPdfMode = true;
+      _nativePdfMode = true;
+      _selectedVersion = 0;
+      _processingIndex++;
+      _totalRotation = 0;
+      _rotatedPhotoPaths.clear();
+      _metadataBlocked = false;
+      for (var i = 0; i < _versionPaths.length; i++) {
+        _versionPaths[i] = i == 0 ? _pdfPagePath : "";
+        _versionLoading[i] = i != 0;
+      }
+      _photoPath = _pdfPagePath;
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+      _resetPreviewTransforms();
+      if (mounted) setState(() {});
+      globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+      globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+
+      await imageProcessingManager.awaitIsolatesOfPage(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+      await g.filesHelper.deletePageRasterFiles(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+    } catch (error, stackTrace) {
+      dev.log(
+        "Error restoring original PDF page: $error",
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(content: Text(tr("snackbar.e_restorePdfPage"))),
+        );
+      }
+    } finally {
+      _pdfModeSwitching = false;
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _enableEditingForImportedPdfPagePopup(
@@ -1482,6 +1631,7 @@ class PagePreviewState extends State<PagePreview>
       final wasNativePdfMode = _nativePdfMode;
       final messenger = ScaffoldMessenger.of(context);
       var errorShown = false;
+      _pdfModeSwitching = true;
       messenger.showSnackBar(
         SnackBar(
           content: Row(
@@ -1505,10 +1655,36 @@ class PagePreviewState extends State<PagePreview>
 
       try {
         if (_nativePdfMode) {
-          await imageProcessingManager.convertPdfPageToEditable(
+          await MetadataHelper.writePageImportedPdf(
             widget.docIndex,
             widget.pageIndex,
+            false,
           );
+          final existingPaths = (await g.filesHelper.getImagePathsForPage(
+            widget.docIndex,
+            widget.pageIndex,
+          )).$1;
+          final hasExistingRaster =
+              existingPaths.length > 1 &&
+              existingPaths
+                  .take(2)
+                  .every((path) => path.isNotEmpty && File(path).existsSync());
+          if (hasExistingRaster) {
+            await imageProcessingManager.generateOtherVersions(
+              widget.docIndex,
+              widget.pageIndex,
+            );
+          } else {
+            await MetadataHelper.writePageImportedPdf(
+              widget.docIndex,
+              widget.pageIndex,
+              true,
+            );
+            await imageProcessingManager.convertPdfPageToEditable(
+              widget.docIndex,
+              widget.pageIndex,
+            );
+          }
         } else {
           await MetadataHelper.writePageImportedPdf(
             widget.docIndex,
@@ -1560,6 +1736,7 @@ class PagePreviewState extends State<PagePreview>
         }
       } finally {
         if (!errorShown && messenger.mounted) messenger.hideCurrentSnackBar();
+        _pdfModeSwitching = false;
         if (wasNativePdfMode) {
           _metadataBlocked = false;
           if (mounted) setState(() {});

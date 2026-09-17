@@ -140,11 +140,13 @@ class _PagesState extends State<Pages>
   }
 
   List<int> _deletedPages = [];
+  int _pdfRevision = 0;
   late final StreamSubscription<NotifierEvent> _eventSubscription;
   Future<void> _handleGlobalEvent(NotifierEvent event) async {
     if (!mounted) return;
     switch (event) {
       case NotifierEvent.loadPagesThumbnails:
+        _pdfRevision++;
         _loadPagesThumbnails();
         break;
       case NotifierEvent.imagesDeleted:
@@ -571,7 +573,11 @@ class _PagesState extends State<Pages>
 
   Widget _pageImage(String path) {
     if (path.toLowerCase().endsWith(".pdf")) {
-      return PdfPageView(path: path);
+      return PdfPageView(
+        key: ValueKey("$path-$_pdfRevision"),
+        path: path,
+        cacheRevision: _pdfRevision,
+      );
     }
     return SizedBox.expand(
       child: Image.file(

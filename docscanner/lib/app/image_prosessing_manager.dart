@@ -834,13 +834,17 @@ class ImageProcessingManager {
   }
 
   Future<void> killIsolatesOfPage(int docIndex, int pageIndex) async {
+    cancelIsolatesOfPage(docIndex, pageIndex);
+    await awaitIsolatesOfPage(docIndex, pageIndex);
+  }
+
+  void cancelIsolatesOfPage(int docIndex, int pageIndex) {
     if (taskKillers.isEmpty) return;
     var key = (docIndex, pageIndex);
     final limited = taskKillers.where((element) => element.$1 == key).toList();
     for (var taskKiller in limited) {
       taskKiller.$2.kill();
     }
-    await awaitIsolatesOfPage(docIndex, pageIndex);
   }
 
   void changePrioForIsolatesOfPage(
@@ -1760,11 +1764,12 @@ class ImageProcessingManager {
         );
         await splitFiles[pageIndex].rename(destination.path);
         final page = doc.pages[pageIndex];
+        final dimensions = _pdfRasterDimensions(page);
         await MetadataHelper.writePageProcessingMetadata(
           docIndex,
           targetPageIndex,
           page.height / page.width,
-          null,
+          _fullPageCorners(dimensions.$1, dimensions.$2),
         );
       }
 
@@ -1814,6 +1819,12 @@ class ImageProcessingManager {
       );
       final width = math.max(1, (page.width * renderScale).round());
       final height = math.max(1, (page.height * renderScale).round());
+      final processingMetadata = await g.metadataHelper
+          .readPageProcessingMetadata(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
       final renderedPage = await page.render(
         fullWidth: width.toDouble(),
         fullHeight: height.toDouble(),
@@ -1831,18 +1842,14 @@ class ImageProcessingManager {
         renderedPage.dispose();
       }
 
-      final corners = <List<int>>[
-        [0, 0],
-        [height - 1, 0],
-        [0, width - 1],
-        [height - 1, width - 1],
-      ];
-      await MetadataHelper.writePageThumbnailIndex(
-        docIndex,
-        pageIndex,
-        g.defaultIndex,
-        supressWarnings: true,
-      );
+      final corners =
+          processingMetadata.$2 ??
+          <List<int>>[
+            [0, 0],
+            [height - 1, 0],
+            [0, width - 1],
+            [height - 1, width - 1],
+          ];
       await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, false);
 
       try {
@@ -1850,7 +1857,7 @@ class ImageProcessingManager {
           docIndex,
           pageIndex,
           rasterFile.path,
-          height / width,
+          processingMetadata.$1 ?? height / width,
           corners,
           0,
           false,
@@ -1880,6 +1887,171 @@ class ImageProcessingManager {
       document.dispose();
       if (rasterFile.existsSync()) await rasterFile.delete();
     }
+  }
+
+  Future<void> rotateNativePdfPage(
+    int docIndex,
+    int pageIndex,
+    int degrees,
+  ) async {
+    if (degrees % 90 != 0) {
+      throw ArgumentError.value(degrees, "degrees", "Must be a multiple of 90");
+    }
+
+    final pdfPath = await g.filesHelper.getPdfPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    final sourceFile = File(pdfPath);
+    if (!sourceFile.existsSync()) {
+      throw StateError("Original PDF page does not exist: $pdfPath");
+    }
+
+    final normalizedDegrees = degrees % 360;
+    if (normalizedDegrees == 0) return;
+
+    final renderDocument = await pdfrx.PdfDocument.openFile(pdfPath);
+    late final int rasterWidth;
+    late final int rasterHeight;
+    try {
+      final dimensions = _pdfRasterDimensions(renderDocument.pages.first);
+      rasterWidth = dimensions.$1;
+      rasterHeight = dimensions.$2;
+    } finally {
+      renderDocument.dispose();
+    }
+
+    final processingMetadata = await g.metadataHelper
+        .readPageProcessingMetadata(docIndex, pageIndex, supressWarnings: true);
+    final rotatedFile = File("$pdfPath.rotating");
+    final backupFile = File("$pdfPath.backup");
+    final manipulator = pdfm.Pdf();
+    final output = await pdfm_io.FileSink.create(rotatedFile);
+    var outputClosed = false;
+
+    try {
+      await manipulator.rotateAllPages(
+        pdfm_io.FileSource(sourceFile),
+        output,
+        degrees: degrees,
+      );
+      await output.close();
+      outputClosed = true;
+
+      if (!rotatedFile.existsSync() || await rotatedFile.length() == 0) {
+        throw StateError("Rotated PDF page was not created");
+      }
+
+      if (backupFile.existsSync()) await backupFile.delete();
+      await sourceFile.rename(backupFile.path);
+      try {
+        await rotatedFile.rename(pdfPath);
+      } catch (_) {
+        await backupFile.rename(pdfPath);
+        rethrow;
+      }
+      if (backupFile.existsSync()) await backupFile.delete();
+
+      final oldCorners =
+          processingMetadata.$2 ?? _fullPageCorners(rasterWidth, rasterHeight);
+      final rotatedCorners = _rotatePdfCornerPoints(
+        oldCorners,
+        rasterWidth,
+        rasterHeight,
+        normalizedDegrees,
+      );
+      final rotatedDocument = await pdfrx.PdfDocument.openFile(pdfPath);
+      late final double rotatedRatio;
+      try {
+        final rotatedPage = rotatedDocument.pages.first;
+        rotatedRatio = rotatedPage.height / rotatedPage.width;
+      } finally {
+        rotatedDocument.dispose();
+      }
+      await MetadataHelper.writePageProcessingMetadata(
+        docIndex,
+        pageIndex,
+        rotatedRatio,
+        rotatedCorners,
+      );
+    } finally {
+      if (!outputClosed) await output.close();
+      await manipulator.dispose();
+      if (rotatedFile.existsSync()) await rotatedFile.delete();
+      if (backupFile.existsSync() && !sourceFile.existsSync()) {
+        await backupFile.rename(pdfPath);
+      }
+    }
+  }
+
+  Future<void> syncNativePdfMetadata(int docIndex, int pageIndex) async {
+    final pdfPath = await g.filesHelper.getPdfPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    final document = await pdfrx.PdfDocument.openFile(pdfPath);
+    try {
+      final page = document.pages.first;
+      final dimensions = _pdfRasterDimensions(page);
+      final processingMetadata = await g.metadataHelper
+          .readPageProcessingMetadata(
+            docIndex,
+            pageIndex,
+            supressWarnings: true,
+          );
+      await MetadataHelper.writePageProcessingMetadata(
+        docIndex,
+        pageIndex,
+        page.height / page.width,
+        processingMetadata.$2 ?? _fullPageCorners(dimensions.$1, dimensions.$2),
+      );
+    } finally {
+      document.dispose();
+    }
+  }
+
+  (int, int) _pdfRasterDimensions(pdfrx.PdfPage page) {
+    const targetScale = 300 / 72;
+    final renderScale = math.min(
+      targetScale,
+      AppGlobals.maxPhotoSize / math.max(page.width, page.height),
+    );
+    return (
+      math.max(1, (page.width * renderScale).round()),
+      math.max(1, (page.height * renderScale).round()),
+    );
+  }
+
+  List<List<int>> _fullPageCorners(int width, int height) => [
+    [0, 0],
+    [height - 1, 0],
+    [0, width - 1],
+    [height - 1, width - 1],
+  ];
+
+  List<List<int>> _rotatePdfCornerPoints(
+    List<List<int>> corners,
+    int width,
+    int height,
+    int degrees,
+  ) {
+    var rotated = corners.map((point) => List<int>.from(point)).toList();
+    var currentWidth = width;
+    var currentHeight = height;
+    final quarterTurns = degrees ~/ 90;
+
+    for (var turn = 0; turn < quarterTurns; turn++) {
+      rotated = rotated
+          .map((point) => [point[1], currentHeight - 1 - point[0]])
+          .toList();
+      rotated = [rotated[1], rotated[3], rotated[0], rotated[2]];
+      final previousWidth = currentWidth;
+      currentWidth = currentHeight;
+      currentHeight = previousWidth;
+    }
+    return rotated;
   }
 
   Future<(List<String>, List<double>)> scaleImagesToMaxDpi(

@@ -454,6 +454,25 @@ class FilesHelper {
     return deleted;
   }
 
+  Future<void> deletePageRasterFiles(int docIndex, int pageIndex) async {
+    final pagePath = await getPagePath(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    final pageDirectory = Directory(pagePath);
+    if (!pageDirectory.existsSync()) return;
+
+    for (final entity in pageDirectory.listSync()) {
+      if (entity is! File) continue;
+      final fileName = entity.uri.pathSegments.last;
+      if (fileName == pdfPageFileName || fileName == "metadata.json") {
+        continue;
+      }
+      await entity.delete();
+    }
+  }
+
   Future<String> createVersionPath(
     int docIndex,
     int pageIndex,

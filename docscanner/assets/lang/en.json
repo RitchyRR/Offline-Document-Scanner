@@ -54,6 +54,7 @@
     "editBar": {
       "redirect": "Edit formatting",
       "pdf": "Imported from a PDF file",
+      "restorePdf": "Switch back to the original PDF page",
       "portrait": "Portrait",
       "landscape": "Landscape",
       "rotateL": "Rotate 90° left",
@@ -63,6 +64,11 @@
         "title": "Enable editing for PDF",
         "text": "This page will be rasterized so it can be cropped, warped, and filtered. The original PDF page will be kept unchanged.\n\nDo you want to enable editing?",
         "confirm": "Enable editing"
+      },
+      "restorePdfPopup": {
+        "title": "Restore original PDF page",
+        "text": "The original PDF page will be displayed again and the rasterized images will be deleted to save storage. Crop and filter settings remain saved and will be applied when editing is enabled again.",
+        "confirm": "Restore PDF"
       }
     },
     "backPopup": {
@@ -287,6 +293,8 @@
     "e_savePdf": "Error: No PDF available to save.",
     "e_pdfTooLargeToSave": "This PDF is too large to save in-app. The maximum supported export size is {maxSize}.",
     "e_rasterizePdfPage": "The PDF page could not be prepared for editing.",
+    "e_restorePdfPage": "The original PDF page could not be restored.",
+    "e_rotatePdfPage": "The PDF page could not be rotated.",
     "e_shareImages": "Error: No Images available to share.",
     "e_sharePdf": "Error: No PDF available to share."
   }

@@ -110,11 +110,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   List<int> _deletedDocs = [];
+  int _pdfRevision = 0;
   late final StreamSubscription<NotifierEvent> _eventSubscription;
   Future<void> _handleGlobalEvent(NotifierEvent event) async {
     if (!mounted) return;
     switch (event) {
       case NotifierEvent.loadDocsThumbnails:
+        _pdfRevision++;
         _loadDocsDisplay();
         break;
       case NotifierEvent.setState:
@@ -1114,6 +1116,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 ? PdfPageView(
                                                     path:
                                                         _docThumbnails[docIndex],
+                                                    cacheRevision: _pdfRevision,
                                                   )
                                                 : Image.file(
                                                     File(

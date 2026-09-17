@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
 import '../../app/app_globals.dart';
 import '../../app/feedback_helper.dart';
@@ -12,9 +15,74 @@ import '../../app/global_notifier.dart';
 import '../../app/metadata_helper.dart';
 import '../../widgets/app_shadows.dart';
 import '../../widgets/indicator_processing_image.dart';
-import '../../widgets/pdf_page_view.dart';
 import '../pro/ads_helper.dart';
 import '../pro/pro_purchase.dart';
+
+class _PdfPopupPreview extends StatefulWidget {
+  const _PdfPopupPreview({required this.path});
+
+  final String path;
+
+  @override
+  State<_PdfPopupPreview> createState() => _PdfPopupPreviewState();
+}
+
+class _PdfPopupPreviewState extends State<_PdfPopupPreview> {
+  late Future<Uint8List> _previewFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _previewFuture = _renderPreview();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PdfPopupPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      _previewFuture = _renderPreview();
+    }
+  }
+
+  Future<Uint8List> _renderPreview() async {
+    final document = await pdfrx.PdfDocument.openFile(widget.path);
+    try {
+      final page = document.pages.first;
+      const width = 320.0;
+      final renderedPage = await page.render(
+        fullWidth: width,
+        fullHeight: width * page.height / page.width,
+        backgroundColor: 0xffffffff,
+      );
+      if (renderedPage == null) {
+        throw StateError("Could not render PDF preview");
+      }
+      try {
+        return Uint8List.fromList(img.encodePng(renderedPage.createImageNF()));
+      } finally {
+        renderedPage.dispose();
+      }
+    } finally {
+      document.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: _previewFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return Image.memory(snapshot.data!, fit: BoxFit.cover);
+        }
+        if (snapshot.hasError) {
+          return const Center(child: Icon(Icons.broken_image));
+        }
+        return const IndicatorProcessingImage();
+      },
+    );
+  }
+}
 
 class _ImagesScrollPreview extends StatelessWidget {
   const _ImagesScrollPreview({
@@ -74,7 +142,7 @@ class _ImagesScrollPreview extends StatelessWidget {
                                 child: SizedBox.expand(
                                   child:
                                       imagePath.toLowerCase().endsWith(".pdf")
-                                      ? PdfPageView(path: imagePath)
+                                      ? _PdfPopupPreview(path: imagePath)
                                       : Image.file(
                                           File(imagePath),
                                           fit: BoxFit.cover,
@@ -898,7 +966,9 @@ Future<List<bool>> _loadLoadingImages(
   List<bool> thumbnailsLoading = [];
   for (var (i, pageIndex) in pageIndexes.indexed) {
     bool thumbnailLoading = false;
-    if (thumbnailPaths[i].isEmpty) {
+    if (thumbnailPaths[i].toLowerCase().endsWith(".pdf")) {
+      thumbnailLoading = false;
+    } else if (thumbnailPaths[i].isEmpty) {
       thumbnailLoading = true;
     } else {
       final oldNames = await MetadataHelper.readOldPageFileNames(
@@ -925,8 +995,9 @@ Future<List<bool>> _loadUncompressedImages(List<String> thumbnailPaths) async {
   List<bool> thumbnailsUncompressed = [];
   for (int i = 0; i < thumbnailsCount; i++) {
     bool thumbnailUncompressed = false;
-    if (thumbnailPaths[i].isEmpty ||
-        thumbnailPaths[i].contains("_uncompressed")) {
+    if (!thumbnailPaths[i].toLowerCase().endsWith(".pdf") &&
+        (thumbnailPaths[i].isEmpty ||
+            thumbnailPaths[i].contains("_uncompressed"))) {
       thumbnailUncompressed = true;
     }
     thumbnailsUncompressed.add(thumbnailUncompressed);

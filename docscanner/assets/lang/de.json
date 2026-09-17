@@ -54,6 +54,7 @@
     "editBar": {
       "redirect": "Format anpassen",
       "pdf": "Aus einer PDF-Datei importiert",
+      "restorePdf": "Zur ursprünglichen PDF-Seite zurückwechseln",
       "portrait": "Hochformat",
       "landscape": "Querformat",
       "rotateL": "90° nach links drehen",
@@ -63,6 +64,11 @@
         "title": "Bearbeitung für PDF aktivieren",
         "text": "Diese Seite wird gerastert, damit sie zugeschnitten, entzerrt und gefiltert werden kann. Die ursprüngliche PDF-Seite bleibt unverändert erhalten.\n\nMöchtest du die Bearbeitung aktivieren?",
         "confirm": "Bearbeitung aktivieren"
+      },
+      "restorePdfPopup": {
+        "title": "Ursprüngliche PDF-Seite wiederherstellen",
+        "text": "Die ursprüngliche PDF-Seite wird wieder angezeigt und die gerasterten Bilder werden gelöscht, um Speicherplatz zu sparen. Bildausschnitt und Filtereinstellungen bleiben gespeichert und werden beim erneuten Aktivieren der Bearbeitung angewendet.",
+        "confirm": "PDF wiederherstellen"
       }
     },
     "backPopup": {
@@ -286,6 +292,8 @@
     "e_savePdf": "Fehler: Kein PDF zum Speichern vorhanden.",
     "e_pdfTooLargeToSave": "Dieses PDF ist zu groß, um es in der App zu speichern. Die maximal unterstützte Exportgröße beträgt {maxSize}.",
     "e_rasterizePdfPage": "Die PDF-Seite konnte nicht für die Bearbeitung vorbereitet werden.",
+    "e_restorePdfPage": "Die ursprüngliche PDF-Seite konnte nicht wiederhergestellt werden.",
+    "e_rotatePdfPage": "Die PDF-Seite konnte nicht gedreht werden.",
     "e_shareImages": "Fehler: Keine Bilder zum Teilen vorhanden.",
     "e_sharePdf": "Fehler: Kein PDF zum Teilen vorhanden."
   }
