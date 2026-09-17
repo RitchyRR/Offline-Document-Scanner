@@ -577,6 +577,7 @@ class _PagesState extends State<Pages>
         key: ValueKey("$path-$_pdfRevision"),
         path: path,
         cacheRevision: _pdfRevision,
+        externalRenderScale: _zoomMode ? _zoomCanvasScale : 1,
       );
     }
     return SizedBox.expand(
