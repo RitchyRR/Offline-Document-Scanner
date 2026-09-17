@@ -50,7 +50,7 @@ class _PagesState extends State<Pages>
   int _displayPagesCount = 0;
   int _thumbnailLoadGeneration = 0;
   int _fullSizeLoadGeneration = 0;
-  int? _lastFullSizeLoadCenter;
+  Set<int> _requestedFullSizePages = {};
   Timer? _fullSizeLoadTimer;
   final TransformationController _zoomTransformationController =
       TransformationController();
@@ -59,6 +59,8 @@ class _PagesState extends State<Pages>
   double _zoomCanvasScale = 1;
   bool _normalizingZoomTransform = false;
   final GlobalKey _pagesCanvasKey = GlobalKey();
+  final GlobalKey _zoomViewportKey = GlobalKey();
+  List<GlobalKey> _zoomPageKeys = [];
   Offset? _lastDoubleTapPosition;
   late final AnimationController _canvasTransitionController;
   late Animation<Matrix4> _canvasTransitionAnimation;
@@ -220,9 +222,12 @@ class _PagesState extends State<Pages>
         setState(() {
           _pageThumbnails = thumbnailPaths;
           _fullSizedPages = List.filled(_pagesCount, "");
+          if (_zoomPageKeys.length != _pagesCount) {
+            _zoomPageKeys = List.generate(_pagesCount, (_) => GlobalKey());
+          }
         });
         if (_zoomMode) {
-          _lastFullSizeLoadCenter = null;
+          _requestedFullSizePages = {};
           _scheduleFullSizeLoad();
         }
       }
@@ -375,11 +380,12 @@ class _PagesState extends State<Pages>
     setState(() {
       _zoomMode = true;
       _fullSizedPages = List.filled(_pagesCount, "");
+      _requestedFullSizePages = {};
     });
     if (initialScale != null) {
       _animateCanvasToScale(initialScale, focalPoint: focalPoint);
     }
-    _loadFullSizedPages(_currentDisplayPageIndex());
+    _scheduleFullSizeLoad();
   }
 
   void _animateCanvasToScale(double targetScale, {Offset? focalPoint}) {
@@ -452,7 +458,7 @@ class _PagesState extends State<Pages>
     final normalTransform = Matrix4.identity()..setEntry(1, 3, -normalScroll);
     _fullSizeLoadGeneration++;
     _fullSizeLoadTimer?.cancel();
-    _lastFullSizeLoadCenter = null;
+    _requestedFullSizePages = {};
     setState(() {
       _zoomMode = false;
       _fullSizedPages = List.filled(_pagesCount, "");
@@ -480,7 +486,7 @@ class _PagesState extends State<Pages>
     _fullSizeLoadTimer?.cancel();
     _fullSizeLoadTimer = Timer(const Duration(milliseconds: 120), () {
       if (mounted && _zoomMode) {
-        _loadFullSizedPages(_currentDisplayPageIndex());
+        _syncVisibleFullSizedPages();
       }
     });
   }
@@ -495,6 +501,7 @@ class _PagesState extends State<Pages>
     if ((scale - _zoomCanvasScale).abs() > 0.001) {
       setState(() => _zoomCanvasScale = scale);
     }
+    _scheduleFullSizeLoad();
     final contentWidth = canvasWidth - 2 * _zoomCanvasHorizontalInset;
     if (contentWidth <= 0 || contentWidth * scale > canvasWidth) return;
 
@@ -507,57 +514,82 @@ class _PagesState extends State<Pages>
     _normalizingZoomTransform = false;
   }
 
-  int _currentDisplayPageIndex() {
-    if (!_scrollController.hasClients || _displayPagesCount <= 1) return 0;
-    final position = _scrollController.position;
-    final fraction = position.maxScrollExtent == 0
-        ? 0.0
-        : (position.pixels / position.maxScrollExtent).clamp(0.0, 1.0);
-    final ratios = _thumbnailRatios
-        .whereIndexed((index, _) => !_deletedPages.contains(index))
-        .map((ratio) => 1.0 / ratio)
-        .toList();
-    final target = ratios.sum * fraction;
-    double cumulative = 0;
-    for (var index = 0; index < ratios.length; index++) {
-      cumulative += ratios[index];
-      if (target < cumulative) return index;
+  Set<int> _visibleRasterPageIndexes() {
+    if (_zoomCanvasScale <= 1 ||
+        _zoomViewportKey.currentContext == null ||
+        _zoomPageKeys.length != _pagesCount) {
+      return {};
     }
-    return ratios.length - 1;
+    final viewportRenderObject = _zoomViewportKey.currentContext!
+        .findRenderObject();
+    if (viewportRenderObject is! RenderBox) return {};
+
+    final viewportRect = MatrixUtils.transformRect(
+      viewportRenderObject.getTransformTo(null),
+      Offset.zero & viewportRenderObject.size,
+    ).inflate(100);
+    final visiblePages = <int>{};
+    for (final pageIndex in _displayedPageIndexes) {
+      if (_pageThumbnails[pageIndex].toLowerCase().endsWith(".pdf")) continue;
+      final pageRenderObject = _zoomPageKeys[pageIndex].currentContext
+          ?.findRenderObject();
+      if (pageRenderObject is! RenderBox) continue;
+      final pageRect = MatrixUtils.transformRect(
+        pageRenderObject.getTransformTo(null),
+        Offset.zero & pageRenderObject.size,
+      );
+      if (viewportRect.overlaps(pageRect)) visiblePages.add(pageIndex);
+    }
+    return visiblePages;
   }
 
-  Future<void> _loadFullSizedPages(int centerDisplayIndex) async {
-    if (!_zoomMode || centerDisplayIndex == _lastFullSizeLoadCenter) return;
-    _lastFullSizeLoadCenter = centerDisplayIndex;
+  Future<void> _syncVisibleFullSizedPages() async {
+    if (!_zoomMode) return;
+    final requestedPages = _visibleRasterPageIndexes();
+    if (const SetEquality<int>().equals(
+      requestedPages,
+      _requestedFullSizePages,
+    )) {
+      return;
+    }
+    _requestedFullSizePages = requestedPages;
     final loadGeneration = ++_fullSizeLoadGeneration;
-    final displayedPageIndexes = List<int>.generate(
-      _pagesCount,
-      (index) => index,
-    ).where((index) => !_deletedPages.contains(index)).toList();
 
-    for (var offset = 0; offset < displayedPageIndexes.length; offset++) {
-      for (final displayIndex in [
-        centerDisplayIndex + offset,
-        if (offset != 0) centerDisplayIndex - offset,
-      ]) {
-        if (displayIndex < 0 || displayIndex >= displayedPageIndexes.length) {
-          continue;
+    final evictedPaths = <String>[];
+    var pathsChanged = false;
+    for (var pageIndex = 0; pageIndex < _fullSizedPages.length; pageIndex++) {
+      if (!requestedPages.contains(pageIndex) &&
+          _fullSizedPages[pageIndex].isNotEmpty) {
+        evictedPaths.add(_fullSizedPages[pageIndex]);
+        _fullSizedPages[pageIndex] = "";
+        pathsChanged = true;
+      }
+    }
+    if (pathsChanged) setState(() {});
+    if (evictedPaths.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final path in evictedPaths) {
+          imageCache.evict(FileImage(File(path)), includeLive: false);
         }
-        final pageIndex = displayedPageIndexes[displayIndex];
-        final path = (await g.filesHelper.getPagesThumbnails(
-          widget.docIndex,
-          pageIndexes: [pageIndex],
-          fullSized: true,
-          supressWarnings: true,
-        )).$1.first;
-        if (!mounted ||
-            !_zoomMode ||
-            loadGeneration != _fullSizeLoadGeneration) {
-          return;
-        }
-        if (path.isNotEmpty && _fullSizedPages[pageIndex] != path) {
-          setState(() => _fullSizedPages[pageIndex] = path);
-        }
+      });
+    }
+
+    for (final pageIndex in requestedPages) {
+      if (_fullSizedPages[pageIndex].isNotEmpty) continue;
+      final path = (await g.filesHelper.getPagesThumbnails(
+        widget.docIndex,
+        pageIndexes: [pageIndex],
+        fullSized: true,
+        supressWarnings: true,
+      )).$1.first;
+      if (!mounted ||
+          !_zoomMode ||
+          loadGeneration != _fullSizeLoadGeneration ||
+          !_requestedFullSizePages.contains(pageIndex)) {
+        return;
+      }
+      if (path.isNotEmpty && _fullSizedPages[pageIndex] != path) {
+        setState(() => _fullSizedPages[pageIndex] = path);
       }
     }
   }
@@ -741,6 +773,7 @@ class _PagesState extends State<Pages>
         _loadingPages.length <= pageIndex || _loadingPages[pageIndex];
     final displayPageIndex = _displayedPageIndexes.indexOf(pageIndex) + 1;
     return AspectRatio(
+      key: _zoomPageKeys[pageIndex],
       aspectRatio: _thumbnailRatios[pageIndex],
       child: Container(
         decoration: BoxDecoration(boxShadow: [bigBoxShadow(context)]),
@@ -895,6 +928,7 @@ class _PagesState extends State<Pages>
                 ),
               );
         return CustomScrollbar(
+          key: _zoomViewportKey,
           controller: _scrollController,
           pageAspectRatios: _thumbnailRatios
               .whereIndexed((index, _) => !_deletedPages.contains(index))
