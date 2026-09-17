@@ -92,8 +92,7 @@ class PagePreviewState extends State<PagePreview>
   double _barWidth = 0.0;
   // Unlock page
   bool _pageUnlocked = false;
-  // Imported PDF Mode
-  bool _importedPdfMode = false;
+  // Native PDF Mode
   bool _nativePdfMode = false;
   bool _hasOriginalPdfPage = false;
   bool _pdfModeSwitching = false;
@@ -123,18 +122,33 @@ class PagePreviewState extends State<PagePreview>
       widget.pageIndex,
       IsolatePriority.immediate,
     );
-    // PDF Mode
-    _importedPdfMode = await MetadataHelper.readPageImportedPdf(
+    final migratedLegacyPdf = await g.filesHelper.migrateLegacyPdfPage(
       widget.docIndex,
       widget.pageIndex,
     );
+    if (migratedLegacyPdf) {
+      await imageProcessingManager.killIsolatesOfPage(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+      await imageProcessingManager.repairPage(
+        widget.docIndex,
+        widget.pageIndex,
+      );
+    }
+    // PDF Mode
     _pdfPagePath = await g.filesHelper.getPdfPagePath(
       widget.docIndex,
       widget.pageIndex,
       supressWarnings: true,
     );
     _hasOriginalPdfPage = File(_pdfPagePath).existsSync();
-    _nativePdfMode = _importedPdfMode && _hasOriginalPdfPage;
+    _nativePdfMode =
+        await MetadataHelper.readPageImportedPdf(
+          widget.docIndex,
+          widget.pageIndex,
+        ) &&
+        _hasOriginalPdfPage;
     if (_nativePdfMode) {
       await imageProcessingManager.syncNativePdfMetadata(
         widget.docIndex,
@@ -143,9 +157,9 @@ class PagePreviewState extends State<PagePreview>
       _versionPaths[0] = _photoPath = _pdfPagePath;
       _versionLoading[0] = false;
     }
-    if (_importedPdfMode && mounted) setState(() {});
+    if (_nativePdfMode && mounted) setState(() {});
     // Generate the remaining filter versions (only essential ones were kept)
-    if (!_importedPdfMode) {
+    if (!_nativePdfMode) {
       imageProcessingManager.generateOtherVersions(
         widget.docIndex,
         widget.pageIndex,
@@ -239,7 +253,7 @@ class PagePreviewState extends State<PagePreview>
     _pollWhile(
       pollWhileCondition: () {
         return _ratioValue == null ||
-            (!_importedPdfMode && _cornerPoints == null);
+            (!_nativePdfMode && _cornerPoints == null);
       },
       onTick: () async {
         await _loadPageMetadata(supressWarnings: true);
@@ -375,11 +389,13 @@ class PagePreviewState extends State<PagePreview>
       supressWarnings: supressWarnings,
     );
     _guiRatioValue = (_ratioValue ?? _guiRatioValue);
-    _importedPdfMode = await MetadataHelper.readPageImportedPdf(
-      widget.docIndex,
-      widget.pageIndex,
-      supressWarnings: supressWarnings,
-    );
+    _nativePdfMode =
+        await MetadataHelper.readPageImportedPdf(
+          widget.docIndex,
+          widget.pageIndex,
+          supressWarnings: supressWarnings,
+        ) &&
+        _hasOriginalPdfPage;
     if (_ratioValue != null) {
       _guiOrientationIndex = _orientationIndex = (_ratioValue! > 1.0) ? 0 : 1;
     }
@@ -388,8 +404,7 @@ class PagePreviewState extends State<PagePreview>
     }
     await _refreshCornersOverlay(supressWarnings: supressWarnings);
     if (mounted) {
-      if ((_cornerPoints != null || _importedPdfMode) &&
-          _guiRatioValue != null) {
+      if ((_cornerPoints != null || _nativePdfMode) && _guiRatioValue != null) {
         _hideOverlayReprocessing = false;
         _initialPhotoScale = null;
         _metadataBlocked = false;
@@ -403,7 +418,7 @@ class PagePreviewState extends State<PagePreview>
     _cornerPoints = await MetadataHelper.readPageCornerPoints(
       widget.docIndex,
       widget.pageIndex,
-      supressWarnings: supressWarnings || _importedPdfMode,
+      supressWarnings: supressWarnings || _nativePdfMode,
     );
     // Image pixel size
     if (_nativePdfMode) return;
@@ -660,7 +675,7 @@ class PagePreviewState extends State<PagePreview>
     final child = index == 0
         ? GestureDetector(
             onLongPress:
-                !_importedPdfMode &&
+                !_nativePdfMode &&
                     !_overlayZoomed &&
                     !_hideOverlayReprocessing &&
                     enableFAB0 &&
@@ -814,7 +829,7 @@ class PagePreviewState extends State<PagePreview>
             ),
           ),
           actions: [
-            if (_importedPdfMode || _hasOriginalPdfPage)
+            if (_nativePdfMode || _hasOriginalPdfPage)
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Center(
@@ -856,13 +871,13 @@ class PagePreviewState extends State<PagePreview>
               physics: _previewImageMultiTouch || _previewImageZoomed
                   ? const NeverScrollableScrollPhysics()
                   : const PageScrollPhysics(),
-              itemCount: _importedPdfMode || !noReprocessingChanges
+              itemCount: _nativePdfMode || !noReprocessingChanges
                   ? 1
                   : _versionPaths.length,
               itemBuilder: (context, index) => _buildPreviewImage(
                 index,
                 enableFAB0,
-                !_importedPdfMode && noReprocessingChanges,
+                !_nativePdfMode && noReprocessingChanges,
               ),
               onPageChanged: (index) {
                 if (_previewPageDragIndex != null) return;
@@ -887,7 +902,7 @@ class PagePreviewState extends State<PagePreview>
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _selectedVersion == 0 && !_importedPdfMode
+            _selectedVersion == 0 && !_nativePdfMode
                 ? Padding(
                     padding: EdgeInsets.only(
                       bottom: noReprocessingChanges ? 18 : 140,
@@ -1004,7 +1019,7 @@ class PagePreviewState extends State<PagePreview>
           ],
         ),
         // Thumbnail Bar
-        bottomNavigationBar: _importedPdfMode || !noReprocessingChanges
+        bottomNavigationBar: _nativePdfMode || !noReprocessingChanges
             ? null
             : SafeArea(
                 child: Container(
@@ -1178,8 +1193,8 @@ class PagePreviewState extends State<PagePreview>
                       Row(
                         spacing: 6,
                         children: [
-                          if (!_importedPdfMode) _aspectRatioDropDown(context),
-                          if (!_importedPdfMode)
+                          if (!_nativePdfMode) _aspectRatioDropDown(context),
+                          if (!_nativePdfMode)
                             Padding(
                               padding: const EdgeInsets.only(left: 4),
                               child: _orientationDropDown(context),
@@ -1348,7 +1363,7 @@ class PagePreviewState extends State<PagePreview>
     var processingMetadata = await g.metadataHelper.readPageProcessingMetadata(
       widget.docIndex,
       widget.pageIndex,
-      supressWarnings: _importedPdfMode,
+      supressWarnings: _nativePdfMode,
     );
     double? ratioValue = processingMetadata.$1;
 
@@ -1413,10 +1428,9 @@ class PagePreviewState extends State<PagePreview>
     }
 
     late Future<void> processingFuture;
-    if (_importedPdfMode ||
-        !_hasOriginalPdfPage &&
-            onlyRotation &&
-            _versionPaths.every((path) => File(path).existsSync())) {
+    if (!_hasOriginalPdfPage &&
+        onlyRotation &&
+        _versionPaths.every((path) => File(path).existsSync())) {
       if (newCornerPoints != null) {
         await MetadataHelper.writePageCornerPoints(
           widget.docIndex,
@@ -1497,8 +1511,8 @@ class PagePreviewState extends State<PagePreview>
             borderRadius: BorderRadius.circular(radius),
             onTap: disabled
                 ? null
-                : () => _nativePdfMode || !_hasOriginalPdfPage
-                      ? _enableEditingForImportedPdfPagePopup(context)
+                : () => _nativePdfMode
+                      ? _enableEditingForNativePdfPagePopup(context)
                       : _restoreOriginalPdfPagePopup(context),
             child: Center(
               child: Padding(
@@ -1549,7 +1563,6 @@ class PagePreviewState extends State<PagePreview>
       );
       if (!mounted) return;
 
-      _importedPdfMode = true;
       _nativePdfMode = true;
       _selectedVersion = 0;
       _processingIndex++;
@@ -1591,9 +1604,7 @@ class PagePreviewState extends State<PagePreview>
     }
   }
 
-  Future<void> _enableEditingForImportedPdfPagePopup(
-    BuildContext context,
-  ) async {
+  Future<void> _enableEditingForNativePdfPagePopup(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -1629,7 +1640,6 @@ class PagePreviewState extends State<PagePreview>
     );
 
     if (confirmed == true && context.mounted) {
-      final wasNativePdfMode = _nativePdfMode;
       final messenger = ScaffoldMessenger.of(context);
       var errorShown = false;
       _pdfModeSwitching = true;
@@ -1655,56 +1665,38 @@ class PagePreviewState extends State<PagePreview>
       setState(() {});
 
       try {
-        if (_nativePdfMode) {
-          await MetadataHelper.writePageImportedPdf(
+        await MetadataHelper.writePageImportedPdf(
+          widget.docIndex,
+          widget.pageIndex,
+          false,
+        );
+        final existingPaths = (await g.filesHelper.getImagePathsForPage(
+          widget.docIndex,
+          widget.pageIndex,
+        )).$1;
+        final hasExistingRaster =
+            existingPaths.length > 1 &&
+            existingPaths
+                .take(2)
+                .every((path) => path.isNotEmpty && File(path).existsSync());
+        if (hasExistingRaster) {
+          await imageProcessingManager.generateOtherVersions(
             widget.docIndex,
             widget.pageIndex,
-            false,
           );
-          final existingPaths = (await g.filesHelper.getImagePathsForPage(
-            widget.docIndex,
-            widget.pageIndex,
-          )).$1;
-          final hasExistingRaster =
-              existingPaths.length > 1 &&
-              existingPaths
-                  .take(2)
-                  .every((path) => path.isNotEmpty && File(path).existsSync());
-          if (hasExistingRaster) {
-            await imageProcessingManager.generateOtherVersions(
-              widget.docIndex,
-              widget.pageIndex,
-            );
-          } else {
-            await MetadataHelper.writePageImportedPdf(
-              widget.docIndex,
-              widget.pageIndex,
-              true,
-            );
-            await imageProcessingManager.convertPdfPageToEditable(
-              widget.docIndex,
-              widget.pageIndex,
-            );
-          }
         } else {
           await MetadataHelper.writePageImportedPdf(
             widget.docIndex,
             widget.pageIndex,
-            false,
+            true,
           );
-          _importedPdfMode = false;
-          if (mounted) setState(() {});
-          await MetadataHelper.writePageThumbnailIndex(
+          await imageProcessingManager.convertPdfPageToEditable(
             widget.docIndex,
             widget.pageIndex,
-            g.defaultIndex,
           );
-          await reprocessPhoto();
-          return;
         }
 
         if (!mounted) return;
-        _importedPdfMode = false;
         _nativePdfMode = false;
         _selectedVersion = 0;
         _selectedThumbnail = g.defaultIndex;
@@ -1738,10 +1730,8 @@ class PagePreviewState extends State<PagePreview>
       } finally {
         if (!errorShown && messenger.mounted) messenger.hideCurrentSnackBar();
         _pdfModeSwitching = false;
-        if (wasNativePdfMode) {
-          _metadataBlocked = false;
-          if (mounted) setState(() {});
-        }
+        _metadataBlocked = false;
+        if (mounted) setState(() {});
       }
     }
   }
@@ -1860,7 +1850,7 @@ class PagePreviewState extends State<PagePreview>
   }
 
   Widget _displayCornersOverlay(BuildContext context) {
-    if (_importedPdfMode ||
+    if (_nativePdfMode ||
         (_cornerPoints == null || _cornerPoints!.isEmpty) ||
         _currentPhotoScale == 0.0 ||
         _hideOverlayReprocessing ||

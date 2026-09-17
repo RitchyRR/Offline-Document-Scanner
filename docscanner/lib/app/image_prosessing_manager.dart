@@ -1227,46 +1227,37 @@ class ImageProcessingManager {
       ),
     );
 
-    bool isImportedPdf = await MetadataHelper.readPageImportedPdf(
-      docIndex,
-      pageIndex,
-      supressWarnings: true,
-      gIn: g,
-    );
-
     List<String> versionPaths = (await g.filesHelper.getImagePathsForPage(
       docIndex,
       pageIndex,
     )).$1;
 
     /// 2. rotate processed -> save
-    if (!isImportedPdf) {
-      final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
-      // Warped, Contrast, Processed1, Processed2
-      for (int i = 1; i < versionPaths.length; i++) {
-        Future<void> rotateVersion() async {
-          await isolateExitPoint(kill);
-          if (!File(versionPaths[i]).existsSync()) {
-            dev.log("Error, ${versionPaths[i]} does not exist");
-          }
-          imageProcessor.rotateImage(
-            versionPaths[i],
-            await g.filesHelper.createVersionPath(docIndex, pageIndex, i),
-            rotationIn,
-          );
+    final cvb.ImageProcessor imageProcessor = cvb.ImageProcessor();
+    // Warped, Contrast, Processed1, Processed2
+    for (int i = 1; i < versionPaths.length; i++) {
+      Future<void> rotateVersion() async {
+        await isolateExitPoint(kill);
+        if (!File(versionPaths[i]).existsSync()) {
+          dev.log("Error, ${versionPaths[i]} does not exist");
         }
-
-        futures.add(rotateVersion());
+        imageProcessor.rotateImage(
+          versionPaths[i],
+          await g.filesHelper.createVersionPath(docIndex, pageIndex, i),
+          rotationIn,
+        );
       }
 
-      // Delete prior Image
-      await Future.wait(futures);
-      imageProcessor.dispose();
-      for (var priorPath in versionPaths) {
-        await isolateExitPoint(kill);
-        if (File(priorPath).existsSync()) {
-          await File(priorPath).delete();
-        }
+      futures.add(rotateVersion());
+    }
+
+    // Delete prior Image
+    await Future.wait(futures);
+    imageProcessor.dispose();
+    for (var priorPath in versionPaths) {
+      await isolateExitPoint(kill);
+      if (File(priorPath).existsSync()) {
+        await File(priorPath).delete();
       }
     }
 

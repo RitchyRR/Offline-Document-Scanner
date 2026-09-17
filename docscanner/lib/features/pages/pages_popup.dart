@@ -228,14 +228,11 @@ Future<bool> showPagesPopup(
   final bool isDocument = pageIndexes.isEmpty;
   late List<String> thumbnailPaths;
   late int pagesCount;
-  late bool importedPdfMode;
+  late bool nativePdfMode;
   // specific version
   if (versionIndex != null && pageIndexes.length == 1) {
-    importedPdfMode = await MetadataHelper.readPageImportedPdf(
-      docIndex,
-      pageIndexes.first,
-    );
-    if (type == PopUpType.delete && !importedPdfMode) {
+    nativePdfMode = await g.filesHelper.hasPdfPage(docIndex, pageIndexes.first);
+    if (type == PopUpType.delete && !nativePdfMode) {
       thumbnailPaths = (await g.filesHelper.getImagePathsForPage(
         docIndex,
         pageIndexes.first,
@@ -461,7 +458,7 @@ Future<bool> showPagesPopup(
                 }
                 if (versionIndex != null &&
                     type != PopUpType.delete &&
-                    !importedPdfMode) {
+                    !nativePdfMode) {
                   title += ", \n${versionNames[versionIndex]}";
                 }
               }

@@ -328,6 +328,23 @@ class FilesHelper {
         );
   }
 
+  Future<bool> migrateLegacyPdfPage(int docIndex, int pageIndex) async {
+    final importedPdf = await MetadataHelper.readPageImportedPdf(
+      docIndex,
+      pageIndex,
+      supressWarnings: true,
+    );
+    if (!importedPdf || await hasOriginalPdfPage(docIndex, pageIndex)) {
+      return false;
+    }
+
+    dev.log(
+      "Migrating legacy PDF page to image page: Doc $docIndex Page $pageIndex",
+    );
+    await MetadataHelper.writePageImportedPdf(docIndex, pageIndex, false);
+    return true;
+  }
+
   Future<String> writeImageRaw(
     int docIndex,
     int pageIndex,
@@ -672,6 +689,11 @@ class FilesHelper {
             supressWarnings: true,
           );
           final hasOriginalPdfPage = File(pdfPagePath).existsSync();
+          if (isImportedPdf && !hasOriginalPdfPage) {
+            await migrateLegacyPdfPage(docIndex, pageIndex);
+            isImportedPdf = false;
+            anyChange = true;
+          }
           if (!pageIncomplete) {
             List<String>? oldVersionFileNames =
                 await MetadataHelper.readOldPageFileNames(
@@ -732,11 +754,8 @@ class FilesHelper {
               }
             }
 
-            pageIncomplete = isImportedPdf && hasOriginalPdfPage
+            pageIncomplete = isImportedPdf
                 ? false
-                : isImportedPdf
-                ? countVersionsAndThumbnail !=
-                      2 // photo + thumbnail
                 : countVersionsAndThumbnail <
                       essentialVersionNames.length +
                           1; // essential versions + thumbnail
@@ -759,7 +778,7 @@ class FilesHelper {
               );
               continue;
             }
-            if (countVersionsAndThumbnail <= 0 || isImportedPdf) {
+            if (countVersionsAndThumbnail <= 0) {
               dev.log("Deleting empty page: Doc $docIndex Page $pageIndex");
               await _deletePage(docIndex, pageIndex, supressInfo: true);
             } else {
