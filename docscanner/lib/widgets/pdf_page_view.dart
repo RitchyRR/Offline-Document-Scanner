@@ -72,11 +72,13 @@ class _PdfPageViewState extends State<PdfPageView> {
           enableKeyboardNavigation: widget.interactive,
           onGeneralTap: widget.interactive
               ? (context, controller, details) {
-                  if (details.type != PdfViewerGeneralTapType.doubleTap ||
-                      !controller.isReady) {
+                  if (!controller.isReady) {
                     return false;
                   }
                   _baseZoom ??= controller.currentZoom;
+                  if (details.type != PdfViewerGeneralTapType.doubleTap) {
+                    return false;
+                  }
                   final targetZoom = nextDoubleTapZoom(
                     currentZoom: controller.currentZoom,
                     baseZoom: _baseZoom!,
