@@ -893,6 +893,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
               child: ListView.builder(
                 controller: _scrollController,
+                padding: const EdgeInsets.only(bottom: 240),
                 itemCount: _displayDocsCount,
                 itemBuilder: (BuildContext context, int docIndex) {
                   final displayDocIndex = docIndex + 1;
