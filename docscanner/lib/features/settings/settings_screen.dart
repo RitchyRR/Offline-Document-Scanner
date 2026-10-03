@@ -108,16 +108,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _openProPopup,
           ),
           ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(tr("documents.menu.licenses")),
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: tr("appName"),
-              applicationVersion:
-                  "${packageInfo.version}+${packageInfo.buildNumber}",
-            ),
-          ),
-          ListTile(
             leading: const Icon(Icons.crop),
             title: Text(tr("documents.menu.ratios")),
             onTap: () => selectAspectRatiosDialog(context),
@@ -247,6 +237,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (mode != null) setAppThemeMode(mode);
                 },
               ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(tr("documents.menu.licenses")),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: tr("appName"),
+              applicationVersion:
+                  "${packageInfo.version}+${packageInfo.buildNumber}",
             ),
           ),
         ],
