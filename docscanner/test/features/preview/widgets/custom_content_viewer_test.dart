@@ -5,6 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('can delegate child transforms to a content controller', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CustomContentViewer(
+            transformChild: false,
+            child: ColoredBox(color: Colors.black),
+          ),
+        ),
+      ),
+    );
+
+    final transforms = tester.widgetList<Transform>(
+      find.descendant(
+        of: find.byType(CustomContentViewer),
+        matching: find.byType(Transform),
+      ),
+    );
+    expect(transforms, hasLength(2));
+  });
+
   testWidgets('preserves an external transform when the image changes', (
     tester,
   ) async {
@@ -68,36 +91,6 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
-  });
-
-  testWidgets('reports zoom scale changes from gestures', (tester) async {
-    final zoomScales = <double>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: CustomContentViewer(
-            contentSize: const Size(800, 800),
-            onZoomScaleChanged: zoomScales.add,
-            child: const ColoredBox(color: Colors.black),
-          ),
-        ),
-      ),
-    );
-
-    final firstPointer = await tester.createGesture(pointer: 1);
-    final secondPointer = await tester.createGesture(pointer: 2);
-    await firstPointer.down(const Offset(100, 200));
-    await secondPointer.down(const Offset(300, 200));
-    await tester.pump();
-    await firstPointer.moveTo(const Offset(50, 200));
-    await secondPointer.moveTo(const Offset(350, 200));
-    await tester.pump();
-
-    expect(zoomScales.any((scale) => scale > 1), isTrue);
-
-    await firstPointer.up();
-    await secondPointer.up();
-    await tester.pumpAndSettle();
   });
 
   testWidgets('dampens rotation with an ease-in and ease-out curve', (

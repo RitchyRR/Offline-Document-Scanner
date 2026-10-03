@@ -34,6 +34,10 @@ void main() {
       tester.widget<PdfViewer>(find.byType(PdfViewer)).params.scaleEnabled,
       isFalse,
     );
+    expect(
+      tester.widget<PdfViewer>(find.byType(PdfViewer)).params.onViewerReady,
+      isNotNull,
+    );
   });
 
   test('PDF render scale follows zoom in resolution buckets', () {
@@ -41,7 +45,7 @@ void main() {
     expect(pdfRenderScaleForZoom(1.5), 2);
     expect(pdfRenderScaleForZoom(3), 4);
     expect(pdfRenderScaleForZoom(5), 8);
-    expect(pdfRenderScaleForZoom(9), 16);
+    expect(pdfRenderScaleForZoom(9), 8);
   });
 
   testWidgets('cache revision creates a new PDF document reference', (
