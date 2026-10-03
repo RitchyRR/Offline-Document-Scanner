@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 
 import 'app_navigation.dart';
 import 'app_theme.dart';
+import 'app_theme_mode.dart';
 
 class DocScannerApp extends StatelessWidget {
   const DocScannerApp({
@@ -33,21 +34,24 @@ class DocScannerApp extends StatelessWidget {
               ),
             );
 
-        return MaterialApp(
-          localizationsDelegates: context.localizationDelegates,
-          supportedLocales: context.supportedLocales,
-          locale: context.locale,
-          navigatorKey: navigatorKey,
-          navigatorObservers: [routeObserver],
-          title: "Offline Document Scanner",
-          initialRoute: "/",
-          onGenerateRoute: onGenerateRoute,
-          builder: FToastBuilder(),
-          theme: _themeData(lightTheme),
-          darkTheme: _themeData(darkTheme, isDark: true),
-          themeMode: ThemeMode.system,
-          home: home,
-          onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => home),
+        return ValueListenableBuilder<ThemeMode>(
+          valueListenable: appThemeMode,
+          builder: (context, themeMode, _) => MaterialApp(
+            localizationsDelegates: context.localizationDelegates,
+            supportedLocales: context.supportedLocales,
+            locale: context.locale,
+            navigatorKey: navigatorKey,
+            navigatorObservers: [routeObserver],
+            title: "Offline Document Scanner",
+            initialRoute: "/",
+            onGenerateRoute: onGenerateRoute,
+            builder: FToastBuilder(),
+            theme: _themeData(lightTheme),
+            darkTheme: _themeData(darkTheme, isDark: true),
+            themeMode: themeMode,
+            home: home,
+            onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => home),
+          ),
         );
       },
     );

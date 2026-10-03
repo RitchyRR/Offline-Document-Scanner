@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/app_globals.dart';
 import '../../app/app_runtime.dart';
+import '../../app/app_theme_mode.dart';
 import '../pro/pro_purchase.dart';
 import 'aspect_ratio_settings.dart';
 import 'default_thumbnail_filter.dart';
@@ -17,11 +18,56 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool? _compactDocumentsView;
+  String _languageSelection = "system";
+  bool _didInitializeLanguageSelection = false;
 
   @override
   void initState() {
     super.initState();
     _loadCompactDocumentsView();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInitializeLanguageSelection) return;
+    _didInitializeLanguageSelection = true;
+    _loadLanguageSelection(
+      EasyLocalization.of(context)!.savedLocale?.languageCode,
+    );
+  }
+
+  Future<void> _loadLanguageSelection(String? legacyLanguageCode) async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedSelection = prefs.getString("languageSelection");
+    final selection = switch (savedSelection ?? legacyLanguageCode) {
+      "en" => "en",
+      "de" => "de",
+      _ => "system",
+    };
+    if (savedSelection == null) {
+      await prefs.setString("languageSelection", selection);
+    }
+    if (!mounted) return;
+    setState(() {
+      _languageSelection = selection;
+    });
+  }
+
+  Future<void> _setLanguageSelection(String selection) async {
+    final localization = EasyLocalization.of(context)!;
+    final prefs = await SharedPreferences.getInstance();
+    if (selection == "system") {
+      await localization.resetLocale();
+      await localization.deleteSaveLocale();
+    } else {
+      await localization.setLocale(Locale(selection));
+    }
+    await prefs.setString("languageSelection", selection);
+    if (!mounted) return;
+    setState(() {
+      _languageSelection = selection;
+    });
   }
 
   Future<void> _loadCompactDocumentsView() async {
@@ -93,21 +139,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : DropdownButton<bool>(
                     value: _compactDocumentsView,
+                    alignment: AlignmentDirectional.centerEnd,
                     underline: const SizedBox.shrink(),
                     items: [
                       DropdownMenuItem(
                         value: true,
-                        child: Text(tr("documents.views.compactView")),
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Text(
+                          tr("documents.views.compactView"),
+                          textAlign: TextAlign.end,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: false,
-                        child: Text(tr("documents.views.spaciousView")),
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Text(
+                          tr("documents.views.spaciousView"),
+                          textAlign: TextAlign.end,
+                        ),
                       ),
                     ],
                     onChanged: (value) {
                       if (value != null) _setCompactDocumentsView(value);
                     },
                   ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(tr("settings.language")),
+            trailing: DropdownButton<String>(
+              value: _languageSelection,
+              alignment: AlignmentDirectional.centerEnd,
+              underline: const SizedBox.shrink(),
+              items: [
+                DropdownMenuItem(
+                  value: "system",
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    tr(
+                      context.deviceLocale.languageCode == "de"
+                          ? "settings.languages.systemGerman"
+                          : "settings.languages.systemEnglish",
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: "en",
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    tr("settings.languages.en"),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: "de",
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    tr("settings.languages.de"),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+              onChanged: (languageCode) {
+                if (languageCode != null) {
+                  _setLanguageSelection(languageCode);
+                }
+              },
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(tr("settings.theme")),
+            trailing: ValueListenableBuilder<ThemeMode>(
+              valueListenable: appThemeMode,
+              builder: (context, themeMode, _) => DropdownButton<ThemeMode>(
+                value: themeMode,
+                alignment: AlignmentDirectional.centerEnd,
+                underline: const SizedBox.shrink(),
+                items: [
+                  DropdownMenuItem(
+                    value: ThemeMode.system,
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Text(
+                      tr("settings.themes.system"),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.light,
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Text(
+                      tr("settings.themes.light"),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.dark,
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Text(
+                      tr("settings.themes.dark"),
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
+                onChanged: (mode) {
+                  if (mode != null) setAppThemeMode(mode);
+                },
+              ),
+            ),
           ),
         ],
       ),

@@ -6,12 +6,14 @@ import 'app/app.dart';
 import 'app/app_bootstrap.dart';
 import 'app/app_initializer.dart';
 import 'app/app_router.dart';
+import 'app/app_theme_mode.dart';
 import 'app/global_notifier.dart';
 import 'features/documents/documents_screen.dart';
 import 'features/pro/pro_purchase.dart';
 
 void main() async {
   await bootstrapApp();
+  await initializeAppThemeMode();
 
   runApp(
     EasyLocalization(

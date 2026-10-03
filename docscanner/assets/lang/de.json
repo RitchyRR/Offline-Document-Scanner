@@ -2,7 +2,20 @@
   "appName": "Offline-Dokumentenscanner",
   "settings": {
     "title": "Einstellungen",
-    "documentView": "Dokumenten-Ansicht"
+    "documentView": "Dokumenten-Ansicht",
+    "language": "Sprache",
+    "languages": {
+      "systemGerman": "Standard (Deutsch)",
+      "systemEnglish": "Default (English)",
+      "en": "English",
+      "de": "Deutsch"
+    },
+    "theme": "Design",
+    "themes": {
+      "system": "Systemstandard",
+      "light": "Hell",
+      "dark": "Dunkel"
+    }
   },
   "documents": {
     "title": "Dokumente",
