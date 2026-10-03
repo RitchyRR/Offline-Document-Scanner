@@ -1454,6 +1454,7 @@ class PagePreviewState extends State<PagePreview>
       onlyRotation = false;
     }
     int quarterTurns = (_totalRotation ~/ 90) % 4;
+    final nativePdfRotation = _totalRotation;
     if (onlyRotation &&
             quarterTurns.isEven &&
             _orientationIndex != _guiOrientationIndex ||
@@ -1464,6 +1465,16 @@ class PagePreviewState extends State<PagePreview>
     // > 1, because _processingIndex is increased in _reprocessingSetup() at start of this function
     if (onlyRotation && _processingIndex > 1) {
       onlyRotation = false;
+    }
+
+    if (_hasOriginalPdfPage && nativePdfRotation != 0) {
+      await imageProcessingManager.rotateNativePdfPage(
+        widget.docIndex,
+        widget.pageIndex,
+        nativePdfRotation,
+        updateMetadata: false,
+      );
+      _pdfRevision++;
     }
 
     late Future<void> processingFuture;

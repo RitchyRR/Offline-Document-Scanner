@@ -1883,8 +1883,9 @@ class ImageProcessingManager {
   Future<void> rotateNativePdfPage(
     int docIndex,
     int pageIndex,
-    int degrees,
-  ) async {
+    int degrees, {
+    bool updateMetadata = true,
+  }) async {
     if (degrees % 90 != 0) {
       throw ArgumentError.value(degrees, "degrees", "Must be a multiple of 90");
     }
@@ -1944,28 +1945,31 @@ class ImageProcessingManager {
       }
       if (backupFile.existsSync()) await backupFile.delete();
 
-      final oldCorners =
-          processingMetadata.$2 ?? _fullPageCorners(rasterWidth, rasterHeight);
-      final rotatedCorners = _rotatePdfCornerPoints(
-        oldCorners,
-        rasterWidth,
-        rasterHeight,
-        normalizedDegrees,
-      );
-      final rotatedDocument = await pdfrx.PdfDocument.openFile(pdfPath);
-      late final double rotatedRatio;
-      try {
-        final rotatedPage = rotatedDocument.pages.first;
-        rotatedRatio = rotatedPage.height / rotatedPage.width;
-      } finally {
-        rotatedDocument.dispose();
+      if (updateMetadata) {
+        final oldCorners =
+            processingMetadata.$2 ??
+            _fullPageCorners(rasterWidth, rasterHeight);
+        final rotatedCorners = _rotatePdfCornerPoints(
+          oldCorners,
+          rasterWidth,
+          rasterHeight,
+          normalizedDegrees,
+        );
+        final rotatedDocument = await pdfrx.PdfDocument.openFile(pdfPath);
+        late final double rotatedRatio;
+        try {
+          final rotatedPage = rotatedDocument.pages.first;
+          rotatedRatio = rotatedPage.height / rotatedPage.width;
+        } finally {
+          rotatedDocument.dispose();
+        }
+        await MetadataHelper.writePageProcessingMetadata(
+          docIndex,
+          pageIndex,
+          rotatedRatio,
+          rotatedCorners,
+        );
       }
-      await MetadataHelper.writePageProcessingMetadata(
-        docIndex,
-        pageIndex,
-        rotatedRatio,
-        rotatedCorners,
-      );
     } finally {
       if (!outputClosed) await output.close();
       await manipulator.dispose();
