@@ -735,12 +735,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
               )
             : Text(tr("documents.title")),
         actions: [
-          if (!_searchMode)
-            IconButton(
-              onPressed: _openSearchMode,
-              tooltip: tr("documents.search"),
-              icon: const Icon(Icons.search),
-            ),
           if (!_searchMode && feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
@@ -749,6 +743,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
               },
               icon: Icons.star_half,
               text: tr("documents.menu.feedback"),
+            ),
+          if (!_searchMode)
+            IconButton(
+              onPressed: _openSearchMode,
+              tooltip: tr("documents.search"),
+              icon: const Icon(Icons.search),
             ),
           if (!_searchMode)
             PopupMenuButton(
