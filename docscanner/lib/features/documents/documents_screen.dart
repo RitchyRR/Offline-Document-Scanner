@@ -695,8 +695,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
               "documents.docIndex",
               namedArgs: {"docIndex": "$displayDocIndex"},
             );
-      if (searchQuery.isEmpty ||
-          docName.toLowerCase().contains(searchQuery)) {
+      if (searchQuery.isEmpty || docName.toLowerCase().contains(searchQuery)) {
         visibleDocuments.add((
           docIndex: docIndex,
           displayDocIndex: displayDocIndex,
@@ -709,6 +708,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
+        titleSpacing: _searchMode ? 0 : null,
         leading: _searchMode
             ? IconButton(
                 onPressed: _closeSearchMode,
@@ -721,6 +721,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 autofocus: true,
+                style:
+                    (Theme.of(context).appBarTheme.titleTextStyle ??
+                            Theme.of(context).textTheme.titleLarge)
+                        ?.copyWith(fontWeight: FontWeight.normal),
                 decoration: InputDecoration(
                   hintText: tr("documents.search"),
                   border: InputBorder.none,
@@ -748,41 +752,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
             ),
           if (!_searchMode)
             PopupMenuButton(
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: "settings",
-                child: Row(
-                  children: [
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.settings,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      tr("settings.title"),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!feedbackHelper.isHidden())
+              itemBuilder: (context) => [
                 PopupMenuItem(
-                  value: "feedback",
+                  value: "settings",
                   child: Row(
                     children: [
                       SizedBox(width: 8),
                       Icon(
-                        feedbackHelper.onlyMail()
-                            ? Icons.mail
-                            : Icons.star_half,
+                        Icons.settings,
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                       SizedBox(width: 10),
                       Text(
-                        tr("documents.menu.feedback"),
+                        tr("settings.title"),
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -792,38 +774,44 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ],
                   ),
                 ),
-              PopupMenuItem(
-                value: "shareApp",
-                child: Row(
-                  children: [
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.share,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                if (!feedbackHelper.isHidden())
+                  PopupMenuItem(
+                    value: "feedback",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(
+                          feedbackHelper.onlyMail()
+                              ? Icons.mail
+                              : Icons.star_half,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          tr("documents.menu.feedback"),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 10),
-                    Text(
-                      tr("documents.menu.shareApp"),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (packageInfo.installerStore == "com.android.shell")
+                  ),
                 PopupMenuItem(
-                  value: "errorLog",
+                  value: "shareApp",
                   child: Row(
                     children: [
                       SizedBox(width: 8),
                       Icon(
-                        Icons.save_alt,
+                        Icons.share,
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                       SizedBox(width: 10),
                       Text(
-                        "Save Error Log",
+                        tr("documents.menu.shareApp"),
                         style: TextStyle(
                           color: Theme.of(
                             context,
@@ -833,24 +821,48 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     ],
                   ),
                 ),
-            ],
-            onSelected: (String value) {
-              switch (value) {
-                case "settings":
-                  Navigator.pushNamed(context, "/settings");
-                  break;
-                case "feedback":
-                  feedbackHelper.showRatingDialog(context);
-                  break;
-                case "shareApp":
-                  _shareAppDialog(context);
-                  break;
-                case "errorLog":
-                  g.filesHelper.exportErrorLog();
-                  break;
-              }
-            },
-          ),
+                if (packageInfo.installerStore == "com.android.shell")
+                  PopupMenuItem(
+                    value: "errorLog",
+                    child: Row(
+                      children: [
+                        SizedBox(width: 8),
+                        Icon(
+                          Icons.save_alt,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          "Save Error Log",
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              onSelected: (String value) {
+                switch (value) {
+                  case "settings":
+                    Navigator.pushNamed(context, "/settings");
+                    break;
+                  case "feedback":
+                    feedbackHelper.showRatingDialog(context);
+                    break;
+                  case "shareApp":
+                    _shareAppDialog(context);
+                    break;
+                  case "errorLog":
+                    g.filesHelper.exportErrorLog();
+                    break;
+                }
+              },
+            ),
         ],
       ),
       body: visibleDocuments.isNotEmpty
