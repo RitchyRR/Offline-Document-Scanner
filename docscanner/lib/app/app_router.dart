@@ -4,6 +4,7 @@ import '../features/camera/camera_screen.dart';
 import '../features/documents/documents_screen.dart';
 import '../features/pages/pages_screen.dart';
 import '../features/preview/page_preview.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/warp/warp.dart';
 import '../features/warp/warp_page_preview_controller.dart';
 
@@ -11,6 +12,8 @@ Route<dynamic> generateAppRoute(RouteSettings settings) {
   switch (settings.name) {
     case "/":
       return MaterialPageRoute(builder: (_) => const DocumentsHome());
+    case "/settings":
+      return MaterialPageRoute(builder: (_) => const SettingsScreen());
     case "/pages":
       final args = settings.arguments as Map<String, dynamic>;
       return MaterialPageRoute(

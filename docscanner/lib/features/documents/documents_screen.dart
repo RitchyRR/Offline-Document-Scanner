@@ -30,9 +30,6 @@ import '../../widgets/icon_badges.dart';
 import '../../widgets/indicator_processing_image.dart';
 import '../../widgets/pdf_page_view.dart';
 import '../pages/pages_popup.dart';
-import '../pro/pro_purchase.dart';
-import '../settings/aspect_ratio_settings.dart';
-import '../settings/default_thumbnail_filter.dart';
 
 class DocumentsHome extends StatefulWidget {
   const DocumentsHome({super.key});
@@ -107,6 +104,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   void didPopNext() {
     _loadDocsDisplay();
+    _loadCompactDocumentsView();
   }
 
   List<int> _deletedDocs = [];
@@ -660,15 +658,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
-  Future<void> _toggleCompactDocumentsView() async {
-    if (_compactDocumentsView == null) return;
-    _compactDocumentsView = !_compactDocumentsView!;
-    _scrollController.reset();
-    setState(() {});
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("compactDocumentsView", _compactDocumentsView!);
-  }
-
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -682,16 +671,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
       appBar: AppBar(
         title: Text(tr("documents.title")),
         actions: [
-          if (_compactDocumentsView != null)
-            IconButton(
-              onPressed: _toggleCompactDocumentsView,
-              icon: _compactDocumentsView!
-                  ? const Icon(Icons.format_list_bulleted)
-                  : const Icon(Icons.list),
-              tooltip: _compactDocumentsView!
-                  ? tr("documents.views.spaciousView")
-                  : tr("documents.views.compactView"),
-            ),
           if (feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
@@ -704,76 +683,17 @@ class _DocumentsHomeState extends State<DocumentsHome>
           PopupMenuButton(
             itemBuilder: (context) => [
               PopupMenuItem(
-                value: "pro",
+                value: "settings",
                 child: Row(
                   children: [
                     SizedBox(width: 8),
                     Icon(
-                      g.proUnlocked ? Icons.verified : Icons.lock,
+                      Icons.settings,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                     SizedBox(width: 10),
                     Text(
-                      g.proUnlocked
-                          ? tr("documents.menu.pro1")
-                          : tr("documents.menu.pro2"),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: "licenses",
-                child: Row(
-                  children: [
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.info,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      tr("documents.menu.licenses"),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: "ratios",
-                child: Row(
-                  children: [
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.crop,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      tr("documents.menu.ratios"),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: "defaultFilter",
-                child: Row(
-                  children: [
-                    SizedBox(width: 8),
-                    Icon(
-                      Icons.hide_image,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      tr("documents.menu.defaultFilter"),
+                      tr("settings.title"),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
@@ -849,24 +769,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
             ],
             onSelected: (String value) {
               switch (value) {
-                case "pro":
-                  proPopup(context);
-                case "licenses":
-                  showLicensePage(
-                    context: context,
-                    applicationName: tr("appName"),
-                    applicationVersion:
-                        "${packageInfo.version}+${packageInfo.buildNumber}",
-                  );
-                  break;
-                case "ratios":
-                  selectAspectRatiosDialog(context);
-                  break;
-                case "defaultFilter":
-                  showDefaultThumbnailVersionDialog(
-                    context,
-                    unlockPro: proPopup,
-                  );
+                case "settings":
+                  Navigator.pushNamed(context, "/settings");
                   break;
                 case "feedback":
                   feedbackHelper.showRatingDialog(context);

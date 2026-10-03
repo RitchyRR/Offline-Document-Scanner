@@ -1,5 +1,9 @@
 {
   "appName": "Offline Document Scanner",
+  "settings": {
+    "title": "Settings",
+    "documentView": "Document View"
+  },
   "documents": {
     "title": "Documents",
     "docIndex": "Document {docIndex}",
