@@ -102,6 +102,25 @@ class _DocumentsHomeState extends State<DocumentsHome>
     setState(() => _searchMode = false);
   }
 
+  bool _matchesSearchQuery(String value, String query) {
+    final normalizedValue = value.toLowerCase().trim();
+    final normalizedQuery = query.toLowerCase().trim();
+    if (normalizedValue.contains(normalizedQuery)) return true;
+
+    final compactValue = normalizedValue.replaceAll(RegExp(r'\s+'), '');
+    final compactQuery = normalizedQuery.replaceAll(RegExp(r'\s+'), '');
+    if (compactValue.contains(compactQuery)) return true;
+
+    final queryTerms = normalizedQuery.split(RegExp(r'\s+'));
+    final valueTerms = normalizedValue.split(RegExp(r'\s+'));
+    return queryTerms.length > 1 &&
+        queryTerms.every(
+          (queryTerm) => valueTerms.any(
+            (valueTerm) => valueTerm.contains(queryTerm),
+          ),
+        );
+  }
+
   @override
   void dispose() {
     _eventSubscription.cancel();
@@ -684,7 +703,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
     g.translateAspectRatios(context);
     _displayDocsCount = _docsCount - _deletedDocs.length;
     final searchQuery = _searchController.text.trim().toLowerCase();
-    final visibleDocuments = <({int docIndex, int displayDocIndex})>[];
+    final visibleDocuments =
+        <({int docIndex, int displayDocIndex, int matchPriority})>[];
     var displayDocIndex = 0;
     for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
       if (_deletedDocs.contains(docIndex)) continue;
@@ -695,13 +715,35 @@ class _DocumentsHomeState extends State<DocumentsHome>
               "documents.docIndex",
               namedArgs: {"docIndex": "$displayDocIndex"},
             );
-      if (searchQuery.isEmpty || docName.toLowerCase().contains(searchQuery)) {
+      final creationDate = _docDates[docIndex];
+      final displayCreationDate = creationDate.isNotEmpty
+          ? _formatDateLocalized(creationDate, context)
+          : creationDate;
+      final pagesCount = _docPageCounts.length > docIndex
+          ? _docPageCounts[docIndex]
+          : -1;
+      final matchPriority = searchQuery.isEmpty ||
+              _matchesSearchQuery(docName, searchQuery)
+          ? 0
+          : pagesCount >= 0 && int.tryParse(searchQuery) == pagesCount
+          ? 1
+          : _matchesSearchQuery(displayCreationDate, searchQuery)
+          ? 2
+          : null;
+      if (matchPriority != null) {
         visibleDocuments.add((
           docIndex: docIndex,
           displayDocIndex: displayDocIndex,
+          matchPriority: matchPriority,
         ));
       }
     }
+    visibleDocuments.sort((a, b) {
+      final priorityComparison = a.matchPriority.compareTo(b.matchPriority);
+      return priorityComparison != 0
+          ? priorityComparison
+          : a.docIndex.compareTo(b.docIndex);
+    });
     final filteredRatios = visibleDocuments
         .map((document) => _thumbnailRatios[document.docIndex])
         .toList();
