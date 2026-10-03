@@ -15,6 +15,7 @@ class CustomPhotoViewer extends StatefulWidget {
     this.transformationController,
     this.isActive = true,
     this.onScaleChanged,
+    this.onZoomScaleChanged,
     this.onMultiTouchChanged,
     this.onZoomChanged,
     this.onPageDragUpdate,
@@ -27,6 +28,7 @@ class CustomPhotoViewer extends StatefulWidget {
   final TransformationController? transformationController;
   final bool isActive;
   final void Function(double displayScale, bool isZoomed)? onScaleChanged;
+  final ValueChanged<double>? onZoomScaleChanged;
   final ValueChanged<bool>? onMultiTouchChanged;
   final ValueChanged<bool>? onZoomChanged;
   final ValueChanged<double>? onPageDragUpdate;
@@ -154,7 +156,10 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   }
 
   void _resolveImageSize() {
-    if (widget.imageSize != null) return;
+    if (widget.imageSize != null ||
+        widget.imagePath.toLowerCase().endsWith(".pdf")) {
+      return;
+    }
     final stream = FileImage(
       File(widget.imagePath),
     ).resolve(createLocalImageConfiguration(context));
@@ -177,6 +182,7 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     final zoomScale = transform.getMaxScaleOnAxis();
     final isZoomed = (zoomScale - 1).abs() > 0.01;
     widget.onScaleChanged?.call(_containedScale * zoomScale, isZoomed);
+    widget.onZoomScaleChanged?.call(zoomScale);
     widget.onZoomChanged?.call(isZoomed);
   }
 

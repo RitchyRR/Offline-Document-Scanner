@@ -70,6 +70,37 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('reports zoom scale changes from gestures', (tester) async {
+    final zoomScales = <double>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustomPhotoViewer(
+            imagePath: '',
+            imageSize: const Size(800, 800),
+            onZoomScaleChanged: zoomScales.add,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      ),
+    );
+
+    final firstPointer = await tester.createGesture(pointer: 1);
+    final secondPointer = await tester.createGesture(pointer: 2);
+    await firstPointer.down(const Offset(100, 200));
+    await secondPointer.down(const Offset(300, 200));
+    await tester.pump();
+    await firstPointer.moveTo(const Offset(50, 200));
+    await secondPointer.moveTo(const Offset(350, 200));
+    await tester.pump();
+
+    expect(zoomScales.any((scale) => scale > 1), isTrue);
+
+    await firstPointer.up();
+    await secondPointer.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('dampens rotation with an ease-in and ease-out curve', (
     tester,
   ) async {

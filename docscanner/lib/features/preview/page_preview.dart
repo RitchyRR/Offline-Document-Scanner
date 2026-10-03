@@ -98,6 +98,8 @@ class PagePreviewState extends State<PagePreview>
   bool _pdfModeSwitching = false;
   int _pdfRevision = 0;
   String _pdfPagePath = "";
+  Size? _nativePdfPageSize;
+  double _nativePdfRenderScale = 1;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -569,6 +571,32 @@ class PagePreviewState extends State<PagePreview>
     });
   }
 
+  void _setNativePdfPageSize(Size size) {
+    if (_nativePdfPageSize == size) return;
+    setState(() => _nativePdfPageSize = size);
+  }
+
+  void _setNativePdfZoomScale(double scale) {
+    final renderScale = scale <= 1
+        ? 1.0
+        : scale <= 2
+        ? 2.0
+        : scale <= 4
+        ? 4.0
+        : 8.0;
+    if (_nativePdfRenderScale == renderScale) return;
+    setState(() => _nativePdfRenderScale = renderScale);
+  }
+
+  Size? get _nativePdfContentSize {
+    final pageSize = _nativePdfPageSize;
+    if (pageSize == null) return null;
+    final maxDimension = math.max(pageSize.width, pageSize.height);
+    if (maxDimension <= 0) return null;
+    final sourceScale = AppGlobals.maxPhotoSize / maxDimension;
+    return Size(pageSize.width * sourceScale, pageSize.height * sourceScale);
+  }
+
   bool get _isPreviewTransformZoomed =>
       (_previewTransformationControllers[_selectedVersion].value
                   .getMaxScaleOnAxis() -
@@ -655,12 +683,24 @@ class PagePreviewState extends State<PagePreview>
     if (_nativePdfMode) {
       return RotatedBox(
         quarterTurns: (_totalRotation ~/ 90) % 4,
-        child: PdfPageView(
-          key: ValueKey("$_pdfPagePath-$_pdfRevision"),
-          path: _pdfPagePath,
-          cacheRevision: _pdfRevision,
-          interactive: true,
-          backgroundColor: Theme.of(context).colorScheme.surface,
+        child: CustomPhotoViewer(
+          imagePath: _pdfPagePath,
+          imageSize: _nativePdfContentSize,
+          transformationController: _previewTransformationControllers[index],
+          isActive: index == _selectedVersion,
+          onZoomScaleChanged: _setNativePdfZoomScale,
+          onMultiTouchChanged: _setPreviewImageMultiTouch,
+          onZoomChanged: (zoomed) {
+            if (index == _selectedVersion) _setPreviewImageZoomed(zoomed);
+          },
+          child: PdfPageView(
+            key: ValueKey("$_pdfPagePath-$_pdfRevision"),
+            path: _pdfPagePath,
+            cacheRevision: _pdfRevision,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            externalRenderScale: _nativePdfRenderScale,
+            onPageSizeChanged: _setNativePdfPageSize,
+          ),
         ),
       );
     }
@@ -1564,6 +1604,7 @@ class PagePreviewState extends State<PagePreview>
       if (!mounted) return;
 
       _nativePdfMode = true;
+      _nativePdfRenderScale = 1;
       _selectedVersion = 0;
       _processingIndex++;
       _totalRotation = 0;

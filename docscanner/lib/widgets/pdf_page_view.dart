@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../app/app_globals.dart';
 import 'cyclic_double_tap_zoom.dart';
 
 class PdfPageView extends StatefulWidget {
@@ -15,6 +14,7 @@ class PdfPageView extends StatefulWidget {
     this.backgroundColor = Colors.transparent,
     this.cacheRevision,
     this.externalRenderScale = 1,
+    this.onPageSizeChanged,
   });
 
   final String path;
@@ -22,6 +22,7 @@ class PdfPageView extends StatefulWidget {
   final Color backgroundColor;
   final Object? cacheRevision;
   final double externalRenderScale;
+  final ValueChanged<Size>? onPageSizeChanged;
 
   @override
   State<PdfPageView> createState() => _PdfPageViewState();
@@ -61,12 +62,30 @@ class _PdfPageViewState extends State<PdfPageView> {
           margin: 0,
           backgroundColor: widget.backgroundColor,
           pageDropShadow: const BoxShadow(color: Colors.transparent),
-          getPageRenderingScale: (context, page, controller, estimatedScale) {
-            final requestedScale = estimatedScale * renderScale;
+          getPageRenderingScale: (context, page, controller, _) {
+            final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+            final requestedScale =
+                controller.currentZoom * renderScale * devicePixelRatio;
+            final maxViewportDimension = math.max(
+              controller.viewSize.width,
+              controller.viewSize.height,
+            );
+            final maximumRenderDimension =
+                maxViewportDimension * devicePixelRatio * renderScale;
             final maximumScale =
-                AppGlobals.maxPhotoSize / math.max(page.width, page.height);
+                maximumRenderDimension / math.max(page.width, page.height);
             return math.min(requestedScale, maximumScale);
           },
+          onViewerReady: widget.onPageSizeChanged == null
+              ? null
+              : (document, controller) {
+                  if (document.pages.isNotEmpty) {
+                    final page = document.pages.first;
+                    widget.onPageSizeChanged?.call(
+                      Size(page.width, page.height),
+                    );
+                  }
+                },
           panEnabled: widget.interactive,
           scaleEnabled: widget.interactive,
           enableKeyboardNavigation: widget.interactive,
@@ -103,6 +122,10 @@ class _PdfPageViewState extends State<PdfPageView> {
     if (scale <= 1) return 1;
     if (scale <= 2) return 2;
     if (scale <= 4) return 4;
-    return 8;
+    var renderScale = 8.0;
+    while (renderScale < scale) {
+      renderScale *= 2;
+    }
+    return renderScale;
   }
 }
