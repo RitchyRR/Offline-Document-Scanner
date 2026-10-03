@@ -44,6 +44,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   final FocusNode _searchFocusNode = FocusNode();
   List<String> _docThumbnails = [];
   bool _searchMode = false;
+  bool _keyboardWasVisible = false;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -65,6 +66,23 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   bool wasHidden = false;
+
+  @override
+  void didChangeMetrics() {
+    final keyboardVisible = WidgetsBinding
+        .instance
+        .platformDispatcher
+        .views
+        .any((view) => view.viewInsets.bottom > 0);
+    final keyboardWasDismissed = _keyboardWasVisible && !keyboardVisible;
+    _keyboardWasVisible = keyboardVisible;
+    if (keyboardWasDismissed &&
+        _searchMode &&
+        _searchController.text.trim().isEmpty) {
+      _closeSearchMode();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden) wasHidden = true;
