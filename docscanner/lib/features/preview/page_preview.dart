@@ -99,6 +99,7 @@ class PagePreviewState extends State<PagePreview>
   int _pdfRevision = 0;
   String _pdfPagePath = "";
   Size? _nativePdfPageSize;
+  double _nativePdfRenderScale = 1;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -575,6 +576,18 @@ class PagePreviewState extends State<PagePreview>
     setState(() => _nativePdfPageSize = size);
   }
 
+  void _setNativePdfZoomScale(double scale) {
+    final renderScale = scale <= 1
+        ? 1.0
+        : scale <= 2
+        ? 2.0
+        : scale <= 4
+        ? 4.0
+        : 8.0;
+    if (_nativePdfRenderScale == renderScale) return;
+    setState(() => _nativePdfRenderScale = renderScale);
+  }
+
   Size? get _nativePdfContentSize {
     final pageSize = _nativePdfPageSize;
     if (pageSize == null) return null;
@@ -672,9 +685,9 @@ class PagePreviewState extends State<PagePreview>
         quarterTurns: (_totalRotation ~/ 90) % 4,
         child: CustomContentViewer(
           contentSize: _nativePdfContentSize,
-          transformChild: false,
           transformationController: _previewTransformationControllers[index],
           isActive: index == _selectedVersion,
+          onZoomScaleChanged: _setNativePdfZoomScale,
           onMultiTouchChanged: _setPreviewImageMultiTouch,
           onZoomChanged: (zoomed) {
             if (index == _selectedVersion) _setPreviewImageZoomed(zoomed);
@@ -684,7 +697,7 @@ class PagePreviewState extends State<PagePreview>
             path: _pdfPagePath,
             cacheRevision: _pdfRevision,
             backgroundColor: Theme.of(context).colorScheme.surface,
-            transformationController: _previewTransformationControllers[index],
+            externalRenderScale: _nativePdfRenderScale,
             onPageSizeChanged: _setNativePdfPageSize,
           ),
         ),
@@ -1590,6 +1603,7 @@ class PagePreviewState extends State<PagePreview>
       if (!mounted) return;
 
       _nativePdfMode = true;
+      _nativePdfRenderScale = 1;
       _selectedVersion = 0;
       _processingIndex++;
       _totalRotation = 0;

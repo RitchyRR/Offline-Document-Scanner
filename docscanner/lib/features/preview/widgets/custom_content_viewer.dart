@@ -12,10 +12,10 @@ class CustomContentViewer extends StatefulWidget {
     this.sourceImagePath,
     required this.child,
     this.contentSize,
-    this.transformChild = true,
     this.transformationController,
     this.isActive = true,
     this.onScaleChanged,
+    this.onZoomScaleChanged,
     this.onMultiTouchChanged,
     this.onZoomChanged,
     this.onPageDragUpdate,
@@ -25,10 +25,10 @@ class CustomContentViewer extends StatefulWidget {
   final String? sourceImagePath;
   final Widget child;
   final Size? contentSize;
-  final bool transformChild;
   final TransformationController? transformationController;
   final bool isActive;
   final void Function(double displayScale, bool isZoomed)? onScaleChanged;
+  final ValueChanged<double>? onZoomScaleChanged;
   final ValueChanged<bool>? onMultiTouchChanged;
   final ValueChanged<bool>? onZoomChanged;
   final ValueChanged<double>? onPageDragUpdate;
@@ -182,6 +182,7 @@ class _CustomContentViewerState extends State<CustomContentViewer>
     final zoomScale = transform.getMaxScaleOnAxis();
     final isZoomed = (zoomScale - 1).abs() > 0.01;
     widget.onScaleChanged?.call(_containedScale * zoomScale, isZoomed);
+    widget.onZoomScaleChanged?.call(zoomScale);
     widget.onZoomChanged?.call(isZoomed);
   }
 
@@ -495,12 +496,10 @@ class _CustomContentViewerState extends State<CustomContentViewer>
                     child: widget.child,
                   ),
                   builder: (context, child) {
-                    return widget.transformChild
-                        ? Transform(
-                            transform: _transformationController.value,
-                            child: child,
-                          )
-                        : child!;
+                    return Transform(
+                      transform: _transformationController.value,
+                      child: child,
+                    );
                   },
                 ),
               ),

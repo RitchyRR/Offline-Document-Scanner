@@ -5,29 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('can delegate child transforms to a content controller', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: CustomContentViewer(
-            transformChild: false,
-            child: ColoredBox(color: Colors.black),
-          ),
-        ),
-      ),
-    );
-
-    final transforms = tester.widgetList<Transform>(
-      find.descendant(
-        of: find.byType(CustomContentViewer),
-        matching: find.byType(Transform),
-      ),
-    );
-    expect(transforms, hasLength(2));
-  });
-
   testWidgets('preserves an external transform when the image changes', (
     tester,
   ) async {
