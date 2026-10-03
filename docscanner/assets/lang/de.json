@@ -8,6 +8,7 @@
     "title": "Dokumente",
     "search": "Dokumente suchen",
     "closeSearch": "Suche schließen",
+    "noSearchResults": "Keine passenden Dokumente",
     "docIndex": "Dokument {docIndex}",
     "addDoc": "Neues Dokument hinzufügen",
     "views": {

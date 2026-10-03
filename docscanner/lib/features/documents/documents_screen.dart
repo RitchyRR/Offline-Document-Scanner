@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -683,10 +682,30 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   Widget build(BuildContext context) {
     g.translateAspectRatios(context);
-    final visibleRatios = _thumbnailRatios
-        .whereIndexed((index, element) => !_deletedDocs.contains(index))
-        .toList();
     _displayDocsCount = _docsCount - _deletedDocs.length;
+    final searchQuery = _searchController.text.trim().toLowerCase();
+    final visibleDocuments = <({int docIndex, int displayDocIndex})>[];
+    var displayDocIndex = 0;
+    for (var docIndex = 0; docIndex < _docsCount; docIndex++) {
+      if (_deletedDocs.contains(docIndex)) continue;
+      displayDocIndex++;
+      final docName = _docNames[docIndex].isNotEmpty
+          ? _docNames[docIndex]
+          : tr(
+              "documents.docIndex",
+              namedArgs: {"docIndex": "$displayDocIndex"},
+            );
+      if (searchQuery.isEmpty ||
+          docName.toLowerCase().contains(searchQuery)) {
+        visibleDocuments.add((
+          docIndex: docIndex,
+          displayDocIndex: displayDocIndex,
+        ));
+      }
+    }
+    final filteredRatios = visibleDocuments
+        .map((document) => _thumbnailRatios[document.docIndex])
+        .toList();
     final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -708,6 +727,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 ),
                 textInputAction: TextInputAction.search,
                 maxLines: 1,
+                onChanged: (_) => setState(() {}),
               )
             : Text(tr("documents.title")),
         actions: [
@@ -833,11 +853,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ),
         ],
       ),
-      body: _displayDocsCount > 0
+      body: visibleDocuments.isNotEmpty
           // Documents Cards
           ? CustomScrollbar(
               controller: _scrollController,
-              pageAspectRatios: visibleRatios,
+              pageAspectRatios: filteredRatios,
               scrollRangeStart: 0.1,
               scrollRangeEnd: 0.675,
               noTumb: true,
@@ -845,11 +865,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.only(bottom: 240),
-                itemCount: _displayDocsCount,
-                itemBuilder: (BuildContext context, int docIndex) {
-                  final displayDocIndex = docIndex + 1;
-                  docIndex += _deletedDocs.where((e) => e <= docIndex).length;
-                  String docName = _docNames[docIndex].isNotEmpty
+                itemCount: visibleDocuments.length,
+                itemBuilder: (BuildContext context, int visibleIndex) {
+                  final document = visibleDocuments[visibleIndex];
+                  final docIndex = document.docIndex;
+                  final displayDocIndex = document.displayDocIndex;
+                  final String docName = _docNames[docIndex].isNotEmpty
                       ? _docNames[docIndex]
                       : tr(
                           "documents.docIndex",
@@ -1144,7 +1165,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                 },
               ),
             )
-          : Column(
+          : _displayDocsCount == 0
+          ? Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Center(
@@ -1170,6 +1192,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   ),
                 ),
               ],
+            )
+          : Center(
+              child: Text(
+                tr("documents.noSearchResults"),
+                textAlign: TextAlign.center,
+              ),
             ),
       // Floating Action Buttons
       floatingActionButton: Padding(
