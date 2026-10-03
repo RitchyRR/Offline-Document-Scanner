@@ -6,6 +6,8 @@
   },
   "documents": {
     "title": "Documents",
+    "search": "Search documents",
+    "closeSearch": "Close search",
     "docIndex": "Document {docIndex}",
     "addDoc": "Add a new Document",
     "views": {

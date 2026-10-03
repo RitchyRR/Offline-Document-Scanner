@@ -6,6 +6,8 @@
   },
   "documents": {
     "title": "Dokumente",
+    "search": "Dokumente suchen",
+    "closeSearch": "Suche schließen",
     "docIndex": "Dokument {docIndex}",
     "addDoc": "Neues Dokument hinzufügen",
     "views": {

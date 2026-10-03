@@ -41,7 +41,10 @@ class DocumentsHome extends StatefulWidget {
 class _DocumentsHomeState extends State<DocumentsHome>
     with RouteAware, WidgetsBindingObserver {
   final ImagePicker _picker = ImagePicker();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   List<String> _docThumbnails = [];
+  bool _searchMode = false;
 
   @override
   void setState(ui.VoidCallback fn) {
@@ -87,11 +90,26 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _initReceiveSharingIntent();
   }
 
+  void _openSearchMode() {
+    setState(() => _searchMode = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _searchMode) _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearchMode() {
+    _searchFocusNode.unfocus();
+    _searchController.clear();
+    setState(() => _searchMode = false);
+  }
+
   @override
   void dispose() {
     _eventSubscription.cancel();
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -382,6 +400,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   Future<void> _openDocument(int docIndex) async {
+    if (_searchMode && _searchController.text.trim().isEmpty) {
+      _closeSearchMode();
+    }
     navigatorKey.currentState?.popUntil((route) => route.isFirst);
     //if (_docPageCounts[docIndex] == 1) {
     //  WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -666,12 +687,37 @@ class _DocumentsHomeState extends State<DocumentsHome>
         .whereIndexed((index, element) => !_deletedDocs.contains(index))
         .toList();
     _displayDocsCount = _docsCount - _deletedDocs.length;
-    return Scaffold(
+    final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text(tr("documents.title")),
+        leading: _searchMode
+            ? IconButton(
+                onPressed: _closeSearchMode,
+                tooltip: tr("documents.closeSearch"),
+                icon: const Icon(Icons.arrow_back),
+              )
+            : null,
+        title: _searchMode
+            ? TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: tr("documents.search"),
+                  border: InputBorder.none,
+                ),
+                textInputAction: TextInputAction.search,
+                maxLines: 1,
+              )
+            : Text(tr("documents.title")),
         actions: [
-          if (feedbackHelper.canShowInAppbar())
+          if (!_searchMode)
+            IconButton(
+              onPressed: _openSearchMode,
+              tooltip: tr("documents.search"),
+              icon: const Icon(Icons.search),
+            ),
+          if (!_searchMode && feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
                 await feedbackHelper.showRatingDialog(context);
@@ -680,7 +726,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
               icon: Icons.star_half,
               text: tr("documents.menu.feedback"),
             ),
-          PopupMenuButton(
+          if (!_searchMode)
+            PopupMenuButton(
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: "settings",
@@ -1179,6 +1226,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ],
         ),
       ),
+    );
+    return PopScope(
+      canPop: !_searchMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _searchMode) _closeSearchMode();
+      },
+      child: scaffold,
     );
   }
 }
