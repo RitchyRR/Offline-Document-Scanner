@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart' show PdfViewer;
 
 void main() {
-  testWidgets('non-interactive PDF pages pass pointer events to parents', (
+  testWidgets('PDF pages pass pointer events to parent gestures', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -21,21 +21,27 @@ void main() {
     );
   });
 
-  testWidgets('interactive PDF pages receive pointer events', (tester) async {
+  testWidgets('PDF viewer gestures are disabled', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PdfPageView(path: '/missing.pdf', interactive: true),
-      ),
+      const MaterialApp(home: PdfPageView(path: '/missing.pdf')),
     );
 
     expect(
-      tester
-          .widget<IgnorePointer>(
-            find.byKey(const ValueKey('pdf-page-pointer-/missing.pdf')),
-          )
-          .ignoring,
+      tester.widget<PdfViewer>(find.byType(PdfViewer)).params.panEnabled,
       isFalse,
     );
+    expect(
+      tester.widget<PdfViewer>(find.byType(PdfViewer)).params.scaleEnabled,
+      isFalse,
+    );
+  });
+
+  test('PDF render scale follows zoom in resolution buckets', () {
+    expect(pdfRenderScaleForZoom(1), 1);
+    expect(pdfRenderScaleForZoom(1.5), 2);
+    expect(pdfRenderScaleForZoom(3), 4);
+    expect(pdfRenderScaleForZoom(5), 8);
+    expect(pdfRenderScaleForZoom(9), 16);
   });
 
   testWidgets('cache revision creates a new PDF document reference', (

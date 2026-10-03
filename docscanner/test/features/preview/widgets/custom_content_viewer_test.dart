@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:docscanner/features/preview/widgets/custom_photo_viewer.dart';
+import 'package:docscanner/features/preview/widgets/custom_content_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,9 +17,9 @@ void main() {
     Widget viewer(String imagePath) {
       return MaterialApp(
         home: Scaffold(
-          body: CustomPhotoViewer(
-            imagePath: imagePath,
-            imageSize: const Size(400, 400),
+          body: CustomContentViewer(
+            sourceImagePath: imagePath,
+            contentSize: const Size(400, 400),
             transformationController: controller,
             child: const ColoredBox(color: Colors.black),
           ),
@@ -48,9 +48,9 @@ void main() {
     Widget viewer({required bool isActive}) {
       return MaterialApp(
         home: Scaffold(
-          body: CustomPhotoViewer(
-            imagePath: 'image',
-            imageSize: const Size(400, 400),
+          body: CustomContentViewer(
+            sourceImagePath: 'image',
+            contentSize: const Size(400, 400),
             transformationController: controller,
             isActive: isActive,
             child: const ColoredBox(color: Colors.black),
@@ -75,9 +75,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: CustomPhotoViewer(
-            imagePath: '',
-            imageSize: const Size(800, 800),
+          body: CustomContentViewer(
+            contentSize: const Size(800, 800),
             onZoomScaleChanged: zoomScales.add,
             child: const ColoredBox(color: Colors.black),
           ),
@@ -176,9 +175,9 @@ Future<(TestGesture, TestGesture)> _startRotationGesture(
         body: SizedBox(
           width: 400,
           height: 400,
-          child: CustomPhotoViewer(
-            imagePath: '',
-            imageSize: Size(400, 400),
+          child: CustomContentViewer(
+            sourceImagePath: '',
+            contentSize: Size(400, 400),
             child: ColoredBox(color: Colors.black),
           ),
         ),
@@ -212,7 +211,7 @@ double _visualRotation(WidgetTester tester) {
   final transforms = tester
       .widgetList<Transform>(
         find.descendant(
-          of: find.byType(CustomPhotoViewer),
+          of: find.byType(CustomContentViewer),
           matching: find.byType(Transform),
         ),
       )

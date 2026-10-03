@@ -11,7 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../widgets/custom_icon_button.dart';
-import '../preview/widgets/custom_photo_viewer.dart';
+import '../preview/widgets/custom_content_viewer.dart';
 import 'painters/crosshair_painter.dart';
 import 'widgets/thumbnail_with_badge.dart';
 
@@ -701,8 +701,8 @@ class _CameraScreenState extends State<CameraScreen> {
                   galleryImageZoomed = false;
                   setStateDialog(() {});
                 },
-                itemBuilder: (context, index) => CustomPhotoViewer(
-                  imagePath: _capturedImages[index].path,
+                itemBuilder: (context, index) => CustomContentViewer(
+                  sourceImagePath: _capturedImages[index].path,
                   onZoomChanged: (zoomed) {
                     if (index != galleryIndex) return;
                     if (galleryImageZoomed == zoomed) return;

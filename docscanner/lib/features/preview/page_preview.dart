@@ -25,7 +25,7 @@ import '../pro/pro_purchase.dart';
 import '../settings/aspect_ratio_settings.dart';
 import '../warp/warp_page_preview_controller.dart';
 import 'painters/preview_frame_painters.dart';
-import 'widgets/custom_photo_viewer.dart';
+import 'widgets/custom_content_viewer.dart';
 import 'widgets/no_stretch_scroll_behavior.dart';
 
 class PagePreview extends StatefulWidget {
@@ -577,13 +577,7 @@ class PagePreviewState extends State<PagePreview>
   }
 
   void _setNativePdfZoomScale(double scale) {
-    final renderScale = scale <= 1
-        ? 1.0
-        : scale <= 2
-        ? 2.0
-        : scale <= 4
-        ? 4.0
-        : 8.0;
+    final renderScale = pdfRenderScaleForZoom(scale);
     if (_nativePdfRenderScale == renderScale) return;
     setState(() => _nativePdfRenderScale = renderScale);
   }
@@ -683,9 +677,8 @@ class PagePreviewState extends State<PagePreview>
     if (_nativePdfMode) {
       return RotatedBox(
         quarterTurns: (_totalRotation ~/ 90) % 4,
-        child: CustomPhotoViewer(
-          imagePath: _pdfPagePath,
-          imageSize: _nativePdfContentSize,
+        child: CustomContentViewer(
+          contentSize: _nativePdfContentSize,
           transformationController: _previewTransformationControllers[index],
           isActive: index == _selectedVersion,
           onZoomScaleChanged: _setNativePdfZoomScale,
@@ -729,11 +722,11 @@ class PagePreviewState extends State<PagePreview>
           )
         : image;
 
-    return CustomPhotoViewer(
-      imagePath: _versionPaths[index],
+    return CustomContentViewer(
+      sourceImagePath: _versionPaths[index],
       transformationController: _previewTransformationControllers[index],
       isActive: index == _selectedVersion,
-      imageSize: index == 0 && _imagePixelWidth > 0 && _imagePixelHeight > 0
+      contentSize: index == 0 && _imagePixelWidth > 0 && _imagePixelHeight > 0
           ? Size(
               _totalRotation ~/ 90 % 2 == 0
                   ? _imagePixelWidth.toDouble()

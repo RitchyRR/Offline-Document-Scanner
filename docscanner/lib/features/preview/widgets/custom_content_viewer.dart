@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 
 import '../../../widgets/cyclic_double_tap_zoom.dart';
 
-class CustomPhotoViewer extends StatefulWidget {
-  const CustomPhotoViewer({
+class CustomContentViewer extends StatefulWidget {
+  const CustomContentViewer({
     super.key,
-    required this.imagePath,
+    this.sourceImagePath,
     required this.child,
-    this.imageSize,
+    this.contentSize,
     this.transformationController,
     this.isActive = true,
     this.onScaleChanged,
@@ -22,9 +22,9 @@ class CustomPhotoViewer extends StatefulWidget {
     this.onPageDragEnd,
   });
 
-  final String imagePath;
+  final String? sourceImagePath;
   final Widget child;
-  final Size? imageSize;
+  final Size? contentSize;
   final TransformationController? transformationController;
   final bool isActive;
   final void Function(double displayScale, bool isZoomed)? onScaleChanged;
@@ -35,17 +35,17 @@ class CustomPhotoViewer extends StatefulWidget {
   final void Function(double progress, double velocity)? onPageDragEnd;
 
   @override
-  State<CustomPhotoViewer> createState() => _CustomPhotoViewerState();
+  State<CustomContentViewer> createState() => _CustomContentViewerState();
 }
 
-class _CustomPhotoViewerState extends State<CustomPhotoViewer>
+class _CustomContentViewerState extends State<CustomContentViewer>
     with TickerProviderStateMixin {
   late TransformationController _transformationController;
   late final AnimationController _animationController;
   late Animation<Matrix4> _animation;
   Offset? _doubleTapPosition;
   double _containedScale = 1;
-  Size? _resolvedImageSize;
+  Size? _resolvedContentSize;
   int _activePointerCount = 0;
   double _visualRotation = 0;
   double _continuousGestureRotation = 0;
@@ -55,7 +55,7 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   Offset _lastRotationFocalPoint = Offset.zero;
   Size _viewportSize = Size.zero;
   Timer? _settleTimer;
-  bool _imageGestureActive = false;
+  bool _contentGestureActive = false;
   int _gestureGeneration = 0;
   Matrix4 _gestureStartTransform = Matrix4.identity();
   Offset _gestureStartFocalPoint = Offset.zero;
@@ -101,11 +101,11 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _resolveImageSize();
+    _resolveContentSize();
   }
 
   @override
-  void didUpdateWidget(covariant CustomPhotoViewer oldWidget) {
+  void didUpdateWidget(covariant CustomContentViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(
       oldWidget.transformationController,
@@ -122,13 +122,13 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     if (oldWidget.isActive && !widget.isActive) {
       _resetInactiveViewer();
     }
-    if (oldWidget.imagePath != widget.imagePath) {
+    if (oldWidget.sourceImagePath != widget.sourceImagePath) {
       _animationController.stop();
       if (widget.transformationController == null) {
         _transformationController.value = Matrix4.identity();
       }
-      _resolvedImageSize = null;
-      _resolveImageSize();
+      _resolvedContentSize = null;
+      _resolveContentSize();
     }
   }
 
@@ -155,23 +155,23 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     super.dispose();
   }
 
-  void _resolveImageSize() {
-    if (widget.imageSize != null ||
-        widget.imagePath.toLowerCase().endsWith(".pdf")) {
+  void _resolveContentSize() {
+    final sourceImagePath = widget.sourceImagePath;
+    if (widget.contentSize != null || sourceImagePath == null) {
       return;
     }
     final stream = FileImage(
-      File(widget.imagePath),
+      File(sourceImagePath),
     ).resolve(createLocalImageConfiguration(context));
     late final ImageStreamListener listener;
     listener = ImageStreamListener((imageInfo, _) {
       stream.removeListener(listener);
-      final imageSize = Size(
+      final contentSize = Size(
         imageInfo.image.width.toDouble(),
         imageInfo.image.height.toDouble(),
       );
-      if (mounted && _resolvedImageSize != imageSize) {
-        setState(() => _resolvedImageSize = imageSize);
+      if (mounted && _resolvedContentSize != contentSize) {
+        setState(() => _resolvedContentSize = contentSize);
       }
     }, onError: (error, stackTrace) => stream.removeListener(listener));
     stream.addListener(listener);
@@ -189,19 +189,19 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   void _updatePointerCount(int change) {
     _activePointerCount = math.max(0, _activePointerCount + change);
     widget.onMultiTouchChanged?.call(_activePointerCount > 1);
-    if (_activePointerCount == 0 && _imageGestureActive) {
+    if (_activePointerCount == 0 && _contentGestureActive) {
       _scheduleTransformSettle();
     }
   }
 
-  Rect get _containedImageRect {
-    final imageSize = widget.imageSize ?? _resolvedImageSize;
-    if (imageSize == null || _viewportSize.isEmpty) {
+  Rect get _containedContentRect {
+    final contentSize = widget.contentSize ?? _resolvedContentSize;
+    if (contentSize == null || _viewportSize.isEmpty) {
       return Offset.zero & _viewportSize;
     }
     final size = Size(
-      imageSize.width * _containedScale,
-      imageSize.height * _containedScale,
+      contentSize.width * _containedScale,
+      contentSize.height * _containedScale,
     );
     return Offset(
           (_viewportSize.width - size.width) / 2,
@@ -211,15 +211,15 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
   }
 
   Offset _clampTranslation(Offset translation, double scale) {
-    final imageRect = _containedImageRect;
+    final contentRect = _containedContentRect;
     return Offset(
       translation.dx.clamp(
-        imageRect.right * (1 - scale),
-        imageRect.left * (1 - scale),
+        contentRect.right * (1 - scale),
+        contentRect.left * (1 - scale),
       ),
       translation.dy.clamp(
-        imageRect.bottom * (1 - scale),
-        imageRect.top * (1 - scale),
+        contentRect.bottom * (1 - scale),
+        contentRect.top * (1 - scale),
       ),
     );
   }
@@ -277,7 +277,7 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     _isTrackingRotation = false;
     _visualScale = 1;
     _lastRotationFocalPoint = details.localFocalPoint;
-    _imageGestureActive = true;
+    _contentGestureActive = true;
     _gestureStartTransform = Matrix4.copy(_transformationController.value);
     _gestureStartFocalPoint = details.localFocalPoint;
     _pageDragProgress = 0;
@@ -294,9 +294,9 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     if (details.pointerCount == 1 &&
         startScale > 1.01 &&
         (details.scale - 1).abs() < 0.01) {
-      final imageRect = _containedImageRect;
-      final minTranslationX = imageRect.right * (1 - startScale);
-      final maxTranslationX = imageRect.left * (1 - startScale);
+      final contentRect = _containedContentRect;
+      final minTranslationX = contentRect.right * (1 - startScale);
+      final maxTranslationX = contentRect.left * (1 - startScale);
       final horizontalDelta =
           details.localFocalPoint.dx - _gestureStartFocalPoint.dx;
       if ((horizontalDelta < 0 && startTranslation.x <= minTranslationX + 1) ||
@@ -385,7 +385,7 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     if (endedPageDrag) {
       _settleTimer?.cancel();
       _gestureGeneration++;
-      _imageGestureActive = false;
+      _contentGestureActive = false;
     } else {
       _scheduleTransformSettle();
     }
@@ -410,7 +410,7 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     final gestureGeneration = _gestureGeneration;
     _settleTimer = Timer(const Duration(milliseconds: 16), () {
       if (!mounted || gestureGeneration != _gestureGeneration) return;
-      _imageGestureActive = false;
+      _contentGestureActive = false;
       final current = Matrix4.copy(_transformationController.value);
       final scale = current.getMaxScaleOnAxis();
       final target = scale <= 1.01
@@ -443,11 +443,11 @@ class _CustomPhotoViewerState extends State<CustomPhotoViewer>
     return LayoutBuilder(
       builder: (context, constraints) {
         _viewportSize = constraints.biggest;
-        final imageSize = widget.imageSize ?? _resolvedImageSize;
-        if (imageSize != null) {
+        final contentSize = widget.contentSize ?? _resolvedContentSize;
+        if (contentSize != null) {
           _containedScale = math.min(
-            constraints.maxWidth / imageSize.width,
-            constraints.maxHeight / imageSize.height,
+            constraints.maxWidth / contentSize.width,
+            constraints.maxHeight / contentSize.height,
           );
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
