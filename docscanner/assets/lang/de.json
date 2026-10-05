@@ -30,7 +30,7 @@
       "cancel": "Auswahl aufheben",
       "duplicate": {
         "name": "Kopie von {name}",
-        "tooltip": "Dokument duplizieren",
+        "tooltip": "Duplizieren",
         "processing": "Dokument wird dupliziert",
         "error": "Dokument konnte nicht dupliziert werden"
       },

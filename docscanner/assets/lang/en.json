@@ -30,7 +30,7 @@
       "cancel": "Cancel selection",
       "duplicate": {
         "name": "Copy of {name}",
-        "tooltip": "Duplicate document",
+        "tooltip": "Duplicate",
         "processing": "Duplicating document",
         "error": "Could not duplicate document"
       },

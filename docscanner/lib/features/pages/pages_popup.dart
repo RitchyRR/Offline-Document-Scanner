@@ -115,7 +115,7 @@ class _ImagesScrollPreview extends StatelessWidget {
                     color: Theme.of(context).colorScheme.outlineVariant,
                   ),
                 ),
-                    ),
+              ),
             );
           }
           previewItems.add(
@@ -123,63 +123,63 @@ class _ImagesScrollPreview extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 12.0),
               child: Container(
                 decoration: BoxDecoration(boxShadow: [smallBoxShadow(context)]),
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: 160.0 * math.sqrt2,
-                        maxWidth: 160.0,
-                      ),
-                      child: AspectRatio(
-                        aspectRatio: imageRatios.length > index
-                            ? 1 / imageRatios[index]
-                            : math.sqrt1_2,
-                        child: Stack(
-                          fit: StackFit.passthrough,
-                          children: [
-                            Material(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: 160.0 * math.sqrt2,
+                    maxWidth: 160.0,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: imageRatios.length > index
+                        ? 1 / imageRatios[index]
+                        : math.sqrt1_2,
+                    child: Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        Material(
                           color: Theme.of(context).colorScheme.surfaceBright,
-                            ),
-                            if (imagePath.isNotEmpty)
-                              AnimatedSwitcher(
-                                duration: Duration(milliseconds: 200),
-                                child: SizedBox.expand(
+                        ),
+                        if (imagePath.isNotEmpty)
+                          AnimatedSwitcher(
+                            duration: Duration(milliseconds: 200),
+                            child: SizedBox.expand(
                               child: imagePath.toLowerCase().endsWith(".pdf")
-                                      ? _PdfPopupPreview(path: imagePath)
-                                      : Image.file(
-                                          File(imagePath),
-                                          fit: BoxFit.cover,
-                                          key: ValueKey(imagePath),
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Material(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.surfaceBright,
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                  ),
-                                                );
-                                              },
-                                        ),
-                                ),
-                              ),
+                                  ? _PdfPopupPreview(path: imagePath)
+                                  : Image.file(
+                                      File(imagePath),
+                                      fit: BoxFit.cover,
+                                      key: ValueKey(imagePath),
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Material(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.surfaceBright,
+                                              child: const Icon(
+                                                Icons.broken_image,
+                                              ),
+                                            );
+                                          },
+                                    ),
+                            ),
+                          ),
                         if (loadingImages.length > index &&
                             loadingImages[index])
-                              Positioned.fill(
-                                child: Material(
+                          Positioned.fill(
+                            child: Material(
                               color: Theme.of(
                                 context,
                               ).colorScheme.surfaceContainerHigh.withAlpha(150),
-                                ),
-                              ),
-                            if (loadingImages.length <= index ||
-                                imagePath.isEmpty ||
-                                loadingImages[index])
-                              IndicatorProcessingImage(),
-                          ],
-                        ),
-                      ),
+                            ),
+                          ),
+                        if (loadingImages.length <= index ||
+                            imagePath.isEmpty ||
+                            loadingImages[index])
+                          IndicatorProcessingImage(),
+                      ],
                     ),
                   ),
+                ),
+              ),
             ),
           );
         }
@@ -211,11 +211,7 @@ class _PopupTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          color: Theme.of(context).colorScheme.onSurface,
-          size: 30,
-        ),
+        Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 30),
         const SizedBox(width: 12),
         Flexible(child: Text(text)),
       ],
@@ -1235,7 +1231,7 @@ Future<bool> showMergeDocumentsConfirmation(
         context: callContext,
         builder: (context) => AlertDialog(
           title: _PopupTitle(
-            icon: Icons.merge_type,
+            icon: Icons.unfold_less,
             text: tr(
               "documents.selection.merge.title",
               namedArgs: {"selectedCount": "${docIndexes.length}"},
@@ -1269,7 +1265,7 @@ Future<bool> showMergeDocumentsConfirmation(
               children: [
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.merge_type),
+                  icon: const Icon(Icons.unfold_less),
                   label: Text(tr("documents.selection.merge.confirm")),
                 ),
                 const SizedBox(height: 8),
