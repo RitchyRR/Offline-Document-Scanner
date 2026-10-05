@@ -178,6 +178,47 @@ class _DocumentsHomeState extends State<DocumentsHome>
     if (completed && mounted) _cancelSelectMode();
   }
 
+  Future<void> _mergeSelectedDocuments() async {
+    if (_selectedDocs.length < 2 || !mounted) return;
+    final selectedDocs = List<int>.from(_selectedDocs);
+    final confirmed = await showMergeDocumentsConfirmation(context, selectedDocs);
+    if (!confirmed || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(tr("documents.selection.merge.processing")),
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+      ),
+    );
+    try {
+      await g.filesHelper.mergeDocuments(selectedDocs);
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        _cancelSelectMode();
+        await _loadDocsDisplay();
+      }
+    } catch (error, stackTrace) {
+      dev.log("Error, mergeSelectedDocuments: $error", stackTrace: stackTrace);
+      messenger.hideCurrentSnackBar();
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(tr("documents.selection.merge.error"))),
+        );
+      }
+    }
+  }
+
   bool _matchesSearchQuery(String value, String query) {
     final normalizedValue = value.toLowerCase().trim();
     final normalizedQuery = query.toLowerCase().trim();
@@ -1557,6 +1598,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (_selectedDocs.length >= 2) ...[
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        heroTag: "selectionMergeDocuments",
+                        onPressed: _mergeSelectedDocuments,
+                        tooltip: tr("documents.selection.merge.confirm"),
+                        child: const Icon(Icons.merge_type),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   SizedBox(
                     width: 40,
                     height: 40,

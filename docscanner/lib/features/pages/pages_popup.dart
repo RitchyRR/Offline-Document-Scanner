@@ -976,18 +976,35 @@ Future<bool> showDocumentsPopup(
         final canExportPdf =
             allImagesLoaded && allImagesCompressed && allDocumentsUnlocked();
         return AlertDialog(
-          title: Text(
-            type == PopUpType.delete
-                ? tr(
-                    "documents.selection.delete.title",
-                    namedArgs: {"selectedCount": "${docIndexes.length}"},
-                  )
-                : tr(
-                    type == PopUpType.save
-                        ? "popup.pagesPopup.documentsPopup.save.title"
-                        : "popup.pagesPopup.documentsPopup.share.title",
-                    namedArgs: {"documentsCount": "${docIndexes.length}"},
-                  ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                switch (type) {
+                  PopUpType.delete => Icons.delete,
+                  PopUpType.save => Icons.save,
+                  PopUpType.share => Icons.share,
+                },
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  type == PopUpType.delete
+                      ? tr(
+                          "documents.selection.delete.title",
+                          namedArgs: {"selectedCount": "${docIndexes.length}"},
+                        )
+                      : tr(
+                          type == PopUpType.save
+                              ? "popup.pagesPopup.documentsPopup.save.title"
+                              : "popup.pagesPopup.documentsPopup.share.title",
+                          namedArgs: {"documentsCount": "${docIndexes.length}"},
+                        ),
+                ),
+              ),
+            ],
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -1193,6 +1210,100 @@ Future<bool> showDocumentsPopup(
       break;
   }
   return true;
+}
+
+Future<bool> showMergeDocumentsConfirmation(
+  BuildContext callContext,
+  List<int> docIndexes,
+) async {
+  final thumbnailPaths = <String>[];
+  final loadingImages = <bool>[];
+  final imageRatios = <double>[];
+  final separatorIndexes = <int>{};
+
+  for (final docIndex in docIndexes) {
+    final (paths, pageCount) = await g.filesHelper.getPagesThumbnails(
+      docIndex,
+      fullSized: false,
+    );
+    if (thumbnailPaths.isNotEmpty) separatorIndexes.add(thumbnailPaths.length);
+    thumbnailPaths.addAll(paths);
+    loadingImages.addAll(
+      await _loadLoadingImages(
+        docIndex,
+        const [],
+        paths,
+        supressWarnings: true,
+      ),
+    );
+    imageRatios.addAll(await _loadImageRatios(docIndex, const [], pageCount));
+  }
+  if (!callContext.mounted) return false;
+
+  return await showDialog<bool>(
+        context: callContext,
+        builder: (context) => AlertDialog(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.merge_type,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 30,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  tr(
+                    "documents.selection.merge.title",
+                    namedArgs: {"selectedCount": "${docIndexes.length}"},
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ImagesScrollPreview(
+                  imagePaths: thumbnailPaths,
+                  loadingImages: loadingImages,
+                  imageRatios: imageRatios,
+                  separatorIndexes: separatorIndexes,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tr(
+                    "documents.selection.merge.text",
+                    namedArgs: {"selectedCount": "${docIndexes.length}"},
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.merge_type),
+                  label: Text(tr("documents.selection.merge.confirm")),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr("popup.cancel")),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ) ??
+      false;
 }
 
 Future<List<double>> _loadImageRatios(

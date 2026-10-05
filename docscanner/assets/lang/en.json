@@ -31,6 +31,13 @@
       "delete": {
         "title": "Delete documents",
         "text": "Do you want to delete the {selectedCount} selected documents?"
+      },
+      "merge": {
+        "title": "Combine documents",
+        "text": "The pages from the {selectedCount} selected documents will be combined into a new document. The originals will be kept.",
+        "confirm": "Combine",
+        "processing": "Combining documents",
+        "error": "Could not merge the documents"
       }
     },
     "views": {

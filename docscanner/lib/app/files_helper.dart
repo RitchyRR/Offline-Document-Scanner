@@ -1045,6 +1045,97 @@ class FilesHelper {
     return (docIndex, firstPageIndex!);
   }
 
+  Future<int> mergeDocuments(List<int> docIndexes) async {
+    if (docIndexes.length < 2) {
+      throw ArgumentError.value(
+        docIndexes.length,
+        "docIndexes.length",
+        "At least two documents are required",
+      );
+    }
+    await imageProcessingManager.awaitAllIsolates();
+
+    final orderedDocIndexes = [...docIndexes]..sort();
+    final sourceNames = <String>[];
+    var totalPageCount = 0;
+    for (final docIndex in orderedDocIndexes) {
+      final pageCount = await getPagesCount(docIndex);
+      if (pageCount == 0) {
+        throw StateError("Cannot merge empty document $docIndex");
+      }
+      totalPageCount += pageCount;
+      sourceNames.add(
+        await g.metadataHelper.readDocName(docIndex) ??
+            tr("documents.docIndex", namedArgs: {"docIndex": "${docIndex + 1}"}),
+      );
+    }
+
+    final (mergedDocIndex, _) = await createNewDocument(totalPageCount);
+    try {
+      var targetPageIndex = 0;
+      for (final docIndex in orderedDocIndexes) {
+        final pageCount = await getPagesCount(docIndex);
+        for (var sourcePageIndex = 0;
+            sourcePageIndex < pageCount;
+            sourcePageIndex++) {
+          final sourcePath = await getPagePath(
+            docIndex,
+            sourcePageIndex,
+            supressWarnings: true,
+          );
+          final targetPath = await getPagePath(
+            mergedDocIndex,
+            targetPageIndex,
+            supressWarnings: true,
+          );
+          await for (final entity in Directory(
+            sourcePath,
+          ).list(recursive: true, followLinks: false)) {
+            final relativePath = entity.path.substring(sourcePath.length + 1);
+            final targetEntityPath = "$targetPath/$relativePath";
+            if (entity is Directory) {
+              await Directory(targetEntityPath).create(recursive: true);
+            } else if (entity is File) {
+              await Directory(
+                File(targetEntityPath).parent.path,
+              ).create(recursive: true);
+              await entity.copy(targetEntityPath);
+            }
+          }
+          await g.metadataHelper.writePageUnlocked(
+            mergedDocIndex,
+            targetPageIndex,
+            false,
+          );
+          targetPageIndex++;
+        }
+      }
+
+      await g.metadataHelper.writeDocName(
+        mergedDocIndex,
+        sourceNames.join(" + "),
+      );
+      await g.metadataHelper.writeDocDate(
+        mergedDocIndex,
+        DateTime.now().toString(),
+      );
+      await g.metadataHelper.writeDocUnlocked(mergedDocIndex, false);
+    } catch (_) {
+      final mergedDocPath = await getDocumentPath(
+        mergedDocIndex,
+        supressWarnings: true,
+      );
+      final mergedDocDirectory = Directory(mergedDocPath);
+      if (mergedDocDirectory.existsSync()) {
+        await mergedDocDirectory.delete(recursive: true);
+      }
+      rethrow;
+    }
+
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    return mergedDocIndex;
+  }
+
   Future<int> reserveNewPagesInDocment(
     int docIndex,
     int pageCount, {
