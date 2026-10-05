@@ -1056,7 +1056,6 @@ class FilesHelper {
     await imageProcessingManager.awaitAllIsolates();
 
     final orderedDocIndexes = [...docIndexes]..sort();
-    final sourceNames = <String>[];
     var totalPageCount = 0;
     for (final docIndex in orderedDocIndexes) {
       final pageCount = await getPagesCount(docIndex);
@@ -1064,10 +1063,6 @@ class FilesHelper {
         throw StateError("Cannot merge empty document $docIndex");
       }
       totalPageCount += pageCount;
-      sourceNames.add(
-        await g.metadataHelper.readDocName(docIndex) ??
-            tr("documents.docIndex", namedArgs: {"docIndex": "${docIndex + 1}"}),
-      );
     }
 
     final (mergedDocIndex, _) = await createNewDocument(totalPageCount);
@@ -1078,30 +1073,12 @@ class FilesHelper {
         for (var sourcePageIndex = 0;
             sourcePageIndex < pageCount;
             sourcePageIndex++) {
-          final sourcePath = await getPagePath(
+          await _copyPageContents(
             docIndex,
             sourcePageIndex,
-            supressWarnings: true,
-          );
-          final targetPath = await getPagePath(
             mergedDocIndex,
             targetPageIndex,
-            supressWarnings: true,
           );
-          await for (final entity in Directory(
-            sourcePath,
-          ).list(recursive: true, followLinks: false)) {
-            final relativePath = entity.path.substring(sourcePath.length + 1);
-            final targetEntityPath = "$targetPath/$relativePath";
-            if (entity is Directory) {
-              await Directory(targetEntityPath).create(recursive: true);
-            } else if (entity is File) {
-              await Directory(
-                File(targetEntityPath).parent.path,
-              ).create(recursive: true);
-              await entity.copy(targetEntityPath);
-            }
-          }
           await g.metadataHelper.writePageUnlocked(
             mergedDocIndex,
             targetPageIndex,
@@ -1113,7 +1090,7 @@ class FilesHelper {
 
       await g.metadataHelper.writeDocName(
         mergedDocIndex,
-        sourceNames.join(" + "),
+        await _mergedDocumentsBaseName(orderedDocIndexes),
       );
       await g.metadataHelper.writeDocDate(
         mergedDocIndex,
@@ -1134,6 +1111,96 @@ class FilesHelper {
 
     globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
     return mergedDocIndex;
+  }
+
+  Future<int> duplicateDocument(int docIndex) async {
+    await imageProcessingManager.awaitAllIsolates();
+    final pageCount = await getPagesCount(docIndex);
+    if (pageCount == 0) {
+      throw StateError("Cannot duplicate empty document $docIndex");
+    }
+
+    final documentNumber = tr(
+      "documents.docIndex",
+      namedArgs: {"docIndex": "${docIndex + 1}"},
+    );
+    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+    final sourceName = customName == null ||
+            customName.isEmpty ||
+            customName == documentNumber
+        ? documentNumber
+        : customName;
+    final (duplicateDocIndex, _) = await createNewDocument(pageCount);
+    try {
+      for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+        await _copyPageContents(
+          docIndex,
+          pageIndex,
+          duplicateDocIndex,
+          pageIndex,
+        );
+        await g.metadataHelper.writePageUnlocked(
+          duplicateDocIndex,
+          pageIndex,
+          false,
+        );
+      }
+
+      await g.metadataHelper.writeDocName(
+        duplicateDocIndex,
+        tr("documents.selection.duplicate.name", namedArgs: {"name": sourceName}),
+      );
+      await g.metadataHelper.writeDocDate(
+        duplicateDocIndex,
+        DateTime.now().toString(),
+      );
+      await g.metadataHelper.writeDocUnlocked(duplicateDocIndex, false);
+    } catch (_) {
+      final duplicateDocPath = await getDocumentPath(
+        duplicateDocIndex,
+        supressWarnings: true,
+      );
+      final duplicateDocDirectory = Directory(duplicateDocPath);
+      if (duplicateDocDirectory.existsSync()) {
+        await duplicateDocDirectory.delete(recursive: true);
+      }
+      rethrow;
+    }
+
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+    return duplicateDocIndex;
+  }
+
+  Future<void> _copyPageContents(
+    int sourceDocIndex,
+    int sourcePageIndex,
+    int targetDocIndex,
+    int targetPageIndex,
+  ) async {
+    final sourcePath = await getPagePath(
+      sourceDocIndex,
+      sourcePageIndex,
+      supressWarnings: true,
+    );
+    final targetPath = await getPagePath(
+      targetDocIndex,
+      targetPageIndex,
+      supressWarnings: true,
+    );
+    await for (final entity in Directory(
+      sourcePath,
+    ).list(recursive: true, followLinks: false)) {
+      final relativePath = entity.path.substring(sourcePath.length + 1);
+      final targetEntityPath = "$targetPath/$relativePath";
+      if (entity is Directory) {
+        await Directory(targetEntityPath).create(recursive: true);
+      } else if (entity is File) {
+        await Directory(File(targetEntityPath).parent.path).create(
+          recursive: true,
+        );
+        await entity.copy(targetEntityPath);
+      }
+    }
   }
 
   Future<int> reserveNewPagesInDocment(
@@ -2404,18 +2471,23 @@ class FilesHelper {
   Future<String> _generateMergedDocumentsFileName(
     List<int> docIndexes,
   ) async {
+    return _safeExportFileName(
+      "${await _mergedDocumentsBaseName(docIndexes)}.pdf",
+    );
+  }
+
+  Future<String> _mergedDocumentsBaseName(List<int> docIndexes) async {
     final documentNames = <String>[];
-    for (final docIndex in docIndexes) {
+    for (final docIndex in [...docIndexes]..sort()) {
       final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
       final documentName = customName == null || customName.isEmpty
           ? "${docIndex + 1}"
           : "${docIndex + 1} ($customName)";
       documentNames.add(documentName);
     }
-    return _safeExportFileName(
-      "${tr("export.mergedPdfFileName", namedArgs: {
-        "documents": documentNames.join(", "),
-      })}.pdf",
+    return tr(
+      "export.mergedPdfFileName",
+      namedArgs: {"documents": documentNames.join(", ")},
     );
   }
 
