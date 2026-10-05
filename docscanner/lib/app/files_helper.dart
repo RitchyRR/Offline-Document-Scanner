@@ -1120,16 +1120,7 @@ class FilesHelper {
       throw StateError("Cannot duplicate empty document $docIndex");
     }
 
-    final documentNumber = tr(
-      "documents.docIndex",
-      namedArgs: {"docIndex": "${docIndex + 1}"},
-    );
-    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
-    final sourceName = customName == null ||
-            customName.isEmpty ||
-            customName == documentNumber
-        ? documentNumber
-        : customName;
+    final sourceName = await _documentExportName(docIndex);
     final (duplicateDocIndex, _) = await createNewDocument(pageCount);
     try {
       for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
@@ -2465,7 +2456,7 @@ class FilesHelper {
         customName == documentNumber) {
       return documentNumber;
     }
-    return "$documentNumber ($customName)";
+    return customName;
   }
 
   Future<String> _generateMergedDocumentsFileName(
@@ -2479,11 +2470,7 @@ class FilesHelper {
   Future<String> _mergedDocumentsBaseName(List<int> docIndexes) async {
     final documentNames = <String>[];
     for (final docIndex in [...docIndexes]..sort()) {
-      final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
-      final documentName = customName == null || customName.isEmpty
-          ? "${docIndex + 1}"
-          : "${docIndex + 1} ($customName)";
-      documentNames.add(documentName);
+      documentNames.add(await _documentExportName(docIndex));
     }
     return tr(
       "export.mergedPdfFileName",
