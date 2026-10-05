@@ -34,7 +34,7 @@
       },
       "merge": {
         "title": "Dokumente zusammenfügen",
-        "text": "Die Seiten der {selectedCount} ausgewählten Dokumente werden zu einem neuen Dokument zusammengefügt. Die Originale bleiben erhalten.",
+        "text": "Die {selectedCount} ausgewählten Dokumente werden zu einem neuen Dokument zusammengefügt. \nDie Originale bleiben erhalten.",
         "confirm": "Zusammenfügen",
         "processing": "Dokumente werden zusammengefügt",
         "error": "Dokumente konnten nicht zusammengeführt werden"

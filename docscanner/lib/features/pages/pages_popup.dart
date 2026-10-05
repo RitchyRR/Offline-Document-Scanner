@@ -194,6 +194,35 @@ class _ImagesScrollPreview extends StatelessWidget {
   }
 }
 
+IconData _popupIcon(PopUpType type) => switch (type) {
+  PopUpType.delete => Icons.delete,
+  PopUpType.save => Icons.save,
+  PopUpType.share => Icons.share,
+};
+
+class _PopupTitle extends StatelessWidget {
+  const _PopupTitle({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          color: Theme.of(context).colorScheme.onSurface,
+          size: 30,
+        ),
+        const SizedBox(width: 12),
+        Flexible(child: Text(text)),
+      ],
+    );
+  }
+}
+
 Future<void> showChangingThumbnailsSnackbar(
   BuildContext context,
   List<Future> saveThumbnailFutures,
@@ -507,18 +536,7 @@ Future<bool> showPagesPopup(
                 }
               }
 
-              IconData icon;
-              switch (type) {
-                case PopUpType.share:
-                  icon = Icons.share;
-                  break;
-                case PopUpType.save:
-                  icon = Icons.save;
-                  break;
-                case PopUpType.delete:
-                  icon = Icons.delete;
-                  break;
-              }
+              final icon = _popupIcon(type);
               bool dpiLocked =
                   !g.proUnlocked &&
                   !docUnlocked &&
@@ -532,18 +550,7 @@ Future<bool> showPagesPopup(
                   lockAll || (!isSinglePage && !(docUnlocked || g.proUnlocked));
 
               return AlertDialog(
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icon,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 30,
-                    ),
-                    SizedBox(width: 12.0),
-                    Flexible(child: Text(title)),
-                  ],
-                ),
+                title: _PopupTitle(icon: icon, text: title),
                 actions: [
                   _ImagesScrollPreview(
                     imagePaths: thumbnailPaths,
@@ -976,35 +983,19 @@ Future<bool> showDocumentsPopup(
         final canExportPdf =
             allImagesLoaded && allImagesCompressed && allDocumentsUnlocked();
         return AlertDialog(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                switch (type) {
-                  PopUpType.delete => Icons.delete,
-                  PopUpType.save => Icons.save,
-                  PopUpType.share => Icons.share,
-                },
-                color: Theme.of(context).colorScheme.onSurface,
-                size: 30,
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  type == PopUpType.delete
-                      ? tr(
-                          "documents.selection.delete.title",
-                          namedArgs: {"selectedCount": "${docIndexes.length}"},
-                        )
-                      : tr(
-                          type == PopUpType.save
-                              ? "popup.pagesPopup.documentsPopup.save.title"
-                              : "popup.pagesPopup.documentsPopup.share.title",
-                          namedArgs: {"documentsCount": "${docIndexes.length}"},
-                        ),
-                ),
-              ),
-            ],
+          title: _PopupTitle(
+            icon: _popupIcon(type),
+            text: type == PopUpType.delete
+                ? tr(
+                    "documents.selection.delete.title",
+                    namedArgs: {"selectedCount": "${docIndexes.length}"},
+                  )
+                : tr(
+                    type == PopUpType.save
+                        ? "popup.pagesPopup.documentsPopup.save.title"
+                        : "popup.pagesPopup.documentsPopup.share.title",
+                    namedArgs: {"documentsCount": "${docIndexes.length}"},
+                  ),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -1243,24 +1234,12 @@ Future<bool> showMergeDocumentsConfirmation(
   return await showDialog<bool>(
         context: callContext,
         builder: (context) => AlertDialog(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.merge_type,
-                color: Theme.of(context).colorScheme.onSurface,
-                size: 30,
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  tr(
-                    "documents.selection.merge.title",
-                    namedArgs: {"selectedCount": "${docIndexes.length}"},
-                  ),
-                ),
-              ),
-            ],
+          title: _PopupTitle(
+            icon: Icons.merge_type,
+            text: tr(
+              "documents.selection.merge.title",
+              namedArgs: {"selectedCount": "${docIndexes.length}"},
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
