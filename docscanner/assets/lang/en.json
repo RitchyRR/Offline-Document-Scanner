@@ -26,8 +26,8 @@
     "addDoc": "Add a new Document",
     "views": {
       "standardView": "Standard",
-      "compactView": "Compact View",
-      "spaciousView": "Spacious View"
+      "compactView": "Compact",
+      "spaciousView": "Spacious"
     },
     "menu": {
       "pro1": "PRO Features",

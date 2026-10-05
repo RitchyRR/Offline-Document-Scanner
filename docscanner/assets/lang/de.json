@@ -2,7 +2,7 @@
   "appName": "Offline-Dokumentenscanner",
   "settings": {
     "title": "Einstellungen",
-    "documentView": "Dokumenten-Ansicht",
+    "documentView": "Dokumentenansicht",
     "language": "Sprache",
     "languages": {
       "systemGerman": "Standard (Deutsch)",
@@ -26,8 +26,8 @@
     "addDoc": "Neues Dokument hinzufügen",
     "views": {
       "standardView": "Standard",
-      "compactView": "Kompakte Ansicht",
-      "spaciousView": "Geräumige Ansicht"
+      "compactView": "Kompakt",
+      "spaciousView": "Geräumig"
     },
     "menu": {
       "pro1": "PRO-Funktionen",

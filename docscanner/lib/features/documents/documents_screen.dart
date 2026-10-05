@@ -712,6 +712,86 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
+  Widget _buildDocumentActions(
+    BuildContext context,
+    int docIndex, {
+    required bool compactView,
+    required bool standardView,
+  }) {
+    if (compactView) {
+      return PopupMenuButton<PopUpType>(
+        tooltip: tr("documents.card.actions"),
+        icon: const Icon(Icons.more_vert),
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: PopUpType.save,
+            onTap: () => showPagesPopup(context, [], PopUpType.save, docIndex),
+            child: Row(
+              children: [
+                const Icon(Icons.save),
+                const SizedBox(width: 12),
+                Text(tr("fabs.save")),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: PopUpType.share,
+            onTap: () => showPagesPopup(context, [], PopUpType.share, docIndex),
+            child: Row(
+              children: [
+                const Icon(Icons.share),
+                const SizedBox(width: 12),
+                Text(tr("fabs.share")),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: PopUpType.delete,
+            onTap: () =>
+                showPagesPopup(context, [], PopUpType.delete, docIndex),
+            child: Row(
+              children: [
+                const Icon(Icons.delete),
+                const SizedBox(width: 12),
+                Text(tr("fabs.delete")),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          visualDensity: standardView ? VisualDensity.compact : null,
+          padding: standardView ? const EdgeInsets.all(4) : null,
+          onPressed: () =>
+              showPagesPopup(context, [], PopUpType.save, docIndex),
+          icon: const Icon(Icons.save),
+          tooltip: tr("fabs.save"),
+        ),
+        IconButton(
+          visualDensity: standardView ? VisualDensity.compact : null,
+          padding: standardView ? const EdgeInsets.all(4) : null,
+          onPressed: () =>
+              showPagesPopup(context, [], PopUpType.share, docIndex),
+          icon: const Icon(Icons.share),
+          tooltip: tr("fabs.share"),
+        ),
+        IconButton(
+          visualDensity: standardView ? VisualDensity.compact : null,
+          padding: standardView ? const EdgeInsets.all(4) : null,
+          onPressed: () =>
+              showPagesPopup(context, [], PopUpType.delete, docIndex),
+          icon: const Icon(Icons.delete),
+          tooltip: tr("fabs.delete"),
+        ),
+      ],
+    );
+  }
+
   // Documents
   @override
   Widget build(BuildContext context) {
@@ -965,6 +1045,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                     DocumentsView.spacious => 160.0 * math.sqrt2,
                     DocumentsView.compact => 88.0,
                   };
+                  final double thumbnailSlotWidth =
+                      documentsView == DocumentsView.spacious
+                      ? 184
+                      : cardHeight;
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -985,7 +1069,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                 children: [
                                   // Document Info
                                   if (compactView)
-                                    Expanded(
+                                    Flexible(
                                       child: InkWell(
                                         borderRadius: const BorderRadius.all(
                                           Radius.circular(12.0),
@@ -1138,225 +1222,127 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         ),
                                       ),
                                     ),
-                                  // Button Column
-                                  if (compactView)
-                                    PopupMenuButton<PopUpType>(
-                                      tooltip: tr("documents.card.actions"),
-                                      icon: const Icon(Icons.more_vert),
-                                      itemBuilder: (context) => [
-                                        PopupMenuItem(
-                                          value: PopUpType.save,
-                                          onTap: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.save,
-                                            docIndex,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.save),
-                                              const SizedBox(width: 12),
-                                              Text(tr("fabs.save")),
-                                            ],
-                                          ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: PopUpType.share,
-                                          onTap: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.share,
-                                            docIndex,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.share),
-                                              const SizedBox(width: 12),
-                                              Text(tr("fabs.share")),
-                                            ],
-                                          ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: PopUpType.delete,
-                                          onTap: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.delete,
-                                            docIndex,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.delete),
-                                              const SizedBox(width: 12),
-                                              Text(tr("fabs.delete")),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        // Save
-                                        IconButton(
-                                          visualDensity: standardView
-                                              ? VisualDensity.compact
-                                              : null,
-                                          padding: standardView
-                                              ? EdgeInsets.all(4)
-                                              : null,
-                                          onPressed: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.save,
-                                            docIndex,
-                                          ),
-                                          icon: Icon(Icons.save),
-                                          tooltip: tr("fabs.save"),
-                                        ),
-                                        // Share
-                                        IconButton(
-                                          visualDensity: standardView
-                                              ? VisualDensity.compact
-                                              : null,
-                                          padding: standardView
-                                              ? EdgeInsets.all(4)
-                                              : null,
-                                          onPressed: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.share,
-                                            docIndex,
-                                          ),
-                                          icon: Icon(Icons.share),
-                                          tooltip: tr("fabs.share"),
-                                        ),
-                                        // Delete
-                                        IconButton(
-                                          visualDensity: standardView
-                                              ? VisualDensity.compact
-                                              : null,
-                                          padding: standardView
-                                              ? EdgeInsets.all(4)
-                                              : null,
-                                          onPressed: () => showPagesPopup(
-                                            context,
-                                            [],
-                                            PopUpType.delete,
-                                            docIndex,
-                                          ),
-                                          icon: Icon(Icons.delete),
-                                          tooltip: tr("fabs.delete"),
-                                        ),
-                                      ],
-                                    ),
+                                  // Keep actions left of the thumbnail in a fixed position.
+                                  _buildDocumentActions(
+                                    context,
+                                    docIndex,
+                                    compactView: compactView,
+                                    standardView: standardView,
+                                  ),
                                 ],
                               ),
                             ),
                             // Thumbnail (Right Side)
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    documentsView == DocumentsView.spacious
-                                    ? 184
-                                    : cardHeight,
-                              ), // space for creation date
-                              child: AspectRatio(
-                                aspectRatio: _thumbnailRatios.length > docIndex
-                                    ? _thumbnailRatios[docIndex]
-                                    : math.sqrt1_2,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    boxShadow: [bigBoxShadow(context)],
+                            SizedBox(
+                              width: compactView ? thumbnailSlotWidth : null,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                widthFactor: compactView ? null : 1,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: thumbnailSlotWidth,
                                   ),
-                                  child: Stack(
-                                    fit: StackFit.passthrough,
-                                    children: [
-                                      // BG
-                                      Material(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceBright,
+                                  child: AspectRatio(
+                                    aspectRatio:
+                                        _thumbnailRatios.length > docIndex
+                                        ? _thumbnailRatios[docIndex]
+                                        : math.sqrt1_2,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        boxShadow: [bigBoxShadow(context)],
                                       ),
-                                      // Thumbnail
-                                      if (_docThumbnails.length > docIndex &&
-                                          _docThumbnails[docIndex].isNotEmpty)
-                                        AnimatedSwitcher(
-                                          duration: Duration(milliseconds: 200),
-                                          child: SizedBox.expand(
-                                            child:
-                                                _docThumbnails[docIndex]
-                                                    .toLowerCase()
-                                                    .endsWith(".pdf")
-                                                ? PdfPageView(
-                                                    path:
-                                                        _docThumbnails[docIndex],
-                                                    cacheRevision: _pdfRevision,
-                                                  )
-                                                : Image.file(
-                                                    File(
-                                                      _docThumbnails[docIndex],
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                    key: ValueKey(
-                                                      _docThumbnails[docIndex],
-                                                    ),
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) {
-                                                          return Material(
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
+                                      child: Stack(
+                                        fit: StackFit.passthrough,
+                                        children: [
+                                          // BG
+                                          Material(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.surfaceBright,
+                                          ),
+                                          // Thumbnail
+                                          if (_docThumbnails.length >
+                                                  docIndex &&
+                                              _docThumbnails[docIndex]
+                                                  .isNotEmpty)
+                                            AnimatedSwitcher(
+                                              duration: Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              child: SizedBox.expand(
+                                                child:
+                                                    _docThumbnails[docIndex]
+                                                        .toLowerCase()
+                                                        .endsWith(".pdf")
+                                                    ? PdfPageView(
+                                                        path:
+                                                            _docThumbnails[docIndex],
+                                                        cacheRevision:
+                                                            _pdfRevision,
+                                                      )
+                                                    : Image.file(
+                                                        File(
+                                                          _docThumbnails[docIndex],
+                                                        ),
+                                                        fit: BoxFit.cover,
+                                                        key: ValueKey(
+                                                          _docThumbnails[docIndex],
+                                                        ),
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return Material(
+                                                                color: Theme.of(context)
                                                                     .colorScheme
                                                                     .surfaceBright,
-                                                            child: const Icon(
-                                                              Icons
-                                                                  .broken_image,
-                                                            ),
-                                                          );
-                                                        },
-                                                  ),
+                                                                child: const Icon(
+                                                                  Icons
+                                                                      .broken_image,
+                                                                ),
+                                                              );
+                                                            },
+                                                      ),
+                                              ),
+                                            ),
+                                          // Loading Indicator
+                                          if (isLoading)
+                                            Positioned.fill(
+                                              child: Material(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .surfaceContainerHigh
+                                                    .withAlpha(150),
+                                              ),
+                                            ),
+                                          if (_thumbnailRatios.length <=
+                                                  docIndex ||
+                                              _docThumbnails[docIndex]
+                                                  .isEmpty ||
+                                              isLoading)
+                                            IndicatorProcessingImage(),
+                                          Positioned.fill(
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                onTap: () =>
+                                                    _openDocument(docIndex),
+                                                onLongPress: () =>
+                                                    _openDocEditDialog(
+                                                      context,
+                                                      docIndex,
+                                                      displayDocIndex,
+                                                    ),
+                                                splashColor: Colors.black26,
+                                                highlightColor: Colors.black26,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      // Loading Indicator
-                                      if (isLoading)
-                                        Positioned.fill(
-                                          child: Material(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .surfaceContainerHigh
-                                                .withAlpha(150),
-                                          ),
-                                        ),
-                                      if (_thumbnailRatios.length <= docIndex ||
-                                          _docThumbnails[docIndex].isEmpty ||
-                                          isLoading)
-                                        IndicatorProcessingImage(),
-                                      Positioned.fill(
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            onTap: () =>
-                                                _openDocument(docIndex),
-                                            onLongPress: () =>
-                                                _openDocEditDialog(
-                                                  context,
-                                                  docIndex,
-                                                  displayDocIndex,
-                                                ),
-                                            splashColor: Colors.black26,
-                                            highlightColor: Colors.black26,
-                                          ),
-                                        ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),

@@ -133,6 +133,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     underline: const SizedBox.shrink(),
                     items: [
                       DropdownMenuItem(
+                        value: DocumentsView.compact,
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Text(
+                          tr("documents.views.compactView"),
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                      DropdownMenuItem(
                         value: DocumentsView.standard,
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
@@ -145,14 +153,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
                           tr("documents.views.spaciousView"),
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: DocumentsView.compact,
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: Text(
-                          tr("documents.views.compactView"),
                           textAlign: TextAlign.end,
                         ),
                       ),
