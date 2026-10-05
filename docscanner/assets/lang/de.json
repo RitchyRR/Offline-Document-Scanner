@@ -94,6 +94,17 @@
       "selected": "{selectedCount} Seiten ausgewählt",
       "cancelSelection": "Auswahl aufheben"
     },
+    "copy": {
+      "title": "In Dokument kopieren",
+      "target": "Zieldokument",
+      "textOne": "Die ausgewählte Seite wird am Ende des Zieldokuments eingefügt. Die Originalseite bleibt erhalten.",
+      "textMany": "Die {selectedCount} ausgewählten Seiten werden am Ende des Zieldokuments eingefügt. Die Originalseiten bleiben erhalten.",
+      "confirm": "Kopieren",
+      "processing": "{selectedCount} Seiten werden kopiert",
+      "toastOne": "Die Seite wurde in das Dokument {documentName} kopiert.",
+      "toastMany": "Die {selectedCount} Seiten wurden in das Dokument {documentName} kopiert.",
+      "error": "Seiten konnten nicht kopiert werden"
+    },
     "popup": {
       "move": "Seite verschieben zu",
       "reverseOrder": "Reihenfolge umkehren"

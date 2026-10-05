@@ -1361,6 +1361,118 @@ Future<bool> showDuplicateDocumentConfirmation(
       false;
 }
 
+Future<int?> showCopyPagesDialog(
+  BuildContext callContext,
+  int sourceDocIndex,
+  List<int> pageIndexes,
+) async {
+  final selectedPages = pageIndexes.toSet().toList()..sort();
+  final (thumbnailPaths, _) = await g.filesHelper.getPagesThumbnails(
+    sourceDocIndex,
+    pageIndexes: selectedPages,
+    fullSized: false,
+  );
+  final loadingImages = await _loadLoadingImages(
+    sourceDocIndex,
+    selectedPages,
+    thumbnailPaths,
+    supressWarnings: true,
+  );
+  final imageRatios = await _loadImageRatios(
+    sourceDocIndex,
+    selectedPages,
+    selectedPages.length,
+  );
+  final documentCount = await g.filesHelper.getDocumentsCount();
+  final deletedDocuments = await g.filesHelper.getMarkedDeletedDocs();
+  final targets = <(int, String)>[];
+  for (var docIndex = 0; docIndex < documentCount; docIndex++) {
+    if (docIndex == sourceDocIndex || deletedDocuments.contains(docIndex)) {
+      continue;
+    }
+    if (await g.filesHelper.getPagesCount(docIndex) == 0) continue;
+    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+    final documentName = customName == null || customName.isEmpty
+        ? tr("documents.docIndex", namedArgs: {"docIndex": "${docIndex + 1}"})
+        : customName;
+    targets.add((docIndex, documentName));
+  }
+  if (!callContext.mounted || targets.isEmpty) return null;
+
+  int? targetDocIndex;
+  return await showDialog<int>(
+    context: callContext,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setStateDialog) => AlertDialog(
+        title: _PopupTitle(
+          icon: Icons.drive_file_move,
+          text: tr("pages.copy.title"),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ImagesScrollPreview(
+                imagePaths: thumbnailPaths,
+                loadingImages: loadingImages,
+                imageRatios: imageRatios,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                decoration: InputDecoration(labelText: tr("pages.copy.target")),
+                initialValue: targetDocIndex,
+                isExpanded: true,
+                items: [
+                  for (final (docIndex, documentName) in targets)
+                    DropdownMenuItem(
+                      value: docIndex,
+                      child: Text(
+                        documentName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (docIndex) {
+                  setStateDialog(() => targetDocIndex = docIndex);
+                },
+              ),
+              const SizedBox(height: 12),
+              Text(
+                tr(
+                  selectedPages.length == 1
+                      ? "pages.copy.textOne"
+                      : "pages.copy.textMany",
+                  namedArgs: {"selectedCount": "${selectedPages.length}"},
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(tr("popup.cancel")),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: targetDocIndex == null
+                    ? null
+                    : () => Navigator.pop(context, targetDocIndex),
+                icon: const Icon(Icons.drive_file_move),
+                label: Text(tr("pages.copy.confirm")),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 Future<List<double>> _loadImageRatios(
   int docIndex,
   List<int> pageIndexes,

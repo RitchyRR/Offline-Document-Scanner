@@ -94,6 +94,17 @@
       "selected": "{selectedCount} Pages selected",
       "cancelSelection": "Cancel Selection"
     },
+    "copy": {
+      "title": "Copy to document",
+      "target": "Target document",
+      "textOne": "The selected page will be added to the end of the target document. The original page will be kept.",
+      "textMany": "The {selectedCount} selected pages will be added to the end of the target document. The original pages will be kept.",
+      "confirm": "Copy",
+      "processing": "Copying {selectedCount} pages",
+      "toastOne": "The page was copied to document {documentName}.",
+      "toastMany": "The {selectedCount} pages were copied to document {documentName}.",
+      "error": "Could not copy pages"
+    },
     "popup": {
       "move": "Move Page to",
       "reverseOrder": "Reverse Order"

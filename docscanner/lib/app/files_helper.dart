@@ -1162,6 +1162,87 @@ class FilesHelper {
     return duplicateDocIndex;
   }
 
+  Future<void> copyPagesToDocument(
+    int sourceDocIndex,
+    List<int> pageIndexes,
+    int targetDocIndex,
+  ) async {
+    if (sourceDocIndex == targetDocIndex) {
+      throw ArgumentError("Source and target documents must be different");
+    }
+    final selectedPages = pageIndexes.toSet().toList()..sort();
+    if (selectedPages.isEmpty) {
+      throw ArgumentError.value(pageIndexes, "pageIndexes", "Must not be empty");
+    }
+
+    await imageProcessingManager.awaitAllIsolates();
+
+    final sourcePageCount = await getPagesCount(sourceDocIndex);
+    final sourceDeletedPages = await getMarkedDeletedPages(sourceDocIndex);
+    for (final pageIndex in selectedPages) {
+      if (pageIndex < 0 ||
+          pageIndex >= sourcePageCount ||
+          sourceDeletedPages.contains(pageIndex)) {
+        throw RangeError("Page $pageIndex is not available to copy");
+      }
+    }
+
+    final deletedDocuments = await getMarkedDeletedDocs();
+    if (deletedDocuments.contains(targetDocIndex)) {
+      throw StateError("Target document $targetDocIndex is not available");
+    }
+    final initialTargetPageCount = await getPagesCount(targetDocIndex);
+    if (initialTargetPageCount == 0) {
+      throw StateError("Target document $targetDocIndex is not available");
+    }
+
+    final reservedTargetPageIndexes = <int>[];
+    try {
+      for (var i = 0; i < selectedPages.length; i++) {
+        final (_, reservedPageIndex) = await _reserveNewPage(targetDocIndex);
+        reservedTargetPageIndexes.add(reservedPageIndex);
+        final expectedPageIndex = initialTargetPageCount + i;
+        if (reservedPageIndex != expectedPageIndex) {
+          throw StateError(
+            "Expected target page $expectedPageIndex, got $reservedPageIndex",
+          );
+        }
+      }
+
+      for (final (copyIndex, sourcePageIndex) in selectedPages.indexed) {
+        final targetPageIndex = reservedTargetPageIndexes[copyIndex];
+        await _copyPageContents(
+          sourceDocIndex,
+          sourcePageIndex,
+          targetDocIndex,
+          targetPageIndex,
+        );
+        await g.metadataHelper.writePageUnlocked(
+          targetDocIndex,
+          targetPageIndex,
+          false,
+        );
+      }
+    } catch (_) {
+      for (final pageIndex in reservedTargetPageIndexes.reversed) {
+        final pageDirectory = Directory(
+          await getPagePath(
+            targetDocIndex,
+            pageIndex,
+            supressWarnings: true,
+          ),
+        );
+        if (pageDirectory.existsSync()) {
+          await pageDirectory.delete(recursive: true);
+        }
+      }
+      rethrow;
+    }
+
+    globalNotifier.triggerEvent(NotifierEvent.loadPagesThumbnails);
+    globalNotifier.triggerEvent(NotifierEvent.loadDocsThumbnails);
+  }
+
   Future<void> _copyPageContents(
     int sourceDocIndex,
     int sourcePageIndex,

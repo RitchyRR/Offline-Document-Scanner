@@ -79,6 +79,7 @@ class _PagesState extends State<Pages>
     super.initState();
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     _loadPagesThumbnails(onInit: true, supressWarnings: true);
+    _loadCopyTargets();
     _initPushToPreview();
     _initAsync();
     _loadGridView();
@@ -150,17 +151,21 @@ class _PagesState extends State<Pages>
       case NotifierEvent.loadPagesThumbnails:
         _pdfRevision++;
         _loadPagesThumbnails();
+        _loadCopyTargets();
+        break;
+      case NotifierEvent.loadDocsThumbnails:
+        _loadCopyTargets();
         break;
       case NotifierEvent.imagesDeleted:
         _deletedPages = await g.filesHelper.getMarkedDeletedPages(
           widget.docIndex,
         );
+        _loadCopyTargets();
         setState(() {});
         break;
       case NotifierEvent.setState:
         setState(() {});
         break;
-      default:
     }
   }
 
@@ -336,6 +341,8 @@ class _PagesState extends State<Pages>
 
   bool _selectMode = false;
   List<int> _selectedPages = [];
+  List<int> _copyTargetDocIndexes = [];
+  int _copyTargetLoadGeneration = 0;
   bool _zoomMode = false;
   static const double _zoomCanvasHorizontalInset = 15;
   static const double _pinchZoomActivationThreshold = 0.08;
@@ -778,6 +785,101 @@ class _PagesState extends State<Pages>
     Future.microtask(() {
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _loadCopyTargets() async {
+    final generation = ++_copyTargetLoadGeneration;
+    final docsCount = await g.filesHelper.getDocumentsCount();
+    final deletedDocs = await g.filesHelper.getMarkedDeletedDocs();
+    final targets = <int>[];
+    for (var docIndex = 0; docIndex < docsCount; docIndex++) {
+      if (docIndex == widget.docIndex || deletedDocs.contains(docIndex)) {
+        continue;
+      }
+      if (await g.filesHelper.getPagesCount(docIndex) > 0) {
+        targets.add(docIndex);
+      }
+    }
+    if (!mounted || generation != _copyTargetLoadGeneration) return;
+    setState(() => _copyTargetDocIndexes = targets);
+  }
+
+  Future<void> _copySelectedPages() async {
+    if (_selectedPages.isEmpty ||
+        _copyTargetDocIndexes.isEmpty ||
+        !mounted) {
+      return;
+    }
+    final selectedPages = List<int>.from(_selectedPages)..sort();
+    final targetDocIndex = await showCopyPagesDialog(
+      context,
+      widget.docIndex,
+      selectedPages,
+    );
+    if (targetDocIndex == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              tr(
+                "pages.copy.processing",
+                namedArgs: {"selectedCount": "${selectedPages.length}"},
+              ),
+            ),
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+      ),
+    );
+    try {
+      await g.filesHelper.copyPagesToDocument(
+        widget.docIndex,
+        selectedPages,
+        targetDocIndex,
+      );
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        final targetName =
+            (await g.metadataHelper.readDocName(targetDocIndex))?.trim();
+        final targetDocumentName =
+            targetName == null || targetName.isEmpty
+                ? tr(
+                    "documents.docIndex",
+                    namedArgs: {"docIndex": "${targetDocIndex + 1}"},
+                  )
+                : targetName;
+        await Fluttertoast.showToast(
+          msg: tr(
+            selectedPages.length == 1
+                ? "pages.copy.toastOne"
+                : "pages.copy.toastMany",
+            namedArgs: {
+              "selectedCount": "${selectedPages.length}",
+              "documentName": targetDocumentName,
+            },
+          ),
+        );
+        if (!mounted) return;
+        _cancelSelectMode();
+      }
+    } catch (error, stackTrace) {
+      dev.log("Error, copySelectedPages: $error", stackTrace: stackTrace);
+      messenger.hideCurrentSnackBar();
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(tr("pages.copy.error"))),
+        );
+      }
+    }
   }
 
   List<int> get _displayedPageIndexes => List<int>.generate(
@@ -1560,6 +1662,22 @@ class _PagesState extends State<Pages>
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: <Widget>[
+                          if (_copyTargetDocIndexes.isNotEmpty) ...[
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: FloatingActionButton(
+                                heroTag: "selectionCopyPages",
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                onPressed: _copySelectedPages,
+                                tooltip: tr("pages.copy.title"),
+                                child: const Icon(Icons.drive_file_move),
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
                           SizedBox(
                             width: 40,
                             height: 40,
