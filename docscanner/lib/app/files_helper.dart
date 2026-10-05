@@ -1556,12 +1556,13 @@ class FilesHelper {
         isTmpExternal = true;
         try {
           final bytes = await pdfFile.readAsBytes();
-          await FilePicker.saveFile(
+          final savedPath = await FilePicker.saveFile(
             fileName: fileName,
             type: FileType.custom,
             allowedExtensions: ["pdf"],
             bytes: bytes,
           );
+          if (savedPath == null) break;
         } finally {
           isTmpExternal = false;
         }
