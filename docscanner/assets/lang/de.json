@@ -25,6 +25,7 @@
     "docIndex": "Dokument {docIndex}",
     "addDoc": "Neues Dokument hinzufügen",
     "views": {
+      "standardView": "Standard",
       "compactView": "Kompakte Ansicht",
       "spaciousView": "Geräumige Ansicht"
     },
@@ -38,8 +39,10 @@
       "shareApp": "App weiterempfehlen"
     },
     "card": {
+      "actions": "Dokumentenaktionen",
       "date": "Erstellt: {creationDate}",
       "pagesCount": "Seiten: {pagesCount}",
+      "compactPagesCount": "{pagesCount} Seiten",
       "popup": {
         "title": "Dokument {docIndex}",
         "name": "Dokument benennen",

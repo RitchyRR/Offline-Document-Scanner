@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../app/app_globals.dart';
 import '../../app/app_runtime.dart';
 import '../../app/app_theme_mode.dart';
+import '../documents/documents_view.dart';
 import '../pro/pro_purchase.dart';
 import 'aspect_ratio_settings.dart';
 import 'default_thumbnail_filter.dart';
@@ -17,14 +18,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool? _compactDocumentsView;
+  DocumentsView? _documentsView;
   String _languageSelection = "system";
   bool _didInitializeLanguageSelection = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCompactDocumentsView();
+    _loadDocumentsView();
   }
 
   @override
@@ -70,20 +71,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _loadCompactDocumentsView() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadDocumentsView() async {
+    final view = await DocumentsView.load();
     if (!mounted) return;
     setState(() {
-      _compactDocumentsView = prefs.getBool("compactDocumentsView") ?? true;
+      _documentsView = view;
     });
   }
 
-  Future<void> _setCompactDocumentsView(bool compact) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("compactDocumentsView", compact);
+  Future<void> _setDocumentsView(DocumentsView view) async {
+    await view.save();
     if (!mounted) return;
     setState(() {
-      _compactDocumentsView = compact;
+      _documentsView = view;
     });
   }
 
@@ -121,36 +121,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.view_agenda_outlined),
             title: Text(tr("settings.documentView")),
-            trailing: _compactDocumentsView == null
+            trailing: _documentsView == null
                 ? const SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : DropdownButton<bool>(
-                    value: _compactDocumentsView,
+                : DropdownButton<DocumentsView>(
+                    value: _documentsView,
                     alignment: AlignmentDirectional.centerEnd,
                     underline: const SizedBox.shrink(),
                     items: [
                       DropdownMenuItem(
-                        value: true,
+                        value: DocumentsView.standard,
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
-                          tr("documents.views.compactView"),
+                          tr("documents.views.standardView"),
                           textAlign: TextAlign.end,
                         ),
                       ),
                       DropdownMenuItem(
-                        value: false,
+                        value: DocumentsView.spacious,
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
                           tr("documents.views.spaciousView"),
                           textAlign: TextAlign.end,
                         ),
                       ),
+                      DropdownMenuItem(
+                        value: DocumentsView.compact,
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Text(
+                          tr("documents.views.compactView"),
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
                     ],
                     onChanged: (value) {
-                      if (value != null) _setCompactDocumentsView(value);
+                      if (value != null) _setDocumentsView(value);
                     },
                   ),
           ),

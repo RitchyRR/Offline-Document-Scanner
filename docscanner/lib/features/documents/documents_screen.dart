@@ -28,6 +28,7 @@ import '../../widgets/custom_scrollbar.dart';
 import '../../widgets/icon_badges.dart';
 import '../../widgets/indicator_processing_image.dart';
 import '../../widgets/pdf_page_view.dart';
+import 'documents_view.dart';
 import '../pages/pages_popup.dart';
 
 class DocumentsHome extends StatefulWidget {
@@ -61,7 +62,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _eventSubscription = globalNotifier.stream.listen(_handleGlobalEvent);
     WidgetsBinding.instance.addObserver(this);
     initAsync();
-    _loadCompactDocumentsView();
+    _loadDocumentsView();
     _loadAvailableAspectRatios(context);
   }
 
@@ -69,10 +70,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   @override
   void didChangeMetrics() {
-    final keyboardVisible = WidgetsBinding
-        .instance
-        .platformDispatcher
-        .views
+    final keyboardVisible = WidgetsBinding.instance.platformDispatcher.views
         .any((view) => view.viewInsets.bottom > 0);
     final keyboardWasDismissed = _keyboardWasVisible && !keyboardVisible;
     _keyboardWasVisible = keyboardVisible;
@@ -133,9 +131,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final valueTerms = normalizedValue.split(RegExp(r'\s+'));
     return queryTerms.length > 1 &&
         queryTerms.every(
-          (queryTerm) => valueTerms.any(
-            (valueTerm) => valueTerm.contains(queryTerm),
-          ),
+          (queryTerm) =>
+              valueTerms.any((valueTerm) => valueTerm.contains(queryTerm)),
         );
   }
 
@@ -158,7 +155,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   @override
   void didPopNext() {
     _loadDocsDisplay();
-    _loadCompactDocumentsView();
+    _loadDocumentsView();
   }
 
   List<int> _deletedDocs = [];
@@ -704,13 +701,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
   }
 
   final _scrollController = CustomScrollController();
-  bool? _compactDocumentsView;
+  DocumentsView? _documentsView;
 
-  Future<void> _loadCompactDocumentsView() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadDocumentsView() async {
+    final view = await DocumentsView.load();
     if (mounted) {
       setState(() {
-        _compactDocumentsView = prefs.getBool("compactDocumentsView") ?? true;
+        _documentsView = view;
       });
     }
   }
@@ -740,8 +737,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
       final pagesCount = _docPageCounts.length > docIndex
           ? _docPageCounts[docIndex]
           : -1;
-      final matchPriority = searchQuery.isEmpty ||
-              _matchesSearchQuery(docName, searchQuery)
+      final matchPriority =
+          searchQuery.isEmpty || _matchesSearchQuery(docName, searchQuery)
           ? 0
           : pagesCount >= 0 && int.tryParse(searchQuery) == pagesCount
           ? 1
@@ -957,10 +954,17 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       : -1;
                   final bool isLoading =
                       _loadingDocs.length <= docIndex || _loadingDocs[docIndex];
-                  final bool compactView = _compactDocumentsView ?? false;
-                  final double cardHeight = compactView
-                      ? 128.0
-                      : 160.0 * math.sqrt2;
+                  final documentsView =
+                      _documentsView ?? DocumentsView.standard;
+                  final bool compactView =
+                      documentsView == DocumentsView.compact;
+                  final bool standardView =
+                      documentsView == DocumentsView.standard;
+                  final double cardHeight = switch (documentsView) {
+                    DocumentsView.standard => 128.0,
+                    DocumentsView.spacious => 160.0 * math.sqrt2,
+                    DocumentsView.compact => 88.0,
+                  };
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Card(
@@ -980,156 +984,284 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // Document Info
-                                  Flexible(
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(12.0),
-                                      ),
-                                      onTap: () => _openDocEditDialog(
-                                        context,
-                                        docIndex,
-                                        displayDocIndex,
-                                      ),
-                                      child: Padding(
-                                        padding: EdgeInsets.all(
-                                          compactView ? 8 : 12,
+                                  if (compactView)
+                                    Expanded(
+                                      child: InkWell(
+                                        borderRadius: const BorderRadius.all(
+                                          Radius.circular(12.0),
                                         ),
-                                        child: Builder(
-                                          builder: (context) {
-                                            return Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  docName,
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: compactView ? 2 : 5,
+                                        onTap: () => _openDocEditDialog(
+                                          context,
+                                          docIndex,
+                                          displayDocIndex,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                docName,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
-                                                SizedBox(
-                                                  height: compactView ? 4 : 6,
-                                                ),
-                                                displayCreationDate.isNotEmpty
-                                                    ? Text(
-                                                        tr(
-                                                          "documents.card.date",
-                                                          namedArgs: {
-                                                            "creationDate":
-                                                                displayCreationDate,
-                                                          },
-                                                        ),
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .onSurface
-                                                                  .withAlpha(
-                                                                    150,
-                                                                  ),
-                                                        ),
-                                                      )
-                                                    : SizedBox(),
-                                                SizedBox(
-                                                  height:
-                                                      displayCreationDate
-                                                          .isNotEmpty
-                                                      ? 4
-                                                      : 0,
-                                                ),
-                                                Text(
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                [
                                                   tr(
-                                                    "documents.card.pagesCount",
+                                                    "documents.card.compactPagesCount",
                                                     namedArgs: {
                                                       "pagesCount":
                                                           "$pagesCount",
                                                     },
                                                   ),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withAlpha(150),
-                                                  ),
+                                                  if (displayCreationDate
+                                                      .isNotEmpty)
+                                                    displayCreationDate,
+                                                ].join(" • "),
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withAlpha(150),
                                                 ),
-                                              ],
-                                            );
-                                          },
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Flexible(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(12.0),
+                                        ),
+                                        onTap: () => _openDocEditDialog(
+                                          context,
+                                          docIndex,
+                                          displayDocIndex,
+                                        ),
+                                        child: Padding(
+                                          padding: EdgeInsets.all(
+                                            standardView ? 8 : 12,
+                                          ),
+                                          child: Builder(
+                                            builder: (context) {
+                                              return Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    docName,
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: standardView
+                                                        ? 2
+                                                        : 5,
+                                                  ),
+                                                  SizedBox(
+                                                    height: standardView
+                                                        ? 4
+                                                        : 6,
+                                                  ),
+                                                  displayCreationDate.isNotEmpty
+                                                      ? Text(
+                                                          tr(
+                                                            "documents.card.date",
+                                                            namedArgs: {
+                                                              "creationDate":
+                                                                  displayCreationDate,
+                                                            },
+                                                          ),
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onSurface
+                                                                    .withAlpha(
+                                                                      150,
+                                                                    ),
+                                                          ),
+                                                        )
+                                                      : SizedBox(),
+                                                  SizedBox(
+                                                    height:
+                                                        displayCreationDate
+                                                            .isNotEmpty
+                                                        ? 4
+                                                        : 0,
+                                                  ),
+                                                  Text(
+                                                    tr(
+                                                      "documents.card.pagesCount",
+                                                      namedArgs: {
+                                                        "pagesCount":
+                                                            "$pagesCount",
+                                                      },
+                                                    ),
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withAlpha(150),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
                                   // Button Column
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      // Save
-                                      IconButton(
-                                        visualDensity: compactView
-                                            ? VisualDensity.compact
-                                            : null,
-                                        padding: compactView
-                                            ? EdgeInsets.all(4)
-                                            : null,
-                                        onPressed: () => showPagesPopup(
-                                          context,
-                                          [],
-                                          PopUpType.save,
-                                          docIndex,
+                                  if (compactView)
+                                    PopupMenuButton<PopUpType>(
+                                      tooltip: tr("documents.card.actions"),
+                                      icon: const Icon(Icons.more_vert),
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: PopUpType.save,
+                                          onTap: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.save,
+                                            docIndex,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.save),
+                                              const SizedBox(width: 12),
+                                              Text(tr("fabs.save")),
+                                            ],
+                                          ),
                                         ),
-                                        icon: Icon(Icons.save),
-                                        tooltip: tr("fabs.save"),
-                                      ),
-                                      // Share
-                                      IconButton(
-                                        visualDensity: compactView
-                                            ? VisualDensity.compact
-                                            : null,
-                                        padding: compactView
-                                            ? EdgeInsets.all(4)
-                                            : null,
-                                        onPressed: () => showPagesPopup(
-                                          context,
-                                          [],
-                                          PopUpType.share,
-                                          docIndex,
+                                        PopupMenuItem(
+                                          value: PopUpType.share,
+                                          onTap: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.share,
+                                            docIndex,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.share),
+                                              const SizedBox(width: 12),
+                                              Text(tr("fabs.share")),
+                                            ],
+                                          ),
                                         ),
-                                        icon: Icon(Icons.share),
-                                        tooltip: tr("fabs.share"),
-                                      ),
-                                      // Delete
-                                      IconButton(
-                                        visualDensity: compactView
-                                            ? VisualDensity.compact
-                                            : null,
-                                        padding: compactView
-                                            ? EdgeInsets.all(4)
-                                            : null,
-                                        onPressed: () => showPagesPopup(
-                                          context,
-                                          [],
-                                          PopUpType.delete,
-                                          docIndex,
+                                        PopupMenuItem(
+                                          value: PopUpType.delete,
+                                          onTap: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.delete,
+                                            docIndex,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.delete),
+                                              const SizedBox(width: 12),
+                                              Text(tr("fabs.delete")),
+                                            ],
+                                          ),
                                         ),
-                                        icon: Icon(Icons.delete),
-                                        tooltip: tr("fabs.delete"),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    )
+                                  else
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        // Save
+                                        IconButton(
+                                          visualDensity: standardView
+                                              ? VisualDensity.compact
+                                              : null,
+                                          padding: standardView
+                                              ? EdgeInsets.all(4)
+                                              : null,
+                                          onPressed: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.save,
+                                            docIndex,
+                                          ),
+                                          icon: Icon(Icons.save),
+                                          tooltip: tr("fabs.save"),
+                                        ),
+                                        // Share
+                                        IconButton(
+                                          visualDensity: standardView
+                                              ? VisualDensity.compact
+                                              : null,
+                                          padding: standardView
+                                              ? EdgeInsets.all(4)
+                                              : null,
+                                          onPressed: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.share,
+                                            docIndex,
+                                          ),
+                                          icon: Icon(Icons.share),
+                                          tooltip: tr("fabs.share"),
+                                        ),
+                                        // Delete
+                                        IconButton(
+                                          visualDensity: standardView
+                                              ? VisualDensity.compact
+                                              : null,
+                                          padding: standardView
+                                              ? EdgeInsets.all(4)
+                                              : null,
+                                          onPressed: () => showPagesPopup(
+                                            context,
+                                            [],
+                                            PopUpType.delete,
+                                            docIndex,
+                                          ),
+                                          icon: Icon(Icons.delete),
+                                          tooltip: tr("fabs.delete"),
+                                        ),
+                                      ],
+                                    ),
                                 ],
                               ),
                             ),
                             // Thumbnail (Right Side)
                             ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxWidth: compactView ? cardHeight : 184,
+                                maxWidth:
+                                    documentsView == DocumentsView.spacious
+                                    ? 184
+                                    : cardHeight,
                               ), // space for creation date
                               child: AspectRatio(
                                 aspectRatio: _thumbnailRatios.length > docIndex

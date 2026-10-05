@@ -25,6 +25,7 @@
     "docIndex": "Document {docIndex}",
     "addDoc": "Add a new Document",
     "views": {
+      "standardView": "Standard",
       "compactView": "Compact View",
       "spaciousView": "Spacious View"
     },
@@ -38,8 +39,10 @@
       "shareApp": "Tell a Friend"
     },
     "card": {
+      "actions": "Document actions",
       "date": "Created: {creationDate}",
       "pagesCount": "Pages: {pagesCount}",
+      "compactPagesCount": "{pagesCount} pages",
       "popup": {
         "title": "Document {docIndex}",
         "name": "Name Document",
