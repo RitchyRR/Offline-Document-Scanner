@@ -63,6 +63,7 @@
   "pages": {
     "title": "Dokument {docIndex}",
     "pageIndex": "Seite {pageIndex}",
+    "pageIndexes": "Seiten {pageIndexes}",
     "editHint": "Zum Bearbeiten antippen",
     "views": {
       "gridView": "Rasteransicht",
@@ -81,6 +82,9 @@
       "move": "Seite verschieben zu",
       "reverseOrder": "Reihenfolge umkehren"
     }
+  },
+  "export": {
+    "mergedPdfFileName": "Dokumente {documents}"
   },
   "pagePreview": {
     "pageIndex": "Seite {pageIndex}",

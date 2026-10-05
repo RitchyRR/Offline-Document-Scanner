@@ -52,9 +52,8 @@ class FilesHelper {
   static const int maxPdfSaveBytes = 100 * 1024 * 1024;
   static const String pdfPageFileName = "page.pdf";
 
-  String _safeExportFileName(String fileName) => p
-      .basename(fileName)
-      .replaceAll(RegExp(r'[\\/:*?"<>|]'), "_");
+  String _safeExportFileName(String fileName) =>
+      fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), "_");
 
   late String docsPath = "";
   int screenWidth;
@@ -1454,16 +1453,10 @@ class FilesHelper {
           throw StateError("Could not create merged PDF for selected documents");
         }
         tempFiles.add(pdfFile);
-        final firstName = await _generateFileName(
-          docIndexes.first,
-          const [],
-          null,
-          "",
-        );
         files.add(
           XFile(
             pdfFile.path,
-            name: _safeExportFileName("${firstName.trim()}_merged.pdf"),
+            name: await _generateMergedDocumentsFileName(docIndexes),
             mimeType: "application/pdf",
           ),
         );
@@ -1513,15 +1506,9 @@ class FilesHelper {
           throw StateError("Could not create merged PDF for selected documents");
         }
         tempFiles.add(pdfFile);
-        final firstName = await _generateFileName(
-          docIndexes.first,
-          const [],
-          null,
-          "",
-        );
         pdfFiles.add((
           pdfFile,
-          _safeExportFileName("${firstName.trim()}_merged.pdf"),
+          await _generateMergedDocumentsFileName(docIndexes),
         ));
       } else {
         for (final docIndex in docIndexes) {
@@ -2290,28 +2277,55 @@ class FilesHelper {
     int? versionIndex,
     String extension,
   ) async {
-    List<int> displayPageIndexes = [];
-    for (var pageIndex in pageIndexes) {
-      displayPageIndexes.add(pageIndex + 1);
-    }
-    bool isWholeDoc = false;
-    if (pageIndexes.isEmpty ||
-        pageIndexes.length == await g.filesHelper.getPagesCount(docIndex)) {
-      isWholeDoc = true;
-    }
-    String docName =
-        await g.metadataHelper.readDocName(docIndex) ??
-        tr("documents.docIndex", namedArgs: {"docIndex": "${docIndex + 1}"});
+    final documentName = await _documentExportName(docIndex);
     final String? versionName = versionIndex != null
         ? versionNames[versionIndex]
         : null;
-    final String docFileName =
-        "$docName${pageIndexes.length == 1
-            ? ", ${tr("pages.pageIndex", namedArgs: {"pageIndex": "${pageIndexes.first + 1}"})}${versionName != null ? ", $versionName" : ""}"
-            : !isWholeDoc
-            ? ", $displayPageIndexes"
-            : ""}$extension";
-    return docFileName;
+    final pageDescription = switch (pageIndexes.length) {
+      0 => "",
+      1 =>
+        " - ${tr("pages.pageIndex", namedArgs: {"pageIndex": "${pageIndexes.first + 1}"})}",
+      _ =>
+        " - ${tr("pages.pageIndexes", namedArgs: {
+          "pageIndexes": pageIndexes.map((index) => index + 1).join(", "),
+        })}",
+    };
+    final versionDescription = versionName == null ? "" : " - $versionName";
+    return _safeExportFileName(
+      "$documentName$pageDescription$versionDescription$extension",
+    );
+  }
+
+  Future<String> _documentExportName(int docIndex) async {
+    final documentNumber = tr(
+      "documents.docIndex",
+      namedArgs: {"docIndex": "${docIndex + 1}"},
+    );
+    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+    if (customName == null ||
+        customName.isEmpty ||
+        customName == documentNumber) {
+      return documentNumber;
+    }
+    return "$documentNumber ($customName)";
+  }
+
+  Future<String> _generateMergedDocumentsFileName(
+    List<int> docIndexes,
+  ) async {
+    final documentNames = <String>[];
+    for (final docIndex in docIndexes) {
+      final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+      final documentName = customName == null || customName.isEmpty
+          ? "${docIndex + 1}"
+          : "${docIndex + 1} ($customName)";
+      documentNames.add(documentName);
+    }
+    return _safeExportFileName(
+      "${tr("export.mergedPdfFileName", namedArgs: {
+        "documents": documentNames.join(", "),
+      })}.pdf",
+    );
   }
 
   static Future<void> deleteImagePaths(List<String> paths) async {
