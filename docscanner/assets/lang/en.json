@@ -28,6 +28,12 @@
       "selectedOne": "1 document selected",
       "selected": "{selectedCount} documents selected",
       "cancel": "Cancel selection",
+      "duplicate": {
+        "name": "Copy of {name}",
+        "tooltip": "Duplicate document",
+        "processing": "Duplicating document",
+        "error": "Could not duplicate document"
+      },
       "delete": {
         "title": "Delete documents",
         "text": "Do you want to delete the {selectedCount} selected documents?"

@@ -219,6 +219,43 @@ class _DocumentsHomeState extends State<DocumentsHome>
     }
   }
 
+  Future<void> _duplicateSelectedDocument() async {
+    if (_selectedDocs.length != 1 || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(tr("documents.selection.duplicate.processing")),
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(),
+            ),
+          ],
+        ),
+        duration: const Duration(days: 1),
+      ),
+    );
+    try {
+      await g.filesHelper.duplicateDocument(_selectedDocs.single);
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        _cancelSelectMode();
+        await _loadDocsDisplay();
+      }
+    } catch (error, stackTrace) {
+      dev.log("Error, duplicateSelectedDocument: $error", stackTrace: stackTrace);
+      messenger.hideCurrentSnackBar();
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(tr("documents.selection.duplicate.error"))),
+        );
+      }
+    }
+  }
+
   bool _matchesSearchQuery(String value, String query) {
     final normalizedValue = value.toLowerCase().trim();
     final normalizedQuery = query.toLowerCase().trim();
@@ -1598,6 +1635,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (_selectedDocs.length == 1) ...[
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: FloatingActionButton(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        heroTag: "selectionDuplicateDocument",
+                        onPressed: _duplicateSelectedDocument,
+                        tooltip: tr("documents.selection.duplicate.tooltip"),
+                        child: const Icon(Icons.content_copy),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   if (_selectedDocs.length >= 2) ...[
                     SizedBox(
                       width: 40,

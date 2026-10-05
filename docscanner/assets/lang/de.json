@@ -28,6 +28,12 @@
       "selectedOne": "1 Dokument ausgewählt",
       "selected": "{selectedCount} Dokumente ausgewählt",
       "cancel": "Auswahl aufheben",
+      "duplicate": {
+        "name": "Kopie von {name}",
+        "tooltip": "Dokument duplizieren",
+        "processing": "Dokument wird dupliziert",
+        "error": "Dokument konnte nicht dupliziert werden"
+      },
       "delete": {
         "title": "Dokumente löschen",
         "text": "Möchtest du die {selectedCount} ausgewählten Dokumente löschen?"
