@@ -31,6 +31,9 @@
       "duplicate": {
         "name": "Kopie von {name}",
         "tooltip": "Duplizieren",
+        "title": "Dokument duplizieren",
+        "text": "Eine Kopie dieses Dokuments wird erstellt.\nDas Original bleibt erhalten.",
+        "confirm": "Duplizieren",
         "processing": "Dokument wird dupliziert",
         "error": "Dokument konnte nicht dupliziert werden"
       },

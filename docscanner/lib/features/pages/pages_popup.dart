@@ -201,17 +201,29 @@ IconData _popupIcon(PopUpType type) => switch (type) {
 };
 
 class _PopupTitle extends StatelessWidget {
-  const _PopupTitle({required this.icon, required this.text});
+  const _PopupTitle({
+    required this.icon,
+    required this.text,
+    this.iconQuarterTurns = 0,
+  });
 
   final IconData icon;
   final String text;
+  final int iconQuarterTurns;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 30),
+        RotatedBox(
+          quarterTurns: iconQuarterTurns,
+          child: Icon(
+            icon,
+            color: Theme.of(context).colorScheme.onSurface,
+            size: 30,
+          ),
+        ),
         const SizedBox(width: 12),
         Flexible(child: Text(text)),
       ],
@@ -1232,6 +1244,7 @@ Future<bool> showMergeDocumentsConfirmation(
         builder: (context) => AlertDialog(
           title: _PopupTitle(
             icon: Icons.unfold_less,
+            iconQuarterTurns: 1,
             text: tr(
               "documents.selection.merge.title",
               namedArgs: {"selectedCount": "${docIndexes.length}"},
@@ -1265,8 +1278,75 @@ Future<bool> showMergeDocumentsConfirmation(
               children: [
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.unfold_less),
+                  icon: const RotatedBox(
+                    quarterTurns: 1,
+                    child: Icon(Icons.unfold_less),
+                  ),
                   label: Text(tr("documents.selection.merge.confirm")),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr("popup.cancel")),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ) ??
+      false;
+}
+
+Future<bool> showDuplicateDocumentConfirmation(
+  BuildContext callContext,
+  int docIndex,
+) async {
+  final (thumbnailPaths, pageCount) = await g.filesHelper.getPagesThumbnails(
+    docIndex,
+    fullSized: false,
+  );
+  final loadingImages = await _loadLoadingImages(
+    docIndex,
+    const [],
+    thumbnailPaths,
+    supressWarnings: true,
+  );
+  final imageRatios = await _loadImageRatios(docIndex, const [], pageCount);
+  if (!callContext.mounted) return false;
+
+  return await showDialog<bool>(
+        context: callContext,
+        builder: (context) => AlertDialog(
+          title: _PopupTitle(
+            icon: Icons.file_copy,
+            text: tr("documents.selection.duplicate.title"),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ImagesScrollPreview(
+                  imagePaths: thumbnailPaths,
+                  loadingImages: loadingImages,
+                  imageRatios: imageRatios,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tr("documents.selection.duplicate.text"),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.file_copy),
+                  label: Text(tr("documents.selection.duplicate.confirm")),
                 ),
                 const SizedBox(height: 8),
                 TextButton(

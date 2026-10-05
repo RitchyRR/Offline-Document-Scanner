@@ -229,6 +229,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _duplicateSelectedDocument() async {
     if (_selectedDocs.length != 1 || !mounted) return;
+    final docIndex = _selectedDocs.single;
+    final confirmed = await showDuplicateDocumentConfirmation(
+      context,
+      docIndex,
+    );
+    if (!confirmed || !mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       SnackBar(
@@ -247,7 +254,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       ),
     );
     try {
-      await g.filesHelper.duplicateDocument(_selectedDocs.single);
+      await g.filesHelper.duplicateDocument(docIndex);
       if (mounted) {
         messenger.hideCurrentSnackBar();
         _cancelSelectMode();
@@ -1673,7 +1680,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         heroTag: "selectionMergeDocuments",
                         onPressed: _mergeSelectedDocuments,
                         tooltip: tr("documents.selection.merge.confirm"),
-                        child: const Icon(Icons.unfold_less),
+                        child: const RotatedBox(
+                          quarterTurns: 1,
+                          child: Icon(Icons.unfold_less),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
