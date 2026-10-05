@@ -1120,7 +1120,7 @@ class FilesHelper {
       throw StateError("Cannot duplicate empty document $docIndex");
     }
 
-    final sourceName = await _documentExportName(docIndex);
+    final sourceName = await _documentDisplayName(docIndex);
     final (duplicateDocIndex, _) = await createNewDocument(pageCount);
     try {
       for (var pageIndex = 0; pageIndex < pageCount; pageIndex++) {
@@ -2446,6 +2446,18 @@ class FilesHelper {
   }
 
   Future<String> _documentExportName(int docIndex) async {
+    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+    if (customName == null || customName.isEmpty) {
+      return "${docIndex + 1}";
+    }
+    final documentNumber = tr(
+      "documents.docIndex",
+      namedArgs: {"docIndex": "${docIndex + 1}"},
+    );
+    return customName == documentNumber ? "${docIndex + 1}" : customName;
+  }
+
+  Future<String> _documentDisplayName(int docIndex) async {
     final documentNumber = tr(
       "documents.docIndex",
       namedArgs: {"docIndex": "${docIndex + 1}"},
