@@ -1034,8 +1034,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       : -1;
                   final bool isLoading =
                       _loadingDocs.length <= docIndex || _loadingDocs[docIndex];
-                  final documentsView =
-                      _documentsView ?? DocumentsView.standard;
+                  final documentsView = _documentsView ?? DocumentsView.compact;
                   final bool compactView =
                       documentsView == DocumentsView.compact;
                   final bool standardView =
@@ -1115,7 +1114,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 Text(
                                                   [
                                                     tr(
-                                                      "documents.card.compactPagesCount",
+                                                      pagesCount == 1
+                                                          ? "documents.card.compactPageCount"
+                                                          : "documents.card.compactPagesCount",
                                                       namedArgs: {
                                                         "pagesCount":
                                                             "$pagesCount",

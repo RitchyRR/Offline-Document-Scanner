@@ -14,14 +14,16 @@ enum DocumentsView {
     if (savedView != null) {
       return DocumentsView.values.firstWhere(
         (view) => view.name == savedView,
-        orElse: () => DocumentsView.standard,
+        orElse: () => DocumentsView.compact,
       );
     }
 
     final legacyCompactView = prefs.getBool(_legacyPreferenceKey);
-    final view = legacyCompactView == false
-        ? DocumentsView.spacious
-        : DocumentsView.standard;
+    final view = switch (legacyCompactView) {
+      true => DocumentsView.standard,
+      false => DocumentsView.spacious,
+      null => DocumentsView.compact,
+    };
     await prefs.setString(_preferenceKey, view.name);
     return view;
   }
