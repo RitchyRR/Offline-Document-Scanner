@@ -197,6 +197,21 @@
       "text": "Wählen Sie den Filter, der beim Scannen eines neuen Dokuments standardmäßig angewandt werden soll."
     },
     "pagesPopup": {
+      "documentsPopup": {
+        "save": {
+          "title": "{documentsCount} Dokumente speichern",
+          "images": "Bilder aller Dokumente speichern",
+          "mergedPdf": "Als zusammengefügtes PDF speichern",
+          "separatePdfs": "PDFs je Dokument speichern"
+        },
+        "share": {
+          "title": "{documentsCount} Dokumente teilen",
+          "images": "Bilder aller Dokumente teilen",
+          "mergedPdf": "Als zusammengefügtes PDF teilen",
+          "separatePdfs": "PDFs je Dokument teilen"
+        },
+        "pdfLocked": "Zum PDF-Export müssen alle ausgewählten Dokumente freigeschaltet sein."
+      },
       "document": {
         "save": {
           "title": "{docName} speichern"

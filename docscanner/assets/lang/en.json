@@ -198,6 +198,21 @@
       "text": "Select the filter that should be applied per default, when scanning a new document."
     },
     "pagesPopup": {
+      "documentsPopup": {
+        "save": {
+          "title": "Save {documentsCount} documents",
+          "images": "Save images from all documents",
+          "mergedPdf": "Save as one merged PDF",
+          "separatePdfs": "Save a PDF per document"
+        },
+        "share": {
+          "title": "Share {documentsCount} documents",
+          "images": "Share images from all documents",
+          "mergedPdf": "Share as one merged PDF",
+          "separatePdfs": "Share a PDF per document"
+        },
+        "pdfLocked": "All selected documents must be unlocked for PDF export."
+      },
       "document": {
         "save": {
           "title": "Save {docName}"

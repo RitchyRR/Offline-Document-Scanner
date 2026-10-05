@@ -89,34 +89,40 @@ class _ImagesScrollPreview extends StatelessWidget {
     required this.imagePaths,
     required this.loadingImages,
     required this.imageRatios,
+    this.separatorIndexes = const {},
   });
 
   final List<String> imagePaths;
   final List<bool> loadingImages;
   final List<double> imageRatios;
+  final Set<int> separatorIndexes;
 
   @override
   Widget build(BuildContext context) {
     return Builder(
       builder: (context) {
-        int index = -1;
-        return Center(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: imagePaths.map((imagePath) {
-                index++;
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    8.0,
-                    4.0,
-                    8.0,
-                    12.0,
-                  ), // Spacing between images
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [smallBoxShadow(context)],
+        final previewItems = <Widget>[];
+        for (final (index, imagePath) in imagePaths.indexed) {
+          if (separatorIndexes.contains(index)) {
+            previewItems.add(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: SizedBox(
+                  height: 160.0 * math.sqrt2,
+                  child: VerticalDivider(
+                    width: 2,
+                    thickness: 2,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
                     ),
+            );
+          }
+          previewItems.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 12.0),
+              child: Container(
+                decoration: BoxDecoration(boxShadow: [smallBoxShadow(context)]),
                     child: Container(
                       constraints: BoxConstraints(
                         maxHeight: 160.0 * math.sqrt2,
@@ -129,19 +135,14 @@ class _ImagesScrollPreview extends StatelessWidget {
                         child: Stack(
                           fit: StackFit.passthrough,
                           children: [
-                            // BG
                             Material(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surfaceBright,
+                          color: Theme.of(context).colorScheme.surfaceBright,
                             ),
-                            // Thumbnail
                             if (imagePath.isNotEmpty)
                               AnimatedSwitcher(
                                 duration: Duration(milliseconds: 200),
                                 child: SizedBox.expand(
-                                  child:
-                                      imagePath.toLowerCase().endsWith(".pdf")
+                              child: imagePath.toLowerCase().endsWith(".pdf")
                                       ? _PdfPopupPreview(path: imagePath)
                                       : Image.file(
                                           File(imagePath),
@@ -161,14 +162,13 @@ class _ImagesScrollPreview extends StatelessWidget {
                                         ),
                                 ),
                               ),
-                            // Loading Indicator
-                            if (loadingImages[index])
+                        if (loadingImages.length > index &&
+                            loadingImages[index])
                               Positioned.fill(
                                 child: Material(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHigh
-                                      .withAlpha(150),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHigh.withAlpha(150),
                                 ),
                               ),
                             if (loadingImages.length <= index ||
@@ -180,9 +180,13 @@ class _ImagesScrollPreview extends StatelessWidget {
                       ),
                     ),
                   ),
-                );
-              }).toList(),
             ),
+          );
+        }
+        return Center(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: previewItems),
           ),
         );
       },
@@ -922,6 +926,273 @@ Future<bool> showPagesPopup(
     },
   );
   return confirmAction;
+}
+
+Future<bool> showDocumentsPopup(
+  BuildContext callContext,
+  List<int> docIndexes,
+  PopUpType type,
+) async {
+  if (docIndexes.isEmpty) return false;
+  final thumbnailPaths = <String>[];
+  final loadingImages = <bool>[];
+  final imageRatios = <double>[];
+  final separatorIndexes = <int>{};
+  for (final docIndex in docIndexes) {
+    final (paths, pageCount) = await g.filesHelper.getPagesThumbnails(
+      docIndex,
+      fullSized: false,
+    );
+    if (thumbnailPaths.isNotEmpty) separatorIndexes.add(thumbnailPaths.length);
+    thumbnailPaths.addAll(paths);
+    loadingImages.addAll(
+      await _loadLoadingImages(
+        docIndex,
+        const [],
+        paths,
+        supressWarnings: true,
+      ),
+    );
+    imageRatios.addAll(await _loadImageRatios(docIndex, const [], pageCount));
+  }
+  final allImagesLoaded = loadingImages.every((loading) => !loading);
+  final uncompressedImages = await _loadUncompressedImages(thumbnailPaths);
+  final allImagesCompressed = uncompressedImages.every(
+    (uncompressed) => !uncompressed,
+  );
+  final unlockedDocs = <int, bool>{};
+  for (final docIndex in docIndexes) {
+    unlockedDocs[docIndex] = await g.metadataHelper.readDocUnlocked(docIndex);
+  }
+  if (!callContext.mounted) return false;
+  bool allDocumentsUnlocked() =>
+      g.proUnlocked || unlockedDocs.values.every((unlocked) => unlocked);
+  bool unlockingDocuments = false;
+
+  final selectedAction = await showDialog<String>(
+    context: callContext,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setStateDialog) {
+        final canExportPdf =
+            allImagesLoaded && allImagesCompressed && allDocumentsUnlocked();
+        return AlertDialog(
+          title: Text(
+            type == PopUpType.delete
+                ? tr(
+                    "documents.selection.delete.title",
+                    namedArgs: {"selectedCount": "${docIndexes.length}"},
+                  )
+                : tr(
+                    type == PopUpType.save
+                        ? "popup.pagesPopup.documentsPopup.save.title"
+                        : "popup.pagesPopup.documentsPopup.share.title",
+                    namedArgs: {"documentsCount": "${docIndexes.length}"},
+                  ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ImagesScrollPreview(
+                  imagePaths: thumbnailPaths,
+                  loadingImages: loadingImages,
+                  imageRatios: imageRatios,
+                  separatorIndexes: separatorIndexes,
+                ),
+                const SizedBox(height: 12),
+                if (type == PopUpType.delete)
+                  Text(
+                    tr(
+                      "documents.selection.delete.text",
+                      namedArgs: {"selectedCount": "${docIndexes.length}"},
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                if (type != PopUpType.delete &&
+                    (!allImagesLoaded || !allImagesCompressed))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            allImagesLoaded
+                                ? tr("loading.compressingImages")
+                                : tr("loading.processingImages"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (type != PopUpType.delete &&
+                    !allDocumentsUnlocked() &&
+                    !g.proUnlocked)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      children: [
+                        Text(tr("popup.pagesPopup.documentsPopup.pdfLocked")),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => proPopup(context),
+                              icon: const Icon(Icons.lock),
+                              label: Text(tr("popup.unlock")),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: unlockingDocuments
+                                  ? null
+                                  : () async {
+                                      setStateDialog(
+                                        () => unlockingDocuments = true,
+                                      );
+                                      try {
+                                        for (final docIndex in docIndexes) {
+                                          if (!context.mounted) return;
+                                          if (unlockedDocs[docIndex] == true) {
+                                            continue;
+                                          }
+                                          final unlocked =
+                                              await unlockDocumentWithAd(
+                                                context,
+                                              );
+                                          if (!unlocked) break;
+                                          await g.metadataHelper
+                                              .writeDocUnlocked(docIndex, true);
+                                          unlockedDocs[docIndex] = true;
+                                        }
+                                      } finally {
+                                        if (context.mounted) {
+                                          setStateDialog(
+                                            () => unlockingDocuments = false,
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: const Icon(Icons.play_arrow),
+                              label: Text(tr("popup.watchAd")),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            if (type == PopUpType.delete)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(tr("popup.cancel")),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, "delete"),
+                    child: Text(
+                      tr("popup.pagesPopup.deleteButton"),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: allImagesLoaded && allImagesCompressed
+                        ? () => Navigator.pop(context, "images")
+                        : null,
+                    icon: const Icon(Icons.image),
+                    label: Text(
+                      tr(
+                        type == PopUpType.save
+                            ? "popup.pagesPopup.documentsPopup.save.images"
+                            : "popup.pagesPopup.documentsPopup.share.images",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: canExportPdf
+                        ? () => Navigator.pop(context, "mergedPdf")
+                        : null,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: Text(
+                      tr(
+                        type == PopUpType.save
+                            ? "popup.pagesPopup.documentsPopup.save.mergedPdf"
+                            : "popup.pagesPopup.documentsPopup.share.mergedPdf",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: canExportPdf
+                        ? () => Navigator.pop(context, "separatePdfs")
+                        : null,
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: Text(
+                      tr(
+                        type == PopUpType.save
+                            ? "popup.pagesPopup.documentsPopup.save.separatePdfs"
+                            : "popup.pagesPopup.documentsPopup.share.separatePdfs",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(tr("popup.cancel")),
+                  ),
+                ],
+              ),
+          ],
+        );
+      },
+    ),
+  );
+
+  if (selectedAction == null || !callContext.mounted) return false;
+  if (selectedAction == "delete") return true;
+  switch (selectedAction) {
+    case "images":
+      if (type == PopUpType.save) {
+        await g.filesHelper.saveDocumentsImagesToGallery(docIndexes);
+      } else {
+        await g.filesHelper.shareDocumentsImages(docIndexes);
+      }
+      break;
+    case "mergedPdf":
+    case "separatePdfs":
+      final merged = selectedAction == "mergedPdf";
+      if (type == PopUpType.save) {
+        await g.filesHelper.saveDocumentsPdfs(
+          callContext,
+          docIndexes,
+          merged: merged,
+        );
+      } else {
+        await g.filesHelper.shareDocumentsPdfs(docIndexes, merged: merged);
+      }
+      break;
+  }
+  return true;
 }
 
 Future<List<double>> _loadImageRatios(

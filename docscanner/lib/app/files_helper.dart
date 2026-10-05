@@ -52,6 +52,10 @@ class FilesHelper {
   static const int maxPdfSaveBytes = 100 * 1024 * 1024;
   static const String pdfPageFileName = "page.pdf";
 
+  String _safeExportFileName(String fileName) => p
+      .basename(fileName)
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), "_");
+
   late String docsPath = "";
   int screenWidth;
   final List<List<int>> _markedDeletedPages = [];
@@ -1317,6 +1321,258 @@ class FilesHelper {
       }
     } finally {
       await deleteCachedScaledImages();
+    }
+  }
+
+  Future<void> saveDocumentsImagesToGallery(List<int> docIndexes) async {
+    final tmpDir = await getTemporaryDirectory();
+    const albumName = "Scanned Documents";
+    try {
+      for (final docIndex in docIndexes) {
+        final (imagePaths, _) = await imageProcessingManager
+            .scaleImagesToMaxDpi(docIndex, const [], null, null);
+        for (final (pageIndex, imagePath) in imagePaths.indexed) {
+          final extension = imagePath.split(".").last;
+          final fileName = await _generateFileName(
+            docIndex,
+            [pageIndex],
+            null,
+            ".$extension",
+          );
+          final safeFileName = _safeExportFileName(fileName);
+          final copy = File(
+            "${tmpDir.path}/documents_${docIndex}_page_${pageIndex}_$safeFileName",
+          );
+          await File(imagePath).copy(copy.path);
+          try {
+            await Gal.putImage(copy.path, album: albumName);
+          } finally {
+            if (copy.existsSync()) await copy.delete();
+          }
+        }
+      }
+      await Fluttertoast.showToast(
+        msg: tr("toast.imageSaved", namedArgs: {"albumName": albumName}),
+      );
+    } finally {
+      await deleteCachedScaledImages();
+    }
+  }
+
+  Future<void> shareDocumentsImages(List<int> docIndexes) async {
+    final tmpDir = await getTemporaryDirectory();
+    final files = <XFile>[];
+    try {
+      for (final docIndex in docIndexes) {
+        final (imagePaths, _) = await imageProcessingManager
+            .scaleImagesToMaxDpi(docIndex, const [], null, null);
+        for (final (pageIndex, imagePath) in imagePaths.indexed) {
+          final extension = imagePath.split(".").last;
+          final fileName = await _generateFileName(
+            docIndex,
+            [pageIndex],
+            null,
+            ".$extension",
+          );
+          final safeFileName = _safeExportFileName(fileName);
+          final copy = File(
+            "${tmpDir.path}/documents_${docIndex}_page_${pageIndex}_$safeFileName",
+          );
+          await File(imagePath).copy(copy.path);
+          files.add(XFile(copy.path, name: safeFileName));
+        }
+      }
+      await SharePlus.instance.share(ShareParams(files: files));
+    } finally {
+      for (final file in files) {
+        final sharedFile = File(file.path);
+        if (sharedFile.existsSync()) await sharedFile.delete();
+      }
+      await deleteCachedScaledImages();
+    }
+  }
+
+  Future<File?> _createMergedDocumentsPdf(List<int> docIndexes) async {
+    final tempDirectory = await getTemporaryDirectory();
+    final workingDirectory = Directory(
+      "${tempDirectory.path}/pdf_documents_${DateTime.now().microsecondsSinceEpoch}",
+    );
+    await workingDirectory.create(recursive: true);
+    final outputFile = File("${workingDirectory.path}/documents.pdf");
+    final sourceFiles = <File>[];
+    var merged = false;
+    try {
+      for (final (index, docIndex) in docIndexes.indexed) {
+        final documentPdf = await _createPdfExportFile(docIndex);
+        if (documentPdf == null) return null;
+        try {
+          final sourceFile = File(
+            "${workingDirectory.path}/document_$index.pdf",
+          );
+          await documentPdf.copy(sourceFile.path);
+          sourceFiles.add(sourceFile);
+        } finally {
+          if (documentPdf.parent.existsSync()) {
+            await documentPdf.parent.delete(recursive: true);
+          }
+        }
+      }
+
+      final manipulator = pdfm.Pdf();
+      final output = await pdfm_io.FileSink.create(outputFile);
+      try {
+        await manipulator.merge(
+          sourceFiles.map((file) => pdfm_io.FileSource(file)).toList(),
+          output,
+        );
+        merged = true;
+      } finally {
+        await output.close();
+        await manipulator.dispose();
+      }
+      return outputFile;
+    } finally {
+      for (final file in sourceFiles) {
+        if (file.existsSync()) await file.delete();
+      }
+      if (!merged && workingDirectory.existsSync()) {
+        await workingDirectory.delete(recursive: true);
+      }
+    }
+  }
+
+  Future<void> shareDocumentsPdfs(
+    List<int> docIndexes, {
+    required bool merged,
+  }) async {
+    final files = <XFile>[];
+    final tempFiles = <File>[];
+    try {
+      if (merged) {
+        final pdfFile = await _createMergedDocumentsPdf(docIndexes);
+        if (pdfFile == null) {
+          throw StateError("Could not create merged PDF for selected documents");
+        }
+        tempFiles.add(pdfFile);
+        final firstName = await _generateFileName(
+          docIndexes.first,
+          const [],
+          null,
+          "",
+        );
+        files.add(
+          XFile(
+            pdfFile.path,
+            name: _safeExportFileName("${firstName.trim()}_merged.pdf"),
+            mimeType: "application/pdf",
+          ),
+        );
+      } else {
+        for (final docIndex in docIndexes) {
+          final pdfFile = await _createPdfExportFile(docIndex);
+          if (pdfFile == null) {
+            throw StateError("Could not create PDF for document $docIndex");
+          }
+          tempFiles.add(pdfFile);
+          files.add(
+            XFile(
+              pdfFile.path,
+              name: _safeExportFileName(
+                await _generateFileName(docIndex, const [], null, ".pdf"),
+              ),
+              mimeType: "application/pdf",
+            ),
+          );
+        }
+      }
+      await SharePlus.instance.share(ShareParams(files: files));
+    } finally {
+      for (final pdfFile in tempFiles) {
+        if (pdfFile.parent.existsSync()) {
+          await pdfFile.parent.delete(recursive: true);
+        }
+      }
+    }
+  }
+
+  Future<void> saveDocumentsPdfs(
+    BuildContext context,
+    List<int> docIndexes, {
+    required bool merged,
+  }) async {
+    if (isTmpExternal) return;
+    final messenger = context.mounted
+        ? ScaffoldMessenger.of(context)
+        : null;
+    final tempFiles = <File>[];
+    try {
+      final pdfFiles = <(File, String)>[];
+      if (merged) {
+        final pdfFile = await _createMergedDocumentsPdf(docIndexes);
+        if (pdfFile == null) {
+          throw StateError("Could not create merged PDF for selected documents");
+        }
+        tempFiles.add(pdfFile);
+        final firstName = await _generateFileName(
+          docIndexes.first,
+          const [],
+          null,
+          "",
+        );
+        pdfFiles.add((
+          pdfFile,
+          _safeExportFileName("${firstName.trim()}_merged.pdf"),
+        ));
+      } else {
+        for (final docIndex in docIndexes) {
+          final pdfFile = await _createPdfExportFile(docIndex);
+          if (pdfFile == null) {
+            throw StateError("Could not create PDF for document $docIndex");
+          }
+          tempFiles.add(pdfFile);
+          pdfFiles.add((
+            pdfFile,
+            _safeExportFileName(
+              await _generateFileName(docIndex, const [], null, ".pdf"),
+            ),
+          ));
+        }
+      }
+
+      for (final (pdfFile, fileName) in pdfFiles) {
+        if (await pdfFile.length() > maxPdfSaveBytes) {
+          messenger?.showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(
+                  "snackbar.e_pdfTooLargeToSave",
+                  namedArgs: {"maxSize": formatBytes(maxPdfSaveBytes)},
+                ),
+              ),
+            ),
+          );
+          continue;
+        }
+        isTmpExternal = true;
+        try {
+          final bytes = await pdfFile.readAsBytes();
+          await FilePicker.saveFile(
+            fileName: fileName,
+            type: FileType.custom,
+            allowedExtensions: ["pdf"],
+            bytes: bytes,
+          );
+        } finally {
+          isTmpExternal = false;
+        }
+      }
+    } finally {
+      isTmpExternal = false;
+      for (final pdfFile in tempFiles) {
+        if (pdfFile.parent.existsSync()) {
+          await pdfFile.parent.delete(recursive: true);
+        }
+      }
     }
   }
 

@@ -144,30 +144,24 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _runSelectedDocumentAction(PopUpType type) async {
     final selectedDocs = List<int>.from(_selectedDocs);
+    if (selectedDocs.length == 1) {
+      if (!mounted) return;
+      final completed = await showPagesPopup(context, [], type, selectedDocs.single);
+      if (completed && mounted) {
+        _cancelSelectMode();
+        if (type == PopUpType.delete) await _loadDocsDisplay();
+      }
+      return;
+    }
+
     if (type == PopUpType.delete) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(tr("documents.selection.delete.title")),
-          content: Text(
-            tr(
-              "documents.selection.delete.text",
-              namedArgs: {"selectedCount": "${selectedDocs.length}"},
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(tr("popup.cancel")),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(tr("fabs.delete")),
-            ),
-          ],
-        ),
+      if (!mounted) return;
+      final confirmed = await showDocumentsPopup(
+        context,
+        selectedDocs,
+        PopUpType.delete,
       );
-      if (confirmed != true || !mounted) return;
+      if (!confirmed || !mounted) return;
       selectedDocs.sort((a, b) => b.compareTo(a));
       for (final docIndex in selectedDocs) {
         await g.filesHelper.deleteImages(context, docIndex);
@@ -179,12 +173,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
       return;
     }
 
-    for (final docIndex in selectedDocs) {
-      if (!mounted) return;
-      final completed = await showPagesPopup(context, [], type, docIndex);
-      if (!completed) return;
-    }
-    if (mounted) _cancelSelectMode();
+    if (!mounted) return;
+    final completed = await showDocumentsPopup(context, selectedDocs, type);
+    if (completed && mounted) _cancelSelectMode();
   }
 
   bool _matchesSearchQuery(String value, String query) {
@@ -1158,9 +1149,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   right: compactView ? 8 : 0,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                    borderRadius: BorderRadius.circular(12),
                                 ),
                                 elevation: compactView ? 2 : 0,
                                         color: compactView
@@ -1181,11 +1170,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                             Radius.circular(12.0),
                                           ),
                                                   onTap: _selectMode
-                                                      ? () => _selectDocument(
-                                                          docIndex,
-                                                        )
-                                                      : () =>
-                                                            _openDocEditDialog(
+                                                ? () =>
+                                                      _selectDocument(docIndex)
+                                                : () => _openDocEditDialog(
                                             context,
                                             docIndex,
                                             displayDocIndex,
@@ -1200,28 +1187,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                             ),
                                             child: Column(
                                               crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
+                                                    CrossAxisAlignment.start,
                                               mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
+                                                    MainAxisAlignment.center,
                                               children: [
                                                 Text(
                                                   docName,
-                                                          style:
-                                                              const TextStyle(
+                                                    style: const TextStyle(
                                                     fontSize: 16,
                                                                 fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
+                                                          FontWeight.bold,
                                                   ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   maxLines: 1,
                                                 ),
-                                                        const SizedBox(
-                                                          height: 4,
-                                                        ),
+                                                  const SizedBox(height: 4),
                                                 Text(
                                                   [
                                                     tr(
@@ -1239,18 +1220,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   ].join(" • "),
                                                   style: TextStyle(
                                                     fontSize: 13,
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
+                                                      color: Theme.of(context)
                                                         .colorScheme
                                                         .onSurface
-                                                                    .withAlpha(
-                                                                      150,
-                                                  ),
+                                                          .withAlpha(150),
                                                           ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   maxLines: 1,
                                                 ),
                                               ],
@@ -1261,16 +1237,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                     else
                                       Flexible(
                                         child: InkWell(
-                                                  borderRadius:
-                                                      BorderRadius.all(
+                                            borderRadius: BorderRadius.all(
                                             Radius.circular(12.0),
                                           ),
                                                   onTap: _selectMode
-                                                      ? () => _selectDocument(
-                                                          docIndex,
-                                                        )
-                                                      : () =>
-                                                            _openDocEditDialog(
+                                                ? () =>
+                                                      _selectDocument(docIndex)
+                                                : () => _openDocEditDialog(
                                             context,
                                             docIndex,
                                             displayDocIndex,
@@ -1296,20 +1269,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       style: TextStyle(
                                                         fontSize: 18,
                                                         fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
+                                                              FontWeight.bold,
                                                       ),
-                                                      overflow:
-                                                                  TextOverflow
+                                                        overflow: TextOverflow
                                                                       .ellipsis,
-                                                              maxLines:
-                                                                  standardView
+                                                        maxLines: standardView
                                                           ? 2
                                                           : 5,
                                                     ),
                                                     SizedBox(
-                                                              height:
-                                                                  standardView
+                                                        height: standardView
                                                           ? 4
                                                           : 6,
                                                     ),
@@ -1324,12 +1293,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                               },
                                                             ),
                                                             style: TextStyle(
-                                                                      fontSize:
-                                                                          14,
-                                                                      color: Theme.of(context)
+                                                                fontSize: 14,
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
                                                                       .colorScheme
                                                                       .onSurface
-                                                                          .withAlpha(150),
+                                                                        .withAlpha(
+                                                                          150,
+                                                                        ),
                                                             ),
                                                           )
                                                         : SizedBox(),
@@ -1351,9 +1324,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       style: TextStyle(
                                                         fontSize: 14,
                                                                 color:
-                                                                    Theme.of(
-                                                                          context,
-                                                                        )
+                                                              Theme.of(context)
                                                             .colorScheme
                                                             .onSurface
                                                                         .withAlpha(
@@ -1386,9 +1357,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                             ),
                             // Thumbnail (Right Side)
                             SizedBox(
-                                      width: compactView
-                                          ? thumbnailSlotWidth
-                                          : null,
+                                width: compactView ? thumbnailSlotWidth : null,
                               child: Align(
                                 alignment: compactView
                                     ? Alignment.center
@@ -1400,15 +1369,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   ),
                                   child: AspectRatio(
                                     aspectRatio:
-                                                _thumbnailRatios.length >
-                                                    docIndex
+                                          _thumbnailRatios.length > docIndex
                                         ? _thumbnailRatios[docIndex]
                                         : math.sqrt1_2,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                                boxShadow: [
-                                                  bigBoxShadow(context),
-                                                ],
+                                          boxShadow: [bigBoxShadow(context)],
                                       ),
                                       child: Stack(
                                         fit: StackFit.passthrough,
@@ -1432,9 +1398,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 child:
                                                     _docThumbnails[docIndex]
                                                         .toLowerCase()
-                                                                .endsWith(
-                                                                  ".pdf",
-                                                                )
+                                                          .endsWith(".pdf")
                                                     ? PdfPageView(
                                                         path:
                                                             _docThumbnails[docIndex],
@@ -1445,8 +1409,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                         File(
                                                           _docThumbnails[docIndex],
                                                         ),
-                                                                fit: BoxFit
-                                                                    .cover,
+                                                          fit: BoxFit.cover,
                                                         key: ValueKey(
                                                           _docThumbnails[docIndex],
                                                         ),
@@ -1502,20 +1465,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                               color: Colors.transparent,
                                               child: InkWell(
                                                         onTap: _selectMode
-                                                            ? () =>
-                                                                  _selectDocument(
+                                                      ? () => _selectDocument(
                                                                     docIndex,
                                                                   )
-                                                            : () =>
-                                                                  _openDocument(
+                                                      : () => _openDocument(
                                                                     docIndex,
                                                                   ),
                                                 onLongPress: () =>
-                                                            _selectDocument(
-                                                      docIndex,
-                                                    ),
-                                                        splashColor:
-                                                            Colors.black26,
+                                                      _selectDocument(docIndex),
+                                                  splashColor: Colors.black26,
                                                         highlightColor:
                                                             Colors.black26,
                                                       ),
@@ -1529,19 +1487,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       child: Center(
                                                         child: CircleAvatar(
                                                           radius: 14,
-                                                          backgroundColor:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .primary,
+                                                    backgroundColor: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
                                                           child: Icon(
                                                             Icons.check,
                                                             size: 18,
-                                                            color:
-                                                                Theme.of(
+                                                      color: Theme.of(
                                                                       context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .onPrimary,
+                                                      ).colorScheme.onPrimary,
                                                           ),
                                                         ),
                                                       ),
