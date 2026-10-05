@@ -1683,10 +1683,12 @@ class FilesHelper {
           throw StateError("Could not create merged PDF for selected documents");
         }
         tempFiles.add(pdfFile);
+        final fileName = await _generateMergedDocumentsFileName(docIndexes);
+        final namedPdfFile = await _renamePdfForSharing(pdfFile, fileName);
         files.add(
           XFile(
-            pdfFile.path,
-            name: await _generateMergedDocumentsFileName(docIndexes),
+            namedPdfFile.path,
+            name: fileName,
             mimeType: "application/pdf",
           ),
         );
@@ -1697,12 +1699,14 @@ class FilesHelper {
             throw StateError("Could not create PDF for document $docIndex");
           }
           tempFiles.add(pdfFile);
+          final fileName = _safeExportFileName(
+            await _generateFileName(docIndex, const [], null, ".pdf"),
+          );
+          final namedPdfFile = await _renamePdfForSharing(pdfFile, fileName);
           files.add(
             XFile(
-              pdfFile.path,
-              name: _safeExportFileName(
-                await _generateFileName(docIndex, const [], null, ".pdf"),
-              ),
+              namedPdfFile.path,
+              name: fileName,
               mimeType: "application/pdf",
             ),
           );
@@ -2487,10 +2491,15 @@ class FilesHelper {
     }
     messenger?.hideCurrentSnackBar();
     try {
+      final namedPdfFile = await _renamePdfForSharing(pdfFile, docFileName);
       await SharePlus.instance.share(
         ShareParams(
           files: [
-            XFile(pdfFile.path, name: docFileName, mimeType: "application/pdf"),
+            XFile(
+              namedPdfFile.path,
+              name: docFileName,
+              mimeType: "application/pdf",
+            ),
           ],
         ),
       );
@@ -2499,6 +2508,13 @@ class FilesHelper {
         await pdfFile.parent.delete(recursive: true);
       }
     }
+  }
+
+  Future<File> _renamePdfForSharing(File pdfFile, String fileName) async {
+    final safeFileName = _safeExportFileName(fileName);
+    final renamedPath = "${pdfFile.parent.path}/$safeFileName";
+    if (renamedPath == pdfFile.path) return pdfFile;
+    return pdfFile.rename(renamedPath);
   }
 
   Future<String> _generateFileName(
@@ -2527,15 +2543,17 @@ class FilesHelper {
   }
 
   Future<String> _documentExportName(int docIndex) async {
-    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
-    if (customName == null || customName.isEmpty) {
-      return "${docIndex + 1}";
-    }
     final documentNumber = tr(
       "documents.docIndex",
       namedArgs: {"docIndex": "${docIndex + 1}"},
     );
-    return customName == documentNumber ? "${docIndex + 1}" : customName;
+    final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+    if (customName == null ||
+        customName.isEmpty ||
+        customName == documentNumber) {
+      return documentNumber;
+    }
+    return customName;
   }
 
   Future<String> _documentDisplayName(int docIndex) async {
@@ -2563,7 +2581,18 @@ class FilesHelper {
   Future<String> _mergedDocumentsBaseName(List<int> docIndexes) async {
     final documentNames = <String>[];
     for (final docIndex in [...docIndexes]..sort()) {
-      documentNames.add(await _documentExportName(docIndex));
+      final customName = (await g.metadataHelper.readDocName(docIndex))?.trim();
+      final documentNumber = tr(
+        "documents.docIndex",
+        namedArgs: {"docIndex": "${docIndex + 1}"},
+      );
+      documentNames.add(
+        customName == null ||
+                customName.isEmpty ||
+                customName == documentNumber
+            ? "${docIndex + 1}"
+            : customName,
+      );
     }
     return tr(
       "export.mergedPdfFileName",
