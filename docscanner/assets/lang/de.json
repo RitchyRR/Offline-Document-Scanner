@@ -24,6 +24,15 @@
     "noSearchResults": "Keine passenden Dokumente",
     "docIndex": "Dokument {docIndex}",
     "addDoc": "Neues Dokument hinzufügen",
+    "selection": {
+      "selectedOne": "1 Dokument ausgewählt",
+      "selected": "{selectedCount} Dokumente ausgewählt",
+      "cancel": "Auswahl aufheben",
+      "delete": {
+        "title": "Dokumente löschen",
+        "text": "Möchtest du die {selectedCount} ausgewählten Dokumente löschen?"
+      }
+    },
     "views": {
       "compactView": "Kompakt",
       "mediumView": "Mittel",

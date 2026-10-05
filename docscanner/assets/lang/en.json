@@ -24,6 +24,15 @@
     "noSearchResults": "No matching documents",
     "docIndex": "Document {docIndex}",
     "addDoc": "Add a new Document",
+    "selection": {
+      "selectedOne": "1 document selected",
+      "selected": "{selectedCount} documents selected",
+      "cancel": "Cancel selection",
+      "delete": {
+        "title": "Delete documents",
+        "text": "Do you want to delete the {selectedCount} selected documents?"
+      }
+    },
     "views": {
       "compactView": "Compact",
       "mediumView": "Medium",

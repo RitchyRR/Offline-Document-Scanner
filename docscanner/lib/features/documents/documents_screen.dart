@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -45,6 +46,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
   final FocusNode _searchFocusNode = FocusNode();
   List<String> _docThumbnails = [];
   bool _searchMode = false;
+  bool _selectMode = false;
+  final List<int> _selectedDocs = [];
   bool _keyboardWasVisible = false;
 
   @override
@@ -116,6 +119,72 @@ class _DocumentsHomeState extends State<DocumentsHome>
     _searchFocusNode.unfocus();
     _searchController.clear();
     setState(() => _searchMode = false);
+  }
+
+  void _selectDocument(int docIndex) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (_selectedDocs.contains(docIndex)) {
+        _selectedDocs.remove(docIndex);
+      } else {
+        _selectedDocs.add(docIndex);
+        _selectedDocs.sort();
+      }
+      _selectMode = _selectedDocs.isNotEmpty;
+    });
+  }
+
+  void _cancelSelectMode() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _selectedDocs.clear();
+      _selectMode = false;
+    });
+  }
+
+  Future<void> _runSelectedDocumentAction(PopUpType type) async {
+    final selectedDocs = List<int>.from(_selectedDocs);
+    if (type == PopUpType.delete) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(tr("documents.selection.delete.title")),
+          content: Text(
+            tr(
+              "documents.selection.delete.text",
+              namedArgs: {"selectedCount": "${selectedDocs.length}"},
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(tr("popup.cancel")),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(tr("fabs.delete")),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      selectedDocs.sort((a, b) => b.compareTo(a));
+      for (final docIndex in selectedDocs) {
+        await g.filesHelper.deleteImages(context, docIndex);
+      }
+      if (mounted) {
+        _cancelSelectMode();
+        await _loadDocsDisplay();
+      }
+      return;
+    }
+
+    for (final docIndex in selectedDocs) {
+      if (!mounted) return;
+      final completed = await showPagesPopup(context, [], type, docIndex);
+      if (!completed) return;
+    }
+    if (mounted) _cancelSelectMode();
   }
 
   bool _matchesSearchQuery(String value, String query) {
@@ -845,15 +914,30 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        titleSpacing: _searchMode ? 0 : null,
-        leading: _searchMode
+        titleSpacing: _searchMode && !_selectMode ? 0 : null,
+        leading: _selectMode
+            ? IconButton(
+                onPressed: _cancelSelectMode,
+                tooltip: tr("documents.selection.cancel"),
+                icon: const Icon(Icons.close),
+              )
+            : _searchMode
             ? IconButton(
                 onPressed: _closeSearchMode,
                 tooltip: tr("documents.closeSearch"),
                 icon: const Icon(Icons.arrow_back),
               )
             : null,
-        title: _searchMode
+        title: _selectMode
+            ? Text(
+                tr(
+                  _selectedDocs.length == 1
+                      ? "documents.selection.selectedOne"
+                      : "documents.selection.selected",
+                  namedArgs: {"selectedCount": "${_selectedDocs.length}"},
+                ),
+              )
+            : _searchMode
             ? TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
@@ -872,7 +956,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
               )
             : Text(tr("documents.title")),
         actions: [
-          if (!_searchMode && feedbackHelper.canShowInAppbar())
+          if (!_searchMode && !_selectMode && feedbackHelper.canShowInAppbar())
             CustomExpandingButton(
               onPressed: () async {
                 await feedbackHelper.showRatingDialog(context);
@@ -881,13 +965,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
               icon: Icons.star_half,
               text: tr("documents.menu.feedback"),
             ),
-          if (!_searchMode)
+          if (!_searchMode && !_selectMode)
             IconButton(
               onPressed: _openSearchMode,
               tooltip: tr("documents.search"),
               icon: const Icon(Icons.search),
             ),
-          if (!_searchMode)
+          if (!_searchMode && !_selectMode)
             PopupMenuButton(
               itemBuilder: (context) => [
                 PopupMenuItem(
@@ -1050,7 +1134,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       : cardHeight;
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Card(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _selectMode
+                          ? () => _selectDocument(docIndex)
+                          : null,
+                      onLongPress: () => _selectDocument(docIndex),
+                      child: Card(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1068,49 +1158,70 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   right: compactView ? 8 : 0,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                 ),
                                 elevation: compactView ? 2 : 0,
-                                color: compactView ? null : Colors.transparent,
+                                        color: compactView
+                                            ? null
+                                            : Colors.transparent,
                                 child: Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                   children: [
                                     // Document Info
                                     if (compactView)
                                       Flexible(
                                         child: InkWell(
-                                          borderRadius: const BorderRadius.all(
+                                                  borderRadius:
+                                                      const BorderRadius.all(
                                             Radius.circular(12.0),
                                           ),
-                                          onTap: () => _openDocEditDialog(
+                                                  onTap: _selectMode
+                                                      ? () => _selectDocument(
+                                                          docIndex,
+                                                        )
+                                                      : () =>
+                                                            _openDocEditDialog(
                                             context,
                                             docIndex,
                                             displayDocIndex,
                                           ),
+                                                  onLongPress: () =>
+                                                      _selectDocument(docIndex),
                                           child: Padding(
-                                            padding: const EdgeInsets.symmetric(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
                                               horizontal: 10,
                                               vertical: 6,
                                             ),
                                             child: Column(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                                          CrossAxisAlignment
+                                                              .start,
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.center,
+                                                          MainAxisAlignment
+                                                              .center,
                                               children: [
                                                 Text(
                                                   docName,
-                                                  style: const TextStyle(
+                                                          style:
+                                                              const TextStyle(
                                                     fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
                                                   ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                   maxLines: 1,
                                                 ),
-                                                const SizedBox(height: 4),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
                                                 Text(
                                                   [
                                                     tr(
@@ -1128,13 +1239,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   ].join(" • "),
                                                   style: TextStyle(
                                                     fontSize: 13,
-                                                    color: Theme.of(context)
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
                                                         .colorScheme
                                                         .onSurface
-                                                        .withAlpha(150),
+                                                                    .withAlpha(
+                                                                      150,
                                                   ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                   maxLines: 1,
                                                 ),
                                               ],
@@ -1145,14 +1261,22 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                     else
                                       Flexible(
                                         child: InkWell(
-                                          borderRadius: BorderRadius.all(
+                                                  borderRadius:
+                                                      BorderRadius.all(
                                             Radius.circular(12.0),
                                           ),
-                                          onTap: () => _openDocEditDialog(
+                                                  onTap: _selectMode
+                                                      ? () => _selectDocument(
+                                                          docIndex,
+                                                        )
+                                                      : () =>
+                                                            _openDocEditDialog(
                                             context,
                                             docIndex,
                                             displayDocIndex,
                                           ),
+                                                  onLongPress: () =>
+                                                      _selectDocument(docIndex),
                                           child: Padding(
                                             padding: EdgeInsets.all(
                                               standardView ? 8 : 12,
@@ -1161,25 +1285,31 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                               builder: (context) {
                                                 return Column(
                                                   crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
+                                                              CrossAxisAlignment
+                                                                  .start,
                                                   mainAxisAlignment:
-                                                      MainAxisAlignment.center,
+                                                              MainAxisAlignment
+                                                                  .center,
                                                   children: [
                                                     Text(
                                                       docName,
                                                       style: TextStyle(
                                                         fontSize: 18,
                                                         fontWeight:
-                                                            FontWeight.bold,
+                                                                    FontWeight
+                                                                        .bold,
                                                       ),
                                                       overflow:
-                                                          TextOverflow.ellipsis,
-                                                      maxLines: standardView
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              maxLines:
+                                                                  standardView
                                                           ? 2
                                                           : 5,
                                                     ),
                                                     SizedBox(
-                                                      height: standardView
+                                                              height:
+                                                                  standardView
                                                           ? 4
                                                           : 6,
                                                     ),
@@ -1194,16 +1324,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                               },
                                                             ),
                                                             style: TextStyle(
-                                                              fontSize: 14,
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
+                                                                      fontSize:
+                                                                          14,
+                                                                      color: Theme.of(context)
                                                                       .colorScheme
                                                                       .onSurface
-                                                                      .withAlpha(
-                                                                        150,
-                                                                      ),
+                                                                          .withAlpha(150),
                                                             ),
                                                           )
                                                         : SizedBox(),
@@ -1224,10 +1350,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       ),
                                                       style: TextStyle(
                                                         fontSize: 14,
-                                                        color: Theme.of(context)
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
                                                             .colorScheme
                                                             .onSurface
-                                                            .withAlpha(150),
+                                                                        .withAlpha(
+                                                                          150,
+                                                                        ),
                                                       ),
                                                     ),
                                                   ],
@@ -1238,19 +1369,26 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         ),
                                       ),
                                     // Keep actions left of the thumbnail in a fixed position.
-                                    _buildDocumentActions(
+                                            if (!_selectMode)
+                                              GestureDetector(
+                                                onLongPress: () =>
+                                                    _selectDocument(docIndex),
+                                                child: _buildDocumentActions(
                                       context,
                                       docIndex,
                                       compactView: compactView,
                                       standardView: standardView,
                                     ),
+                                              ),
                                   ],
                                 ),
                               ),
                             ),
                             // Thumbnail (Right Side)
                             SizedBox(
-                              width: compactView ? thumbnailSlotWidth : null,
+                                      width: compactView
+                                          ? thumbnailSlotWidth
+                                          : null,
                               child: Align(
                                 alignment: compactView
                                     ? Alignment.center
@@ -1262,12 +1400,15 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                   ),
                                   child: AspectRatio(
                                     aspectRatio:
-                                        _thumbnailRatios.length > docIndex
+                                                _thumbnailRatios.length >
+                                                    docIndex
                                         ? _thumbnailRatios[docIndex]
                                         : math.sqrt1_2,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        boxShadow: [bigBoxShadow(context)],
+                                                boxShadow: [
+                                                  bigBoxShadow(context),
+                                                ],
                                       ),
                                       child: Stack(
                                         fit: StackFit.passthrough,
@@ -1291,7 +1432,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 child:
                                                     _docThumbnails[docIndex]
                                                         .toLowerCase()
-                                                        .endsWith(".pdf")
+                                                                .endsWith(
+                                                                  ".pdf",
+                                                                )
                                                     ? PdfPageView(
                                                         path:
                                                             _docThumbnails[docIndex],
@@ -1302,7 +1445,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                         File(
                                                           _docThumbnails[docIndex],
                                                         ),
-                                                        fit: BoxFit.cover,
+                                                                fit: BoxFit
+                                                                    .cover,
                                                         key: ValueKey(
                                                           _docThumbnails[docIndex],
                                                         ),
@@ -1313,9 +1457,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                               stackTrace,
                                                             ) {
                                                               return Material(
-                                                                color: Theme.of(context)
-                                                                    .colorScheme
-                                                                    .surfaceBright,
+                                                                        color: Theme.of(
+                                                                          context,
+                                                                        ).colorScheme.surfaceBright,
                                                                 child: const Icon(
                                                                   Icons
                                                                       .broken_image,
@@ -1341,20 +1485,71 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   .isEmpty ||
                                               isLoading)
                                             IndicatorProcessingImage(),
+                                                  if (_selectMode &&
+                                                      _selectedDocs.contains(
+                                                        docIndex,
+                                                      ))
+                                                    Positioned.fill(
+                                                      child: Material(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primaryContainer
+                                                            .withAlpha(150),
+                                                      ),
+                                                    ),
                                           Positioned.fill(
                                             child: Material(
                                               color: Colors.transparent,
                                               child: InkWell(
-                                                onTap: () =>
-                                                    _openDocument(docIndex),
+                                                        onTap: _selectMode
+                                                            ? () =>
+                                                                  _selectDocument(
+                                                                    docIndex,
+                                                                  )
+                                                            : () =>
+                                                                  _openDocument(
+                                                                    docIndex,
+                                                                  ),
                                                 onLongPress: () =>
-                                                    _openDocEditDialog(
-                                                      context,
+                                                            _selectDocument(
                                                       docIndex,
-                                                      displayDocIndex,
                                                     ),
-                                                splashColor: Colors.black26,
-                                                highlightColor: Colors.black26,
+                                                        splashColor:
+                                                            Colors.black26,
+                                                        highlightColor:
+                                                            Colors.black26,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (_selectMode &&
+                                                      _selectedDocs.contains(
+                                                        docIndex,
+                                                      ))
+                                                    Positioned.fill(
+                                                      child: Center(
+                                                        child: CircleAvatar(
+                                                          radius: 14,
+                                                          backgroundColor:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                          child: Icon(
+                                                            Icons.check,
+                                                            size: 18,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onPrimary,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                               ),
                                             ),
                                           ),
@@ -1362,12 +1557,6 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   );
                 },
@@ -1410,7 +1599,50 @@ class _DocumentsHomeState extends State<DocumentsHome>
       // Floating Action Buttons
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Column(
+        child: _selectMode
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: FloatingActionButton(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      heroTag: "selectionDeleteDocument",
+                      onPressed: () =>
+                          _runSelectedDocumentAction(PopUpType.delete),
+                      tooltip: tr("fabs.delete"),
+                      child: const Icon(Icons.delete),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: FloatingActionButton(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      heroTag: "selectionSaveDocument",
+                      onPressed: () =>
+                          _runSelectedDocumentAction(PopUpType.save),
+                      tooltip: tr("fabs.save"),
+                      child: const Icon(Icons.save),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FloatingActionButton(
+                    heroTag: "selectionShareDocument",
+                    onPressed: () =>
+                        _runSelectedDocumentAction(PopUpType.share),
+                    tooltip: tr("fabs.share"),
+                    child: const Icon(Icons.share),
+                  ),
+                ],
+              )
+            : Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
             SizedBox(
@@ -1464,9 +1696,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
       ),
     );
     return PopScope(
-      canPop: !_searchMode,
+      canPop: !_searchMode && !_selectMode,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _searchMode) _closeSearchMode();
+        if (!didPop && _selectMode) {
+          _cancelSelectMode();
+        } else if (!didPop && _searchMode) {
+          _closeSearchMode();
+        }
       },
       child: scaffold,
     );

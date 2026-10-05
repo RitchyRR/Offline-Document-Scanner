@@ -144,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: DocumentsView.standard,
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
-                          tr("documents.views.standardView"),
+                          tr("documents.views.mediumView"),
                           textAlign: TextAlign.end,
                         ),
                       ),
