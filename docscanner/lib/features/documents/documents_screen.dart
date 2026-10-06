@@ -1227,6 +1227,16 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   final VoidCallback onCardTap = _selectMode
                       ? () => _selectDocument(docIndex)
                       : () => _openDocument(docIndex);
+                  final VoidCallback? onDocumentInfoTap = _selectMode
+                      ? null
+                      : () => _openDocEditDialog(
+                          context,
+                          docIndex,
+                          displayDocIndex,
+                        );
+                  final VoidCallback? onDocumentInfoLongPress = _selectMode
+                      ? null
+                      : () => _selectDocument(docIndex);
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: GestureDetector(
@@ -1279,17 +1289,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                     const BorderRadius.all(
                                                       Radius.circular(12.0),
                                                     ),
-                                                onTap: _selectMode
-                                                    ? () => _selectDocument(
-                                                        docIndex,
-                                                      )
-                                                    : () => _openDocEditDialog(
-                                                        context,
-                                                        docIndex,
-                                                        displayDocIndex,
-                                                      ),
-                                                onLongPress: () =>
-                                                    _selectDocument(docIndex),
+                                                onTap: onDocumentInfoTap,
+                                                onLongPress:
+                                                    onDocumentInfoLongPress,
                                                 child: Padding(
                                                   padding:
                                                       const EdgeInsets.symmetric(
@@ -1356,17 +1358,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 borderRadius: BorderRadius.all(
                                                   Radius.circular(12.0),
                                                 ),
-                                                onTap: _selectMode
-                                                    ? () => _selectDocument(
-                                                        docIndex,
-                                                      )
-                                                    : () => _openDocEditDialog(
-                                                        context,
-                                                        docIndex,
-                                                        displayDocIndex,
-                                                      ),
-                                                onLongPress: () =>
-                                                    _selectDocument(docIndex),
+                                                onTap: onDocumentInfoTap,
+                                                onLongPress:
+                                                    onDocumentInfoLongPress,
                                                 child: Padding(
                                                   padding: EdgeInsets.all(
                                                     standardView ? 8 : 12,
