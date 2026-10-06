@@ -1593,24 +1593,27 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                     splashColor: Colors.black26,
                                                     highlightColor:
                                                         Colors.black26,
+                                                    child:
+                                                        _selectMode &&
+                                                            _selectedDocs
+                                                                .contains(
+                                                                  docIndex,
+                                                                )
+                                                        ? Center(
+                                                            child: Icon(
+                                                              Icons
+                                                                  .check_circle,
+                                                              size:
+                                                                  selectionIconSize,
+                                                              color: Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onPrimaryContainer,
+                                                            ),
+                                                          )
+                                                        : null,
                                                   ),
                                                 ),
                                               ),
-                                              if (_selectMode &&
-                                                  _selectedDocs.contains(
-                                                    docIndex,
-                                                  ))
-                                                Positioned.fill(
-                                                  child: Center(
-                                                    child: Icon(
-                                                      Icons.check_circle,
-                                                      size: selectionIconSize,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onPrimaryContainer,
-                                                    ),
-                                                  ),
-                                                ),
                                             ],
                                           ),
                                         ),
