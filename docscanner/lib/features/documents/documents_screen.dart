@@ -882,7 +882,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
           PopupMenuItem(
             value: PopUpType.save,
             onTap: () => showPagesPopup(context, [], PopUpType.save, docIndex),
-                                      child: Row(
+            child: Row(
               children: [
                 const Icon(Icons.save),
                 const SizedBox(width: 12),
@@ -1224,6 +1224,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       documentsView == DocumentsView.spacious
                       ? 184
                       : cardHeight;
+                  final VoidCallback onCardTap = _selectMode
+                      ? () => _selectDocument(docIndex)
+                      : () => _openDocument(docIndex);
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: GestureDetector(
@@ -1238,11 +1241,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         color: compactView ? Colors.transparent : null,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: compactView
-                              ? null
-                              : _selectMode
-                              ? () => _selectDocument(docIndex)
-                              : () => _openDocument(docIndex),
+                          onTap: compactView ? null : onCardTap,
                           child: SizedBox(
                             height: cardHeight,
                             child: Row(
@@ -1265,12 +1264,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                         : Colors.transparent,
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(12),
-                                      onTap: compactView
-                                          ? _selectMode
-                                                ? () => _selectDocument(docIndex)
-                                                : () => _openDocument(docIndex)
-                                          : null,
-                                        child: Row(
+                                      onTap: compactView ? onCardTap : null,
+                                      child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         crossAxisAlignment:
@@ -1285,8 +1280,9 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       Radius.circular(12.0),
                                                     ),
                                                 onTap: _selectMode
-                                                    ? () =>
-                                                          _selectDocument(docIndex)
+                                                    ? () => _selectDocument(
+                                                        docIndex,
+                                                      )
                                                     : () => _openDocEditDialog(
                                                         context,
                                                         docIndex,
@@ -1302,9 +1298,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       ),
                                                   child: Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment.start,
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     mainAxisAlignment:
-                                                        MainAxisAlignment.center,
+                                                        MainAxisAlignment
+                                                            .center,
                                                     children: [
                                                       Text(
                                                         docName,
@@ -1313,8 +1311,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),
-                                                        overflow:
-                                                            TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                         maxLines: 1,
                                                       ),
                                                       const SizedBox(height: 4),
@@ -1335,291 +1333,300 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                         ].join(" • "),
                                                         style: TextStyle(
                                                           fontSize: 13,
-                                                          color: Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurface
-                                                              .withAlpha(150),
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withAlpha(
+                                                                    150,
+                                                                  ),
                                                         ),
-                                                        overflow:
-                                                            TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                         maxLines: 1,
                                                       ),
                                                     ],
                                                   ),
-                                              ),
-                                            ),
-                                          )
-                                        else
-                                          Flexible(
-                                            child: InkWell(
-                                              borderRadius: BorderRadius.all(
-                                                Radius.circular(12.0),
-                                              ),
-                                              onTap: _selectMode
-                                                  ? () =>
-                                                        _selectDocument(docIndex)
-                                                  : () => _openDocEditDialog(
-                                                      context,
-                                                      docIndex,
-                                                      displayDocIndex,
-                                                    ),
-                                              onLongPress: () =>
-                                                  _selectDocument(docIndex),
-                                              child: Padding(
-                                                padding: EdgeInsets.all(
-                                                  standardView ? 8 : 12,
                                                 ),
-                                                child: Builder(
-                                                  builder: (context) {
-                                                    return Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Text(
-                                                          docName,
-                                                          style: TextStyle(
-                                                            fontSize: 18,
-                                                            fontWeight:
-                                                                FontWeight.bold,
+                                              ),
+                                            )
+                                          else
+                                            Flexible(
+                                              child: InkWell(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(12.0),
+                                                ),
+                                                onTap: _selectMode
+                                                    ? () => _selectDocument(
+                                                        docIndex,
+                                                      )
+                                                    : () => _openDocEditDialog(
+                                                        context,
+                                                        docIndex,
+                                                        displayDocIndex,
+                                                      ),
+                                                onLongPress: () =>
+                                                    _selectDocument(docIndex),
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(
+                                                    standardView ? 8 : 12,
+                                                  ),
+                                                  child: Builder(
+                                                    builder: (context) {
+                                                      return Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                            docName,
+                                                            style: TextStyle(
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            maxLines:
+                                                                standardView
+                                                                ? 2
+                                                                : 5,
                                                           ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          maxLines: standardView
-                                                              ? 2
-                                                              : 5,
-                                                        ),
-                                                        SizedBox(
-                                                          height: standardView
-                                                              ? 4
-                                                              : 6,
-                                                        ),
-                                                        displayCreationDate
-                                                                .isNotEmpty
-                                                            ? Text(
-                                                                tr(
-                                                                  "documents.card.date",
-                                                                  namedArgs: {
-                                                                    "creationDate":
-                                                                        displayCreationDate,
-                                                                  },
-                                                                ),
-                                                                style: TextStyle(
-                                                                  fontSize: 14,
-                                                                  color:
-                                                                      Theme.of(
-                                                                            context,
-                                                                          )
-                                                                          .colorScheme
-                                                                          .onSurface
-                                                                          .withAlpha(
-                                                                            150,
-                                                                          ),
-                                                                ),
-                                                              )
-                                                            : SizedBox(),
-                                                        SizedBox(
-                                                          height:
-                                                              displayCreationDate
+                                                          SizedBox(
+                                                            height: standardView
+                                                                ? 4
+                                                                : 6,
+                                                          ),
+                                                          displayCreationDate
                                                                   .isNotEmpty
-                                                              ? 4
-                                                              : 0,
-                                                        ),
-                                                        Text(
-                                                          tr(
-                                                            "documents.card.pagesCount",
-                                                            namedArgs: {
-                                                              "pagesCount":
-                                                                  "$pagesCount",
-                                                            },
-                                                          ),
-                                                          style: TextStyle(
-                                                            fontSize: 14,
-                                                            color:
-                                                                Theme.of(context)
-                                                                    .colorScheme
-                                                                    .onSurface
-                                                                    .withAlpha(
-                                                                      150,
-                                                                    ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        // Keep actions left of the thumbnail in a fixed position.
-                                        if (!_selectMode)
-                                          GestureDetector(
-                                            onLongPress: () =>
-                                                _selectDocument(docIndex),
-                                            child: _buildDocumentActions(
-                                              context,
-                                              docIndex,
-                                              compactView: compactView,
-                                              standardView: standardView,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Thumbnail (Right Side)
-                              SizedBox(
-                                width: compactView ? thumbnailSlotWidth : null,
-                                child: Align(
-                                  alignment: compactView
-                                      ? Alignment.center
-                                      : Alignment.centerRight,
-                                  widthFactor: compactView ? null : 1,
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: thumbnailSlotWidth,
-                                    ),
-                                    child: AspectRatio(
-                                      aspectRatio:
-                                          _thumbnailRatios.length > docIndex
-                                          ? _thumbnailRatios[docIndex]
-                                          : math.sqrt1_2,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          boxShadow: [bigBoxShadow(context)],
-                                        ),
-                                        child: Stack(
-                                          fit: StackFit.passthrough,
-                                          children: [
-                                            // BG
-                                            Material(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.surfaceBright,
-                                            ),
-                                            // Thumbnail
-                                            if (_docThumbnails.length >
-                                                    docIndex &&
-                                                _docThumbnails[docIndex]
-                                                    .isNotEmpty)
-                                              AnimatedSwitcher(
-                                                duration: Duration(
-                                                  milliseconds: 200,
-                                                ),
-                                                child: SizedBox.expand(
-                                                  child:
-                                                      _docThumbnails[docIndex]
-                                                          .toLowerCase()
-                                                          .endsWith(".pdf")
-                                                      ? PdfPageView(
-                                                          path:
-                                                              _docThumbnails[docIndex],
-                                                          cacheRevision:
-                                                              _pdfRevision,
-                                                        )
-                                                      : Image.file(
-                                                          File(
-                                                            _docThumbnails[docIndex],
-                                                          ),
-                                                          fit: BoxFit.cover,
-                                                          key: ValueKey(
-                                                            _docThumbnails[docIndex],
-                                                          ),
-                                                          errorBuilder:
-                                                              (
-                                                                context,
-                                                                error,
-                                                                stackTrace,
-                                                              ) {
-                                                                return Material(
-                                                                  color: Theme.of(
-                                                                    context,
-                                                                  ).colorScheme.surfaceBright,
-                                                                  child: const Icon(
-                                                                    Icons
-                                                                        .broken_image,
+                                                              ? Text(
+                                                                  tr(
+                                                                    "documents.card.date",
+                                                                    namedArgs: {
+                                                                      "creationDate":
+                                                                          displayCreationDate,
+                                                                    },
                                                                   ),
-                                                                );
+                                                                  style: TextStyle(
+                                                                    fontSize:
+                                                                        14,
+                                                                    color: Theme.of(context)
+                                                                        .colorScheme
+                                                                        .onSurface
+                                                                        .withAlpha(150),
+                                                                  ),
+                                                                )
+                                                              : SizedBox(),
+                                                          SizedBox(
+                                                            height:
+                                                                displayCreationDate
+                                                                    .isNotEmpty
+                                                                ? 4
+                                                                : 0,
+                                                          ),
+                                                          Text(
+                                                            tr(
+                                                              "documents.card.pagesCount",
+                                                              namedArgs: {
+                                                                "pagesCount":
+                                                                    "$pagesCount",
                                                               },
-                                                        ),
-                                                ),
-                                              ),
-                                            // Loading Indicator
-                                            if (isLoading)
-                                              Positioned.fill(
-                                                child: Material(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .surfaceContainerHigh
-                                                      .withAlpha(150),
-                                                ),
-                                              ),
-                                            if (_thumbnailRatios.length <=
-                                                    docIndex ||
-                                                _docThumbnails[docIndex]
-                                                    .isEmpty ||
-                                                isLoading)
-                                              IndicatorProcessingImage(),
-                                            if (_selectMode &&
-                                                _selectedDocs.contains(
-                                                  docIndex,
-                                                ))
-                                              Positioned.fill(
-                                                child: Material(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primaryContainer
-                                                      .withAlpha(150),
-                                                ),
-                                              ),
-                                            Positioned.fill(
-                                              child: Material(
-                                                color: Colors.transparent,
-                                                child: InkWell(
-                                                  onTap: _selectMode
-                                                      ? () => _selectDocument(
-                                                          docIndex,
-                                                        )
-                                                      : () => _openDocument(
-                                                          docIndex,
-                                                        ),
-                                                  onLongPress: () =>
-                                                      _selectDocument(docIndex),
-                                                  splashColor: Colors.black26,
-                                                  highlightColor:
-                                                      Colors.black26,
-                                                ),
-                                              ),
-                                            ),
-                                            if (_selectMode &&
-                                                _selectedDocs.contains(
-                                                  docIndex,
-                                                ))
-                                              Positioned.fill(
-                                                child: Center(
-                                                  child: Icon(
-                                                    Icons.check_circle,
-                                                    size: selectionIconSize,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimaryContainer,
+                                                            ),
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .onSurface
+                                                                      .withAlpha(
+                                                                        150,
+                                                                      ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
                                                   ),
                                                 ),
                                               ),
-                                          ],
+                                            ),
+                                          // Keep actions left of the thumbnail in a fixed position.
+                                          if (!_selectMode)
+                                            GestureDetector(
+                                              onLongPress: () =>
+                                                  _selectDocument(docIndex),
+                                              child: _buildDocumentActions(
+                                                context,
+                                                docIndex,
+                                                compactView: compactView,
+                                                standardView: standardView,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Thumbnail (Right Side)
+                                SizedBox(
+                                  width: compactView
+                                      ? thumbnailSlotWidth
+                                      : null,
+                                  child: Align(
+                                    alignment: compactView
+                                        ? Alignment.center
+                                        : Alignment.centerRight,
+                                    widthFactor: compactView ? null : 1,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: thumbnailSlotWidth,
+                                      ),
+                                      child: AspectRatio(
+                                        aspectRatio:
+                                            _thumbnailRatios.length > docIndex
+                                            ? _thumbnailRatios[docIndex]
+                                            : math.sqrt1_2,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            boxShadow: [bigBoxShadow(context)],
+                                          ),
+                                          child: Stack(
+                                            fit: StackFit.passthrough,
+                                            children: [
+                                              // BG
+                                              Material(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.surfaceBright,
+                                              ),
+                                              // Thumbnail
+                                              if (_docThumbnails.length >
+                                                      docIndex &&
+                                                  _docThumbnails[docIndex]
+                                                      .isNotEmpty)
+                                                AnimatedSwitcher(
+                                                  duration: Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  child: SizedBox.expand(
+                                                    child:
+                                                        _docThumbnails[docIndex]
+                                                            .toLowerCase()
+                                                            .endsWith(".pdf")
+                                                        ? PdfPageView(
+                                                            path:
+                                                                _docThumbnails[docIndex],
+                                                            cacheRevision:
+                                                                _pdfRevision,
+                                                          )
+                                                        : Image.file(
+                                                            File(
+                                                              _docThumbnails[docIndex],
+                                                            ),
+                                                            fit: BoxFit.cover,
+                                                            key: ValueKey(
+                                                              _docThumbnails[docIndex],
+                                                            ),
+                                                            errorBuilder:
+                                                                (
+                                                                  context,
+                                                                  error,
+                                                                  stackTrace,
+                                                                ) {
+                                                                  return Material(
+                                                                    color: Theme.of(
+                                                                      context,
+                                                                    ).colorScheme.surfaceBright,
+                                                                    child: const Icon(
+                                                                      Icons
+                                                                          .broken_image,
+                                                                    ),
+                                                                  );
+                                                                },
+                                                          ),
+                                                  ),
+                                                ),
+                                              // Loading Indicator
+                                              if (isLoading)
+                                                Positioned.fill(
+                                                  child: Material(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .surfaceContainerHigh
+                                                        .withAlpha(150),
+                                                  ),
+                                                ),
+                                              if (_thumbnailRatios.length <=
+                                                      docIndex ||
+                                                  _docThumbnails[docIndex]
+                                                      .isEmpty ||
+                                                  isLoading)
+                                                IndicatorProcessingImage(),
+                                              if (_selectMode &&
+                                                  _selectedDocs.contains(
+                                                    docIndex,
+                                                  ))
+                                                Positioned.fill(
+                                                  child: Material(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primaryContainer
+                                                        .withAlpha(150),
+                                                  ),
+                                                ),
+                                              Positioned.fill(
+                                                child: Material(
+                                                  color: Colors.transparent,
+                                                  child: InkWell(
+                                                    onTap: _selectMode
+                                                        ? () => _selectDocument(
+                                                            docIndex,
+                                                          )
+                                                        : () => _openDocument(
+                                                            docIndex,
+                                                          ),
+                                                    onLongPress: () =>
+                                                        _selectDocument(
+                                                          docIndex,
+                                                        ),
+                                                    splashColor: Colors.black26,
+                                                    highlightColor:
+                                                        Colors.black26,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (_selectMode &&
+                                                  _selectedDocs.contains(
+                                                    docIndex,
+                                                  ))
+                                                Positioned.fill(
+                                                  child: Center(
+                                                    child: Icon(
+                                                      Icons.check_circle,
+                                                      size: selectionIconSize,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onPrimaryContainer,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                         ),
                       ),
                     ),
