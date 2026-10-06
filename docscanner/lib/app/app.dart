@@ -46,8 +46,15 @@ class DocScannerApp extends StatelessWidget {
             initialRoute: "/",
             onGenerateRoute: onGenerateRoute,
             builder: FToastBuilder(),
-            theme: _themeData(lightTheme),
-            darkTheme: _themeData(darkTheme, isDark: true),
+            theme: _themeData(
+              lightTheme,
+              lightThemePrimary: lightTheme.primary,
+            ),
+            darkTheme: _themeData(
+              darkTheme,
+              lightThemePrimary: lightTheme.primary,
+              isDark: true,
+            ),
             themeMode: themeMode,
             home: home,
             onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => home),
@@ -57,7 +64,11 @@ class DocScannerApp extends StatelessWidget {
     );
   }
 
-  ThemeData _themeData(ColorScheme colorScheme, {bool isDark = false}) {
+  ThemeData _themeData(
+    ColorScheme colorScheme, {
+    required Color lightThemePrimary,
+    bool isDark = false,
+  }) {
     return ThemeData(
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -65,6 +76,7 @@ class DocScannerApp extends StatelessWidget {
         },
       ),
       colorScheme: colorScheme,
+      primaryColor: lightThemePrimary,
       useMaterial3: true,
       cardTheme: isDark
           ? CardThemeData(color: colorScheme.surfaceContainerHigh)

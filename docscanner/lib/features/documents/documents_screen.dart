@@ -1210,6 +1210,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       documentsView == DocumentsView.compact;
                   final bool standardView =
                       documentsView == DocumentsView.standard;
+                  final double selectionIconSize = switch (documentsView) {
+                    DocumentsView.compact => 28,
+                    DocumentsView.standard => 30,
+                    DocumentsView.spacious => 34,
+                  };
                   final double cardHeight = switch (documentsView) {
                     DocumentsView.standard => 128.0,
                     DocumentsView.spacious => 160.0 * math.sqrt2,
@@ -1225,7 +1230,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       behavior: HitTestBehavior.opaque,
                       onTap: _selectMode
                           ? () => _selectDocument(docIndex)
-                          : null,
+                          : () => _openDocument(docIndex),
                       onLongPress: () => _selectDocument(docIndex),
                       child: Card(
                         shape: RoundedRectangleBorder(
@@ -1581,18 +1586,12 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 ))
                                               Positioned.fill(
                                                 child: Center(
-                                                  child: CircleAvatar(
-                                                    radius: 14,
-                                                    backgroundColor: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                    child: Icon(
-                                                      Icons.check,
-                                                      size: 18,
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).colorScheme.onPrimary,
-                                                    ),
+                                                  child: Icon(
+                                                    Icons.check_circle,
+                                                    size: selectionIconSize,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onPrimaryContainer,
                                                   ),
                                                 ),
                                               ),
