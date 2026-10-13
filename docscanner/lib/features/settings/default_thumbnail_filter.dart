@@ -97,7 +97,7 @@ Future<bool> showDefaultThumbnailVersionDialog(
                       onPressed: () {
                         Navigator.pop(context, true);
                       },
-                      child: Text(tr("popup.ok")),
+                      child: Text(tr("popup.update")),
                     )
                   : ElevatedButton.icon(
                       icon: Icon(Icons.lock),
