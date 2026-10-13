@@ -229,10 +229,28 @@ class _DocumentsHomeState extends State<DocumentsHome>
 
   Future<void> _duplicateSelectedDocument() async {
     if (_selectedDocs.length != 1 || !mounted) return;
-    final docIndex = _selectedDocs.single;
+    await _duplicateDocument(
+      _selectedDocs.single,
+      cancelSelectionOnSuccess: true,
+    );
+  }
+
+  Future<void> _duplicateDocument(
+    int docIndex, {
+    bool cancelSelectionOnSuccess = false,
+  }) async {
+    if (!mounted) return;
+    final displayDocIndex =
+        docIndex +
+        1 -
+        _deletedDocs.where((deletedIndex) => deletedIndex < docIndex).length;
+    final documentName = _docNames[docIndex].isNotEmpty
+        ? _docNames[docIndex]
+        : tr("documents.docIndex", namedArgs: {"docIndex": "$displayDocIndex"});
     final confirmed = await showDuplicateDocumentConfirmation(
       context,
       docIndex,
+      documentName: documentName,
     );
     if (!confirmed || !mounted) return;
 
@@ -257,7 +275,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
       await g.filesHelper.duplicateDocument(docIndex);
       if (mounted) {
         messenger.hideCurrentSnackBar();
-        _cancelSelectMode();
+        if (cancelSelectionOnSuccess) _cancelSelectMode();
         await _loadDocsDisplay();
       }
     } catch (error, stackTrace) {
@@ -874,77 +892,92 @@ class _DocumentsHomeState extends State<DocumentsHome>
     required bool compactView,
     required bool standardView,
   }) {
+    final actions =
+        <({String value, IconData icon, String label, VoidCallback onPressed})>[
+          (
+            value: "save",
+            icon: Icons.save,
+            label: tr("fabs.save"),
+            onPressed: () =>
+                showPagesPopup(context, [], PopUpType.save, docIndex),
+          ),
+          (
+            value: "share",
+            icon: Icons.share,
+            label: tr("fabs.share"),
+            onPressed: () =>
+                showPagesPopup(context, [], PopUpType.share, docIndex),
+          ),
+          (
+            value: "delete",
+            icon: Icons.delete,
+            label: tr("fabs.delete"),
+            onPressed: () =>
+                showPagesPopup(context, [], PopUpType.delete, docIndex),
+          ),
+          (
+            value: "duplicate",
+            icon: Icons.file_copy,
+            label: tr("documents.selection.duplicate.tooltip"),
+            onPressed: () => _duplicateDocument(docIndex),
+          ),
+        ];
+
     if (compactView) {
-      return PopupMenuButton<PopUpType>(
+      return PopupMenuButton<String>(
         tooltip: tr("documents.card.actions"),
         icon: const Icon(Icons.more_vert),
         itemBuilder: (context) => [
-          PopupMenuItem(
-            value: PopUpType.save,
-            onTap: () => showPagesPopup(context, [], PopUpType.save, docIndex),
-            child: Row(
-              children: [
-                const Icon(Icons.save),
-                const SizedBox(width: 12),
-                Text(tr("fabs.save")),
-              ],
+          for (final action in actions)
+            PopupMenuItem(
+              value: action.value,
+              onTap: action.onPressed,
+              child: Row(
+                children: [
+                  Icon(action.icon),
+                  const SizedBox(width: 12),
+                  Text(action.label),
+                ],
+              ),
             ),
-          ),
-          PopupMenuItem(
-            value: PopUpType.share,
-            onTap: () => showPagesPopup(context, [], PopUpType.share, docIndex),
-            child: Row(
-              children: [
-                const Icon(Icons.share),
-                const SizedBox(width: 12),
-                Text(tr("fabs.share")),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: PopUpType.delete,
-            onTap: () =>
-                showPagesPopup(context, [], PopUpType.delete, docIndex),
-            child: Row(
-              children: [
-                const Icon(Icons.delete),
-                const SizedBox(width: 12),
-                Text(tr("fabs.delete")),
-              ],
-            ),
-          ),
         ],
+      );
+    }
+
+    final actionButtons = [
+      for (final action in actions)
+        IconButton(
+          visualDensity: standardView ? VisualDensity.compact : null,
+          padding: standardView ? const EdgeInsets.all(4) : null,
+          onPressed: action.onPressed,
+          icon: Icon(action.icon),
+          tooltip: action.label,
+        ),
+    ];
+
+    if (standardView) {
+      return SizedBox(
+        width: 96,
+        height: 128,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: actionButtons.take(2).toList(),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: actionButtons.skip(2).toList(),
+            ),
+          ],
+        ),
       );
     }
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          visualDensity: standardView ? VisualDensity.compact : null,
-          padding: standardView ? const EdgeInsets.all(4) : null,
-          onPressed: () =>
-              showPagesPopup(context, [], PopUpType.save, docIndex),
-          icon: const Icon(Icons.save),
-          tooltip: tr("fabs.save"),
-        ),
-        IconButton(
-          visualDensity: standardView ? VisualDensity.compact : null,
-          padding: standardView ? const EdgeInsets.all(4) : null,
-          onPressed: () =>
-              showPagesPopup(context, [], PopUpType.share, docIndex),
-          icon: const Icon(Icons.share),
-          tooltip: tr("fabs.share"),
-        ),
-        IconButton(
-          visualDensity: standardView ? VisualDensity.compact : null,
-          padding: standardView ? const EdgeInsets.all(4) : null,
-          onPressed: () =>
-              showPagesPopup(context, [], PopUpType.delete, docIndex),
-          icon: const Icon(Icons.delete),
-          tooltip: tr("fabs.delete"),
-        ),
-      ],
+      children: actionButtons,
     );
   }
 
@@ -1389,7 +1422,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                             maxLines:
                                                                 standardView
                                                                 ? 2
-                                                                : 5,
+                                                                : 4,
                                                           ),
                                                           SizedBox(
                                                             height: standardView

@@ -1272,22 +1272,17 @@ Future<bool> showMergeDocumentsConfirmation(
             ),
           ),
           actions: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context, true),
-                  icon: const RotatedBox(
-                    quarterTurns: 1,
-                    child: Icon(Icons.unfold_less),
-                  ),
-                  label: Text(tr("documents.selection.merge.confirm")),
-                ),
-                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(tr("popup.cancel")),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(tr("documents.selection.merge.confirm")),
                 ),
               ],
             ),
@@ -1299,8 +1294,9 @@ Future<bool> showMergeDocumentsConfirmation(
 
 Future<bool> showDuplicateDocumentConfirmation(
   BuildContext callContext,
-  int docIndex,
-) async {
+  int docIndex, {
+  required String documentName,
+}) async {
   final (thumbnailPaths, pageCount) = await g.filesHelper.getPagesThumbnails(
     docIndex,
     fullSized: false,
@@ -1319,7 +1315,10 @@ Future<bool> showDuplicateDocumentConfirmation(
         builder: (context) => AlertDialog(
           title: _PopupTitle(
             icon: Icons.file_copy,
-            text: tr("documents.selection.duplicate.title"),
+            text: tr(
+              "documents.selection.duplicate.title",
+              namedArgs: {"name": documentName},
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -1339,19 +1338,17 @@ Future<bool> showDuplicateDocumentConfirmation(
             ),
           ),
           actions: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.file_copy),
-                  label: Text(tr("documents.selection.duplicate.confirm")),
-                ),
-                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(tr("popup.cancel")),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(tr("documents.selection.duplicate.confirm")),
                 ),
               ],
             ),
@@ -1458,12 +1455,11 @@ Future<int?> showCopyPagesDialog(
                 child: Text(tr("popup.cancel")),
               ),
               const SizedBox(width: 8),
-              ElevatedButton.icon(
+              ElevatedButton(
                 onPressed: targetDocIndex == null
                     ? null
                     : () => Navigator.pop(context, targetDocIndex),
-                icon: const Icon(Icons.drive_file_move),
-                label: Text(tr("pages.copy.confirm")),
+                child: Text(tr("pages.copy.confirm")),
               ),
             ],
           ),

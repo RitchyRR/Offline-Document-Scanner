@@ -805,9 +805,7 @@ class _PagesState extends State<Pages>
   }
 
   Future<void> _copySelectedPages() async {
-    if (_selectedPages.isEmpty ||
-        _copyTargetDocIndexes.isEmpty ||
-        !mounted) {
+    if (_selectedPages.isEmpty || _copyTargetDocIndexes.isEmpty || !mounted) {
       return;
     }
     final selectedPages = List<int>.from(_selectedPages)..sort();
@@ -848,15 +846,15 @@ class _PagesState extends State<Pages>
       );
       if (mounted) {
         messenger.hideCurrentSnackBar();
-        final targetName =
-            (await g.metadataHelper.readDocName(targetDocIndex))?.trim();
-        final targetDocumentName =
-            targetName == null || targetName.isEmpty
-                ? tr(
-                    "documents.docIndex",
-                    namedArgs: {"docIndex": "${targetDocIndex + 1}"},
-                  )
-                : targetName;
+        final targetName = (await g.metadataHelper.readDocName(
+          targetDocIndex,
+        ))?.trim();
+        final targetDocumentName = targetName == null || targetName.isEmpty
+            ? tr(
+                "documents.docIndex",
+                namedArgs: {"docIndex": "${targetDocIndex + 1}"},
+              )
+            : targetName;
         await Fluttertoast.showToast(
           msg: tr(
             selectedPages.length == 1
@@ -875,9 +873,7 @@ class _PagesState extends State<Pages>
       dev.log("Error, copySelectedPages: $error", stackTrace: stackTrace);
       messenger.hideCurrentSnackBar();
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(tr("pages.copy.error"))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(tr("pages.copy.error"))));
       }
     }
   }
@@ -2025,7 +2021,7 @@ class _PagesState extends State<Pages>
                                 Navigator.pop(context, true);
                               }
                             : null,
-                        child: Text(tr("popup.ok")),
+                        child: Text(tr("popup.changeThumbnails.confirm")),
                       )
                     : ElevatedButton.icon(
                         icon: Icon(Icons.lock),

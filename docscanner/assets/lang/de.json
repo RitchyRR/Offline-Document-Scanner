@@ -31,7 +31,7 @@
       "duplicate": {
         "name": "Kopie von {name}",
         "tooltip": "Duplizieren",
-        "title": "Dokument duplizieren",
+        "title": "{name} duplizieren",
         "text": "Eine Kopie dieses Dokuments wird erstellt.\nDas Original bleibt erhalten.",
         "confirm": "Duplizieren",
         "processing": "Dokument wird dupliziert",
@@ -221,7 +221,8 @@
       "hint": "Deine Nachricht hier.\n"
     },
     "changeThumbnails": {
-      "title": "Vorschau-Version auswählen"
+      "title": "Vorschau-Version auswählen",
+      "confirm": "Austauschen"
     },
     "defaultThumbnail": {
       "title": "Standard Filter auswählen",
