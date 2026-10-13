@@ -1251,7 +1251,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   final double cardHeight = switch (documentsView) {
                     DocumentsView.standard => 128.0,
                     DocumentsView.spacious => 160.0 * math.sqrt2,
-                    DocumentsView.compact => 88.0,
+                    DocumentsView.compact => 80.0,
                   };
                   final double thumbnailSlotWidth =
                       documentsView == DocumentsView.spacious
@@ -1271,7 +1271,10 @@ class _DocumentsHomeState extends State<DocumentsHome>
                       ? null
                       : () => _selectDocument(docIndex);
                   return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: compactView ? 2 : 6,
+                    ),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onLongPress: () => _selectDocument(docIndex),
@@ -1291,212 +1294,225 @@ class _DocumentsHomeState extends State<DocumentsHome>
                               children: [
                                 // Document Info + Buttons (Left Side)
                                 Expanded(
-                                  child: Card(
-                                    margin: EdgeInsets.only(
-                                      right: compactView ? 8 : 0,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    clipBehavior: compactView
-                                        ? Clip.antiAlias
-                                        : Clip.none,
-                                    elevation: compactView ? 2 : 0,
-                                    color: compactView
-                                        ? null
-                                        : Colors.transparent,
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(12),
-                                      onTap: compactView ? onCardTap : null,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          // Document Info
-                                          if (compactView)
-                                            Flexible(
-                                              child: InkWell(
-                                                borderRadius:
-                                                    const BorderRadius.all(
-                                                      Radius.circular(12.0),
-                                                    ),
-                                                onTap: onDocumentInfoTap,
-                                                onLongPress:
-                                                    onDocumentInfoLongPress,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
+                                  child: SizedBox(
+                                    height: compactView
+                                        ? cardHeight - 8
+                                        : cardHeight,
+                                    child: Card(
+                                      margin: EdgeInsets.only(
+                                        right: compactView ? 8 : 0,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      clipBehavior: compactView
+                                          ? Clip.antiAlias
+                                          : Clip.none,
+                                      elevation: compactView ? 2 : 0,
+                                      color: compactView
+                                          ? null
+                                          : Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: compactView ? onCardTap : null,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            // Document Info
+                                            if (compactView)
+                                              Flexible(
+                                                child: InkWell(
+                                                  borderRadius:
+                                                      const BorderRadius.all(
+                                                        Radius.circular(12.0),
                                                       ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Text(
-                                                        docName,
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                  onTap: onDocumentInfoTap,
+                                                  onLongPress:
+                                                      onDocumentInfoLongPress,
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 6,
                                                         ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        maxLines: 1,
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        [
-                                                          tr(
-                                                            pagesCount == 1
-                                                                ? "documents.card.compactPageCount"
-                                                                : "documents.card.compactPagesCount",
-                                                            namedArgs: {
-                                                              "pagesCount":
-                                                                  "$pagesCount",
-                                                            },
-                                                          ),
-                                                          if (displayCreationDate
-                                                              .isNotEmpty)
-                                                            displayCreationDate,
-                                                        ].join(" • "),
-                                                        style: TextStyle(
-                                                          fontSize: 13,
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .onSurface
-                                                                  .withAlpha(
-                                                                    150,
-                                                                  ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          docName,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
                                                         ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        maxLines: 1,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                          else
-                                            Flexible(
-                                              child: InkWell(
-                                                borderRadius: BorderRadius.all(
-                                                  Radius.circular(12.0),
-                                                ),
-                                                onTap: onDocumentInfoTap,
-                                                onLongPress:
-                                                    onDocumentInfoLongPress,
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(
-                                                    standardView ? 8 : 12,
-                                                  ),
-                                                  child: Builder(
-                                                    builder: (context) {
-                                                      return Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        children: [
-                                                          Text(
-                                                            docName,
-                                                            style: TextStyle(
-                                                              fontSize: 18,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                            maxLines:
-                                                                standardView
-                                                                ? 2
-                                                                : 4,
-                                                          ),
-                                                          SizedBox(
-                                                            height: standardView
-                                                                ? 4
-                                                                : 6,
-                                                          ),
-                                                          displayCreationDate
-                                                                  .isNotEmpty
-                                                              ? Text(
-                                                                  tr(
-                                                                    "documents.card.date",
-                                                                    namedArgs: {
-                                                                      "creationDate":
-                                                                          displayCreationDate,
-                                                                    },
-                                                                  ),
-                                                                  style: TextStyle(
-                                                                    fontSize:
-                                                                        14,
-                                                                    color: Theme.of(context)
-                                                                        .colorScheme
-                                                                        .onSurface
-                                                                        .withAlpha(150),
-                                                                  ),
-                                                                )
-                                                              : SizedBox(),
-                                                          SizedBox(
-                                                            height:
-                                                                displayCreationDate
-                                                                    .isNotEmpty
-                                                                ? 4
-                                                                : 0,
-                                                          ),
-                                                          Text(
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Text(
+                                                          [
                                                             tr(
-                                                              "documents.card.pagesCount",
+                                                              pagesCount == 1
+                                                                  ? "documents.card.compactPageCount"
+                                                                  : "documents.card.compactPagesCount",
                                                               namedArgs: {
                                                                 "pagesCount":
                                                                     "$pagesCount",
                                                               },
                                                             ),
-                                                            style: TextStyle(
-                                                              fontSize: 14,
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .onSurface
-                                                                      .withAlpha(
-                                                                        150,
-                                                                      ),
-                                                            ),
+                                                            if (displayCreationDate
+                                                                .isNotEmpty)
+                                                              displayCreationDate,
+                                                          ].join(" • "),
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onSurface
+                                                                    .withAlpha(
+                                                                      150,
+                                                                    ),
                                                           ),
-                                                        ],
-                                                      );
-                                                    },
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Flexible(
+                                                child: InkWell(
+                                                  borderRadius:
+                                                      BorderRadius.all(
+                                                        Radius.circular(12.0),
+                                                      ),
+                                                  onTap: onDocumentInfoTap,
+                                                  onLongPress:
+                                                      onDocumentInfoLongPress,
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(
+                                                      standardView ? 8 : 12,
+                                                    ),
+                                                    child: Builder(
+                                                      builder: (context) {
+                                                        return Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                            Text(
+                                                              docName,
+                                                              style: TextStyle(
+                                                                fontSize: 18,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              maxLines:
+                                                                  standardView
+                                                                  ? 2
+                                                                  : 4,
+                                                            ),
+                                                            SizedBox(
+                                                              height:
+                                                                  standardView
+                                                                  ? 4
+                                                                  : 6,
+                                                            ),
+                                                            displayCreationDate
+                                                                    .isNotEmpty
+                                                                ? Text(
+                                                                    tr(
+                                                                      "documents.card.date",
+                                                                      namedArgs: {
+                                                                        "creationDate":
+                                                                            displayCreationDate,
+                                                                      },
+                                                                    ),
+                                                                    style: TextStyle(
+                                                                      fontSize:
+                                                                          14,
+                                                                      color: Theme.of(context)
+                                                                          .colorScheme
+                                                                          .onSurface
+                                                                          .withAlpha(150),
+                                                                    ),
+                                                                  )
+                                                                : SizedBox(),
+                                                            SizedBox(
+                                                              height:
+                                                                  displayCreationDate
+                                                                      .isNotEmpty
+                                                                  ? 4
+                                                                  : 0,
+                                                            ),
+                                                            Text(
+                                                              tr(
+                                                                "documents.card.pagesCount",
+                                                                namedArgs: {
+                                                                  "pagesCount":
+                                                                      "$pagesCount",
+                                                                },
+                                                              ),
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .onSurface
+                                                                        .withAlpha(
+                                                                          150,
+                                                                        ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        );
+                                                      },
+                                                    ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          // Keep actions left of the thumbnail in a fixed position.
-                                          if (!_selectMode)
-                                            GestureDetector(
-                                              onLongPress: () =>
-                                                  _selectDocument(docIndex),
-                                              child: _buildDocumentActions(
-                                                context,
-                                                docIndex,
-                                                compactView: compactView,
-                                                standardView: standardView,
+                                            // Keep actions left of the thumbnail in a fixed position.
+                                            if (!_selectMode)
+                                              GestureDetector(
+                                                onLongPress: () =>
+                                                    _selectDocument(docIndex),
+                                                child: _buildDocumentActions(
+                                                  context,
+                                                  docIndex,
+                                                  compactView: compactView,
+                                                  standardView: standardView,
+                                                ),
                                               ),
-                                            ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
