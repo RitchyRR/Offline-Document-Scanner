@@ -889,8 +889,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
   Widget _buildDocumentActions(
     BuildContext context,
     int docIndex, {
-    required bool compactView,
-    required bool standardView,
+    required DocumentsView documentsView,
   }) {
     final actions =
         <({String value, IconData icon, String label, VoidCallback onPressed})>[
@@ -923,7 +922,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
           ),
         ];
 
-    if (compactView) {
+    if (documentsView == DocumentsView.compact) {
       return PopupMenuButton<String>(
         tooltip: tr("documents.card.actions"),
         icon: const Icon(Icons.more_vert),
@@ -947,15 +946,19 @@ class _DocumentsHomeState extends State<DocumentsHome>
     final actionButtons = [
       for (final action in actions)
         IconButton(
-          visualDensity: standardView ? VisualDensity.compact : null,
-          padding: standardView ? const EdgeInsets.all(4) : null,
+          visualDensity: documentsView == DocumentsView.medium
+              ? VisualDensity.compact
+              : null,
+          padding: documentsView == DocumentsView.medium
+              ? const EdgeInsets.all(4)
+              : null,
           onPressed: action.onPressed,
           icon: Icon(action.icon),
           tooltip: action.label,
         ),
     ];
 
-    if (standardView) {
+    if (documentsView == DocumentsView.medium) {
       return SizedBox(
         width: 96,
         height: 128,
@@ -1239,17 +1242,13 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   final bool isLoading =
                       _loadingDocs.length <= docIndex || _loadingDocs[docIndex];
                   final documentsView = _documentsView ?? DocumentsView.compact;
-                  final bool compactView =
-                      documentsView == DocumentsView.compact;
-                  final bool standardView =
-                      documentsView == DocumentsView.standard;
                   final double selectionIconSize = switch (documentsView) {
                     DocumentsView.compact => 28,
-                    DocumentsView.standard => 30,
+                    DocumentsView.medium => 30,
                     DocumentsView.spacious => 34,
                   };
                   final double cardHeight = switch (documentsView) {
-                    DocumentsView.standard => 128.0,
+                    DocumentsView.medium => 128.0,
                     DocumentsView.spacious => 160.0 * math.sqrt2,
                     DocumentsView.compact => 80.0,
                   };
@@ -1273,7 +1272,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                   return Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: compactView ? 2 : 6,
+                      vertical: documentsView == DocumentsView.compact ? 2 : 6,
                     ),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -1282,12 +1281,20 @@ class _DocumentsHomeState extends State<DocumentsHome>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        margin: compactView ? EdgeInsets.zero : null,
-                        elevation: compactView ? 0 : 2.0,
-                        color: compactView ? Colors.transparent : null,
+                        margin: documentsView == DocumentsView.compact
+                            ? EdgeInsets.zero
+                            : null,
+                        elevation: documentsView == DocumentsView.compact
+                            ? 0
+                            : 2.0,
+                        color: documentsView == DocumentsView.compact
+                            ? Colors.transparent
+                            : null,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: compactView ? null : onCardTap,
+                          onTap: documentsView == DocumentsView.compact
+                              ? null
+                              : onCardTap,
                           child: SizedBox(
                             height: cardHeight,
                             child: Row(
@@ -1295,26 +1302,40 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                 // Document Info + Buttons (Left Side)
                                 Expanded(
                                   child: SizedBox(
-                                    height: compactView
+                                    height:
+                                        documentsView == DocumentsView.compact
                                         ? cardHeight - 8
                                         : cardHeight,
                                     child: Card(
                                       margin: EdgeInsets.only(
-                                        right: compactView ? 8 : 0,
+                                        right:
+                                            documentsView ==
+                                                DocumentsView.compact
+                                            ? 8
+                                            : 0,
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      clipBehavior: compactView
+                                      clipBehavior:
+                                          documentsView == DocumentsView.compact
                                           ? Clip.antiAlias
                                           : Clip.none,
-                                      elevation: compactView ? 2 : 0,
-                                      color: compactView
+                                      elevation:
+                                          documentsView == DocumentsView.compact
+                                          ? 2
+                                          : 0,
+                                      color:
+                                          documentsView == DocumentsView.compact
                                           ? null
                                           : Colors.transparent,
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(12),
-                                        onTap: compactView ? onCardTap : null,
+                                        onTap:
+                                            documentsView ==
+                                                DocumentsView.compact
+                                            ? onCardTap
+                                            : null,
                                         child: Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceBetween,
@@ -1322,7 +1343,8 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                               CrossAxisAlignment.center,
                                           children: [
                                             // Document Info
-                                            if (compactView)
+                                            if (documentsView ==
+                                                DocumentsView.compact)
                                               Flexible(
                                                 child: InkWell(
                                                   borderRadius:
@@ -1410,7 +1432,11 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                       onDocumentInfoLongPress,
                                                   child: Padding(
                                                     padding: EdgeInsets.all(
-                                                      standardView ? 8 : 12,
+                                                      documentsView ==
+                                                              DocumentsView
+                                                                  .medium
+                                                          ? 8
+                                                          : 12,
                                                     ),
                                                     child: Builder(
                                                       builder: (context) {
@@ -1434,13 +1460,17 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                                   TextOverflow
                                                                       .ellipsis,
                                                               maxLines:
-                                                                  standardView
+                                                                  documentsView ==
+                                                                      DocumentsView
+                                                                          .medium
                                                                   ? 2
                                                                   : 4,
                                                             ),
                                                             SizedBox(
                                                               height:
-                                                                  standardView
+                                                                  documentsView ==
+                                                                      DocumentsView
+                                                                          .medium
                                                                   ? 4
                                                                   : 6,
                                                             ),
@@ -1507,8 +1537,7 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                 child: _buildDocumentActions(
                                                   context,
                                                   docIndex,
-                                                  compactView: compactView,
-                                                  standardView: standardView,
+                                                  documentsView: documentsView,
                                                 ),
                                               ),
                                           ],
@@ -1519,14 +1548,18 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                 ),
                                 // Thumbnail (Right Side)
                                 SizedBox(
-                                  width: compactView
+                                  width: documentsView == DocumentsView.compact
                                       ? thumbnailSlotWidth
                                       : null,
                                   child: Align(
-                                    alignment: compactView
+                                    alignment:
+                                        documentsView == DocumentsView.compact
                                         ? Alignment.center
                                         : Alignment.centerRight,
-                                    widthFactor: compactView ? null : 1,
+                                    widthFactor:
+                                        documentsView == DocumentsView.compact
+                                        ? null
+                                        : 1,
                                     child: ConstrainedBox(
                                       constraints: BoxConstraints(
                                         maxWidth: thumbnailSlotWidth,

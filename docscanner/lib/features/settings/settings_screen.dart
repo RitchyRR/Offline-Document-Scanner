@@ -141,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       DropdownMenuItem(
-                        value: DocumentsView.standard,
+                        value: DocumentsView.medium,
                         alignment: AlignmentDirectional.centerEnd,
                         child: Text(
                           tr("documents.views.mediumView"),
