@@ -41,8 +41,14 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    _volumeChannel.setMethodCallHandler(
+      (call) async => call.method == 'volumeKey' ? _triggerShutter() : null,
+    );
+    _volumeChannel.invokeMethod('setEnabled', true);
     _initializeCamera();
   }
+
+  static const _volumeChannel = MethodChannel('docscanner/volume');
 
   Future<void> _initializeCamera() async {
     _permissionStatus = await Permission.camera.request();
@@ -119,10 +125,22 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() async {
+    _volumeChannel.invokeMethod('setEnabled', false);
+    _volumeChannel.setMethodCallHandler(null);
     super.dispose();
     await _controller?.setFlashMode(FlashMode.off);
     _controller?.dispose();
     _controller = null;
+  }
+
+  void _triggerShutter() {
+    if (_cameraFlash || _controller == null) return;
+    HapticFeedback.mediumImpact();
+    setState(() => _isPressingCaptureButton = true);
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) setState(() => _isPressingCaptureButton = false);
+    });
+    _takePhoto();
   }
 
   Future<void> _toggleFlash() async {
@@ -425,7 +443,6 @@ class _CameraScreenState extends State<CameraScreen> {
         }
       },
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.black,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
