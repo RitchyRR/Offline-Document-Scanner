@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
-class ThumbnailWithBadge extends StatelessWidget {
+class ThumbnailWithBadge extends StatefulWidget {
   final XFile? image;
   final int count;
   final VoidCallback? onTap;
@@ -16,7 +16,56 @@ class ThumbnailWithBadge extends StatelessWidget {
   });
 
   @override
+  State<ThumbnailWithBadge> createState() => _ThumbnailWithBadgeState();
+}
+
+class _ThumbnailWithBadgeState extends State<ThumbnailWithBadge> {
+  String? _shownPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _shownPath = widget.image?.path;
+  }
+
+  @override
+  void didUpdateWidget(covariant ThumbnailWithBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newPath = widget.image?.path;
+    if (newPath == _shownPath) return;
+    if (newPath == null) {
+      setState(() => _shownPath = null);
+      return;
+    }
+    // Erst wechseln, wenn das neue Bild geladen ist – bis dahin bleibt das alte sichtbar
+    precacheImage(FileImage(File(newPath)), context)
+        .then((_) {
+          if (mounted && widget.image?.path == newPath) {
+            setState(() => _shownPath = newPath);
+          }
+        })
+        .catchError((_) {});
+  }
+
+  Widget _buildCircle(String? path) {
+    return Container(
+      key: ValueKey<String?>(path),
+      width: 55,
+      height: 55,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        image: path != null
+            ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
+            : null,
+        color: Colors.white30,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final count = widget.count;
+    final onTap = widget.onTap;
     final fontSize = 16.0;
     final containerSize =
         MediaQuery.of(context).textScaler.scale(fontSize) * 1.5;
@@ -26,22 +75,51 @@ class ThumbnailWithBadge extends StatelessWidget {
       child: Stack(
         alignment: Alignment.topRight,
         children: [
-          Container(
+          SizedBox(
             width: 55,
             height: 55,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: image != null ? Colors.white : Colors.white54,
-                width: 2,
-              ),
-              image: image != null
-                  ? DecorationImage(
-                      image: FileImage(File(image!.path)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-              color: Colors.white30,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipOval(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      // Neues Bild kommt von unten, altes geht nach oben weg
+                      final isOutgoing =
+                          (child.key as ValueKey<String?>?)?.value !=
+                          _shownPath;
+                      final begin = isOutgoing
+                          ? const Offset(0, -1)
+                          : const Offset(0, 1);
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: begin,
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      );
+                    },
+                    child: _buildCircle(_shownPath),
+                  ),
+                ),
+                // Fester Rahmen, bewegt sich nicht mit den Thumbnails
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _shownPath != null
+                            ? Colors.white
+                            : Colors.white54,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           if (count > 0)

@@ -624,7 +624,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         curve: Curves.easeOutCubic,
                         child: ThumbnailWithBadge(
                           image: _capturedImages.isNotEmpty
-                              ? _capturedImages.first
+                              ? _capturedImages.last
                               : null,
                           count: _capturedImages.length,
                           onTap: _capturedImages.isEmpty
