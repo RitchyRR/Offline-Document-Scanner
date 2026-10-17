@@ -1644,7 +1644,14 @@ class _DocumentsHomeState extends State<DocumentsHome>
                                                   _docThumbnails[docIndex]
                                                       .isEmpty ||
                                                   isLoading)
-                                                IndicatorProcessingImage(),
+                                                IndicatorProcessingImage(
+                                                  showText:
+                                                      documentsView !=
+                                                      DocumentsView.compact,
+                                                  smallText:
+                                                      documentsView !=
+                                                      DocumentsView.spacious,
+                                                ),
                                               if (_selectMode &&
                                                   _selectedDocs.contains(
                                                     docIndex,
