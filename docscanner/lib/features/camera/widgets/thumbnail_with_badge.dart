@@ -64,13 +64,11 @@ class _ThumbnailWithBadgeState extends State<ThumbnailWithBadge> {
 
   @override
   Widget build(BuildContext context) {
-    final count = widget.count;
-    final onTap = widget.onTap;
     final fontSize = 16.0;
     final containerSize =
         MediaQuery.of(context).textScaler.scale(fontSize) * 1.5;
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       customBorder: const CircleBorder(),
       child: Stack(
         alignment: Alignment.topRight,
@@ -86,17 +84,15 @@ class _ThumbnailWithBadgeState extends State<ThumbnailWithBadge> {
                     duration: const Duration(milliseconds: 350),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
+                    // Neues Bild kommt von unten, altes geht nach oben weg
                     transitionBuilder: (child, animation) {
-                      // Neues Bild kommt von unten, altes geht nach oben weg
-                      final isOutgoing =
-                          (child.key as ValueKey<String?>?)?.value !=
-                          _shownPath;
-                      final begin = isOutgoing
-                          ? const Offset(0, -1)
-                          : const Offset(0, 1);
+                      final isIncoming =
+                          child.key == ValueKey<String?>(_shownPath);
                       return SlideTransition(
                         position: Tween<Offset>(
-                          begin: begin,
+                          begin: isIncoming
+                              ? const Offset(0, 1)
+                              : const Offset(0, -1),
                           end: Offset.zero,
                         ).animate(animation),
                         child: child,
@@ -122,7 +118,7 @@ class _ThumbnailWithBadgeState extends State<ThumbnailWithBadge> {
               ],
             ),
           ),
-          if (count > 0)
+          if (widget.count > 0)
             Positioned(
               right: 0,
               top: 0,
@@ -135,7 +131,7 @@ class _ThumbnailWithBadgeState extends State<ThumbnailWithBadge> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  "$count",
+                  "${widget.count}",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: fontSize,
