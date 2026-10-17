@@ -44,7 +44,7 @@ class _CameraScreenState extends State<CameraScreen> {
     _volumeChannel.setMethodCallHandler(
       (call) async => call.method == 'volumeKey' ? _triggerShutter() : null,
     );
-    _volumeChannel.invokeMethod('setEnabled', true);
+    _setVolumeCapture(true);
     _initializeCamera();
   }
 
@@ -125,13 +125,16 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() async {
-    _volumeChannel.invokeMethod('setEnabled', false);
+    _setVolumeCapture(false);
     _volumeChannel.setMethodCallHandler(null);
     super.dispose();
     await _controller?.setFlashMode(FlashMode.off);
     _controller?.dispose();
     _controller = null;
   }
+
+  void _setVolumeCapture(bool enabled) =>
+      _volumeChannel.invokeMethod('setEnabled', enabled);
 
   void _triggerShutter() {
     if (_cameraFlash || _controller == null) return;
@@ -206,6 +209,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   void _openPhotosGrid(BuildContext context) {
     _setFlash(false);
+    _setVolumeCapture(false);
     final Set<int> selectedIndices = <int>{};
     bool selectionMode = false;
     showModalBottomSheet(
@@ -322,7 +326,7 @@ class _CameraScreenState extends State<CameraScreen> {
           );
         },
       ),
-    );
+    ).whenComplete(() => _setVolumeCapture(true));
   }
 
   Future<void> _confirmDeleteSelectedPhotos(
